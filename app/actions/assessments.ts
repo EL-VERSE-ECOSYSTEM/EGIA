@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { assessment, question, userRole } from '@/lib/db/schema'
+import { assessment, assessmentQuestion, userRole, teacher } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 
@@ -12,84 +12,83 @@ async function getUserId() {
   return session.user.id
 }
 
-async function isTeacher() {
-  const userId = await getUserId()
-  const role = await db.query.userRole.findFirst({
-    where: eq(userRole.userId, userId),
+async function getTeacherId(userId: string) {
+  const teacherRecord = await db.query.teacher.findFirst({
+    where: eq(teacher.userId, userId),
   })
-  if (role?.role !== 'teacher') throw new Error('Teacher access required')
-  return true
+  if (!teacherRecord) throw new Error('Teacher record not found')
+  return teacherRecord.id
 }
 
 export async function createAssessment(data: {
   title: string
-  subject: string
-  class: string
+  subjectId: number
+  assessmentType: 'quiz' | 'test' | 'exam' | 'assignment'
   description?: string
   totalMarks: number
-  duration: number
-  deadline?: Date
+  duration?: number
+  scheduleDate: Date
 }) {
-  await isTeacher()
   const userId = await getUserId()
+  const teacherId = await getTeacherId(userId)
 
   const newAssessment = await db.insert(assessment).values({
-    id: crypto.randomUUID(),
     title: data.title,
-    subject: data.subject,
-    class: data.class,
+    subjectId: data.subjectId,
+    assessmentType: data.assessmentType,
     description: data.description,
     totalMarks: data.totalMarks,
     duration: data.duration,
-    deadline: data.deadline,
-    createdBy: userId,
+    scheduleDate: data.scheduleDate,
+    createdBy: teacherId,
     status: 'draft',
-    createdAt: new Date(),
   }).returning()
 
   return newAssessment[0]
 }
 
-export async function addQuestion(assessmentId: string, data: {
+export async function addQuestion(assessmentId: number, data: {
   questionText: string
-  questionType: 'mcq' | 'shortAnswer' | 'essay'
+  questionType: 'multiple_choice' | 'short_answer' | 'essay'
   marks: number
   options?: string[]
   correctAnswer?: string
-  sequence: number
+  sequenceNumber: number
 }) {
-  await isTeacher()
+  const userId = await getUserId()
+  await getTeacherId(userId)
 
-  const newQuestion = await db.insert(question).values({
-    id: crypto.randomUUID(),
+  const newQuestion = await db.insert(assessmentQuestion).values({
     assessmentId,
     questionText: data.questionText,
     questionType: data.questionType,
     marks: data.marks,
     options: data.options ? JSON.stringify(data.options) : null,
     correctAnswer: data.correctAnswer,
-    sequence: data.sequence,
+    sequenceNumber: data.sequenceNumber,
   }).returning()
 
   return newQuestion[0]
 }
 
-export async function getAssessments(userId?: string) {
-  if (!userId) {
-    const currentUserId = await getUserId()
-    userId = currentUserId
+export async function getAssessments(teacherId?: number) {
+  if (!teacherId) {
+    const userId = await getUserId()
+    const teacher_ = await db.query.teacher.findFirst({
+      where: eq(teacher.userId, userId),
+    })
+    if (!teacher_) throw new Error('Teacher not found')
+    teacherId = teacher_.id
   }
 
   return db.query.assessment.findMany({
-    where: eq(assessment.createdBy, userId),
-    with: {
-      questions: true,
-    },
+    where: eq(assessment.createdBy, teacherId),
   })
 }
 
-export async function publishAssessment(assessmentId: string) {
-  await isTeacher()
+export async function publishAssessment(assessmentId: number) {
+  const userId = await getUserId()
+  await getTeacherId(userId)
 
   const result = await db.update(assessment)
     .set({
