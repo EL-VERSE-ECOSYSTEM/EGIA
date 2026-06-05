@@ -10,8 +10,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'EL GOODNEWS Academy - School Management System',
+  description: 'Complete school management system with assessments, grading, attendance tracking, and payment management',
   generator: 'v0.app',
   icons: {
     icon: [
