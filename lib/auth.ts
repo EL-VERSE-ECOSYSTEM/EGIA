@@ -1,4 +1,4 @@
-import { betterAuth } from 'better-auth'
+import { betterAuth } from 'better-auth/minimal'
 import { pool } from '@/lib/db'
 
 export const auth = betterAuth({

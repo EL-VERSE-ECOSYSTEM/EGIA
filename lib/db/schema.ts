@@ -52,10 +52,11 @@ export const verification = pgTable('verification', {
 export const userRole = pgTable('user_role', {
   id: serial('id').primaryKey(),
   userId: text('userId').notNull().unique(),
-  role: text('role').notNull().check(check('role_check', "role IN ('admin', 'teacher', 'parent', 'student')")),
+  role: text('role').notNull(),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
+  check('role_check', `"role" IN ('admin', 'teacher', 'parent', 'student')`),
 ])
 
 export const student = pgTable('student', {
@@ -65,8 +66,8 @@ export const student = pgTable('student', {
   firstName: text('firstName').notNull(),
   lastName: text('lastName').notNull(),
   dateOfBirth: date('dateOfBirth'),
-  gender: text('gender').check(check('gender_check', "gender IN ('male', 'female', 'other')")),
-  class: text('class').notNull().check(check('class_check', "class IN ('JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3')")),
+  gender: text('gender'),
+  class: text('class').notNull(),
   admissionNumber: text('admissionNumber').unique(),
   parentId: text('parentId'),
   profileImage: text('profileImage'),
@@ -75,6 +76,8 @@ export const student = pgTable('student', {
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
+  check('gender_check', `"gender" IN ('male', 'female', 'other')`),
+  check('class_check', `"class" IN ('JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3')`),
 ])
 
 export const teacher = pgTable('teacher', {
@@ -86,7 +89,7 @@ export const teacher = pgTable('teacher', {
   qualification: text('qualification'),
   specialization: text('specialization'),
   dateOfBirth: date('dateOfBirth'),
-  gender: text('gender').check(check('gender_check_teacher', "gender IN ('male', 'female', 'other')")),
+  gender: text('gender'),
   joinDate: date('joinDate'),
   profileImage: text('profileImage'),
   isActive: boolean('isActive').default(true),
@@ -94,6 +97,7 @@ export const teacher = pgTable('teacher', {
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
+  check('gender_check_teacher', `"gender" IN ('male', 'female', 'other')`),
 ])
 
 export const parent = pgTable('parent', {
@@ -103,7 +107,7 @@ export const parent = pgTable('parent', {
   firstName: text('firstName').notNull(),
   lastName: text('lastName').notNull(),
   phoneNumber: text('phoneNumber'),
-  relationship: text('relationship').check(check('relationship_check', "relationship IN ('father', 'mother', 'guardian', 'other')")),
+  relationship: text('relationship'),
   occupation: text('occupation'),
   address: text('address'),
   profileImage: text('profileImage'),
@@ -111,6 +115,7 @@ export const parent = pgTable('parent', {
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
+  check('relationship_check', `"relationship" IN ('father', 'mother', 'guardian', 'other')`),
 ])
 
 // ===== ACADEMIC STRUCTURE =====
@@ -149,25 +154,27 @@ export const assessment = pgTable('assessment', {
   title: text('title').notNull(),
   description: text('description'),
   subjectId: integer('subjectId').notNull(),
-  assessmentType: text('assessmentType').notNull().check(check('assessment_type_check', "assessmentType IN ('quiz', 'test', 'exam', 'assignment')")),
+  assessmentType: text('assessmentType').notNull(),
   totalMarks: integer('totalMarks').notNull(),
   passingMarks: integer('passingMarks'),
   duration: integer('duration'),
   scheduleDate: timestamp('scheduleDate', { withTimezone: true }).notNull(),
-  status: text('status').default('draft').check(check('assessment_status_check', "status IN ('draft', 'published', 'active', 'completed')")),
+  status: text('status').default('draft'),
   createdBy: integer('createdBy'),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.subjectId], foreignColumns: [subject.id] }),
   foreignKey({ columns: [t.createdBy], foreignColumns: [teacher.id] }),
+  check('assessment_type_check', `"assessmentType" IN ('quiz', 'test', 'exam', 'assignment')`),
+  check('assessment_status_check', `"status" IN ('draft', 'published', 'active', 'completed')`),
 ])
 
 export const assessmentQuestion = pgTable('assessment_question', {
   id: serial('id').primaryKey(),
   assessmentId: integer('assessmentId').notNull(),
   questionText: text('questionText').notNull(),
-  questionType: text('questionType').notNull().check(check('question_type_check', "questionType IN ('multiple_choice', 'short_answer', 'essay')")),
+  questionType: text('questionType').notNull(),
   marks: integer('marks').notNull(),
   options: jsonb('options'),
   correctAnswer: text('correctAnswer'),
@@ -176,6 +183,7 @@ export const assessmentQuestion = pgTable('assessment_question', {
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.assessmentId], foreignColumns: [assessment.id] }).onDelete('cascade'),
+  check('question_type_check', `"questionType" IN ('multiple_choice', 'short_answer', 'essay')`),
 ])
 
 export const assessmentResult = pgTable('assessment_result', {
@@ -185,7 +193,7 @@ export const assessmentResult = pgTable('assessment_result', {
   totalScore: integer('totalScore'),
   percentage: numeric('percentage', { precision: 5, scale: 2 }),
   grade: text('grade'),
-  status: text('status').default('pending').check(check('result_status_check', "status IN ('pending', 'submitted', 'graded')")),
+  status: text('status').default('pending'),
   gradedAt: timestamp('gradedAt', { withTimezone: true }),
   gradedBy: integer('gradedBy'),
   feedback: text('feedback'),
@@ -195,6 +203,7 @@ export const assessmentResult = pgTable('assessment_result', {
   foreignKey({ columns: [t.assessmentId], foreignColumns: [assessment.id] }),
   foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }),
   foreignKey({ columns: [t.gradedBy], foreignColumns: [teacher.id] }),
+  check('result_status_check', `"status" IN ('pending', 'submitted', 'graded')`),
 ])
 
 export const studentAnswer = pgTable('student_answer', {
@@ -216,7 +225,7 @@ export const attendance = pgTable('attendance', {
   studentId: integer('studentId').notNull(),
   classId: integer('classId').notNull(),
   date: date('date').notNull(),
-  status: text('status').notNull().check(check('attendance_status_check', "status IN ('present', 'absent', 'late', 'excused')")),
+  status: text('status').notNull(),
   remarks: text('remarks'),
   recordedBy: integer('recordedBy'),
   recordedAt: timestamp('recordedAt', { withTimezone: true }).notNull().defaultNow(),
@@ -225,13 +234,14 @@ export const attendance = pgTable('attendance', {
   foreignKey({ columns: [t.classId], foreignColumns: [class_.id] }),
   foreignKey({ columns: [t.recordedBy], foreignColumns: [teacher.id] }),
   unique().on(t.studentId, t.classId, t.date),
+  check('attendance_status_check', `"status" IN ('present', 'absent', 'late', 'excused')`),
 ])
 
 // ===== FEES & PAYMENTS =====
 export const feeStructure = pgTable('fee_structure', {
   id: serial('id').primaryKey(),
   class: text('class').notNull(),
-  feeType: text('feeType').notNull().check(check('fee_type_check', "feeType IN ('tuition', 'development', 'activity', 'exam', 'other')")),
+  feeType: text('feeType').notNull(),
   amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
   dueDate: date('dueDate'),
   description: text('description'),
@@ -240,21 +250,24 @@ export const feeStructure = pgTable('fee_structure', {
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   unique().on(t.class, t.feeType),
+  check('fee_type_check', `"feeType" IN ('tuition', 'development', 'activity', 'exam', 'other')`),
 ])
 
 export const payment = pgTable('payment', {
   id: serial('id').primaryKey(),
   studentId: integer('studentId').notNull(),
   amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
-  paymentMethod: text('paymentMethod').notNull().check(check('payment_method_check', "paymentMethod IN ('korapay', 'bank_transfer', 'cash')")),
+  paymentMethod: text('paymentMethod').notNull(),
   transactionReference: text('transactionReference').unique(),
-  status: text('status').default('pending').check(check('payment_status_check', "status IN ('pending', 'completed', 'failed', 'refunded')")),
+  status: text('status').default('pending'),
   paymentDate: timestamp('paymentDate', { withTimezone: true }),
   description: text('description'),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }),
+  check('payment_method_check', `"paymentMethod" IN ('korapay', 'bank_transfer', 'cash')`),
+  check('payment_status_check', `"status" IN ('pending', 'completed', 'failed', 'refunded')`),
 ])
 
 // ===== MESSAGES & NOTIFICATIONS =====
@@ -277,23 +290,24 @@ export const notification = pgTable('notification', {
   userId: text('userId').notNull(),
   title: text('title').notNull(),
   message: text('message').notNull(),
-  type: text('type').notNull().check(check('notification_type_check', "type IN ('assessment', 'attendance', 'grade', 'payment', 'general')")),
+  type: text('type').notNull(),
   isRead: boolean('isRead').default(false),
   actionUrl: text('actionUrl'),
   readAt: timestamp('readAt', { withTimezone: true }),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
+  check('notification_type_check', `"type" IN ('assessment', 'attendance', 'grade', 'payment', 'general')`),
 ])
 
 // ===== DISPUTE & ISSUE TRACKING =====
 export const dispute = pgTable('dispute', {
   id: serial('id').primaryKey(),
   initiatedBy: text('initiatedBy').notNull(),
-  disputeType: text('disputeType').notNull().check(check('dispute_type_check', "disputeType IN ('grade', 'assessment', 'attendance', 'fee', 'other')")),
+  disputeType: text('disputeType').notNull(),
   description: text('description').notNull(),
   relatedId: text('relatedId'),
-  status: text('status').default('open').check(check('dispute_status_check', "status IN ('open', 'in_review', 'resolved', 'closed')")),
+  status: text('status').default('open'),
   resolution: text('resolution'),
   resolvedBy: integer('resolvedBy'),
   resolvedAt: timestamp('resolvedAt', { withTimezone: true }),
@@ -302,13 +316,15 @@ export const dispute = pgTable('dispute', {
 }, (t) => [
   foreignKey({ columns: [t.initiatedBy], foreignColumns: [user.id] }).onDelete('cascade'),
   foreignKey({ columns: [t.resolvedBy], foreignColumns: [teacher.id] }),
+  check('dispute_type_check', `"disputeType" IN ('grade', 'assessment', 'attendance', 'fee', 'other')`),
+  check('dispute_status_check', `"status" IN ('open', 'in_review', 'resolved', 'closed')`),
 ])
 
 // ===== FILES & DOCUMENTS =====
 export const document = pgTable('document', {
   id: serial('id').primaryKey(),
   userId: text('userId').notNull(),
-  documentType: text('documentType').notNull().check(check('document_type_check', "documentType IN ('report', 'receipt', 'transcript', 'certificate', 'other')")),
+  documentType: text('documentType').notNull(),
   title: text('title').notNull(),
   fileUrl: text('fileUrl').notNull(),
   fileSize: integer('fileSize'),
@@ -318,6 +334,7 @@ export const document = pgTable('document', {
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
+  check('document_type_check', `"documentType" IN ('report', 'receipt', 'transcript', 'certificate', 'other')`),
 ])
 
 // ===== SETTINGS & CONFIGURATION =====
@@ -331,86 +348,3 @@ export const schoolSetting = pgTable('school_setting', {
 }, (t) => [
   foreignKey({ columns: [t.updatedBy], foreignColumns: [user.id] }),
 ])
-
-// ===== RELATIONS =====
-export const userRelations = relations(user, ({ one, many }) => ({
-  role: one(userRole, { fields: [user.id], references: [userRole.userId] }),
-  messages: many(message),
-  notifications: many(notification),
-  disputes: many(dispute),
-  documents: many(document),
-}))
-
-export const userRoleRelations = relations(userRole, ({ one }) => ({
-  user: one(user, { fields: [userRole.userId], references: [user.id] }),
-}))
-
-export const studentRelations = relations(student, ({ one, many }) => ({
-  user: one(user, { fields: [student.userId], references: [user.id] }),
-  assessmentResults: many(assessmentResult),
-  attendance: many(attendance),
-  payments: many(payment),
-}))
-
-export const teacherRelations = relations(teacher, ({ one, many }) => ({
-  user: one(user, { fields: [teacher.userId], references: [user.id] }),
-  classes: many(class_),
-  subjects: many(subject),
-  assessments: many(assessment),
-  assessmentResults: many(assessmentResult),
-  disputes: many(dispute),
-}))
-
-export const parentRelations = relations(parent, ({ one }) => ({
-  user: one(user, { fields: [parent.userId], references: [user.id] }),
-}))
-
-export const classRelations = relations(class_, ({ one, many }) => ({
-  teacher: one(teacher, { fields: [class_.teacherId], references: [teacher.id] }),
-  subjects: many(subject),
-  attendance: many(attendance),
-}))
-
-export const subjectRelations = relations(subject, ({ one, many }) => ({
-  class: one(class_, { fields: [subject.classId], references: [class_.id] }),
-  teacher: one(teacher, { fields: [subject.teacherId], references: [teacher.id] }),
-  assessments: many(assessment),
-}))
-
-export const assessmentRelations = relations(assessment, ({ one, many }) => ({
-  subject: one(subject, { fields: [assessment.subjectId], references: [subject.id] }),
-  createdByTeacher: one(teacher, { fields: [assessment.createdBy], references: [teacher.id] }),
-  questions: many(assessmentQuestion),
-  results: many(assessmentResult),
-}))
-
-export const assessmentQuestionRelations = relations(assessmentQuestion, ({ one, many }) => ({
-  assessment: one(assessment, { fields: [assessmentQuestion.assessmentId], references: [assessment.id] }),
-  studentAnswers: many(studentAnswer),
-}))
-
-export const assessmentResultRelations = relations(assessmentResult, ({ one, many }) => ({
-  assessment: one(assessment, { fields: [assessmentResult.assessmentId], references: [assessment.id] }),
-  student: one(student, { fields: [assessmentResult.studentId], references: [student.id] }),
-  gradedByTeacher: one(teacher, { fields: [assessmentResult.gradedBy], references: [teacher.id] }),
-  answers: many(studentAnswer),
-}))
-
-export const attendanceRelations = relations(attendance, ({ one }) => ({
-  student: one(student, { fields: [attendance.studentId], references: [student.id] }),
-  class: one(class_, { fields: [attendance.classId], references: [class_.id] }),
-  recordedByTeacher: one(teacher, { fields: [attendance.recordedBy], references: [teacher.id] }),
-}))
-
-export const paymentRelations = relations(payment, ({ one }) => ({
-  student: one(student, { fields: [payment.studentId], references: [student.id] }),
-}))
-
-export const disputeRelations = relations(dispute, ({ one }) => ({
-  initiatedByUser: one(user, { fields: [dispute.initiatedBy], references: [user.id] }),
-  resolvedByTeacher: one(teacher, { fields: [dispute.resolvedBy], references: [teacher.id] }),
-}))
-
-export const documentRelations = relations(document, ({ one }) => ({
-  user: one(user, { fields: [document.userId], references: [user.id] }),
-}))
