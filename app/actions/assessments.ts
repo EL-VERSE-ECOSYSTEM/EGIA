@@ -20,6 +20,15 @@ async function getTeacherId(userId: string) {
   return teacherRecord.id
 }
 
+async function isTeacher() {
+  const userId = await getUserId()
+  const roleData = await db.query.userRole.findFirst({
+    where: eq(userRole.userId, userId),
+  })
+  if (roleData?.role !== 'teacher') throw new Error('Teacher access required')
+  return true
+}
+
 export async function createAssessment(data: {
   title: string
   subjectId: number
