@@ -6,6 +6,7 @@ import { user, student, teacher, parent as parentTable, userRole, academicSessio
 import { eq, sql } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { checkPermission } from '@/lib/abac'
 
 async function getUserId() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -13,18 +14,30 @@ async function getUserId() {
   return session.user.id
 }
 
-async function isAdmin() {
-  const userId = await getUserId()
-  const roleData = await db.query.userRole.findFirst({
+async function getUserRoleData(userId: string) {
+  return await db.query.userRole.findFirst({
     where: eq(userRole.userId, userId),
   })
-  if (roleData?.role !== 'admin') throw new Error('Admin access required')
+}
+
+async function checkAdminPermission(action: any, resource: any) {
+  const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+
+  const hasPermission = await checkPermission(
+    userId,
+    roleData?.role || '',
+    action,
+    resource
+  )
+
+  if (!hasPermission) throw new Error('Permission denied')
   return true
 }
 
 // Session & Term Management
 export async function createAcademicSession(name: string, startDate: Date, endDate: Date) {
-  await isAdmin()
+  await checkAdminPermission('create', 'assessment')
   return db.insert(academicSession).values({
     id: crypto.randomUUID(),
     name,
@@ -35,7 +48,7 @@ export async function createAcademicSession(name: string, startDate: Date, endDa
 }
 
 export async function createTerm(sessionId: string, name: string, startDate: Date, endDate: Date) {
-  await isAdmin()
+  await checkAdminPermission('create', 'assessment')
   return db.insert(term).values({
     id: crypto.randomUUID(),
     sessionId,
@@ -48,7 +61,7 @@ export async function createTerm(sessionId: string, name: string, startDate: Dat
 
 // Student Management
 export async function getAllStudents() {
-  await isAdmin()
+  await checkAdminPermission('read', 'student')
   return db.query.student.findMany({
     with: {
       user: true,
@@ -57,7 +70,7 @@ export async function getAllStudents() {
 }
 
 export async function getStudent(studentId: string) {
-  await isAdmin()
+  await checkAdminPermission('read', 'student')
   return db.query.student.findFirst({
     where: eq(student.id, studentId),
     with: {
@@ -76,7 +89,7 @@ export async function createStudent(data: {
   dateOfBirth?: string
   gender?: string
 }) {
-  await isAdmin()
+  await checkAdminPermission('create', 'student')
 
   const newUser = await db.insert(user).values({
     id: crypto.randomUUID(),
@@ -113,7 +126,7 @@ export async function updateStudent(studentId: string, data: Partial<{
   dateOfBirth: string
   gender: string
 }>) {
-  await isAdmin()
+  await checkAdminPermission('update', 'student')
   const result = await db.update(student)
     .set({ ...data, updatedAt: new Date() })
     .where(eq(student.id, studentId))
@@ -122,7 +135,7 @@ export async function updateStudent(studentId: string, data: Partial<{
 }
 
 export async function promoteStudents(studentIds: string[], targetClass: string) {
-  await isAdmin()
+  await checkAdminPermission('update', 'student')
   const results = await Promise.all(studentIds.map(id =>
     db.update(student)
       .set({ class: targetClass, updatedAt: new Date() })
@@ -135,7 +148,7 @@ export async function promoteStudents(studentIds: string[], targetClass: string)
 
 // Teacher Management
 export async function getAllTeachers() {
-  await isAdmin()
+  await checkAdminPermission('read', 'teacher')
   return db.query.teacher.findMany({
     with: {
       user: true,
@@ -151,7 +164,7 @@ export async function createTeacher(data: {
   qualification?: string
   specialization?: string
 }) {
-  await isAdmin()
+  await checkAdminPermission('create', 'teacher')
   const newUser = await db.insert(user).values({
     id: crypto.randomUUID(),
     email: data.email,
@@ -176,7 +189,7 @@ export async function createTeacher(data: {
 
 // Parent Management
 export async function getAllParents() {
-  await isAdmin()
+  await checkAdminPermission('read', 'parent')
   return db.query.parent.findMany({
     with: {
       user: true,
@@ -192,7 +205,7 @@ export async function createParent(data: {
   phoneNumber?: string
   relationship?: string
 }) {
-  await isAdmin()
+  await checkAdminPermission('create', 'parent')
   const newUser = await db.insert(user).values({
     id: crypto.randomUUID(),
     email: data.email,
@@ -217,7 +230,11 @@ export async function createParent(data: {
 
 // Dashboard Metrics
 export async function getAdminDashboardStats() {
-  await isAdmin()
+  // Use a softer check for basic stats if needed, or stick to admin check
+  const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+  if (roleData?.role !== 'admin') throw new Error('Admin access required')
+
   const [studentCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
   const [teacherCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
   const [parentCount] = await db.select({ count: sql<number>`count(*)` }).from(parentTable)

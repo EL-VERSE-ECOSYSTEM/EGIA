@@ -2,9 +2,11 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { message, notification } from '@/lib/db/schema'
-import { eq, or } from 'drizzle-orm'
+import { conversation, conversationParticipant, message, user, userRole } from '@/lib/db/schema'
+import { eq, and, or } from 'drizzle-orm'
 import { headers } from 'next/headers'
+import { revalidatePath } from 'next/cache'
+import { checkPermission } from '@/lib/abac'
 
 async function getUserId() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -12,129 +14,121 @@ async function getUserId() {
   return session.user.id
 }
 
-export async function sendMessage(data: {
-  recipientId: string
-  subject?: string
-  content: string
-}) {
+async function getUserRoleData(userId: string) {
+  return await db.query.userRole.findFirst({
+    where: eq(userRole.userId, userId),
+  })
+}
+
+export async function getConversations() {
   const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+
+  const hasPermission = await checkPermission(
+    userId,
+    roleData?.role || '',
+    'read',
+    'message'
+  )
+
+  if (!hasPermission) throw new Error('Permission denied')
+
+  const participants = await db.query.conversationParticipant.findMany({
+    where: eq(conversationParticipant.userId, userId),
+    with: {
+      conversation: {
+        with: {
+          messages: {
+            limit: 1,
+            orderBy: (message, { desc }) => [desc(message.createdAt)],
+          },
+          participants: {
+            with: {
+              user: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  return participants.map(p => p.conversation)
+}
+
+export async function createConversation(recipientId: string, type: 'INDIVIDUAL' | 'GROUP' = 'INDIVIDUAL', name?: string) {
+  const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+
+  const hasPermission = await checkPermission(
+    userId,
+    roleData?.role || '',
+    'create',
+    'message'
+  )
+
+  if (!hasPermission) throw new Error('Permission denied')
+
+  const newConversation = await db.insert(conversation).values({
+    id: crypto.randomUUID(),
+    type,
+    name,
+  }).returning()
+
+  const convId = newConversation[0].id
+
+  await db.insert(conversationParticipant).values([
+    { id: crypto.randomUUID(), conversationId: convId, userId },
+    { id: crypto.randomUUID(), conversationId: convId, userId: recipientId },
+  ])
+
+  return newConversation[0]
+}
+
+export async function sendMessage(conversationId: string, content: string, attachments?: any) {
+  const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+
+  const hasPermission = await checkPermission(
+    userId,
+    roleData?.role || '',
+    'create',
+    'message'
+  )
+
+  if (!hasPermission) throw new Error('Permission denied')
 
   const newMessage = await db.insert(message).values({
     id: crypto.randomUUID(),
+    conversationId,
     senderId: userId,
-    recipientId: data.recipientId,
-    subject: data.subject,
-    content: data.content,
-    isRead: false,
-    createdAt: new Date(),
+    content,
+    attachments,
   }).returning()
 
-  // Create notification for recipient
-  await createNotification({
-    userId: data.recipientId,
-    title: 'New Message',
-    message: data.subject || `New message from a user`,
-    type: 'INFO',
-  })
+  await db.update(conversation)
+    .set({ updatedAt: new Date() })
+    .where(eq(conversation.id, conversationId))
 
+  revalidatePath('/dashboard/communication')
   return newMessage[0]
 }
 
-export async function getMessages(userId?: string) {
-  const currentUserId = await getUserId()
-  if (!userId) userId = currentUserId
+export async function getMessages(conversationId: string) {
+  const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+
+  const hasPermission = await checkPermission(
+    userId,
+    roleData?.role || '',
+    'read',
+    'message',
+    { conversationId }
+  )
+
+  if (!hasPermission) throw new Error('Permission denied')
 
   return db.query.message.findMany({
-    where: or(
-      eq(message.senderId, currentUserId),
-      eq(message.recipientId, currentUserId)
-    ),
+    where: eq(message.conversationId, conversationId),
+    orderBy: (message, { asc }) => [asc(message.createdAt)],
   })
-}
-
-export async function markMessageAsRead(messageId: string) {
-  const userId = await getUserId()
-
-  const msg = await db.query.message.findFirst({
-    where: eq(message.id, messageId),
-  })
-
-  if (!msg || msg.recipientId !== userId) {
-    throw new Error('Unauthorized')
-  }
-
-  const result = await db.update(message)
-    .set({ isRead: true })
-    .where(eq(message.id, messageId))
-    .returning()
-
-  return result[0]
-}
-
-export async function createNotification(data: {
-  userId: string
-  title: string
-  message: string
-  type: 'INFO' | 'WARNING' | 'SUCCESS' | 'ERROR'
-  metadata?: Record<string, any>
-}) {
-  const newNotification = await db.insert(notification).values({
-    id: crypto.randomUUID(),
-    userId: data.userId,
-    title: data.title,
-    message: data.message,
-    type: data.type,
-    isRead: false,
-    metadata: data.metadata ? JSON.stringify(data.metadata) : null,
-    createdAt: new Date(),
-  }).returning()
-
-  return newNotification[0]
-}
-
-export async function getNotifications(userId?: string) {
-  const currentUserId = await getUserId()
-  if (!userId) userId = currentUserId
-
-  return db.query.notification.findMany({
-    where: eq(notification.userId, userId),
-  })
-}
-
-export async function markNotificationAsRead(notificationId: string) {
-  const userId = await getUserId()
-
-  const notif = await db.query.notification.findFirst({
-    where: eq(notification.id, notificationId),
-  })
-
-  if (!notif || notif.userId !== userId) {
-    throw new Error('Unauthorized')
-  }
-
-  const result = await db.update(notification)
-    .set({ isRead: true })
-    .where(eq(notification.id, notificationId))
-    .returning()
-
-  return result[0]
-}
-
-export async function getUnreadCount(userId?: string) {
-  const currentUserId = await getUserId()
-  if (!userId) userId = currentUserId
-
-  const notifications = await db.query.notification.findMany({
-    where: eq(notification.userId, userId),
-  })
-
-  const messages = await db.query.message.findMany({
-    where: eq(message.recipientId, userId),
-  })
-
-  return {
-    notifications: notifications.filter(n => !n.isRead).length,
-    messages: messages.filter(m => !m.isRead).length,
-    total: notifications.filter(n => !n.isRead).length + messages.filter(m => !m.isRead).length,
-  }
 }

@@ -2,9 +2,11 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { payment, userRole } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { payment, userRole, feeStructure } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
 import { headers } from 'next/headers'
+import { revalidatePath } from 'next/cache'
+import { checkPermission } from '@/lib/abac'
 
 async function getUserId() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -12,116 +14,120 @@ async function getUserId() {
   return session.user.id
 }
 
-async function isParent() {
-  const userId = await getUserId()
-  const role = await db.query.userRole.findFirst({
+async function getUserRoleData(userId: string) {
+  return await db.query.userRole.findFirst({
     where: eq(userRole.userId, userId),
   })
-  if (role?.role !== 'parent') throw new Error('Parent access required')
-  return true
 }
 
-// Fee structure
-export const FEE_STRUCTURE = {
-  tuition: 150000,
-  development: 50000,
-  exam: 30000,
-  sports: 20000,
-  pta: 25000,
-} as const
+export async function getFeeStructure(className: string) {
+  return db.query.feeStructure.findMany({
+    where: eq(feeStructure.class, className),
+  })
+}
 
-export type FeeType = keyof typeof FEE_STRUCTURE
-
-export async function initiatePayment(data: {
+export async function initializeKorapayPayment(data: {
   studentId: string
-  feeType: FeeType
+  feeType: string
   amount: number
-  reference: string
 }) {
-  await isParent()
   const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+
+  const hasPermission = await checkPermission(
+    userId,
+    roleData?.role || '',
+    'create',
+    'payment',
+    { studentId: data.studentId }
+  )
+
+  if (!hasPermission) throw new Error('Permission denied')
+
+  const reference = `KORA-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
   const newPayment = await db.insert(payment).values({
     id: crypto.randomUUID(),
     parentId: userId,
     studentId: data.studentId,
-    amount: data.amount,
+    amount: data.amount.toString(),
     feeType: data.feeType,
     status: 'pending',
-    korapayReference: data.reference,
+    korapayReference: reference,
+    paymentMethod: 'korapay',
     createdAt: new Date(),
   }).returning()
 
-  return newPayment[0]
+  const checkoutUrl = `https://checkout.korapay.com/pay/${reference}`
+
+  return {
+    payment: newPayment[0],
+    checkoutUrl,
+  }
 }
 
-export async function confirmPayment(reference: string, status: 'completed' | 'failed') {
-  await isParent()
-
+export async function verifyKorapayPayment(reference: string) {
   const paymentRecord = await db.query.payment.findFirst({
     where: eq(payment.korapayReference, reference),
   })
 
-  if (!paymentRecord) throw new Error('Payment not found')
+  if (!paymentRecord) throw new Error('Payment record not found')
 
-  const result = await db.update(payment)
+  if (paymentRecord.status === 'completed') return paymentRecord
+
+  // In production, this would verify with Korapay API
+  const updatedPayment = await db.update(payment)
     .set({
-      status: status === 'completed' ? 'completed' : 'failed',
-      paidAt: status === 'completed' ? new Date() : undefined,
+      status: 'completed',
+      paidAt: new Date(),
+      updatedAt: new Date(),
     })
     .where(eq(payment.id, paymentRecord.id))
     .returning()
 
-  return result[0]
+  revalidatePath('/dashboard/parent/payments')
+  return updatedPayment[0]
 }
 
-export async function getPaymentHistory(studentId?: string) {
-  await isParent()
-  const userId = await getUserId()
+export async function handleKorapayWebhook(payload: any) {
+  const { event, data } = payload
+  const reference = data.reference
 
-  if (studentId) {
-    return db.query.payment.findMany({
-      where: eq(payment.parentId, userId),
-    })
+  if (event === 'charge.success') {
+    await db.update(payment)
+      .set({
+        status: 'completed',
+        paidAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(payment.korapayReference, reference))
+  } else if (event === 'charge.failed') {
+    await db.update(payment)
+      .set({
+        status: 'failed',
+        updatedAt: new Date(),
+      })
+      .where(eq(payment.korapayReference, reference))
   }
+
+  return { received: true }
+}
+
+export async function getPaymentHistory() {
+  const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+
+  const hasPermission = await checkPermission(
+    userId,
+    roleData?.role || '',
+    'read',
+    'payment'
+  )
+
+  if (!hasPermission) throw new Error('Permission denied')
 
   return db.query.payment.findMany({
     where: eq(payment.parentId, userId),
+    orderBy: (payment, { desc }) => [desc(payment.createdAt)],
   })
-}
-
-export async function getOutstandingBalance(studentId: string) {
-  const payments = await db.query.payment.findMany({
-    where: eq(payment.studentId, studentId),
-  })
-
-  const completed = payments
-    .filter(p => p.status === 'completed')
-    .reduce((sum, p) => sum + p.amount, 0)
-
-  const outstanding = Object.values(FEE_STRUCTURE).reduce((sum, fee) => sum + fee, 0) - completed
-
-  return {
-    totalFees: Object.values(FEE_STRUCTURE).reduce((sum, fee) => sum + fee, 0),
-    paid: completed,
-    outstanding: Math.max(0, outstanding),
-  }
-}
-
-// Mock Korapay integration
-export async function generateKorapayCheckoutLink(data: {
-  reference: string
-  amount: number
-  customerEmail: string
-  customerName: string
-}) {
-  // In production, this would call the actual Korapay API
-  // For now, returning a mock checkout link
-  const korapayUrl = new URL('https://checkout.korapay.com/pay')
-  korapayUrl.searchParams.append('reference', data.reference)
-  korapayUrl.searchParams.append('amount', (data.amount * 100).toString()) // Korapay uses smallest currency unit
-  korapayUrl.searchParams.append('customer_email', data.customerEmail)
-  korapayUrl.searchParams.append('customer_name', data.customerName)
-
-  return korapayUrl.toString()
 }
