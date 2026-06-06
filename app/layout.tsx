@@ -12,23 +12,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'EL GOODNEWS Academy - School Management System',
   description: 'Complete school management system with assessments, grading, attendance tracking, and payment management',
-  generator: 'v0.app',
+  generator: 'ELCODERS',
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: '/favicon.svg',
+    apple: '/logo.svg',
   },
 }
 
