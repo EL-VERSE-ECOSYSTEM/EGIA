@@ -2,9 +2,10 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { user, student, teacher, parent as parentTable, userRole } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { user, student, teacher, parent as parentTable, userRole, academicSession, term, class_ } from '@/lib/db/schema'
+import { eq, sql } from 'drizzle-orm'
 import { headers } from 'next/headers'
+import { revalidatePath } from 'next/cache'
 
 async function getUserId() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -14,11 +15,35 @@ async function getUserId() {
 
 async function isAdmin() {
   const userId = await getUserId()
-  const role = await db.query.userRole.findFirst({
+  const roleData = await db.query.userRole.findFirst({
     where: eq(userRole.userId, userId),
   })
-  if (role?.role !== 'admin') throw new Error('Admin access required')
+  if (roleData?.role !== 'admin') throw new Error('Admin access required')
   return true
+}
+
+// Session & Term Management
+export async function createAcademicSession(name: string, startDate: Date, endDate: Date) {
+  await isAdmin()
+  return db.insert(academicSession).values({
+    id: crypto.randomUUID(),
+    name,
+    startDate,
+    endDate,
+    isActive: true,
+  }).returning()
+}
+
+export async function createTerm(sessionId: string, name: string, startDate: Date, endDate: Date) {
+  await isAdmin()
+  return db.insert(term).values({
+    id: crypto.randomUUID(),
+    sessionId,
+    name,
+    startDate,
+    endDate,
+    isActive: true,
+  }).returning()
 }
 
 // Student Management
@@ -53,7 +78,6 @@ export async function createStudent(data: {
 }) {
   await isAdmin()
 
-  // Create user first
   const newUser = await db.insert(user).values({
     id: crypto.randomUUID(),
     email: data.email,
@@ -62,19 +86,19 @@ export async function createStudent(data: {
 
   if (!newUser[0]) throw new Error('Failed to create user')
 
-  // Create role
   await db.insert(userRole).values({
     userId: newUser[0].id,
     role: 'student',
   })
 
-  // Create student record
   const newStudent = await db.insert(student).values({
+    id: crypto.randomUUID(),
     userId: newUser[0].id,
     studentId: crypto.randomUUID(),
     firstName: data.firstName,
     lastName: data.lastName,
     class: data.class,
+    admissionNumber: data.admissionNumber,
     dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
     gender: data.gender,
   }).returning()
@@ -90,26 +114,23 @@ export async function updateStudent(studentId: string, data: Partial<{
   gender: string
 }>) {
   await isAdmin()
-
   const result = await db.update(student)
-    .set(data)
+    .set({ ...data, updatedAt: new Date() })
     .where(eq(student.id, studentId))
     .returning()
-
   return result[0]
 }
 
-export async function deleteStudent(studentId: string) {
+export async function promoteStudents(studentIds: string[], targetClass: string) {
   await isAdmin()
-
-  const studentRecord = await db.query.student.findFirst({
-    where: eq(student.id, studentId),
-  })
-
-  if (!studentRecord) throw new Error('Student not found')
-
-  await db.delete(user).where(eq(user.id, studentRecord.userId))
-  return true
+  const results = await Promise.all(studentIds.map(id =>
+    db.update(student)
+      .set({ class: targetClass, updatedAt: new Date() })
+      .where(eq(student.id, id))
+      .returning()
+  ))
+  revalidatePath('/dashboard/admin/users/students')
+  return results
 }
 
 // Teacher Management
@@ -131,21 +152,18 @@ export async function createTeacher(data: {
   specialization?: string
 }) {
   await isAdmin()
-
   const newUser = await db.insert(user).values({
     id: crypto.randomUUID(),
     email: data.email,
     name: `${data.firstName} ${data.lastName}`,
   }).returning()
-
   if (!newUser[0]) throw new Error('Failed to create user')
-
   await db.insert(userRole).values({
     userId: newUser[0].id,
     role: 'teacher',
   })
-
   const newTeacher = await db.insert(teacher).values({
+    id: crypto.randomUUID(),
     userId: newUser[0].id,
     teacherId: crypto.randomUUID(),
     firstName: data.firstName,
@@ -153,7 +171,6 @@ export async function createTeacher(data: {
     qualification: data.qualification,
     specialization: data.specialization,
   }).returning()
-
   return newTeacher[0]
 }
 
@@ -176,21 +193,18 @@ export async function createParent(data: {
   relationship?: string
 }) {
   await isAdmin()
-
   const newUser = await db.insert(user).values({
     id: crypto.randomUUID(),
     email: data.email,
     name: `${data.firstName} ${data.lastName}`,
   }).returning()
-
   if (!newUser[0]) throw new Error('Failed to create user')
-
   await db.insert(userRole).values({
     userId: newUser[0].id,
     role: 'parent',
   })
-
   const newParent = await db.insert(parentTable).values({
+    id: crypto.randomUUID(),
     userId: newUser[0].id,
     parentId: crypto.randomUUID(),
     firstName: data.firstName,
@@ -198,22 +212,19 @@ export async function createParent(data: {
     phoneNumber: data.phoneNumber,
     relationship: data.relationship,
   }).returning()
-
   return newParent[0]
 }
 
-// Admin Statistics
+// Dashboard Metrics
 export async function getAdminDashboardStats() {
   await isAdmin()
-
-  const totalStudents = await db.query.student.findMany().then(s => s.length)
-  const totalTeachers = await db.query.teacher.findMany().then(t => t.length)
-  const totalParents = await db.query.parent.findMany().then(p => p.length)
-
+  const [studentCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
+  const [teacherCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
+  const [parentCount] = await db.select({ count: sql<number>`count(*)` }).from(parentTable)
   return {
-    totalStudents,
-    totalTeachers,
-    totalParents,
-    totalUsers: totalStudents + totalTeachers + totalParents,
+    totalStudents: studentCount.count,
+    totalTeachers: teacherCount.count,
+    totalParents: parentCount.count,
+    totalUsers: studentCount.count + teacherCount.count + parentCount.count,
   }
 }
