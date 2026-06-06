@@ -37,7 +37,7 @@ async function checkAdminPermission(action: any, resource: any) {
 
 // Session & Term Management
 export async function createAcademicSession(name: string, startDate: Date, endDate: Date) {
-  await checkAdminPermission('create', 'assessment')
+  await checkAdminPermission('create', 'class')
   return db.insert(academicSession).values({
     id: crypto.randomUUID(),
     name,
@@ -48,7 +48,7 @@ export async function createAcademicSession(name: string, startDate: Date, endDa
 }
 
 export async function createTerm(sessionId: string, name: string, startDate: Date, endDate: Date) {
-  await checkAdminPermission('create', 'assessment')
+  await checkAdminPermission('create', 'class')
   return db.insert(term).values({
     id: crypto.randomUUID(),
     sessionId,
@@ -100,6 +100,7 @@ export async function createStudent(data: {
   if (!newUser[0]) throw new Error('Failed to create user')
 
   await db.insert(userRole).values({
+    id: crypto.randomUUID(),
     userId: newUser[0].id,
     role: 'student',
   })
@@ -172,6 +173,7 @@ export async function createTeacher(data: {
   }).returning()
   if (!newUser[0]) throw new Error('Failed to create user')
   await db.insert(userRole).values({
+    id: crypto.randomUUID(),
     userId: newUser[0].id,
     role: 'teacher',
   })
@@ -213,6 +215,7 @@ export async function createParent(data: {
   }).returning()
   if (!newUser[0]) throw new Error('Failed to create user')
   await db.insert(userRole).values({
+    id: crypto.randomUUID(),
     userId: newUser[0].id,
     role: 'parent',
   })
@@ -230,7 +233,6 @@ export async function createParent(data: {
 
 // Dashboard Metrics
 export async function getAdminDashboardStats() {
-  // Use a softer check for basic stats if needed, or stick to admin check
   const userId = await getUserId()
   const roleData = await getUserRoleData(userId)
   if (roleData?.role !== 'admin') throw new Error('Admin access required')
