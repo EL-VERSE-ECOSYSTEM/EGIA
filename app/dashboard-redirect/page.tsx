@@ -1,10 +1,9 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import { headers } from 'next/headers'
 import { getUserRole } from '@/app/actions/user'
 
 export default async function DashboardRedirect() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.getSession()
 
   if (!session?.user) {
     redirect('/sign-in')

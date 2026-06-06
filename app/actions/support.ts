@@ -1,79 +1,46 @@
 'use server'
 
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { dispute, disputeMessage, supportTicket, userRole } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
-import { headers } from 'next/headers'
+import { dispute, disputeMessage, supportTicket } from '@/lib/db/schema'
+import { eq, desc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { checkPermission } from '@/lib/abac'
-
-async function getUserId() {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) throw new Error('Unauthorized')
-  return session.user.id
-}
-
-async function getUserRoleData(userId: string) {
-  return await db.query.userRole.findFirst({
-    where: eq(userRole.userId, userId),
-  })
-}
 
 export async function createDispute(data: {
   title: string
   category: string
   priority: string
   description: string
+  raisedById: string
   relatedStudentId?: string
   relatedPaymentId?: string
 }) {
-  const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
+  const ticketNumber = `DIS-${Date.now()}`
 
-  const hasPermission = await checkPermission(
-    userId,
-    roleData?.role || '',
-    'create',
-    'dispute'
-  )
-
-  if (!hasPermission) throw new Error('Permission denied')
-
-  const ticketNumber = `DISP-${Date.now()}`
-
-  return db.insert(dispute).values({
+  const newDispute = await db.insert(dispute).values({
     id: crypto.randomUUID(),
     ticketNumber,
     ...data,
-    raisedById: userId,
     status: 'OPEN',
   }).returning()
+
+  revalidatePath('/dashboard/admin/communication/disputes')
+  return newDispute[0]
 }
 
-export async function resolveDispute(disputeId: string, resolution: string) {
-  const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
+export async function addDisputeMessage(disputeId: string, senderId: string, messageContent: string, isInternal = false) {
+  await db.insert(disputeMessage).values({
+    id: crypto.randomUUID(),
+    disputeId,
+    senderId,
+    message: messageContent,
+    isInternal,
+  })
 
-  const hasPermission = await checkPermission(
-    userId,
-    roleData?.role || '',
-    'update',
-    'dispute'
-  )
-
-  if (!hasPermission) throw new Error('Permission denied')
-
-  return db.update(dispute)
-    .set({
-      status: 'RESOLVED',
-      resolution,
-      resolvedBy: userId,
-      resolvedAt: new Date(),
-      updatedAt: new Date(),
-    })
+  await db.update(dispute)
+    .set({ updatedAt: new Date() })
     .where(eq(dispute.id, disputeId))
-    .returning()
+
+  revalidatePath(`/dashboard/communication/disputes/${disputeId}`)
 }
 
 export async function createSupportTicket(data: {
@@ -81,31 +48,31 @@ export async function createSupportTicket(data: {
   category: string
   priority: string
   description: string
+  userId: string
 }) {
-  const userId = await getUserId()
-  const ticketNumber = `SUPP-${Date.now()}`
+  const ticketNumber = `SUP-${Date.now()}`
 
-  return db.insert(supportTicket).values({
+  const newTicket = await db.insert(supportTicket).values({
     id: crypto.randomUUID(),
     ticketNumber,
     ...data,
-    userId,
     status: 'OPEN',
   }).returning()
+
+  revalidatePath('/dashboard/communication/support')
+  return newTicket[0]
 }
 
-export async function getMyDisputes() {
-  const userId = await getUserId()
-  return db.query.dispute.findMany({
-    where: eq(dispute.raisedById, userId),
-    orderBy: (dispute, { desc }) => [desc(dispute.createdAt)],
-  })
-}
+export async function resolveDispute(disputeId: string, resolution: string, resolvedBy: string) {
+  await db.update(dispute)
+    .set({
+      status: 'RESOLVED',
+      resolution,
+      resolvedBy,
+      resolvedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(dispute.id, disputeId))
 
-export async function getMyTickets() {
-  const userId = await getUserId()
-  return db.query.supportTicket.findMany({
-    where: eq(supportTicket.userId, userId),
-    orderBy: (supportTicket, { desc }) => [desc(supportTicket.createdAt)],
-  })
+  revalidatePath('/dashboard/admin/communication/disputes')
 }

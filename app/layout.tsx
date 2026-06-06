@@ -1,6 +1,8 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { Footer } from '@/components/footer'
+import { NeonAuthUIProvider } from '@neondatabase/neon-js/react'
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
@@ -26,9 +28,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="font-sans antialiased">
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+      <body className="font-sans antialiased flex flex-col min-h-screen">
+        <NeonAuthUIProvider authUrl={process.env.NEXT_PUBLIC_NEON_AUTH_URL!}>
+          <div className="flex-1">
+            {children}
+          </div>
+          <Footer />
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </NeonAuthUIProvider>
       </body>
     </html>
   )

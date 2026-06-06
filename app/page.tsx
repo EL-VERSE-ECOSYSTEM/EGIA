@@ -1,10 +1,9 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { auth } from '@/lib/auth'
-import { headers } from 'next/headers'
 
 export default async function LandingPage() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.getSession()
   const user = session?.user
 
   return (
