@@ -1,10 +1,11 @@
-import { auth } from '@/lib/auth'
-import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
-import { AuthForm } from '@/components/auth-form'
+'use client'
 
-export default async function SignInPage() {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (session?.user) redirect('/')
-  return <AuthForm mode="sign-in" />
+import { NeonAuthUI } from '@neondatabase/neon-js/react'
+
+export default function SignInPage() {
+  return (
+    <main className="min-h-svh bg-background flex items-center justify-center px-4">
+      <NeonAuthUI mode="signin" />
+    </main>
+  )
 }

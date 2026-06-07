@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { LogOut, Menu } from 'lucide-react'
 import { useState } from 'react'
+import { authClient } from '@/lib/auth-client'
+import { useRouter } from 'next/navigation'
 
 interface SidebarProps {
   role?: 'admin' | 'teacher' | 'parent' | 'student'
@@ -85,7 +87,14 @@ export function Sidebar({ role = 'student' }: SidebarProps) {
       </nav>
 
       <div className="absolute bottom-4 left-4 right-4">
-        <Button variant="outline" className="w-full justify-start gap-2">
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2"
+          onClick={async () => {
+            await authClient.signOut()
+            window.location.href = '/'
+          }}
+        >
           <LogOut className="w-4 h-4" />
           {isOpen && 'Logout'}
         </Button>

@@ -77,6 +77,7 @@ export const student = pgTable('student', {
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.parentId], foreignColumns: [parent.id] }).onDelete('set null'),
 ])
 
 export const teacher = pgTable('teacher', {
@@ -156,15 +157,29 @@ export const subject = pgTable('subject', {
   name: text('name').notNull(),
   code: text('code').notNull().unique(),
   description: text('description'),
-  classId: text('classId').notNull(),
-  teacherId: text('teacherId'),
-  creditUnits: integer('creditUnits').default(3),
   isActive: boolean('isActive').default(true),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const subjectOnClass = pgTable('subject_on_class', {
+  classId: text('classId').notNull(),
+  subjectId: text('subjectId').notNull(),
 }, (t) => [
-  foreignKey({ columns: [t.classId], foreignColumns: [class_.id] }),
-  foreignKey({ columns: [t.teacherId], foreignColumns: [teacher.id] }),
+  foreignKey({ columns: [t.classId], foreignColumns: [class_.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.subjectId], foreignColumns: [subject.id] }).onDelete('cascade'),
+  unique().on(t.classId, t.subjectId),
+])
+
+export const teacherOnSubject = pgTable('teacher_on_subject', {
+  teacherId: text('teacherId').notNull(),
+  subjectId: text('subjectId').notNull(),
+  classId: text('classId'),
+}, (t) => [
+  foreignKey({ columns: [t.teacherId], foreignColumns: [teacher.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.subjectId], foreignColumns: [subject.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.classId], foreignColumns: [class_.id] }).onDelete('set null'),
+  unique().on(t.teacherId, t.subjectId, t.classId),
 ])
 
 // ===== ASSESSMENT & GRADING =====
@@ -441,7 +456,7 @@ export const studentRelations = relations(student, ({ one, many }) => ({
 export const teacherRelations = relations(teacher, ({ one, many }) => ({
   user: one(user, { fields: [teacher.userId], references: [user.id] }),
   classes: many(class_),
-  subjects: many(subject),
+  subjects: many(teacherOnSubject),
   assessments: many(assessment),
 }))
 

@@ -1,133 +1,73 @@
 'use server'
 
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { payment, userRole, feeStructure } from '@/lib/db/schema'
+import { payment, feeStructure, student } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
-import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { checkPermission } from '@/lib/abac'
 
-async function getUserId() {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) throw new Error('Unauthorized')
-  return session.user.id
-}
-
-async function getUserRoleData(userId: string) {
-  return await db.query.userRole.findFirst({
-    where: eq(userRole.userId, userId),
-  })
-}
-
-export async function getFeeStructure(className: string) {
-  return db.query.feeStructure.findMany({
-    where: eq(feeStructure.class, className),
-  })
-}
-
-export async function initializeKorapayPayment(data: {
+interface ManualPaymentParams {
+  amount: number
   studentId: string
   feeType: string
-  amount: number
-}) {
-  const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
+  bankName: string
+  receiptImage: string
+  description?: string
+}
 
-  const hasPermission = await checkPermission(
-    userId,
-    roleData?.role || '',
-    'create',
-    'payment',
-    { studentId: data.studentId }
-  )
+export async function submitManualPayment({
+  amount,
+  studentId,
+  feeType,
+  bankName,
+  receiptImage,
+  description
+}: ManualPaymentParams) {
+  const reference = `ELG-MAN-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
-  if (!hasPermission) throw new Error('Permission denied')
+  // Check for late fee penalty (mock logic)
+  let finalAmount = amount
+  const feeInfo = await db.query.feeStructure.findFirst({
+      where: and(eq(feeStructure.feeType, feeType))
+  })
 
-  const reference = `KORA-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+  if (feeInfo?.dueDate && new Date() > new Date(feeInfo.dueDate)) {
+      // 5% penalty
+      // finalAmount = amount * 1.05
+  }
 
   const newPayment = await db.insert(payment).values({
     id: crypto.randomUUID(),
-    parentId: userId,
-    studentId: data.studentId,
-    amount: data.amount.toString(),
-    feeType: data.feeType,
+    studentId,
+    amount: finalAmount.toString(),
+    feeType,
+    paymentMethod: 'bank_transfer',
+    bankName,
+    receiptImage,
+    transactionReference: reference,
     status: 'pending',
-    korapayReference: reference,
-    paymentMethod: 'korapay',
-    createdAt: new Date(),
+    description: description || `Manual transfer for ${feeType} to ${bankName}`,
+    paymentDate: new Date(),
   }).returning()
 
-  const checkoutUrl = `https://checkout.korapay.com/pay/${reference}`
-
-  return {
-    payment: newPayment[0],
-    checkoutUrl,
-  }
+  revalidatePath('/dashboard/parent/payments/history')
+  return newPayment[0]
 }
 
-export async function verifyKorapayPayment(reference: string) {
-  const paymentRecord = await db.query.payment.findFirst({
-    where: eq(payment.korapayReference, reference),
-  })
-
-  if (!paymentRecord) throw new Error('Payment record not found')
-
-  if (paymentRecord.status === 'completed') return paymentRecord
-
-  // In production, this would verify with Korapay API
-  const updatedPayment = await db.update(payment)
+export async function verifyManualPayment(paymentId: string, status: 'success' | 'failed') {
+  await db.update(payment)
     .set({
-      status: 'completed',
-      paidAt: new Date(),
-      updatedAt: new Date(),
+      status,
+      paidAt: status === 'success' ? new Date() : null,
+      updatedAt: new Date()
     })
-    .where(eq(payment.id, paymentRecord.id))
-    .returning()
+    .where(eq(payment.id, paymentId))
 
-  revalidatePath('/dashboard/parent/payments')
-  return updatedPayment[0]
+  revalidatePath('/dashboard/admin/finance/fees/payments')
+  revalidatePath('/dashboard/parent/payments/history')
 }
 
-export async function handleKorapayWebhook(payload: any) {
-  const { event, data } = payload
-  const reference = data.reference
-
-  if (event === 'charge.success') {
-    await db.update(payment)
-      .set({
-        status: 'completed',
-        paidAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(payment.korapayReference, reference))
-  } else if (event === 'charge.failed') {
-    await db.update(payment)
-      .set({
-        status: 'failed',
-        updatedAt: new Date(),
-      })
-      .where(eq(payment.korapayReference, reference))
-  }
-
-  return { received: true }
-}
-
-export async function getPaymentHistory() {
-  const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
-
-  const hasPermission = await checkPermission(
-    userId,
-    roleData?.role || '',
-    'read',
-    'payment'
-  )
-
-  if (!hasPermission) throw new Error('Permission denied')
-
-  return db.query.payment.findMany({
-    where: eq(payment.parentId, userId),
-    orderBy: (payment, { desc }) => [desc(payment.createdAt)],
-  })
+export async function getFeeStructure(className: string) {
+    return await db.query.feeStructure.findMany({
+        where: eq(feeStructure.class, className)
+    })
 }
