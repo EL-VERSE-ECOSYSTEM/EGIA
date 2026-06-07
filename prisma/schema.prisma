@@ -1,0 +1,294 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User and Auth (Auth.js v5 compatible)
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+
+  role          UserRole?
+  student       Student?
+  teacher       Teacher?
+  parent        Parent?
+
+  messagesSent     Message[]    @relation("SentMessages")
+  messagesReceived Message[]    @relation("ReceivedMessages")
+
+  disputesRaised   Dispute[]    @relation("RaisedDisputes")
+  disputesAssigned Dispute[]    @relation("AssignedDisputes")
+
+  supportTickets   SupportTicket[]
+  assignedTickets  SupportTicket[] @relation("AssignedTickets")
+
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String @unique
+  role   String // ADMIN, TEACHER, PARENT, STUDENT
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// School Models
+model Student {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admissionNumber String   @unique
+  firstName       String
+  lastName        String
+  class           String
+  arm             String?
+  department      String?
+  parentId        String?
+  parent          Parent?  @relation(fields: [parentId], references: [id])
+
+  results         Result[]
+  attendance      Attendance[]
+  payments        Payment[]
+  disputes        Dispute[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Teacher {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffCode       String   @unique
+  firstName       String
+  lastName        String
+  classes         Class[]
+  subjects        Subject[]
+  assessments     Assessment[]
+  attendanceMarked Attendance[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Parent {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName       String
+  lastName        String
+  students        Student[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Class {
+  id          String    @id @default(cuid())
+  name        String    // JSS1, SSS1, etc.
+  arm         String?   // A, B, C
+  department  String?   // SCIENCE, ARTS, COMMERCIAL
+  teacherId   String?
+  teacher     Teacher?  @relation(fields: [teacherId], references: [id])
+  students    Student[] @ignore // Prisma relation
+  subjects    Subject[]
+}
+
+model Subject {
+  id      String   @id @default(cuid())
+  name    String
+  code    String   @unique
+  classes Class[]
+  teachers Teacher[]
+  assessments Assessment[]
+}
+
+model AcademicSession {
+  id        String   @id @default(cuid())
+  name      String   // 2024/2025
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(false)
+  terms     Term[]
+}
+
+model Term {
+  id          String   @id @default(cuid())
+  name        String   // FIRST, SECOND, THIRD
+  sessionId   String
+  session     AcademicSession @relation(fields: [sessionId], references: [id])
+  isActive    Boolean  @default(false)
+  assessments Assessment[]
+}
+
+model Assessment {
+  id              String   @id @default(cuid())
+  title           String
+  type            String   // QUIZ, TEST, EXAM
+  subjectId       String
+  subject         Subject  @relation(fields: [subjectId], references: [id])
+  termId          String
+  term            Term     @relation(fields: [termId], references: [id])
+  teacherId       String
+  teacher         Teacher  @relation(fields: [teacherId], references: [id])
+  questions       Json     // List of questions
+  duration        Int?     // in minutes
+  totalMarks      Int
+  status          String   @default("DRAFT") // DRAFT, PUBLISHED
+  results         Result[]
+  createdAt       DateTime @default(now())
+}
+
+model Result {
+  id           String     @id @default(cuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  score        Int
+  percentage   Float
+  grade        String
+  createdAt    DateTime   @default(now())
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  date      DateTime @default(now())
+  status    String   // PRESENT, ABSENT, LATE
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+}
+
+model Payment {
+  id                   String   @id @default(cuid())
+  studentId            String
+  student              Student  @relation(fields: [studentId], references: [id])
+  amount               Float
+  feeType              String
+  status               String   @default("PENDING") // PENDING, SUCCESS, FAILED
+  transactionReference String   @unique
+  bankName             String?
+  receiptImage         String?
+  paidAt               DateTime?
+  createdAt            DateTime @default(now())
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  content        String
+  senderId       String
+  sender         User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId     String
+  receiver       User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}
+
+model Dispute {
+  id              String   @id @default(cuid())
+  ticketNumber    String   @unique
+  title           String
+  category        String
+  priority        String
+  status          String   @default("OPEN")
+  description     String
+  raisedById      String
+  raisedBy        User     @relation("RaisedDisputes", fields: [raisedById], references: [id])
+  assignedToId    String?
+  assignedTo      User?    @relation("AssignedDisputes", fields: [assignedToId], references: [id])
+  studentId       String?
+  student         Student? @relation(fields: [studentId], references: [id])
+  resolution      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SupportTicket {
+  id              String   @id @default(cuid())
+  ticketNumber    String   @unique
+  title           String
+  category        String
+  priority        String
+  status          String   @default("OPEN")
+  description     String
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  assignedAgentId String?
+  assignedAgent   User?    @relation("AssignedTickets", fields: [assignedAgentId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  resource  String
+  details   Json?
+  createdAt DateTime @default(now())
+}

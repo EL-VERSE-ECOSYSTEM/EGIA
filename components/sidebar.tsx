@@ -5,65 +5,66 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { LogOut, Menu } from 'lucide-react'
 import { useState } from 'react'
+import { signOut } from 'next-auth/react'
 
 interface SidebarProps {
-  role?: 'admin' | 'teacher' | 'parent' | 'student'
+  role?: 'ADMIN' | 'TEACHER' | 'PARENT' | 'STUDENT'
 }
 
 const menuItems = {
-  admin: [
-    { label: 'Overview', href: '/dashboard/admin' },
-    { label: 'Users', href: '/dashboard/admin/users' },
-    { label: 'Academics', href: '/dashboard/admin/academics' },
-    { label: 'Payments', href: '/dashboard/admin/payments' },
-    { label: 'Reports', href: '/dashboard/admin/reports' },
-    { label: 'Settings', href: '/dashboard/admin/settings' },
+  ADMIN: [
+    { label: 'Overview', href: '/dashboard/admin/overview' },
+    { label: 'Users', href: '/dashboard/admin/users/students/list' },
+    { label: 'Academics', href: '/dashboard/admin/academics/classes/list' },
+    { label: 'Payments', href: '/dashboard/admin/finance/fees/payments' },
+    { label: 'Reports', href: '/dashboard/admin/reports/academic/performance' },
+    { label: 'Settings', href: '/dashboard/admin/settings/general' },
   ],
-  teacher: [
-    { label: 'Overview', href: '/dashboard/teacher' },
-    { label: 'My Classes', href: '/dashboard/teacher/classes' },
+  TEACHER: [
+    { label: 'Overview', href: '/dashboard/teacher/overview' },
+    { label: 'My Classes', href: '/dashboard/teacher/my-classes' },
     { label: 'Assessments', href: '/dashboard/teacher/assessments' },
-    { label: 'Attendance', href: '/dashboard/teacher/attendance' },
+    { label: 'Attendance', href: '/dashboard/teacher/attendance/mark' },
     { label: 'Results', href: '/dashboard/teacher/results' },
-    { label: 'Analytics', href: '/dashboard/teacher/analytics' },
+    { label: 'Messages', href: '/dashboard/teacher/communication/messages' },
   ],
-  parent: [
-    { label: 'Overview', href: '/dashboard/parent' },
-    { label: 'Children', href: '/dashboard/parent/children' },
-    { label: 'Results', href: '/dashboard/parent/results' },
-    { label: 'Payments', href: '/dashboard/parent/payments' },
-    { label: 'Messages', href: '/dashboard/parent/messages' },
-    { label: 'Calendar', href: '/dashboard/parent/calendar' },
+  PARENT: [
+    { label: 'Overview', href: '/dashboard/parent/overview' },
+    { label: 'Children', href: '/dashboard/parent/children/list' },
+    { label: 'Results', href: '/dashboard/parent/results/current' },
+    { label: 'Payments', href: '/dashboard/parent/payments/dashboard' },
+    { label: 'Messages', href: '/dashboard/parent/communication/messages' },
+    { label: 'Support', href: '/dashboard/parent/communication/support/my-tickets' },
   ],
-  student: [
-    { label: 'Overview', href: '/dashboard/student' },
-    { label: 'Assessments', href: '/dashboard/student/assessments' },
+  STUDENT: [
+    { label: 'Overview', href: '/dashboard/student/overview' },
+    { label: 'Assessments', href: '/dashboard/student/assessments/upcoming' },
     { label: 'Results', href: '/dashboard/student/results' },
-    { label: 'Attendance', href: '/dashboard/student/attendance' },
-    { label: 'Timetable', href: '/dashboard/student/timetable' },
-    { label: 'Messages', href: '/dashboard/student/messages' },
+    { label: 'Attendance', href: '/dashboard/student/attendance/summary' },
+    { label: 'Timetable', href: '/dashboard/student/timetable/weekly' },
+    { label: 'Messages', href: '/dashboard/student/communication/messages' },
   ],
 }
 
-export function Sidebar({ role = 'student' }: SidebarProps) {
+export function Sidebar({ role = 'STUDENT' }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(true)
   const items = menuItems[role] || []
 
   const roleColors = {
-    admin: 'bg-amber-50 border-amber-200',
-    teacher: 'bg-purple-50 border-purple-200',
-    parent: 'bg-green-50 border-green-200',
-    student: 'bg-orange-50 border-orange-200',
+    ADMIN: 'bg-amber-50 border-amber-200',
+    TEACHER: 'bg-purple-50 border-purple-200',
+    PARENT: 'bg-green-50 border-green-200',
+    STUDENT: 'bg-orange-50 border-orange-200',
   }
 
   return (
     <aside className={cn(
-      'border-r transition-all duration-300',
-      roleColors[role] || roleColors.student,
+      'border-r transition-all duration-300 min-h-screen sticky top-0',
+      roleColors[role] || roleColors.STUDENT,
       isOpen ? 'w-64' : 'w-20'
     )}>
       <div className="flex items-center justify-between p-4">
-        {isOpen && <h1 className="font-bold text-lg">EL GOODNEWS</h1>}
+        {isOpen && <h1 className="font-bold text-lg text-amber-700">EL GOODNEWS</h1>}
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="p-2 hover:bg-white rounded-lg transition-colors"
@@ -85,7 +86,11 @@ export function Sidebar({ role = 'student' }: SidebarProps) {
       </nav>
 
       <div className="absolute bottom-4 left-4 right-4">
-        <Button variant="outline" className="w-full justify-start gap-2">
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2"
+          onClick={() => signOut({ callbackUrl: '/' })}
+        >
           <LogOut className="w-4 h-4" />
           {isOpen && 'Logout'}
         </Button>

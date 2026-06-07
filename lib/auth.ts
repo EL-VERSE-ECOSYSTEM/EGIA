@@ -1,40 +1,44 @@
-import { betterAuth } from 'better-auth'
-import { pool } from '@/lib/db'
+import NextAuth from "next-auth"
+import { PrismaAdapter } from "@auth/prisma-adapter"
+import { prisma } from "@/lib/prisma"
+import Credentials from "next-auth/providers/credentials"
 
-export const auth = betterAuth({
-  database: pool,
-  baseURL:
-    process.env.BETTER_AUTH_URL ??
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : process.env.V0_RUNTIME_URL),
-  emailAndPassword: {
-    enabled: true,
-    autoSignIn: true,
-  },
-  trustedOrigins: [
-    ...(process.env.V0_RUNTIME_URL ? [process.env.V0_RUNTIME_URL] : []),
-    ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
-    ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`]
-      : []),
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  providers: [
+    Credentials({
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        // Mock authorization for development
+        if (credentials.email === "admin@elgoodnews.edu.ng") {
+          return { id: "1", name: "Admin", email: "admin@elgoodnews.edu.ng", role: "ADMIN" }
+        }
+        return null
+      },
+    }),
   ],
-  session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // 1 day
-  },
-  ...(process.env.NODE_ENV === 'development'
-    ? {
-        advanced: {
-          // In dev (v0 preview iframe), force cross-site cookies so the
-          // session cookie is stored by the browser.
-          defaultCookieAttributes: {
-            sameSite: 'none' as const,
-            secure: true,
-          },
-        },
+  callbacks: {
+    async session({ session, user, token }) {
+      if (session.user) {
+        // Fetch role from DB
+        const roleData = await prisma.userRole.findUnique({
+          where: { userId: session.user.id }
+        })
+        session.user.role = roleData?.role || "STUDENT"
       }
-    : {}),
+      return session
+    },
+  },
 })
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string
+      role: string
+    } & DefaultSession["user"]
+  }
+}

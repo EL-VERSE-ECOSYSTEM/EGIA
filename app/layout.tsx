@@ -1,6 +1,8 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { Footer } from '@/components/footer'
+import { SessionProvider } from "next-auth/react"
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
@@ -12,23 +14,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'EL GOODNEWS Academy - School Management System',
   description: 'Complete school management system with assessments, grading, attendance tracking, and payment management',
-  generator: 'v0.app',
+  generator: 'ELCODERS',
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: '/favicon.svg',
+    apple: '/logo.svg',
   },
 }
 
@@ -39,9 +28,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="font-sans antialiased">
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+      <body className="font-sans antialiased flex flex-col min-h-screen">
+        <SessionProvider>
+          <div className="flex-1">
+            {children}
+          </div>
+          <Footer />
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </SessionProvider>
       </body>
     </html>
   )
