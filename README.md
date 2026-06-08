@@ -1,33 +1,143 @@
-# EGIA
+# EL GOODNEWS INT'L ACADEMY - Complete School Management System
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+## Project Overview
+Build a comprehensive school management application with RBAC (Role-Based Access Control) and ABAC (Attribute-Based Access Control) for four user roles: Admin, Teacher, Parent, and Student. Features include CBT (Computer-Based Testing), automated grading, Korapay payment integration, class-level management (JSS1-SSS3), messaging system, and dispute/support ticketing system.
 
-## Built with v0
+## Technical Specifications
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+### Frontend
+- **Framework**: Next.js 14 (App Router) with TypeScript
+- **UI Library**: React 18
+- **Styling**: Tailwind CSS + Shadcn/ui components
+- **State Management**: Zustand + TanStack Query
+- **Form Handling**: React Hook Form + Zod validation
+- **Charts**: Recharts + Tremor
+- **PDF Generation**: jsPDF + react-pdf
+- **Real-time**: Socket.io client + Pusher
+- **Payment**: Korapay SDK
+- **File Upload**: React Dropzone + Uploadthing
+- **Animations**: Framer Motion
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_QnLgfYmGhT8TkS9wZQAJkxxLmZRd)
+### Backend
+- **API**: Next.js API Routes + tRPC (optional)
+- **Authentication**: Better Auth / NextAuth.js
+- **Database ORM**: Drizzle ORM / Prisma ORM
+- **Validation**: Zod
+- **Email**: Resend + React Email
+- **File Storage**: Uploadthing / AWS S3
+- **Background Jobs**: BullMQ + Redis
+- **Real-time**: Socket.io server + Redis pub/sub
+- **Payment**: Korapay API
+- **PDF Parsing**: pdf-parse + Tesseract.js
+- **AI Grading**: OpenAI GPT-4o / Claude API / Gemini API
 
-## Getting Started
+### Database
+- **Primary**: PostgreSQL (Neon / Supabase)
+- **Caching**: Redis (Upstash)
 
-First, run the development server:
+## Role-Based Color Scheme
+| Role | Primary Color | Gradient | Badge Color | Icon Color |
+| :--- | :--- | :--- | :--- | :--- |
+| **Student** | Orange | `from-orange-500 to-amber-600` | `bg-orange-100 text-orange-800` | `#F97316` |
+| **Parent** | Green | `from-emerald-500 to-green-600` | `bg-green-100 text-green-800` | `#10B981` |
+| **Teacher** | Purple | `from-purple-500 to-violet-600` | `bg-purple-100 text-purple-800` | `#8B5CF6` |
+| **Admin** | Gold | `from-amber-500 to-yellow-600` | `bg-yellow-100 text-yellow-800` | `#F59E0B` |
 
+---
+
+## Complete Setup Guide: PaddleOCR, DeepSeek OCR-2 & Groq API
+
+This guide provides step-by-step instructions for setting up all three AI solutions for your EL GOODNEWS INT'L ACADEMY CBT system.
+
+### 📌 Quick Decision Guide
+
+| Solution | Best For | Setup Difficulty | Hardware Required |
+| :--- | :--- | :--- | :--- |
+| **PaddleOCR** | Mixed-format PDFs with complex layouts | Easy | CPU or GPU (4GB+ RAM) |
+| **DeepSeek OCR-2** | Scanned/handwritten documents | Moderate | 8GB+ RAM, GPU recommended |
+| **Groq API** | Fastest processing, no local GPU | Very Easy | None (internet required) |
+
+---
+
+### 1️⃣ PaddleOCR with PP-StructureV3 Setup
+
+#### Installation Steps
+
+**Step 1: Create Conda Environment (Recommended)**
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+conda create -n paddleocr python=3.8 -y
+conda activate paddleocr
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Step 2: Install PaddlePaddle Framework**
+- For CPU-only systems:
+  ```bash
+  python -m pip install paddlepaddle==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+  ```
+- For GPU (CUDA 11.8):
+  ```bash
+  python -m pip install paddlepaddle-gpu==3.1.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+  ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Step 3: Install PaddleOCR**
+```bash
+python -m pip install "paddleocr[all]"
+```
 
-## Learn More
+**Step 4: Install Additional Dependencies**
+```bash
+pip install openpyxl beautifulsoup4
+```
 
-To learn more, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+### 2️⃣ DeepSeek OCR-2 Setup
+
+#### Installation Steps
+
+**Step 1: Clone Repository**
+```bash
+git clone https://github.com/Dogacel/Universal-DeepSeek-OCR-2.git
+cd Universal-DeepSeek-OCR-2
+```
+
+**Step 2: Create Environment**
+```bash
+conda create -n deepseek-ocr2 python=3.12.9 -y
+conda activate deepseek-ocr2
+```
+
+**Step 3: Install Dependencies**
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+### 3️⃣ Groq API + Llama 3 Setup
+
+#### Setup Steps
+
+**Step 1: Get API Keys**
+1. Get Groq API Key from [console.groq.com](https://console.groq.com)
+2. Get Portkey API Key (optional) from [portkey.ai](https://portkey.ai)
+
+**Step 2: Install Required Packages**
+```bash
+pip install groq langchain-groq portkey-ai openai
+```
+
+**Step 3: Set Environment Variables**
+```bash
+export GROQ_API_KEY="your-groq-api-key-here"
+```
+
+---
+
+## Key Features
+- **Mixed Question CBT**: Supports MCQ, Fill-in-the-Blank, True/False, and Short Answer.
+- **CSV Import**: Support for bulk uploading questions via CSV.
+- **AI-Powered Parsing**: Automatically converts PDF/CSV to CBT format using Gemini, Groq, or PaddleOCR.
+- **Korapay Integration**: Seamless school fees and levy payments.
+- **Parent-Student Binding**: Real-time monitoring of child performance.
+- **Messaging & Disputes**: Integrated communication and ticketing system.
