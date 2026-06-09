@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { createParentProfile } from '@/app/actions/user'
+import { createParentProfile, linkChildToParent } from '@/app/actions/user'
 
 export default function ParentSetupPage() {
   const router = useRouter()
@@ -17,6 +17,7 @@ export default function ParentSetupPage() {
     relationship: '',
     phoneNumber: '',
     occupation: '',
+    childAdmissionNumber: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,7 +25,7 @@ export default function ParentSetupPage() {
     setLoading(true)
 
     try {
-      await createParentProfile({
+      const parentResult = await createParentProfile({
         firstName: formData.firstName,
         lastName: formData.lastName,
         relationship: formData.relationship as 'father' | 'mother' | 'guardian' | 'other',
@@ -32,7 +33,11 @@ export default function ParentSetupPage() {
         occupation: formData.occupation,
       })
 
-      router.push('/parent')
+      if (formData.childAdmissionNumber && parentResult) {
+        await linkChildToParent(formData.childAdmissionNumber, parentResult.id)
+      }
+
+      router.push('/dashboard/parent/overview')
     } catch (error) {
       console.error('Error creating parent profile:', error)
       alert('Failed to create parent profile. Please try again.')
@@ -107,6 +112,17 @@ export default function ParentSetupPage() {
                 className="mt-1 border-slate-600 bg-slate-700 text-white"
                 placeholder="Engineer"
               />
+            </div>
+
+            <div className="pt-4 border-t border-slate-700">
+              <label className="block text-sm font-medium text-amber-400">Link Child (Admission Number)</label>
+              <Input
+                value={formData.childAdmissionNumber}
+                onChange={(e) => setFormData({ ...formData, childAdmissionNumber: e.target.value })}
+                className="mt-1 border-slate-600 bg-slate-700 text-white"
+                placeholder="e.g. EG/2024/001"
+              />
+              <p className="mt-1 text-xs text-slate-500">You can add more children later from your dashboard.</p>
             </div>
 
             <Button

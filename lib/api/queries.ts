@@ -10,32 +10,28 @@ import {
   auditLog,
   attendance,
   dispute,
-  subject
+  subject,
+  message,
+  notification
 } from '@/lib/db/schema'
-import { eq, and, sql, desc } from 'drizzle-orm'
+import { eq, and, sql, desc, inArray } from 'drizzle-orm'
 
 export async function getStudentProfile(userId: string) {
-  const result = await db.select()
-    .from(student)
-    .where(eq(student.userId, userId))
-    .limit(1)
-  return result[0]
+  return await db.query.student.findFirst({
+    where: eq(student.userId, userId),
+  })
 }
 
 export async function getTeacherProfile(userId: string) {
-  const result = await db.select()
-    .from(teacher)
-    .where(eq(teacher.userId, userId))
-    .limit(1)
-  return result[0]
+  return await db.query.teacher.findFirst({
+    where: eq(teacher.userId, userId),
+  })
 }
 
 export async function getParentProfile(userId: string) {
-  const result = await db.select()
-    .from(parent)
-    .where(eq(parent.userId, userId))
-    .limit(1)
-  return result[0]
+  return await db.query.parent.findFirst({
+    where: eq(parent.userId, userId),
+  })
 }
 
 export async function getUserRole(userId: string) {
@@ -65,10 +61,10 @@ export async function getAdminDashboardStats() {
   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).where(eq(assessment.status, 'published'))
 
   return {
-    totalStudents: studentsCount.count,
-    totalTeachers: teachersCount.count,
-    revenue: totalRevenue.sum || '0',
-    activeCBTs: activeCBTs.count
+    totalStudents: Number(studentsCount?.count || 0),
+    totalTeachers: Number(teachersCount?.count || 0),
+    revenue: totalRevenue?.sum || '0',
+    activeCBTs: Number(activeCBTs?.count || 0)
   }
 }
 
@@ -90,9 +86,14 @@ export async function getUrgentAlerts() {
 
 export async function getTeacherDashboardData(teacherId: string) {
   const classes = await getTeacherClasses(teacherId)
-  const [studentCount] = await db.select({ count: sql<number>`count(*)` })
-    .from(student)
-    .where(sql`class IN (select name from class where teacher_id = ${teacherId})`)
+
+  const classNames = classes.map(c => c.name)
+
+  const studentCountResult = classNames.length > 0
+    ? await db.select({ count: sql<number>`count(*)` })
+        .from(student)
+        .where(inArray(student.class, classNames))
+    : [{ count: 0 }]
 
   const upcomingAssessments = await db.select()
     .from(assessment)
@@ -101,7 +102,7 @@ export async function getTeacherDashboardData(teacherId: string) {
 
   return {
     classes,
-    totalStudents: studentCount.count,
+    totalStudents: Number(studentCountResult[0]?.count || 0),
     upcomingAssessments
   }
 }
@@ -123,4 +124,20 @@ export async function getStudentDashboardData(studentId: string, className: stri
     upcomingAssessments: upcomingAssessments.map(a => ({ ...a.assessment, subject: a.subject.name })),
     recentPayments
   }
+}
+
+export async function getMessages(userId: string) {
+  return await db.select()
+    .from(message)
+    .where(eq(message.senderId, userId))
+    .orderBy(desc(message.createdAt))
+    .limit(20)
+}
+
+export async function getNotifications(userId: string) {
+  return await db.select()
+    .from(notification)
+    .where(eq(notification.userId, userId))
+    .orderBy(desc(notification.createdAt))
+    .limit(10)
 }

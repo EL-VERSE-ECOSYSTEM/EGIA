@@ -1,4 +1,4 @@
-import { DashboardLayout } from '@/components/dashboard-layout'
+import { DashboardLayout } from '@/components/layout/dashboard-layout'
 
 export default function Page({ params }: { params: any }) {
   const role = 'admin';
