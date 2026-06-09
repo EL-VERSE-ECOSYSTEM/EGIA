@@ -1,5 +1,5 @@
 import { getAllTeachers } from '@/app/actions/admin'
-import { DashboardLayout } from '@/components/dashboard-layout'
+import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'

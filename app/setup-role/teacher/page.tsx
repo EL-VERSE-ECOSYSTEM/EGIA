@@ -29,7 +29,7 @@ export default function TeacherSetupPage() {
         specialization: formData.specialization,
       })
 
-      router.push('/teacher')
+      router.push('/dashboard/teacher/overview')
     } catch (error) {
       console.error('Error creating teacher profile:', error)
       alert('Failed to create teacher profile. Please try again.')

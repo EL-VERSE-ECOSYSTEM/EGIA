@@ -30,7 +30,7 @@ export default function StudentSetupPage() {
         admissionNumber: formData.admissionNumber,
       })
 
-      router.push('/student')
+      router.push('/dashboard/student/overview')
     } catch (error) {
       console.error('Error creating student profile:', error)
       alert('Failed to create student profile. Please try again.')

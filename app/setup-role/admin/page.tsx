@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { db } from '@/lib/db'
 import { userRole } from '@/lib/db/schema'
-import { getUserId } from '@/app/actions/user'
+import { createAdminProfile } from '@/app/actions/user'
 
 export default function AdminSetupPage() {
   const router = useRouter()
@@ -16,22 +16,8 @@ export default function AdminSetupPage() {
     setLoading(true)
 
     try {
-      const userId = await getUserId()
-      
-      // This will be handled server-side via an action
-      const response = await fetch('/api/setup-admin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to setup admin')
-      }
-
-      router.push('/admin')
+      await createAdminProfile()
+      router.push('/dashboard/admin/overview')
     } catch (error) {
       console.error('Error setting up admin:', error)
       alert('Failed to setup admin account. Please try again.')

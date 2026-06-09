@@ -79,6 +79,18 @@ export async function createStudentProfile(data: {
   return result[0]
 }
 
+export async function createAdminProfile() {
+  const userId = await getUserId()
+
+  await db.insert(userRole).values({
+    userId,
+    role: 'admin',
+  })
+
+  revalidatePath('/')
+  return { success: true }
+}
+
 export async function createTeacherProfile(data: {
   firstName: string
   lastName: string
@@ -140,6 +152,16 @@ export async function createParentProfile(data: {
   }).returning()
 
   revalidatePath('/')
+  return result[0]
+}
+
+export async function linkChildToParent(admissionNumber: string, parentId: string) {
+  const result = await db.update(student)
+    .set({ parentId })
+    .where(eq(student.admissionNumber, admissionNumber))
+    .returning()
+
+  revalidatePath('/dashboard/parent/overview')
   return result[0]
 }
 
