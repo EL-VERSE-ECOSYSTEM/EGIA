@@ -128,8 +128,14 @@ export async function updateStudent(studentId: string, data: Partial<{
   gender: string
 }>) {
   await checkAdminPermission('update', 'student')
+
+  const updateData: any = { ...data, updatedAt: new Date() }
+  if (data.dateOfBirth) {
+    updateData.dateOfBirth = new Date(data.dateOfBirth).toISOString().split('T')[0]
+  }
+
   const result = await db.update(student)
-    .set({ ...data, updatedAt: new Date() })
+    .set(updateData)
     .where(eq(student.id, studentId))
     .returning()
   return result[0]
@@ -235,7 +241,7 @@ export async function createParent(data: {
 export async function getAdminDashboardStats() {
   const userId = await getUserId()
   const roleData = await getUserRoleData(userId)
-  if (roleData?.role !== 'admin') throw new Error('Admin access required')
+  if (roleData?.role !== 'admin') throw new Error('Permission denied')
 
   const [studentCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
   const [teacherCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)

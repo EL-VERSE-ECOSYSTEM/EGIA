@@ -63,7 +63,8 @@ export async function checkPermission(
 
   if (role === 'student') {
     if (resourceName === 'result' || resourceName === 'message' || resourceName === 'assessment') {
-      return action === 'read' || (action === 'create' && resourceName === 'result') // Can take (create result) assessments
+      // Students can read assessments/messages/results, and create results (i.e., take assessments)
+      return action === 'read' || (action === 'create' && resourceName === 'result')
     }
   }
 

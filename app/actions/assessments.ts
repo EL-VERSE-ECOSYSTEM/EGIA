@@ -43,7 +43,7 @@ export async function submitCBT(assessmentId: string, studentId: string, answers
     assessmentId,
     studentId,
     totalScore,
-    percentage: percentage.toFixed(2),
+    percentage: Number(percentage.toFixed(2)),
     status: 'completed',
     gradedAt: new Date(),
   })

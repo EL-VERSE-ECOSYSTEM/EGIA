@@ -9,7 +9,7 @@ import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
 
 async function getUserId() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
   return session.user.id
 }
@@ -67,6 +67,12 @@ export async function createConversation(recipientId: string, type: 'INDIVIDUAL'
   )
 
   if (!hasPermission) throw new Error('Permission denied')
+
+  const recipient = await db.query.user.findFirst({
+    where: eq(user.id, recipientId),
+  })
+
+  if (!recipient) throw new Error('Recipient not found')
 
   const newConversation = await db.insert(conversation).values({
     id: crypto.randomUUID(),
