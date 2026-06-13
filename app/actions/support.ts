@@ -14,7 +14,7 @@ export async function createDispute(data: {
   relatedStudentId?: string
   relatedPaymentId?: string
 }) {
-  const ticketNumber = `DIS-${Date.now()}`
+  const ticketNumber = `DIS-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
   const newDispute = await db.insert(dispute).values({
     id: crypto.randomUUID(),
@@ -28,19 +28,26 @@ export async function createDispute(data: {
 }
 
 export async function addDisputeMessage(disputeId: string, senderId: string, messageContent: string, isInternal = false) {
-  await db.insert(disputeMessage).values({
+  const disputeExists = await db.query.dispute.findFirst({
+    where: eq(dispute.id, disputeId),
+  })
+
+  if (!disputeExists) throw new Error('Dispute not found')
+
+  const newMessage = await db.insert(disputeMessage).values({
     id: crypto.randomUUID(),
     disputeId,
     senderId,
     message: messageContent,
     isInternal,
-  })
+  }).returning()
 
   await db.update(dispute)
     .set({ updatedAt: new Date() })
     .where(eq(dispute.id, disputeId))
 
   revalidatePath(`/dashboard/communication/disputes/${disputeId}`)
+  return newMessage[0]
 }
 
 export async function createSupportTicket(data: {
@@ -50,7 +57,7 @@ export async function createSupportTicket(data: {
   description: string
   userId: string
 }) {
-  const ticketNumber = `SUP-${Date.now()}`
+  const ticketNumber = `SUP-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
   const newTicket = await db.insert(supportTicket).values({
     id: crypto.randomUUID(),

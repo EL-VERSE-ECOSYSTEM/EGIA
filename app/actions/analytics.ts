@@ -2,15 +2,9 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { student, teacher, parent as parentTable, assessment, payment } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { student, teacher, parent as parentTable, assessment, payment, assessmentResult, attendance } from '@/lib/db/schema'
+import { eq, avg, sql, inArray } from 'drizzle-orm'
 import { headers } from 'next/headers'
-
-async function getUserId() {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) throw new Error('Unauthorized')
-  return session.user.id
-}
 
 export async function getSchoolAnalytics() {
   const students = await db.query.student.findMany()
@@ -32,23 +26,50 @@ export async function getSchoolAnalytics() {
     totalRevenue,
     completedPayments,
     pendingPayments,
-    paymentCompletionRate: completedPayments / (completedPayments + pendingPayments) * 100 || 0,
+    paymentCompletionRate: (completedPayments + pendingPayments) > 0
+      ? (completedPayments / (completedPayments + pendingPayments)) * 100
+      : 0,
   }
 }
 
 export async function getClassAnalytics(className: string) {
-  const students = await db.query.student.findMany({
+  const classStudents = await db.query.student.findMany({
     where: eq(student.class, className),
   })
 
+  const studentIds = classStudents.map(s => s.id)
   const assessments = await db.query.assessment.findMany()
+
+  let averageClassPerformance = 0
+  let classAttendance = 0
+
+  if (studentIds.length > 0) {
+    const results = await db.select({
+      avg: avg(assessmentResult.percentage)
+    })
+    .from(assessmentResult)
+    .where(inArray(assessmentResult.studentId, studentIds))
+
+    averageClassPerformance = Number(results[0]?.avg) || 0
+
+    const attendanceRecords = await db.select({
+      total: sql<number>`count(*)`,
+      present: sql<number>`count(*) filter (where status = 'present')`
+    })
+    .from(attendance)
+    .where(inArray(attendance.studentId, studentIds))
+
+    if (attendanceRecords[0] && Number(attendanceRecords[0].total) > 0) {
+      classAttendance = (Number(attendanceRecords[0].present) / Number(attendanceRecords[0].total)) * 100
+    }
+  }
 
   return {
     className,
-    totalStudents: students.length,
+    totalStudents: classStudents.length,
     totalAssessments: assessments.length,
-    averageClassPerformance: 75, // Mock data
-    attendance: 92, // Mock data
+    averageClassPerformance,
+    attendance: classAttendance,
   }
 }
 
@@ -57,11 +78,24 @@ export async function getTeacherAnalytics(teacherId: string) {
     where: eq(assessment.createdBy, teacherId),
   })
 
+  const assessmentIds = assessments.map(a => a.id)
+  let averageScore = 0
+
+  if (assessmentIds.length > 0) {
+    const results = await db.select({
+      avg: avg(assessmentResult.percentage)
+    })
+    .from(assessmentResult)
+    .where(inArray(assessmentResult.assessmentId, assessmentIds))
+
+    averageScore = Number(results[0]?.avg) || 0
+  }
+
   return {
     totalAssessments: assessments.length,
     publishedAssessments: assessments.filter(a => a.status === 'published').length,
     draftAssessments: assessments.filter(a => a.status === 'draft').length,
-    averageScore: 72, // Mock data
+    averageScore,
   }
 }
 
@@ -90,11 +124,14 @@ export async function generateFinancialReport() {
     pta: payments.filter(p => p.feeType === 'pta' && p.status === 'completed').reduce((s, p) => s + p.amount, 0),
   }
 
+  const totalCount = payments.length
+  const completedCount = payments.filter(p => p.status === 'completed').length
+
   return {
     timestamp: new Date().toISOString(),
     totalCollected: Object.values(byType).reduce((a, b) => a + b, 0),
     byFeeType: byType,
     pendingAmount: payments.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount, 0),
-    completionRate: (payments.filter(p => p.status === 'completed').length / payments.length * 100).toFixed(2) + '%',
+    completionRate: totalCount > 0 ? Number(((completedCount / totalCount) * 100).toFixed(2)) : 0,
   }
 }

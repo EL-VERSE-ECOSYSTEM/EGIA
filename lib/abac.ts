@@ -3,7 +3,7 @@ import { abacPolicy } from './db/schema'
 import { eq, and } from 'drizzle-orm'
 
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'publish' | 'grade'
-export type Resource = 'assessment' | 'result' | 'student' | 'teacher' | 'parent' | 'payment' | 'message' | 'dispute' | 'class'
+export type Resource = 'assessment' | 'result' | 'student' | 'teacher' | 'parent' | 'payment' | 'message' | 'dispute' | 'class' | 'academicSession' | 'term'
 
 interface EvaluationContext {
   user: {
@@ -63,7 +63,8 @@ export async function checkPermission(
 
   if (role === 'student') {
     if (resourceName === 'result' || resourceName === 'message' || resourceName === 'assessment') {
-      return action === 'read' || (action === 'create' && resourceName === 'result') // Can take (create result) assessments
+      // Students can read assessments/messages/results, and create results (i.e., take assessments)
+      return action === 'read' || (action === 'create' && resourceName === 'result')
     }
   }
 

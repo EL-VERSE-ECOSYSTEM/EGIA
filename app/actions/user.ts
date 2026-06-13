@@ -3,7 +3,7 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { user, userRole, student, teacher, parent } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
 export async function getUserId() {
@@ -24,7 +24,15 @@ export async function getUserRole(): Promise<'admin' | 'teacher' | 'parent' | 's
   const roleData = await db.query.userRole.findFirst({
     where: eq(userRole.userId, userId),
   })
-  return roleData?.role as 'admin' | 'teacher' | 'parent' | 'student' | null
+
+  if (!roleData) return null
+
+  const validRoles = ['admin', 'teacher', 'parent', 'student'] as const
+  if (validRoles.includes(roleData.role as any)) {
+    return roleData.role as 'admin' | 'teacher' | 'parent' | 'student'
+  }
+
+  return null
 }
 
 export async function getStudentProfile() {
@@ -59,30 +67,40 @@ export async function createStudentProfile(data: {
   const userId = await getUserId()
   const studentId = `STU-${Date.now()}`
 
-  await db.insert(userRole).values({
-    userId,
-    role: 'student',
+  const validClasses = ['JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3'] as const
+  if (!validClasses.includes(data.class as any)) {
+    throw new Error('Invalid class')
+  }
+
+  return await db.transaction(async (tx) => {
+    await tx.insert(userRole).values({
+      id: crypto.randomUUID(),
+      userId,
+      role: 'student',
+    })
+
+    const result = await tx.insert(student).values({
+      id: crypto.randomUUID(),
+      userId,
+      studentId,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      class: data.class as typeof validClasses[number],
+      dateOfBirth: data.dateOfBirth,
+      gender: data.gender,
+      admissionNumber: data.admissionNumber,
+    }).returning()
+
+    revalidatePath('/')
+    return result[0]
   })
-
-  const result = await db.insert(student).values({
-    userId,
-    studentId,
-    firstName: data.firstName,
-    lastName: data.lastName,
-    class: data.class as 'JSS1' | 'JSS2' | 'JSS3' | 'SSS1' | 'SSS2' | 'SSS3',
-    dateOfBirth: data.dateOfBirth,
-    gender: data.gender,
-    admissionNumber: data.admissionNumber,
-  }).returning()
-
-  revalidatePath('/')
-  return result[0]
 }
 
 export async function createAdminProfile() {
   const userId = await getUserId()
 
   await db.insert(userRole).values({
+    id: crypto.randomUUID(),
     userId,
     role: 'admin',
   })
@@ -103,25 +121,29 @@ export async function createTeacherProfile(data: {
   const userId = await getUserId()
   const teacherId = `TEACH-${Date.now()}`
 
-  await db.insert(userRole).values({
-    userId,
-    role: 'teacher',
+  return await db.transaction(async (tx) => {
+    await tx.insert(userRole).values({
+      id: crypto.randomUUID(),
+      userId,
+      role: 'teacher',
+    })
+
+    const result = await tx.insert(teacher).values({
+      id: crypto.randomUUID(),
+      userId,
+      teacherId,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      qualification: data.qualification,
+      specialization: data.specialization,
+      dateOfBirth: data.dateOfBirth,
+      gender: data.gender,
+      joinDate: data.joinDate,
+    }).returning()
+
+    revalidatePath('/')
+    return result[0]
   })
-
-  const result = await db.insert(teacher).values({
-    userId,
-    teacherId,
-    firstName: data.firstName,
-    lastName: data.lastName,
-    qualification: data.qualification,
-    specialization: data.specialization,
-    dateOfBirth: data.dateOfBirth,
-    gender: data.gender,
-    joinDate: data.joinDate,
-  }).returning()
-
-  revalidatePath('/')
-  return result[0]
 }
 
 export async function createParentProfile(data: {
@@ -135,27 +157,43 @@ export async function createParentProfile(data: {
   const userId = await getUserId()
   const parentId = `PAR-${Date.now()}`
 
-  await db.insert(userRole).values({
-    userId,
-    role: 'parent',
+  return await db.transaction(async (tx) => {
+    await tx.insert(userRole).values({
+      id: crypto.randomUUID(),
+      userId,
+      role: 'parent',
+    })
+
+    const result = await tx.insert(parent).values({
+      id: crypto.randomUUID(),
+      userId,
+      parentId,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      relationship: data.relationship,
+      phoneNumber: data.phoneNumber,
+      occupation: data.occupation,
+      address: data.address,
+    }).returning()
+
+    revalidatePath('/')
+    return result[0]
   })
-
-  const result = await db.insert(parent).values({
-    userId,
-    parentId,
-    firstName: data.firstName,
-    lastName: data.lastName,
-    relationship: data.relationship,
-    phoneNumber: data.phoneNumber,
-    occupation: data.occupation,
-    address: data.address,
-  }).returning()
-
-  revalidatePath('/')
-  return result[0]
 }
 
 export async function linkChildToParent(admissionNumber: string, parentId: string) {
+  const studentExists = await db.query.student.findFirst({
+    where: eq(student.admissionNumber, admissionNumber),
+  })
+
+  if (!studentExists) throw new Error('Student not found')
+
+  const parentExists = await db.query.parent.findFirst({
+    where: eq(parent.id, parentId),
+  })
+
+  if (!parentExists) throw new Error('Parent not found')
+
   const result = await db.update(student)
     .set({ parentId })
     .where(eq(student.admissionNumber, admissionNumber))

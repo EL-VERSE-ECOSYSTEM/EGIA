@@ -37,7 +37,7 @@ async function checkAdminPermission(action: any, resource: any) {
 
 // Session & Term Management
 export async function createAcademicSession(name: string, startDate: Date, endDate: Date) {
-  await checkAdminPermission('create', 'class')
+  await checkAdminPermission('create', 'academicSession')
   return db.insert(academicSession).values({
     id: crypto.randomUUID(),
     name,
@@ -48,7 +48,7 @@ export async function createAcademicSession(name: string, startDate: Date, endDa
 }
 
 export async function createTerm(sessionId: string, name: string, startDate: Date, endDate: Date) {
-  await checkAdminPermission('create', 'class')
+  await checkAdminPermission('create', 'term')
   return db.insert(term).values({
     id: crypto.randomUUID(),
     sessionId,
@@ -91,6 +91,7 @@ export async function createStudent(data: {
 }) {
   await checkAdminPermission('create', 'student')
 
+  // TODO: Implement password hashing
   const newUser = await db.insert(user).values({
     id: crypto.randomUUID(),
     email: data.email,
@@ -128,8 +129,14 @@ export async function updateStudent(studentId: string, data: Partial<{
   gender: string
 }>) {
   await checkAdminPermission('update', 'student')
+
+  const updateData: any = { ...data, updatedAt: new Date() }
+  if (data.dateOfBirth) {
+    updateData.dateOfBirth = new Date(data.dateOfBirth).toISOString().split('T')[0]
+  }
+
   const result = await db.update(student)
-    .set({ ...data, updatedAt: new Date() })
+    .set(updateData)
     .where(eq(student.id, studentId))
     .returning()
   return result[0]
@@ -166,6 +173,7 @@ export async function createTeacher(data: {
   specialization?: string
 }) {
   await checkAdminPermission('create', 'teacher')
+  // TODO: Implement password hashing
   const newUser = await db.insert(user).values({
     id: crypto.randomUUID(),
     email: data.email,
@@ -208,6 +216,7 @@ export async function createParent(data: {
   relationship?: string
 }) {
   await checkAdminPermission('create', 'parent')
+  // TODO: Implement password hashing
   const newUser = await db.insert(user).values({
     id: crypto.randomUUID(),
     email: data.email,
@@ -235,7 +244,7 @@ export async function createParent(data: {
 export async function getAdminDashboardStats() {
   const userId = await getUserId()
   const roleData = await getUserRoleData(userId)
-  if (roleData?.role !== 'admin') throw new Error('Admin access required')
+  if (roleData?.role !== 'admin') throw new Error('Permission denied')
 
   const [studentCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
   const [teacherCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
