@@ -37,7 +37,7 @@ async function checkAdminPermission(action: any, resource: any) {
 
 // Session & Term Management
 export async function createAcademicSession(name: string, startDate: Date, endDate: Date) {
-  await checkAdminPermission('create', 'class')
+  await checkAdminPermission('create', 'academicSession')
   return db.insert(academicSession).values({
     id: crypto.randomUUID(),
     name,
@@ -48,7 +48,7 @@ export async function createAcademicSession(name: string, startDate: Date, endDa
 }
 
 export async function createTerm(sessionId: string, name: string, startDate: Date, endDate: Date) {
-  await checkAdminPermission('create', 'class')
+  await checkAdminPermission('create', 'term')
   return db.insert(term).values({
     id: crypto.randomUUID(),
     sessionId,
@@ -91,6 +91,7 @@ export async function createStudent(data: {
 }) {
   await checkAdminPermission('create', 'student')
 
+  // TODO: Implement password hashing
   const newUser = await db.insert(user).values({
     id: crypto.randomUUID(),
     email: data.email,
@@ -172,6 +173,7 @@ export async function createTeacher(data: {
   specialization?: string
 }) {
   await checkAdminPermission('create', 'teacher')
+  // TODO: Implement password hashing
   const newUser = await db.insert(user).values({
     id: crypto.randomUUID(),
     email: data.email,
@@ -214,6 +216,7 @@ export async function createParent(data: {
   relationship?: string
 }) {
   await checkAdminPermission('create', 'parent')
+  // TODO: Implement password hashing
   const newUser = await db.insert(user).values({
     id: crypto.randomUUID(),
     email: data.email,

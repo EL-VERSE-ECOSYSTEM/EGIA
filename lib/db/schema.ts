@@ -487,3 +487,8 @@ export const assessmentResultRelations = relations(assessmentResult, ({ one, man
   student: one(student, { fields: [assessmentResult.studentId], references: [student.id] }),
   answers: many(studentAnswer),
 }))
+
+export const conversationParticipantRelations = relations(conversationParticipant, ({ one }) => ({
+  conversation: one(conversation, { fields: [conversationParticipant.conversationId], references: [conversation.id] }),
+  user: one(user, { fields: [conversationParticipant.userId], references: [user.id] }),
+}))

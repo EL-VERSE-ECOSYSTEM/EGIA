@@ -7,7 +7,7 @@ import { assessmentQuestion } from '@/lib/db/schema'
 import { v4 as uuidv4 } from 'uuid'
 
 export async function POST(req: Request) {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.getSession()
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -28,17 +28,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid CSV format' }, { status: 400 })
     }
 
-    const questionsToInsert = data.map((row, index) => ({
-      id: uuidv4(),
-      assessmentId,
-      questionText: row.questionText,
-      questionType: row.questionType,
-      marks: parseInt(row.marks) || 1,
-      options: row.options ? JSON.parse(row.options) : null,
-      correctAnswer: row.correctAnswer,
-      explanation: row.explanation,
-      sequenceNumber: index + 1,
-    }))
+    const questionsToInsert = data.map((row, index) => {
+      const marks = parseInt(row.marks, 10)
+      if (isNaN(marks) || marks <= 0) {
+        throw new Error(`Invalid marks value at row ${index + 1}. Marks must be a positive integer.`)
+      }
+
+      return {
+        id: uuidv4(),
+        assessmentId,
+        questionText: row.questionText,
+        questionType: row.questionType,
+        marks,
+        options: row.options ? JSON.parse(row.options) : null,
+        correctAnswer: row.correctAnswer,
+        explanation: row.explanation,
+        sequenceNumber: index + 1,
+      }
+    })
 
     await db.insert(assessmentQuestion).values(questionsToInsert)
 

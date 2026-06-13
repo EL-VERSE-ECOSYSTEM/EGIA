@@ -3,7 +3,7 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { conversation, conversationParticipant, message, user, userRole } from '@/lib/db/schema'
-import { eq, and, or } from 'drizzle-orm'
+import { eq, and, or, desc, inArray } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
@@ -136,5 +136,34 @@ export async function getMessages(conversationId: string) {
   return db.query.message.findMany({
     where: eq(message.conversationId, conversationId),
     orderBy: (message, { asc }) => [asc(message.createdAt)],
+    with: {
+      sender: true
+    }
+  })
+}
+
+export async function getConversationsForUser(userId: string) {
+  const userParticipants = await db.query.conversationParticipant.findMany({
+    where: eq(conversationParticipant.userId, userId),
+  })
+
+  const conversationIds = userParticipants.map(p => p.conversationId)
+
+  if (conversationIds.length === 0) return []
+
+  return db.query.conversation.findMany({
+    where: inArray(conversation.id, conversationIds),
+    with: {
+      messages: {
+        orderBy: [desc(message.createdAt)],
+        limit: 1,
+      },
+      participants: {
+        with: {
+          user: true
+        }
+      }
+    },
+    orderBy: [desc(conversation.updatedAt)]
   })
 }

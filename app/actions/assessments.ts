@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db'
 import { assessment, assessmentQuestion, assessmentResult, studentAnswer } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
 export async function submitCBT(assessmentId: string, studentId: string, answers: { questionId: string, answer: string }[]) {
