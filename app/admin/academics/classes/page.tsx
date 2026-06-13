@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { DashboardLayout } from '@/components/dashboard-layout'
+import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import { Plus, Edit, Trash2, Users, BookOpen } from 'lucide-react'
 
