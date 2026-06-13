@@ -21,6 +21,7 @@ export function middleware(request: NextRequest) {
 
   if (!hasCookie) {
     // Redirect unauthenticated users to sign-in
+    // Standardizing on /sign-in as per middleware publicRoutes
     return NextResponse.redirect(new URL('/sign-in', request.url))
   }
 

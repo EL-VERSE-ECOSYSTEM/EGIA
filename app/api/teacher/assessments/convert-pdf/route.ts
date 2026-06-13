@@ -4,7 +4,7 @@ import { headers } from 'next/headers'
 import { PDFToCBTConverter } from '@/lib/pdf-to-cbt/converter'
 
 export async function POST(req: Request) {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.getSession()
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

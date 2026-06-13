@@ -63,7 +63,8 @@ export async function createConversation(recipientId: string, type: 'INDIVIDUAL'
     userId,
     roleData?.role || '',
     'create',
-    'message'
+    'message',
+    { recipientId, type }
   )
 
   if (!hasPermission) throw new Error('Permission denied')
@@ -98,7 +99,8 @@ export async function sendMessage(conversationId: string, content: string, attac
     userId,
     roleData?.role || '',
     'create',
-    'message'
+    'message',
+    { conversationId }
   )
 
   if (!hasPermission) throw new Error('Permission denied')

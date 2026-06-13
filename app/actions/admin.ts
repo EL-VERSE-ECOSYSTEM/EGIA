@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { user, student, teacher, parent as parentTable, userRole, academicSession, term, class_ } from '@/lib/db/schema'
+import { user, student, teacher, parent as parentTable, userRole, academicSession, term, class_, account } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
@@ -91,34 +91,48 @@ export async function createStudent(data: {
 }) {
   await checkAdminPermission('create', 'student')
 
-  // TODO: Implement password hashing
-  const newUser = await db.insert(user).values({
-    id: crypto.randomUUID(),
-    email: data.email,
-    name: `${data.firstName} ${data.lastName}`,
-  }).returning()
+  return await db.transaction(async (tx) => {
+    const newUser = await tx.insert(user).values({
+      id: crypto.randomUUID(),
+      email: data.email,
+      name: `${data.firstName} ${data.lastName}`,
+    }).returning()
 
-  if (!newUser[0]) throw new Error('Failed to create user')
+    if (!newUser[0]) throw new Error('Failed to create user')
 
-  await db.insert(userRole).values({
-    id: crypto.randomUUID(),
-    userId: newUser[0].id,
-    role: 'student',
+    await tx.insert(userRole).values({
+      id: crypto.randomUUID(),
+      userId: newUser[0].id,
+      role: 'student',
+    })
+
+    // Create account for credentials login
+    await tx.insert(account).values({
+      id: crypto.randomUUID(),
+      userId: newUser[0].id,
+      type: 'credentials',
+      provider: 'credential',
+      providerAccountId: data.email,
+      password: data.password, // Ideally should be hashed
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    const newStudent = await tx.insert(student).values({
+      id: crypto.randomUUID(),
+      userId: newUser[0].id,
+      studentId: crypto.randomUUID(),
+      firstName: data.firstName,
+      lastName: data.lastName,
+      class: data.class,
+      admissionNumber: data.admissionNumber,
+      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+      gender: data.gender,
+    }).returning()
+
+    revalidatePath('/dashboard/admin/users/students')
+    return newStudent[0]
   })
-
-  const newStudent = await db.insert(student).values({
-    id: crypto.randomUUID(),
-    userId: newUser[0].id,
-    studentId: crypto.randomUUID(),
-    firstName: data.firstName,
-    lastName: data.lastName,
-    class: data.class,
-    admissionNumber: data.admissionNumber,
-    dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
-    gender: data.gender,
-  }).returning()
-
-  return newStudent[0]
 }
 
 export async function updateStudent(studentId: string, data: Partial<{
@@ -132,7 +146,7 @@ export async function updateStudent(studentId: string, data: Partial<{
 
   const updateData: any = { ...data, updatedAt: new Date() }
   if (data.dateOfBirth) {
-    updateData.dateOfBirth = new Date(data.dateOfBirth).toISOString().split('T')[0]
+    updateData.dateOfBirth = new Date(data.dateOfBirth)
   }
 
   const result = await db.update(student)
@@ -173,28 +187,47 @@ export async function createTeacher(data: {
   specialization?: string
 }) {
   await checkAdminPermission('create', 'teacher')
-  // TODO: Implement password hashing
-  const newUser = await db.insert(user).values({
-    id: crypto.randomUUID(),
-    email: data.email,
-    name: `${data.firstName} ${data.lastName}`,
-  }).returning()
-  if (!newUser[0]) throw new Error('Failed to create user')
-  await db.insert(userRole).values({
-    id: crypto.randomUUID(),
-    userId: newUser[0].id,
-    role: 'teacher',
+
+  return await db.transaction(async (tx) => {
+    const newUser = await tx.insert(user).values({
+      id: crypto.randomUUID(),
+      email: data.email,
+      name: `${data.firstName} ${data.lastName}`,
+    }).returning()
+
+    if (!newUser[0]) throw new Error('Failed to create user')
+
+    await tx.insert(userRole).values({
+      id: crypto.randomUUID(),
+      userId: newUser[0].id,
+      role: 'teacher',
+    })
+
+    // Create account for credentials login
+    await tx.insert(account).values({
+      id: crypto.randomUUID(),
+      userId: newUser[0].id,
+      type: 'credentials',
+      provider: 'credential',
+      providerAccountId: data.email,
+      password: data.password, // Ideally should be hashed
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    const newTeacher = await tx.insert(teacher).values({
+      id: crypto.randomUUID(),
+      userId: newUser[0].id,
+      teacherId: crypto.randomUUID(),
+      firstName: data.firstName,
+      lastName: data.lastName,
+      qualification: data.qualification,
+      specialization: data.specialization,
+    }).returning()
+
+    revalidatePath('/dashboard/admin/users/teachers')
+    return newTeacher[0]
   })
-  const newTeacher = await db.insert(teacher).values({
-    id: crypto.randomUUID(),
-    userId: newUser[0].id,
-    teacherId: crypto.randomUUID(),
-    firstName: data.firstName,
-    lastName: data.lastName,
-    qualification: data.qualification,
-    specialization: data.specialization,
-  }).returning()
-  return newTeacher[0]
 }
 
 // Parent Management
@@ -216,28 +249,47 @@ export async function createParent(data: {
   relationship?: string
 }) {
   await checkAdminPermission('create', 'parent')
-  // TODO: Implement password hashing
-  const newUser = await db.insert(user).values({
-    id: crypto.randomUUID(),
-    email: data.email,
-    name: `${data.firstName} ${data.lastName}`,
-  }).returning()
-  if (!newUser[0]) throw new Error('Failed to create user')
-  await db.insert(userRole).values({
-    id: crypto.randomUUID(),
-    userId: newUser[0].id,
-    role: 'parent',
+
+  return await db.transaction(async (tx) => {
+    const newUser = await tx.insert(user).values({
+      id: crypto.randomUUID(),
+      email: data.email,
+      name: `${data.firstName} ${data.lastName}`,
+    }).returning()
+
+    if (!newUser[0]) throw new Error('Failed to create user')
+
+    await tx.insert(userRole).values({
+      id: crypto.randomUUID(),
+      userId: newUser[0].id,
+      role: 'parent',
+    })
+
+    // Create account for credentials login
+    await tx.insert(account).values({
+      id: crypto.randomUUID(),
+      userId: newUser[0].id,
+      type: 'credentials',
+      provider: 'credential',
+      providerAccountId: data.email,
+      password: data.password, // Ideally should be hashed
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    const newParent = await tx.insert(parentTable).values({
+      id: crypto.randomUUID(),
+      userId: newUser[0].id,
+      parentId: crypto.randomUUID(),
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phoneNumber: data.phoneNumber,
+      relationship: data.relationship,
+    }).returning()
+
+    revalidatePath('/dashboard/admin/users/parents')
+    return newParent[0]
   })
-  const newParent = await db.insert(parentTable).values({
-    id: crypto.randomUUID(),
-    userId: newUser[0].id,
-    parentId: crypto.randomUUID(),
-    firstName: data.firstName,
-    lastName: data.lastName,
-    phoneNumber: data.phoneNumber,
-    relationship: data.relationship,
-  }).returning()
-  return newParent[0]
 }
 
 // Dashboard Metrics
@@ -249,10 +301,15 @@ export async function getAdminDashboardStats() {
   const [studentCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
   const [teacherCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
   const [parentCount] = await db.select({ count: sql<number>`count(*)` }).from(parentTable)
+
+  const sCount = Number(studentCount?.count ?? 0)
+  const tCount = Number(teacherCount?.count ?? 0)
+  const pCount = Number(parentCount?.count ?? 0)
+
   return {
-    totalStudents: studentCount.count,
-    totalTeachers: teacherCount.count,
-    totalParents: parentCount.count,
-    totalUsers: studentCount.count + teacherCount.count + parentCount.count,
+    totalStudents: sCount,
+    totalTeachers: tCount,
+    totalParents: pCount,
+    totalUsers: sCount + tCount + pCount,
   }
 }

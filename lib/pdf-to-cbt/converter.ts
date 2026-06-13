@@ -103,7 +103,7 @@ export class PDFToCBTConverter {
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
           results.push({
-            id: Math.random().toString(36).substr(2, 9),
+            id: crypto.randomUUID(),
             ...parsed,
             points: 1,
             confidence: 0.9
