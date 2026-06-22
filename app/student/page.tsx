@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { BookOpen, FileText, BarChart3, MessageSquare } from 'lucide-react'
 
 export default async function StudentDashboard() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.getSession()
 
   if (!session?.user) {
     redirect('/sign-in')

@@ -19,7 +19,7 @@ import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
 export default async function ParentOverviewPage() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.getSession()
   const parentProfile = await getParentProfile(session?.user.id || '')
   const dbChildren = await getParentChildren(parentProfile?.id || '')
 

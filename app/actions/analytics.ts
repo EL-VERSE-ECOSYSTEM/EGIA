@@ -14,7 +14,7 @@ export async function getSchoolAnalytics() {
 
   const totalRevenue = payments
     .filter(p => p.status === 'completed')
-    .reduce((sum, p) => sum + Number(Number(p.amount)), 0)
+    .reduce((sum, p) => sum + Number(Number(Number(p.amount))), 0)
 
   const completedPayments = payments.filter(p => p.status === 'completed').length
   const pendingPayments = payments.filter(p => p.status === 'pending').length
@@ -117,11 +117,11 @@ export async function generateFinancialReport() {
   const payments = await db.query.payment.findMany()
 
   const byType = {
-    tuition: payments.filter(p => p.feeType === 'tuition' && p.status === 'completed').reduce((s, p) => s + Number(Number(p.amount)), 0),
-    development: payments.filter(p => p.feeType === 'development' && p.status === 'completed').reduce((s, p) => s + Number(Number(p.amount)), 0),
-    exam: payments.filter(p => p.feeType === 'exam' && p.status === 'completed').reduce((s, p) => s + Number(Number(p.amount)), 0),
-    sports: payments.filter(p => p.feeType === 'sports' && p.status === 'completed').reduce((s, p) => s + Number(Number(p.amount)), 0),
-    pta: payments.filter(p => p.feeType === 'pta' && p.status === 'completed').reduce((s, p) => s + Number(Number(p.amount)), 0),
+    tuition: payments.filter(p => p.feeType === 'tuition' && p.status === 'completed').reduce((s, p) => s + Number(Number(Number(p.amount))), 0),
+    development: payments.filter(p => p.feeType === 'development' && p.status === 'completed').reduce((s, p) => s + Number(Number(Number(p.amount))), 0),
+    exam: payments.filter(p => p.feeType === 'exam' && p.status === 'completed').reduce((s, p) => s + Number(Number(Number(p.amount))), 0),
+    sports: payments.filter(p => p.feeType === 'sports' && p.status === 'completed').reduce((s, p) => s + Number(Number(Number(p.amount))), 0),
+    pta: payments.filter(p => p.feeType === 'pta' && p.status === 'completed').reduce((s, p) => s + Number(Number(Number(p.amount))), 0),
   }
 
   const totalCount = payments.length
@@ -131,7 +131,7 @@ export async function generateFinancialReport() {
     timestamp: new Date().toISOString(),
     totalCollected: Object.values(byType).reduce((a, b) => a + Number(b), 0),
     byFeeType: byType,
-    pendingAmount: payments.filter(p => p.status === 'pending').reduce((s, p) => s + Number(Number(p.amount)), 0),
+    pendingAmount: payments.filter(p => p.status === 'pending').reduce((s, p) => s + Number(Number(Number(p.amount))), 0),
     completionRate: totalCount > 0 ? Number(((completedCount / totalCount) * 100).toFixed(2)) : 0,
   }
 }

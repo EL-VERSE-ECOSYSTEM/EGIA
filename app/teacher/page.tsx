@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Users, BookOpen, CheckCircle, BarChart3 } from 'lucide-react'
 
 export default async function TeacherDashboard() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.getSession()
 
   if (!session?.user) {
     redirect('/sign-in')
