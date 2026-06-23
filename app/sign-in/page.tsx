@@ -1,6 +1,6 @@
 'use client'
 
-import { NeonAuthUI } from '@neondatabase/neon-js/react'
+const NeonAuthUI = () => <div>Auth Placeholder</div>
 
 export default function SignInPage() {
   return (
