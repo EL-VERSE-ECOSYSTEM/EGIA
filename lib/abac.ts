@@ -3,7 +3,7 @@ import { abacPolicy } from './db/schema'
 import { eq, and } from 'drizzle-orm'
 
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'publish' | 'grade'
-export type Resource = 'assessment' | 'result' | 'student' | 'teacher' | 'parent' | 'payment' | 'message' | 'dispute' | 'class' | 'academicSession' | 'term'
+export type Resource = 'assessment' | 'result' | 'student' | 'teacher' | 'parent' | 'payment' | 'message' | 'dispute' | 'class' | 'academicSession' | 'term' | 'academicSession' | 'term'
 
 interface EvaluationContext {
   user: {

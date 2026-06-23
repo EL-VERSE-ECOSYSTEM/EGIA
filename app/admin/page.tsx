@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Users, School, BarChart3, Settings, TrendingUp, AlertTriangle } from 'lucide-react'
 
 export default async function AdminDashboard() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.getSession()
 
   if (!session?.user) {
     redirect('/sign-in')

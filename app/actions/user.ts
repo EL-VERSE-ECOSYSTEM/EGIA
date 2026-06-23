@@ -182,23 +182,11 @@ export async function createParentProfile(data: {
 }
 
 export async function linkChildToParent(admissionNumber: string, parentId: string) {
-  const studentExists = await db.query.student.findFirst({
-    where: eq(student.admissionNumber, admissionNumber),
-  })
-
+  const studentExists = await db.query.student.findFirst({ where: eq(student.admissionNumber, admissionNumber) })
   if (!studentExists) throw new Error('Student not found')
-
-  const parentExists = await db.query.parent.findFirst({
-    where: eq(parent.id, parentId),
-  })
-
+  const parentExists = await db.query.parent.findFirst({ where: eq(parent.id, parentId) })
   if (!parentExists) throw new Error('Parent not found')
-
-  const result = await db.update(student)
-    .set({ parentId })
-    .where(eq(student.admissionNumber, admissionNumber))
-    .returning()
-
+  const result = await db.update(student).set({ parentId }).where(eq(student.admissionNumber, admissionNumber)).returning()
   revalidatePath('/dashboard/parent/overview')
   return result[0]
 }

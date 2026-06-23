@@ -19,7 +19,7 @@ import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
 export default async function StudentOverviewPage() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.getSession()
   const studentProfile = await getStudentProfile(session?.user.id || '')
   const data = await getStudentDashboardData(studentProfile?.id || '', studentProfile?.class || '')
 

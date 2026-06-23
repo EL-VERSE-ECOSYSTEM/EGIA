@@ -1,4 +1,4 @@
-import pdf from 'pdf-parse';
+import * as pdf from 'pdf-parse';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createWorker } from 'tesseract.js';
 

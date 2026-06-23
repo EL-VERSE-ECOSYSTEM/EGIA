@@ -21,7 +21,7 @@ import { headers } from 'next/headers'
 import Link from 'next/link'
 
 export default async function TeacherOverviewPage() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.getSession()
   const teacherProfile = await getTeacherProfile(session?.user.id || '')
   const data = await getTeacherDashboardData(teacherProfile?.id || '')
 
