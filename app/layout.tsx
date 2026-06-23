@@ -2,7 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Footer } from '@/components/footer'
-import { NeonAuthUIProvider } from '@neondatabase/auth/react/ui'
+import { NeonAuthUIProvider } from '@neondatabase/neon-js/react'
 import { authClient } from '@/lib/auth-client'
 import './globals.css'
 
