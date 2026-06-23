@@ -99,7 +99,6 @@ export async function createStudent(data: {
     revalidatePath('/dashboard/admin/users/students')
     return newStudent[0]
   })
-})
 }
 
 export async function updateStudent(studentId: string, data: Partial<{
@@ -163,7 +162,6 @@ export async function createTeacher(data: {
     revalidatePath('/dashboard/admin/users/teachers')
     return newTeacher[0]
   })
-})
 }
 
 // Parent Management
@@ -194,10 +192,8 @@ export async function createParent(data: {
     revalidatePath('/dashboard/admin/users/parents')
     return newParent[0]
   })
-})
 }
 
-// Dashboard Metrics
 export async function getAdminDashboardStats() {
   const userId = await getUserId()
   const roleData = await getUserRoleData(userId)
