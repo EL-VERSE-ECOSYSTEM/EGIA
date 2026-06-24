@@ -2,7 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Footer } from '@/components/footer'
-import { NeonAuthUIProvider } from '@neondatabase/neon-js/react'
+const NeonAuthUIProvider = ({children}) => <>{children}</>
 import { authClient } from '@/lib/auth-client'
 import './globals.css'
 
