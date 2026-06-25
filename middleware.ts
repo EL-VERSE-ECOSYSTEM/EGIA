@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/utils/supabase/middleware'
 
 const publicRoutes = ['/sign-in', '/sign-up', '/', '/api/auth', '/setup-role']
 
@@ -15,17 +16,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check if user has auth cookie
-  const hasCookie = request.cookies.has('better-auth.session_token') || 
-                    request.cookies.has('better-auth.account_id')
-
-  if (!hasCookie) {
-    // Redirect unauthenticated users to sign-in
-    // Standardizing on /sign-in as per middleware publicRoutes
-    return NextResponse.redirect(new URL('/sign-in', request.url))
-  }
-
-  return NextResponse.next()
+  // Use Supabase middleware for session management
+  return createClient(request)
 }
 
 export const config = {

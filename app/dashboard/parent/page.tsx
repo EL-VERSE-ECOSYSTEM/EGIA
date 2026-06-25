@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import ParentOverview from './overview/page'
 

@@ -67,7 +67,7 @@ export default function StudentPromotionPage() {
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
              <AlertCircle className="text-amber-600 w-5 h-5" />
              <p className="text-xs font-bold text-amber-800 leading-tight">
-               Promotion Criteria: 50% average, max 2 failures, <20 absences.
+               Promotion Criteria: 50% average, max 2 failures, &lt;20 absences.
              </p>
           </div>
         </div>
