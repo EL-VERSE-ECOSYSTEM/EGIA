@@ -2,10 +2,11 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { user, student, teacher, parent as parentTable, userRole, academicSession, term, class_, account } from '@/lib/db/schema'
+import { user as userTable, student, teacher, parent as parentTable, userRole, academicSession, term, class_ } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
+import { randomUUID } from 'crypto'
 
 async function getUserId() {
   const session = await auth.getSession()
@@ -21,11 +22,11 @@ async function getUserRoleData(userId: string) {
 
 async function checkAdminPermission(action: any, resource: any) {
   const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
+  const role = await getUserRoleData(userId)
 
   const hasPermission = await checkPermission(
     userId,
-    roleData?.role || '',
+    role?.role || '',
     action,
     resource
   )
@@ -38,23 +39,23 @@ async function checkAdminPermission(action: any, resource: any) {
 export async function createAcademicSession(name: string, startDate: Date, endDate: Date) {
   await checkAdminPermission('create', 'academicSession')
   return db.insert(academicSession).values({
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     name,
     startDate,
     endDate,
-    isActive: true,
+    isCurrent: true,
   }).returning()
 }
 
 export async function createTerm(sessionId: string, name: string, startDate: Date, endDate: Date) {
   await checkAdminPermission('create', 'term')
   return db.insert(term).values({
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     sessionId,
     name,
     startDate,
     endDate,
-    isActive: true,
+    isCurrent: true,
   }).returning()
 }
 
@@ -78,23 +79,25 @@ export async function getStudent(studentId: string) {
   })
 }
 
-export async function createStudent(data: {
-  firstName: string
-  lastName: string
-  email: string
-  password: string
-  admissionNumber: string
-  class: string
-  dateOfBirth?: string
-  gender?: string
-}) {
+// Keep the name as expected by the UI
+export async function createStudent(data: any) {
   await checkAdminPermission('create', 'student')
+  // Note: In Supabase, usually the user signs up themselves.
+  // This is a placeholder profile creation.
   return await db.transaction(async (tx) => {
-    const newUser = await tx.insert(user).values({ id: crypto.randomUUID(), email: data.email, name: `${data.firstName} ${data.lastName}` }).returning()
-    if (!newUser[0]) throw new Error('Failed to create user')
-    await tx.insert(userRole).values({ id: crypto.randomUUID(), userId: newUser[0].id, role: 'student' })
-    await tx.insert(account).values({ id: crypto.randomUUID(), userId: newUser[0].id, type: 'credentials', provider: 'credential', providerAccountId: data.email, password: data.password, createdAt: new Date(), updatedAt: new Date() })
-    const newStudent = await tx.insert(student).values({ id: crypto.randomUUID(), userId: newUser[0].id, studentId: crypto.randomUUID(), firstName: data.firstName, lastName: data.lastName, class: data.class, admissionNumber: data.admissionNumber, dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined, gender: data.gender }).returning()
+    const userId = randomUUID() // Placeholder until Supabase Auth user is created
+    await tx.insert(userTable).values({ id: userId, email: data.email, name: `${data.firstName} ${data.lastName}` })
+    await tx.insert(userRole).values({ id: randomUUID(), userId: userId, role: 'STUDENT' })
+    const newStudent = await tx.insert(student).values({
+      id: randomUUID(),
+      userId: userId,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      class: data.class,
+      admissionNumber: data.admissionNumber,
+      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+      gender: data.gender
+    }).returning()
     revalidatePath('/dashboard/admin/users/students')
     return newStudent[0]
   })
@@ -110,9 +113,6 @@ export async function updateStudent(studentId: string, data: Partial<{
   await checkAdminPermission('update', 'student')
 
   const updateData: any = { ...data, updatedAt: new Date() }
-  if (data.dateOfBirth) {
-    updateData.dateOfBirth = new Date(data.dateOfBirth)
-  }
 
   const result = await db.update(student)
     .set(updateData)
@@ -133,6 +133,9 @@ export async function promoteStudents(studentIds: string[], targetClass: string)
   return results
 }
 
+// Alias for UI
+export const processBulkPromotion = promoteStudents
+
 // Teacher Management
 export async function getAllTeachers() {
   await checkAdminPermission('read', 'teacher')
@@ -143,21 +146,19 @@ export async function getAllTeachers() {
   })
 }
 
-export async function createTeacher(data: {
-  firstName: string
-  lastName: string
-  email: string
-  password: string
-  qualification?: string
-  specialization?: string
-}) {
+export async function createTeacher(data: any) {
   await checkAdminPermission('create', 'teacher')
   return await db.transaction(async (tx) => {
-    const newUser = await tx.insert(user).values({ id: crypto.randomUUID(), email: data.email, name: `${data.firstName} ${data.lastName}` }).returning()
-    if (!newUser[0]) throw new Error('Failed to create user')
-    await tx.insert(userRole).values({ id: crypto.randomUUID(), userId: newUser[0].id, role: 'teacher' })
-    await tx.insert(account).values({ id: crypto.randomUUID(), userId: newUser[0].id, type: 'credentials', provider: 'credential', providerAccountId: data.email, password: data.password, createdAt: new Date(), updatedAt: new Date() })
-    const newTeacher = await tx.insert(teacher).values({ id: crypto.randomUUID(), userId: newUser[0].id, teacherId: crypto.randomUUID(), firstName: data.firstName, lastName: data.lastName, qualification: data.qualification, specialization: data.specialization }).returning()
+    const userId = randomUUID()
+    await tx.insert(userTable).values({ id: userId, email: data.email, name: `${data.firstName} ${data.lastName}` })
+    await tx.insert(userRole).values({ id: randomUUID(), userId: userId, role: 'TEACHER' })
+    const newTeacher = await tx.insert(teacher).values({
+      id: randomUUID(),
+      userId: userId,
+      staffCode: data.staffCode,
+      firstName: data.firstName,
+      lastName: data.lastName,
+    }).returning()
     revalidatePath('/dashboard/admin/users/teachers')
     return newTeacher[0]
   })
@@ -173,30 +174,10 @@ export async function getAllParents() {
   })
 }
 
-export async function createParent(data: {
-  firstName: string
-  lastName: string
-  email: string
-  password: string
-  phoneNumber?: string
-  relationship?: string
-}) {
-  await checkAdminPermission('create', 'parent')
-  return await db.transaction(async (tx) => {
-    const newUser = await tx.insert(user).values({ id: crypto.randomUUID(), email: data.email, name: `${data.firstName} ${data.lastName}` }).returning()
-    if (!newUser[0]) throw new Error('Failed to create user')
-    await tx.insert(userRole).values({ id: crypto.randomUUID(), userId: newUser[0].id, role: 'parent' })
-    await tx.insert(account).values({ id: crypto.randomUUID(), userId: newUser[0].id, type: 'credentials', provider: 'credential', providerAccountId: data.email, password: data.password, createdAt: new Date(), updatedAt: new Date() })
-    const newParent = await tx.insert(parentTable).values({ id: crypto.randomUUID(), userId: newUser[0].id, parentId: crypto.randomUUID(), firstName: data.firstName, lastName: data.lastName, phoneNumber: data.phoneNumber, relationship: data.relationship }).returning()
-    revalidatePath('/dashboard/admin/users/parents')
-    return newParent[0]
-  })
-}
-
 export async function getAdminDashboardStats() {
   const userId = await getUserId()
   const roleData = await getUserRoleData(userId)
-  if (roleData?.role !== 'admin') throw new Error('Permission denied')
+  if (roleData?.role !== 'ADMIN') throw new Error('Permission denied')
 
   const [studentCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
   const [teacherCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
@@ -217,16 +198,12 @@ export async function getAdminDashboardStats() {
 // Class Management
 export async function createClass(data: {
   name: string
-  arm?: string
-  department?: string
   teacherId?: string
-  capacity?: number
 }) {
   await checkAdminPermission('create', 'class')
   const result = await db.insert(class_).values({
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     ...data,
-    isActive: true,
   }).returning()
   revalidatePath('/dashboard/admin/academics/classes')
   return result[0]
@@ -239,21 +216,4 @@ export async function getAllClasses() {
       teacher: true
     }
   })
-}
-
-// Bulk Promotion Logic with Criteria
-export async function processBulkPromotion(studentIds: string[], targetClass: string) {
-    await checkAdminPermission('update', 'student')
-
-    const results = await db.transaction(async (tx) => {
-        return await Promise.all(studentIds.map(id =>
-            tx.update(student)
-                .set({ class: targetClass, updatedAt: new Date() })
-                .where(eq(student.id, id))
-                .returning()
-        ))
-    })
-
-    revalidatePath('/dashboard/admin/users/students')
-    return results
 }

@@ -1,29 +1,25 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import { getUserRole } from '@/app/actions/user'
 
 export default async function DashboardRedirect() {
   const session = await auth.getSession()
 
-  if (!session?.user) {
-    redirect('/sign-in')
+  if (!session) {
+    redirect('/auth/signin')
   }
 
-  try {
-    const role = await getUserRole()
+  const role = session.user.role
 
-    if (role === 'admin') {
-      redirect('/dashboard/admin/overview')
-    } else if (role === 'teacher') {
-      redirect('/dashboard/teacher/overview')
-    } else if (role === 'student') {
-      redirect('/dashboard/student/overview')
-    } else if (role === 'parent') {
-      redirect('/dashboard/parent/overview')
-    } else {
-      redirect('/setup-role')
-    }
-  } catch {
-    redirect('/setup-role')
+  switch (role) {
+    case 'ADMIN':
+      redirect('/dashboard/admin')
+    case 'TEACHER':
+      redirect('/dashboard/teacher')
+    case 'PARENT':
+      redirect('/dashboard/parent')
+    case 'STUDENT':
+      redirect('/dashboard/student')
+    default:
+      redirect('/')
   }
 }

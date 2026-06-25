@@ -1,25 +1,36 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/middleware'
 
-const publicRoutes = ['/sign-in', '/sign-up', '/', '/api/auth', '/setup-role']
+const publicRoutes = ['/', '/auth/signin', '/auth/signup', '/auth/verify-email', '/auth/callback', '/admissions', '/about']
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  const { supabase, response } = createClient(request)
   const pathname = request.nextUrl.pathname
 
-  // Allow public routes
-  if (publicRoutes.some(route => pathname.startsWith(route))) {
-    return NextResponse.next()
+  // Check if it's a public route
+  const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route))
+
+  // Refresh session if it exists
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user && !isPublicRoute && !pathname.startsWith('/api/')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/signin'
+    return NextResponse.redirect(url)
   }
 
-  // Allow API routes
-  if (pathname.startsWith('/api/')) {
-    return NextResponse.next()
-  }
-
-  // Use Supabase middleware for session management
-  return createClient(request)
+  return response
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }
