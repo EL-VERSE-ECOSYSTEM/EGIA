@@ -13,6 +13,7 @@ export default function TeacherSetupPage() {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    staffCode: '',
     qualification: '',
     specialization: '',
   })
@@ -25,78 +26,91 @@ export default function TeacherSetupPage() {
       await createTeacherProfile({
         firstName: formData.firstName,
         lastName: formData.lastName,
+        staffCode: formData.staffCode,
         qualification: formData.qualification,
         specialization: formData.specialization,
       })
 
       router.push('/dashboard/teacher/overview')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating teacher profile:', error)
-      alert('Failed to create teacher profile. Please try again.')
+      alert(error.message || 'Failed to create teacher profile. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4 py-12">
-      <Card className="w-full max-w-md border-slate-700 bg-slate-800">
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 to-violet-800 px-4 py-12">
+      <Card className="w-full max-w-md border-purple-700 bg-slate-900 shadow-2xl">
         <CardHeader>
-          <CardTitle className="text-white">Teacher Profile Setup</CardTitle>
-          <CardDescription className="text-slate-400">
-            Complete your teacher profile information
+          <CardTitle className="text-white text-2xl font-bold">Academic Staff Setup</CardTitle>
+          <CardDescription className="text-purple-200/60 font-medium">
+            Complete your profile using the staff code provided by administration
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300">First Name</label>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-purple-100">Staff Verification Code</label>
               <Input
                 required
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="mt-1 border-slate-600 bg-slate-700 text-white"
-                placeholder="Jane"
+                value={formData.staffCode}
+                onChange={(e) => setFormData({ ...formData, staffCode: e.target.value })}
+                className="border-slate-700 bg-slate-800 text-white h-12 focus:border-purple-500"
+                placeholder="Enter Code"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300">Last Name</label>
-              <Input
-                required
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="mt-1 border-slate-600 bg-slate-700 text-white"
-                placeholder="Smith"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-purple-100">First Name</label>
+                <Input
+                  required
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  className="border-slate-700 bg-slate-800 text-white h-12 focus:border-purple-500"
+                  placeholder="Jane"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-purple-100">Last Name</label>
+                <Input
+                  required
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  className="border-slate-700 bg-slate-800 text-white h-12 focus:border-purple-500"
+                  placeholder="Smith"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300">Qualification (Optional)</label>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-purple-100">Highest Qualification</label>
               <Input
                 value={formData.qualification}
                 onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
-                className="mt-1 border-slate-600 bg-slate-700 text-white"
-                placeholder="B.Sc. Education"
+                className="border-slate-700 bg-slate-800 text-white h-12 focus:border-purple-500"
+                placeholder="e.g. B.Sc. Education"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300">Specialization (Optional)</label>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-purple-100">Specialization</label>
               <Input
                 value={formData.specialization}
                 onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
-                className="mt-1 border-slate-600 bg-slate-700 text-white"
-                placeholder="Mathematics"
+                className="border-slate-700 bg-slate-800 text-white h-12 focus:border-purple-500"
+                placeholder="e.g. Mathematics / Physics"
               />
             </div>
 
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white h-14 font-black text-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              {loading ? 'Setting up...' : 'Continue to Dashboard'}
+              {loading ? 'Verifying...' : 'Complete Staff Setup'}
             </Button>
           </form>
         </CardContent>

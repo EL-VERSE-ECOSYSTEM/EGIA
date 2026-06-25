@@ -1,0 +1,797 @@
+
+> my-project@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 559ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+○ Compiling /dashboard/teacher ...
+⨯ Error: NEXT_PUBLIC_NEON_AUTH_URL is not set
+    at module evaluation (lib/auth.ts:3:9)
+    at <unknown> (app/dashboard/teacher/overview/page.tsx:19:1)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:1444:30)
+    at <unknown> (app/dashboard/teacher/page.tsx:2:1)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:2162:30)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:2196:47)
+  1 | import { createClient } from '@neondatabase/neon-js'
+  2 | if (!process.env.NEXT_PUBLIC_NEON_AUTH_URL) {
+> 3 |   throw new Error('NEXT_PUBLIC_NEON_AUTH_URL is not set')
+    |         ^
+  4 | }
+  5 | export const auth = createClient({
+  6 |   auth: { url: process.env.NEXT_PUBLIC_NEON_AUTH_URL },
+⨯ Error: NEXT_PUBLIC_NEON_AUTH_URL is not set
+    at module evaluation (lib/auth.ts:3:9)
+    at <unknown> (app/dashboard/teacher/overview/page.tsx:19:1)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:1444:30)
+    at <unknown> (app/dashboard/teacher/page.tsx:2:1)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:2162:30)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:2196:47)
+  1 | import { createClient } from '@neondatabase/neon-js'
+  2 | if (!process.env.NEXT_PUBLIC_NEON_AUTH_URL) {
+> 3 |   throw new Error('NEXT_PUBLIC_NEON_AUTH_URL is not set')
+    |         ^
+  4 | }
+  5 | export const auth = createClient({
+  6 |   auth: { url: process.env.NEXT_PUBLIC_NEON_AUTH_URL }, {
+  page: '/dashboard/teacher'
+}
+ GET /dashboard/teacher 500 in 15.8s (next.js: 15.2s, proxy.ts: 208ms, application-code: 336ms)
+[browser] Uncaught Error: NEXT_PUBLIC_NEON_AUTH_URL is not set
+    at module evaluation (lib/auth.ts:3:9)
+    at <unknown> (app/dashboard/teacher/overview/page.tsx:19:1)
+    at module evaluation (lib/auth.ts:8:1)
+    at <unknown> (app/dashboard/teacher/page.tsx:2:1)
+    at module evaluation (app/dashboard/teacher/overview/page.tsx:187:1)
+    at module evaluation (app/dashboard/teacher/page.tsx:10:1)
+  1 | import { createClient } from '@neondatabase/neon-js'
+  2 | if (!process.env.NEXT_PUBLIC_NEON_AUTH_URL) {
+> 3 |   throw new Error('NEXT_PUBLIC_NEON_AUTH_URL is not set')
+    |         ^
+  4 | }
+  5 | export const auth = createClient({
+  6 |   auth: { url: process.env.NEXT_PUBLIC_NEON_AUTH_URL },
+TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+⨯ unhandledRejection: TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+⨯ unhandledRejection:  TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+⨯ Error: Failed query: select count(*) from "student"
+params:
+    at async getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at async AdminOverviewPage (app/dashboard/admin/overview/page.tsx:20:21)
+  56 |
+  57 | export async function getAdminDashboardStats() {
+> 58 |   const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
+     |                           ^
+  59 |   const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
+  60 |   const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment)....
+  61 |   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).... {
+  query: 'select count(*) from "student"',
+  params: [],
+  digest: '2671885481',
+  [cause]: AggregateError:
+      at async getAdminDashboardStats (lib/api/queries.ts:58:27)
+      at async AdminOverviewPage (app/dashboard/admin/overview/page.tsx:20:21)
+    56 |
+    57 | export async function getAdminDashboardStats() {
+  > 58 |   const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
+       |                           ^
+    59 |   const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
+    60 |   const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment)....
+    61 |   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).... {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+ GET /dashboard/admin 500 in 3.6s (next.js: 1531ms, proxy.ts: 22ms, application-code: 2.1s)
+[browser] Uncaught Error: Failed query: select count(*) from "student"
+params:
+    at  getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at  AdminOverviewPage (app/dashboard/admin/overview/page.tsx:20:21)
+    at AdminPage (app/dashboard/admin/page.tsx:6:5)
+  56 |
+  57 | export async function getAdminDashboardStats() {
+> 58 |   const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
+     |                           ^
+  59 |   const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
+  60 |   const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment)....
+  61 |   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment)....
+TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+⨯ unhandledRejection: TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+⨯ unhandledRejection:  TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+ GET /dashboard/teacher/assessments/create 200 in 1814ms (next.js: 1648ms, proxy.ts: 13ms, application-code: 153ms)
+⨯ Error: NEXT_PUBLIC_NEON_AUTH_URL is not set
+    at module evaluation (lib/auth.ts:3:9)
+    at <unknown> (app/dashboard/teacher/overview/page.tsx:19:1)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:1444:30)
+    at <unknown> (app/dashboard/teacher/page.tsx:2:1)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:2162:30)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:2196:47)
+  1 | import { createClient } from '@neondatabase/neon-js'
+  2 | if (!process.env.NEXT_PUBLIC_NEON_AUTH_URL) {
+> 3 |   throw new Error('NEXT_PUBLIC_NEON_AUTH_URL is not set')
+    |         ^
+  4 | }
+  5 | export const auth = createClient({
+  6 |   auth: { url: process.env.NEXT_PUBLIC_NEON_AUTH_URL }, {
+  page: '/dashboard/teacher'
+}
+⨯ Error: NEXT_PUBLIC_NEON_AUTH_URL is not set
+    at module evaluation (lib/auth.ts:3:9)
+    at <unknown> (app/dashboard/teacher/overview/page.tsx:19:1)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:1444:30)
+    at <unknown> (app/dashboard/teacher/page.tsx:2:1)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:2162:30)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:2196:47)
+  1 | import { createClient } from '@neondatabase/neon-js'
+  2 | if (!process.env.NEXT_PUBLIC_NEON_AUTH_URL) {
+> 3 |   throw new Error('NEXT_PUBLIC_NEON_AUTH_URL is not set')
+    |         ^
+  4 | }
+  5 | export const auth = createClient({
+  6 |   auth: { url: process.env.NEXT_PUBLIC_NEON_AUTH_URL }, {
+  page: '/'
+}
+ GET / 500 in 1841ms (next.js: 1817ms, proxy.ts: 7ms, application-code: 17ms)
+[browser] Uncaught Error: NEXT_PUBLIC_NEON_AUTH_URL is not set
+    at module evaluation (lib/auth.ts:3:9)
+    at <unknown> (app/dashboard/teacher/overview/page.tsx:19:1)
+    at module evaluation (lib/auth.ts:8:1)
+    at <unknown> (app/dashboard/teacher/page.tsx:2:1)
+    at module evaluation (app/dashboard/teacher/overview/page.tsx:187:1)
+    at module evaluation (app/dashboard/teacher/page.tsx:10:1)
+  1 | import { createClient } from '@neondatabase/neon-js'
+  2 | if (!process.env.NEXT_PUBLIC_NEON_AUTH_URL) {
+> 3 |   throw new Error('NEXT_PUBLIC_NEON_AUTH_URL is not set')
+    |         ^
+  4 | }
+  5 | export const auth = createClient({
+  6 |   auth: { url: process.env.NEXT_PUBLIC_NEON_AUTH_URL },
+TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+⨯ unhandledRejection: TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+⨯ unhandledRejection:  TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+ GET /sign-in 200 in 729ms (next.js: 565ms, proxy.ts: 14ms, application-code: 149ms)
+TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+⨯ unhandledRejection: TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+⨯ unhandledRejection:  TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+ GET /setup-role/student 200 in 2.2s (next.js: 1933ms, proxy.ts: 6ms, application-code: 270ms)
+TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+⨯ unhandledRejection: TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+⨯ unhandledRejection:  TypeError: Failed to parse URL from /api/auth/to-j-s-o-n
+    at ignore-listed frames {
+  [cause]: TypeError: Invalid URL
+      at ignore-listed frames {
+    code: 'ERR_INVALID_URL',
+    input: '/api/auth/to-j-s-o-n'
+  }
+}
+React does not recognize the `asChild` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `aschild` instead. If you accidentally passed it from a parent component, remove it from the DOM element.
+ GET /dashboard/admin/users/students/list 200 in 986ms (next.js: 774ms, proxy.ts: 6ms, application-code: 206ms)
+⨯ Error: NEXT_PUBLIC_NEON_AUTH_URL is not set
+    at module evaluation (lib/auth.ts:3:9)
+    at <unknown> (app/dashboard/teacher/overview/page.tsx:19:1)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:1444:30)
+    at <unknown> (app/dashboard/teacher/page.tsx:2:1)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:2162:30)
+    at module evaluation (.next/dev/server/chunks/ssr/[root-of-the-server]__0i.lp5e._.js:2196:47)
+  1 | import { createClient } from '@neondatabase/neon-js'
+  2 | if (!process.env.NEXT_PUBLIC_NEON_AUTH_URL) {
+> 3 |   throw new Error('NEXT_PUBLIC_NEON_AUTH_URL is not set')
+    |         ^
+  4 | }
+  5 | export const auth = createClient({
+  6 |   auth: { url: process.env.NEXT_PUBLIC_NEON_AUTH_URL }, {
+  page: '/',
+  digest: '1541399911'
+}
+[browser] React does not recognize the `asChild` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `aschild` instead. If you accidentally passed it from a parent component, remove it from the DOM element.
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <ClientPageRoot Component={function StudentListPage} serverProvidedParams={{...}}>
+      <StudentListPage params={Promise} searchParams={Promise}>
+        <DashboardLayout role="admin">
+          <div className="flex min-h...">
+            <Sidebar>
+            <main className="flex-1 ove...">
+              <div className="p-8 max-w-...">
+                <div>
+                <Card className="border-non...">
+                  <div data-slot="card" data-size="default" className={"group/ca..."}>
+                    <CardHeader className="p-8 border...">
+                      <div data-slot="card-header" className="group/card...">
+                        <div className="flex flex-...">
+                          <div className="relative m...">
+                            <Search>
+                            <Input className="pl-12 h-12..." placeholder="Search by ...">
+                              <Input type={undefined} data-slot="input" className="w-full min..." ...>
+                                <FieldControl ref={null} type={undefined} data-slot="input" className="w-full min..." ...>
+                                  <input
+                                    id="base-ui-_R_2baatpesnebn5ritllb_"
+                                    disabled={false}
+                                    name={undefined}
+                                    ref={function}
+                                    aria-labelledby={undefined}
+                                    autoFocus={false}
+                                    defaultValue={undefined}
+                                    onChange={function}
+                                    onFocus={function}
+                                    onBlur={function}
+                                    onKeyDown={function}
+                                    type={undefined}
+                                    data-slot="input"
+                                    placeholder="Search by name or admission ID..."
+                                    className="w-full min-w-0 border border-input px-2.5 py-1 text-base transition-col..."
+-                                   style={{caret-color:"transparent"}}
+                                  >
+                          ...
+                    ...
+
+ POST /dashboard/admin/users/students/list 500 in 548ms (next.js: 9ms, proxy.ts: 10ms, application-code: 529ms)
+[browser] ⨯ unhandledRejection: Error: NEXT_PUBLIC_NEON_AUTH_URL is not set
+    at module evaluation (lib/auth.ts:3:9)
+    at <anonymous> (app/dashboard/teacher/overview/page.tsx:19:1)
+    at module evaluation (lib/auth.ts:8:1)
+    at <anonymous> (app/dashboard/teacher/page.tsx:2:1)
+    at module evaluation (app/dashboard/teacher/overview/page.tsx:187:1)
+    at module evaluation (app/dashboard/teacher/page.tsx:10:1)
+  1 | import { createClient } from '@neondatabase/neon-js'
+  2 | if (!process.env.NEXT_PUBLIC_NEON_AUTH_URL) {
+> 3 |   throw new Error('NEXT_PUBLIC_NEON_AUTH_URL is not set')
+    |         ^
+  4 | }
+  5 | export const auth = createClient({
+  6 |   auth: { url: process.env.NEXT_PUBLIC_NEON_AUTH_URL },
+⨯ ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+  [90m 7 |[0m [36mimport[0m { [33mBadge[0m } [36mfrom[0m [32m'@/components/ui/badge'[0m
+  [90m 8 |[0m [36mimport[0m { [33mPlus[0m, [33mUsers[0m, [33mBookOpen[0m, [33mMoreVertical[0m, [33mSearch[0m, [33mEdit2[0m } [36mfrom[0m [32m'lucide-react'[0m
+[31m[1m>[0m [90m 9 |[0m [36mimport[0m { getAllClasses } [36mfrom[0m [32m'@/app/actions/admin'[0m
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m10 |[0m
+  [90m11 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAdminClassesPage[0m() {
+  [90m12 |[0m   [36mconst[0m [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-client] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+
+
+./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+  [90m 7 |[0m [36mimport[0m { [33mBadge[0m } [36mfrom[0m [32m'@/components/ui/badge'[0m
+  [90m 8 |[0m [36mimport[0m { [33mPlus[0m, [33mUsers[0m, [33mBookOpen[0m, [33mMoreVertical[0m, [33mSearch[0m, [33mEdit2[0m } [36mfrom[0m [32m'lucide-react'[0m
+[31m[1m>[0m [90m 9 |[0m [36mimport[0m { getAllClasses } [36mfrom[0m [32m'@/app/actions/admin'[0m
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m10 |[0m
+  [90m11 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAdminClassesPage[0m() {
+  [90m12 |[0m   [36mconst[0m [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-ssr] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+
+ GET /dashboard/admin/academics/classes/list 500 in 980ms (next.js: 925ms, proxy.ts: 10ms, application-code: 45ms)
+[browser] Uncaught Error: ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-client] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/dashboard/admin/academics/classes/list/page.tsx:9:1)
+    at <unknown> (Error: (./app/dashboard/admin/academics/classes/list/page.tsx:9:1)
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-client] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-ssr] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-client] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-ssr] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-client] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-ssr] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+ GET /dashboard/teacher/assessments/create/pdf 500 in 752ms (next.js: 711ms, proxy.ts: 12ms, application-code: 28ms)
+[browser] Uncaught Error: ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-client] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/dashboard/admin/academics/classes/list/page.tsx:9:1)
+    at <unknown> (Error: (./app/dashboard/admin/academics/classes/list/page.tsx:9:1)
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-client] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-ssr] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-client] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-ssr] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+ GET /dashboard/teacher/cbt/monitor 500 in 872ms (next.js: 844ms, proxy.ts: 5ms, application-code: 23ms)
+[browser] Uncaught Error: ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-client] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/dashboard/admin/academics/classes/list/page.tsx:9:1)
+    at <unknown> (Error: (./app/dashboard/admin/academics/classes/list/page.tsx:9:1)
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-client] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-ssr] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-client] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+[browser] ./app/dashboard/admin/academics/classes/list/page.tsx:9:1
+Export getAllClasses doesn't exist in target module
+   7 | import { Badge } from '@/components/ui/badge'
+   8 | import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+>  9 | import { getAllClasses } from '@/app/actions/admin'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 |
+  11 | export default function AdminClassesPage() {
+  12 |   const [classes, setClasses] = useState<any[]>([])
+
+The export getAllClasses was not found in module [project]/app/actions/admin.ts [app-ssr] (ecmascript).
+Did you mean to import getAllParents?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component Browser]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Client Component SSR]
+    ./app/dashboard/admin/academics/classes/list/page.tsx [Server Component]

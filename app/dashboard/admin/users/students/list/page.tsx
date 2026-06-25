@@ -1,139 +1,112 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
+import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Plus, Search, MoreVertical, Edit2, Trash2, GraduationCap } from 'lucide-react'
+import { getAllStudents } from '@/app/actions/admin'
 import { Input } from '@/components/ui/input'
-import {
-  Plus,
-  Search,
-  Filter,
-  MoreHorizontal,
-  Mail,
-  GraduationCap,
-  ShieldAlert,
-  Edit,
-  Trash2,
-  ChevronRight
-} from 'lucide-react'
+import Link from 'next/link'
 
-export default function AdminStudentListPage() {
-  const students = [
-    { id: '1', name: 'Divine Goodnews', admissionNo: 'EGIA/2024/001', class: 'JSS 3A', parent: 'John Goodnews', status: 'ACTIVE' },
-    { id: '2', name: 'Mercy Goodnews', admissionNo: 'EGIA/2024/002', class: 'JSS 1C', parent: 'John Goodnews', status: 'ACTIVE' },
-    { id: '3', name: 'Chidi Okoro', admissionNo: 'EGIA/2024/045', class: 'SSS 2B', parent: 'Samuel Okoro', status: 'INACTIVE' },
-    { id: '4', name: 'Zainab Ahmed', admissionNo: 'EGIA/2024/089', class: 'JSS 2A', parent: 'Ahmed Bello', status: 'ACTIVE' },
-    { id: '5', name: 'Tunde Bakare', admissionNo: 'EGIA/2023/112', class: 'SSS 3C', parent: 'Ola Bakare', status: 'SUSPENDED' }
-  ]
+export default function StudentListPage() {
+  const [students, setStudents] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const getStatusBadge = (status: string) => {
-    switch(status) {
-      case 'ACTIVE': return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">Active</Badge>
-      case 'INACTIVE': return <Badge className="bg-slate-100 text-slate-800 border-slate-200">Inactive</Badge>
-      case 'SUSPENDED': return <Badge className="bg-red-100 text-red-800 border-red-200">Suspended</Badge>
-      default: return <Badge>{status}</Badge>
+  useEffect(() => {
+    async function load() {
+      const data = await getAllStudents()
+      setStudents(data)
+      setIsLoading(false)
     }
-  }
+    load()
+  }, [])
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Student Management</h1>
-          <p className="text-slate-500">View and manage all registered students across all classes.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="border-slate-200">
-            <Mail className="w-4 h-4 mr-2" /> Bulk SMS/Email
-          </Button>
-          <Button className="bg-amber-600 hover:bg-amber-700 font-bold">
-            <Plus className="w-4 h-4 mr-2" /> Add New Student
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="relative col-span-1 md:col-span-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input placeholder="Search by name, admission number, or class..." className="pl-10" />
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="w-full justify-between">
-            <Filter className="w-4 h-4 mr-2" /> Filter by Class <ChevronDown className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="w-full justify-between">
-            Status: All <ChevronDown className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-left border-b border-slate-200">
-                  <th className="p-4 font-bold text-slate-700">Student Name</th>
-                  <th className="p-4 font-bold text-slate-700">Admission No.</th>
-                  <th className="p-4 font-bold text-slate-700">Class</th>
-                  <th className="p-4 font-bold text-slate-700">Parent/Guardian</th>
-                  <th className="p-4 font-bold text-slate-700">Status</th>
-                  <th className="p-4 font-bold text-slate-700 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((student) => (
-                  <tr key={student.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors group">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center font-bold text-amber-700">
-                          {student.name.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <span className="font-bold text-slate-900">{student.name}</span>
-                      </div>
-                    </td>
-                    <td className="p-4 font-mono text-sm text-slate-500">{student.admissionNo}</td>
-                    <td className="p-4">
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-100">{student.class}</Badge>
-                    </td>
-                    <td className="p-4 text-slate-600">{student.parent}</td>
-                    <td className="p-4">{getStatusBadge(student.status)}</td>
-                    <td className="p-4 text-right">
-                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-50">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600 hover:bg-red-50">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <DashboardLayout role="admin">
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+          <div>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Student Database</h1>
+            <p className="text-slate-500 font-medium text-lg">Manage student records, admissions, and academic status.</p>
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="mt-6 flex justify-between items-center text-sm text-slate-500">
-        <p>Showing 5 of 1,248 students</p>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled>Previous</Button>
-          <Button variant="outline" size="sm" className="bg-amber-50 border-amber-200 text-amber-700 font-bold">1</Button>
-          <Button variant="outline" size="sm">2</Button>
-          <Button variant="outline" size="sm">3</Button>
-          <Button variant="outline" size="sm">Next</Button>
+          <div className="flex gap-3">
+             <Button asChild variant="outline" className="h-14 px-8 rounded-2xl font-bold border-2">
+                <Link href="/dashboard/admin/users/students/promote"><GraduationCap className="w-5 h-5 mr-2" /> Bulk Promotion</Link>
+             </Button>
+             <Button asChild className="bg-amber-500 hover:bg-amber-600 text-amber-950 h-14 px-8 rounded-2xl font-black text-lg shadow-xl shadow-amber-200">
+                <Link href="/dashboard/admin/users/students/add"><Plus className="w-6 h-6 mr-2" /> Add Student</Link>
+             </Button>
+          </div>
         </div>
+
+        <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
+          <CardHeader className="p-8 border-b border-slate-50">
+            <div className="flex flex-col md:flex-row justify-between gap-4">
+              <div className="relative max-w-sm w-full">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <Input className="pl-12 h-12 rounded-2xl bg-slate-50 border-none font-medium" placeholder="Search by name or admission ID..." />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="rounded-xl h-12 border-2 text-xs font-bold">Filter: All Classes</Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+             <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                   <thead>
+                      <tr className="bg-slate-50/50">
+                         <th className="p-6 text-xs font-black text-slate-400 uppercase tracking-widest">Student Info</th>
+                         <th className="p-6 text-xs font-black text-slate-400 uppercase tracking-widest">Admission No.</th>
+                         <th className="p-6 text-xs font-black text-slate-400 uppercase tracking-widest">Current Class</th>
+                         <th className="p-6 text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                         <th className="p-6 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {isLoading ? (
+                         [1,2,3,4,5].map(i => <tr key={i} className="animate-pulse"><td colSpan={5} className="p-10 bg-slate-50/50 border-b" /></tr>)
+                      ) : students.map((s) => (
+                         <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-6">
+                               <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full bg-slate-200" />
+                                  <div>
+                                     <p className="font-black text-slate-900">{s.firstName} {s.lastName}</p>
+                                     <p className="text-xs text-slate-400 font-medium">{s.user?.email}</p>
+                                  </div>
+                               </div>
+                            </td>
+                            <td className="p-6">
+                               <Badge variant="outline" className="font-black text-[10px] bg-slate-50 border-slate-100">{s.admissionNumber}</Badge>
+                            </td>
+                            <td className="p-6 font-bold text-slate-700">{s.class}</td>
+                            <td className="p-6">
+                               <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                  <span className="text-xs font-black text-emerald-600 uppercase">Active</span>
+                               </div>
+                            </td>
+                            <td className="p-6 text-right">
+                               <div className="flex justify-end gap-2">
+                                  <Button size="icon" variant="ghost" className="rounded-xl text-slate-400 hover:text-amber-600 hover:bg-amber-50">
+                                     <Edit2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50">
+                                     <Trash2 className="w-4 h-4" />
+                                  </Button>
+                               </div>
+                            </td>
+                         </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
-
-import { ChevronDown } from 'lucide-react'

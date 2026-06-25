@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { createParentProfile, linkChildToParent } from '@/app/actions/user'
+import { createParentProfile } from '@/app/actions/user'
 
 export default function ParentSetupPage() {
   const router = useRouter()
@@ -16,8 +16,7 @@ export default function ParentSetupPage() {
     lastName: '',
     relationship: '',
     phoneNumber: '',
-    occupation: '',
-    childAdmissionNumber: '',
+    wardAdmissionNumber: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,67 +24,76 @@ export default function ParentSetupPage() {
     setLoading(true)
 
     try {
-      const parentResult = await createParentProfile({
+      await createParentProfile({
         firstName: formData.firstName,
         lastName: formData.lastName,
         relationship: formData.relationship as 'father' | 'mother' | 'guardian' | 'other',
+        wardAdmissionNumber: formData.wardAdmissionNumber,
         phoneNumber: formData.phoneNumber,
-        occupation: formData.occupation,
       })
 
-      if (formData.childAdmissionNumber && parentResult) {
-        await linkChildToParent(formData.childAdmissionNumber, parentResult.id)
-      }
-
       router.push('/dashboard/parent/overview')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating parent profile:', error)
-      alert('Failed to create parent profile. Please try again.')
+      alert(error.message || 'Failed to link ward. Please check the admission number.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4 py-12">
-      <Card className="w-full max-w-md border-slate-700 bg-slate-800">
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-900 to-green-800 px-4 py-12">
+      <Card className="w-full max-w-md border-emerald-700 bg-slate-900 shadow-2xl">
         <CardHeader>
-          <CardTitle className="text-white">Parent Profile Setup</CardTitle>
-          <CardDescription className="text-slate-400">
-            Complete your parent profile information
+          <CardTitle className="text-white text-2xl font-bold">Parent Profile Setup</CardTitle>
+          <CardDescription className="text-emerald-200/60 font-medium">
+            Link your child's account to start monitoring their progress
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300">First Name</label>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-emerald-100">Ward's Admission Number</label>
               <Input
                 required
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="mt-1 border-slate-600 bg-slate-700 text-white"
-                placeholder="Michael"
+                value={formData.wardAdmissionNumber}
+                onChange={(e) => setFormData({ ...formData, wardAdmissionNumber: e.target.value.toUpperCase() })}
+                className="border-slate-700 bg-slate-800 text-white h-12 focus:border-emerald-500 border-2"
+                placeholder="GODXXXXX"
               />
+              <p className="text-[10px] text-emerald-200/50">Example: GOD00001</p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300">Last Name</label>
-              <Input
-                required
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="mt-1 border-slate-600 bg-slate-700 text-white"
-                placeholder="Doe"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-emerald-100">First Name</label>
+                <Input
+                  required
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  className="border-slate-700 bg-slate-800 text-white h-12"
+                  placeholder="Michael"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-emerald-100">Last Name</label>
+                <Input
+                  required
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  className="border-slate-700 bg-slate-800 text-white h-12"
+                  placeholder="Doe"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300">Relationship</label>
-              <Select value={formData.relationship} onValueChange={(value) => setFormData({ ...formData, relationship: value })}>
-                <SelectTrigger className="border-slate-600 bg-slate-700 text-white">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-emerald-100">Relationship</label>
+              <Select required value={formData.relationship} onValueChange={(value) => setFormData({ ...formData, relationship: value })}>
+                <SelectTrigger className="border-slate-700 bg-slate-800 text-white h-12">
                   <SelectValue placeholder="Select relationship" />
                 </SelectTrigger>
-                <SelectContent className="border-slate-600 bg-slate-700">
+                <SelectContent className="border-slate-700 bg-slate-800 text-white">
                   <SelectItem value="father">Father</SelectItem>
                   <SelectItem value="mother">Mother</SelectItem>
                   <SelectItem value="guardian">Guardian</SelectItem>
@@ -94,43 +102,23 @@ export default function ParentSetupPage() {
               </Select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300">Phone Number (Optional)</label>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-emerald-100">Phone Number</label>
               <Input
+                required
                 value={formData.phoneNumber}
                 onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                className="mt-1 border-slate-600 bg-slate-700 text-white"
-                placeholder="+234 123 456 7890"
+                className="border-slate-700 bg-slate-800 text-white h-12"
+                placeholder="+234..."
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300">Occupation (Optional)</label>
-              <Input
-                value={formData.occupation}
-                onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
-                className="mt-1 border-slate-600 bg-slate-700 text-white"
-                placeholder="Engineer"
-              />
-            </div>
-
-            <div className="pt-4 border-t border-slate-700">
-              <label className="block text-sm font-medium text-amber-400">Link Child (Admission Number)</label>
-              <Input
-                value={formData.childAdmissionNumber}
-                onChange={(e) => setFormData({ ...formData, childAdmissionNumber: e.target.value })}
-                className="mt-1 border-slate-600 bg-slate-700 text-white"
-                placeholder="e.g. EG/2024/001"
-              />
-              <p className="mt-1 text-xs text-slate-500">You can add more children later from your dashboard.</p>
             </div>
 
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-14 font-black text-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              {loading ? 'Setting up...' : 'Continue to Dashboard'}
+              {loading ? 'Linking Ward...' : 'Complete Registration'}
             </Button>
           </form>
         </CardContent>
