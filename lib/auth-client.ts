@@ -1,10 +1,3 @@
-import { createClient } from '@neondatabase/neon-js'
+import { createClient } from '@/utils/supabase/client'
 
-export const authClient = createClient({
-  auth: {
-    url: process.env.NEXT_PUBLIC_NEON_AUTH_URL!,
-  },
-  dataApi: {
-    url: '', // Dummy since we only need auth
-  }
-})
+export const authClient = createClient()

@@ -4,7 +4,6 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { user, student, teacher, parent as parentTable, userRole, academicSession, term, class_, account } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
-import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
 
@@ -213,4 +212,48 @@ export async function getAdminDashboardStats() {
     totalParents: pCount,
     totalUsers: sCount + tCount + pCount,
   }
+}
+
+// Class Management
+export async function createClass(data: {
+  name: string
+  arm?: string
+  department?: string
+  teacherId?: string
+  capacity?: number
+}) {
+  await checkAdminPermission('create', 'class')
+  const result = await db.insert(class_).values({
+    id: crypto.randomUUID(),
+    ...data,
+    isActive: true,
+  }).returning()
+  revalidatePath('/dashboard/admin/academics/classes')
+  return result[0]
+}
+
+export async function getAllClasses() {
+  await checkAdminPermission('read', 'class')
+  return db.query.class_.findMany({
+    with: {
+      teacher: true
+    }
+  })
+}
+
+// Bulk Promotion Logic with Criteria
+export async function processBulkPromotion(studentIds: string[], targetClass: string) {
+    await checkAdminPermission('update', 'student')
+
+    const results = await db.transaction(async (tx) => {
+        return await Promise.all(studentIds.map(id =>
+            tx.update(student)
+                .set({ class: targetClass, updatedAt: new Date() })
+                .where(eq(student.id, id))
+                .returning()
+        ))
+    })
+
+    revalidatePath('/dashboard/admin/users/students')
+    return results
 }

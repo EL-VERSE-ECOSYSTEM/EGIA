@@ -4,7 +4,6 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { conversation, conversationParticipant, message, user, userRole } from '@/lib/db/schema'
 import { eq, and, or, desc, inArray } from 'drizzle-orm'
-import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
 
@@ -168,4 +167,41 @@ export async function getConversationsForUser(userId: string) {
     },
     orderBy: [desc(conversation.updatedAt)]
   })
+}
+
+export async function broadcastMessage(content: string, recipientRole: string) {
+  const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+  if (roleData?.role !== 'admin') throw new Error('Permission denied')
+
+  const targetRoles = await db.query.userRole.findMany({
+    where: eq(userRole.role, recipientRole)
+  })
+
+  const targetUserIds = targetRoles.map(r => r.userId)
+  if (targetUserIds.length === 0) return
+
+  const newConversation = await db.insert(conversation).values({
+    id: crypto.randomUUID(),
+    type: 'BROADCAST',
+    name: `Broadcast to ${recipientRole}s - ${new Date().toLocaleDateString()}`,
+  }).returning()
+
+  const convId = newConversation[0].id
+
+  const participants = [
+    { id: crypto.randomUUID(), conversationId: convId, userId },
+    ...targetUserIds.map(uid => ({ id: crypto.randomUUID(), conversationId: convId, userId: uid }))
+  ]
+
+  await db.insert(conversationParticipant).values(participants)
+
+  await db.insert(message).values({
+    id: crypto.randomUUID(),
+    conversationId: convId,
+    senderId: userId,
+    content,
+  })
+
+  revalidatePath('/dashboard/communication')
 }
