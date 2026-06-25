@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Users, Loader2, AlertCircle } from 'lucide-react'
+import { Users, Loader2, AlertCircle, GraduationCap } from 'lucide-react'
 import { registerParent } from '@/app/actions/auth-server'
 
 export default function ParentSignUpPage() {
@@ -44,52 +44,59 @@ export default function ParentSignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4 py-12">
-      <Card className="max-w-md w-full border-none shadow-2xl shadow-slate-200 rounded-3xl overflow-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4 py-16">
+      <div className="mb-10 flex items-center gap-2">
+        <div className="bg-emerald-600 p-2 rounded-lg">
+          <GraduationCap className="text-white w-6 h-6" />
+        </div>
+        <span className="font-black text-xl tracking-tight text-slate-900">EL GOODNEWS <span className="text-emerald-600">ACADEMY</span></span>
+      </div>
+
+      <Card className="max-w-md w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
         <div className="h-2 bg-emerald-600 w-full" />
-        <CardHeader className="text-center pt-8">
+        <CardHeader className="text-center pt-10">
           <div className="mx-auto bg-emerald-100 p-4 rounded-2xl w-fit mb-4">
             <Users className="w-8 h-8 text-emerald-600" />
           </div>
           <CardTitle className="text-3xl font-black text-slate-900">Parent Registration</CardTitle>
-          <CardDescription className="text-slate-500 font-medium mt-2">
-            Create an account to monitor your children's progress
+          <CardDescription className="text-slate-500 font-bold mt-2">
+            Monitor your child's progress and stay updated
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-8 pb-10">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="px-10 pb-12">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-sm font-bold rounded-2xl flex items-center gap-3">
+              <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-black rounded-2xl flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 shrink-0" />
                 {error}
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="firstName" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">First Name</Label>
                 <Input
                   id="firstName"
                   placeholder="John"
                   value={formData.firstName}
                   onChange={e => setFormData({...formData, firstName: e.target.value})}
                   required
-                  className="rounded-2xl border-slate-200 bg-slate-50/50"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-emerald-600"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lastName" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Last Name</Label>
                 <Input
                   id="lastName"
                   placeholder="Doe"
                   value={formData.lastName}
                   onChange={e => setFormData({...formData, lastName: e.target.value})}
                   required
-                  className="rounded-2xl border-slate-200 bg-slate-50/50"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-emerald-600"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Email Address</Label>
               <Input
                 id="email"
                 type="email"
@@ -97,11 +104,11 @@ export default function ParentSignUpPage() {
                 value={formData.email}
                 onChange={e => setFormData({...formData, email: e.target.value})}
                 required
-                className="rounded-2xl border-slate-200 bg-slate-50/50"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-emerald-600"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Phone Number</Label>
               <Input
                 id="phone"
                 type="tel"
@@ -109,44 +116,48 @@ export default function ParentSignUpPage() {
                 value={formData.phone}
                 onChange={e => setFormData({...formData, phone: e.target.value})}
                 required
-                className="rounded-2xl border-slate-200 bg-slate-50/50"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-emerald-600"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" title="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Password</Label>
               <Input
                 id="password"
                 type="password"
                 value={formData.password}
                 onChange={e => setFormData({...formData, password: e.target.value})}
                 required
-                className="rounded-2xl border-slate-200 bg-slate-50/50"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-emerald-600"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" title="confirm-password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Confirm Password</Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 value={formData.confirmPassword}
                 onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
                 required
-                className="rounded-2xl border-slate-200 bg-slate-50/50"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-emerald-600"
               />
             </div>
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-14 rounded-2xl font-black text-lg shadow-xl shadow-emerald-200 mt-4"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-14 rounded-2xl font-black text-lg shadow-xl shadow-emerald-200 mt-6 transition-all"
             >
-              {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Create Parent Account'}
+              {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Create Account'}
             </Button>
           </form>
-          <div className="mt-6 text-center text-sm font-medium text-slate-500">
-            Already have an account? <Link href="/auth/signin" className="text-emerald-600 font-black hover:underline">Sign In</Link>
+          <div className="mt-8 text-center text-sm font-bold text-slate-400">
+            Already have an account? <Link href="/auth/signin" className="text-emerald-600 font-black hover:underline ml-1">Sign In</Link>
           </div>
         </CardContent>
       </Card>
+
+      <p className="mt-10 text-xs text-slate-400 font-bold uppercase tracking-[0.2em]">
+        built by ELCODERS by E.V.E
+      </p>
     </div>
   )
 }

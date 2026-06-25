@@ -1,187 +1,142 @@
 export const dynamic = "force-dynamic"
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Users,
   GraduationCap,
-  BookOpen,
-  Clock,
-  ArrowUpRight,
-  PlusCircle,
-  FileText,
   Calendar,
-  ChevronRight
+  Clock,
+  BookOpen,
+  ArrowRight,
+  Plus,
+  FileText,
+  Activity,
+  CheckCircle2
 } from 'lucide-react'
-import { TeacherPerformanceChart } from '@/components/charts/teacher-performance-chart'
-
 import { getTeacherDashboardData, getTeacherProfile } from '@/lib/api/queries'
 import { auth } from '@/lib/auth'
-import { headers } from 'next/headers'
-import Link from 'next/link'
 
 export default async function TeacherOverviewPage() {
   const session = await auth.getSession()
   const teacherProfile = await getTeacherProfile(session?.user.id || '')
   const data = await getTeacherDashboardData(teacherProfile?.id || '')
 
-  const classes = data.classes.map(c => ({
-    id: c.id,
-    name: c.name,
-    subject: c.subject,
-    nextLesson: 'N/A', // Would come from timetable logic
-    performance: 80 // Mock performance for now
-  }))
-
-  const chartData = classes.map(c => ({
-    name: c.name,
-    avg: c.performance
-  }))
+  const stats = [
+    { label: 'Assigned Classes', value: data.classes.length.toString(), icon: GraduationCap, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { label: 'Total Students', value: data.totalStudents.toLocaleString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
+    { label: 'Published CBTs', value: data.upcomingAssessments.length.toString(), icon: Activity, color: 'text-amber-600', bg: 'bg-amber-100' },
+    { label: 'Lesson Notes', value: '12', icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-100' }
+  ]
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-purple-900">Academic Overview</h1>
-          <p className="text-slate-600">Managing Mr. Samuel Okoro's teaching schedule and assessments.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button className="bg-purple-600 hover:bg-purple-700 font-bold">
-            <PlusCircle className="w-4 h-4 mr-2" /> Create Assessment
-          </Button>
-          <Button variant="outline" className="border-purple-200 text-purple-700">
-            <FileText className="w-4 h-4 mr-2" /> Lesson Notes
-          </Button>
-        </div>
+    <div className="p-8 max-w-[1600px] mx-auto space-y-10">
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-12 text-white shadow-2xl">
+         <div className="absolute top-0 right-0 p-8 opacity-10">
+            <GraduationCap size={300} strokeWidth={1} />
+         </div>
+         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+            <div>
+               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-purple-400 text-xs font-black uppercase tracking-widest mb-6">
+                  <Clock className="w-3.5 h-3.5" /> {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+               </div>
+               <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">Hello, {teacherProfile?.firstName || 'Educator'}.</h1>
+               <p className="text-slate-400 text-lg font-medium max-w-xl">
+                  Ready for another day of inspiring excellence? You have 2 classes today and 1 assessment to grade.
+               </p>
+            </div>
+            <div className="flex gap-4">
+               <Button className="bg-purple-600 hover:bg-purple-700 text-white h-14 px-8 rounded-2xl font-black shadow-xl shadow-purple-600/20">
+                  <Plus className="mr-2" /> CREATE ASSESSMENT
+               </Button>
+            </div>
+         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {[
-          { label: 'Total Students', value: data.totalStudents.toString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
-          { label: 'Total Classes', value: data.classes.length.toString(), icon: Calendar, color: 'text-purple-600', bg: 'bg-purple-100' },
-          { label: 'Active CBTs', value: data.upcomingAssessments.length.toString(), icon: Clock, color: 'text-orange-600', bg: 'bg-orange-100' },
-          { label: 'Avg. Class Pass', value: '81.5%', icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-100' }
-        ].map((stat, idx) => (
-          <Card key={idx} className="border-none shadow-sm">
-            <CardContent className="p-6">
-              <div className={`p-3 w-fit rounded-xl ${stat.bg} mb-4`}>
-                <stat.icon className={`w-6 h-6 ${stat.color}`} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        {stats.map((stat, idx) => (
+          <Card key={idx} className="border-none shadow-xl shadow-slate-200/50 rounded-[2rem] bg-white hover:shadow-2xl transition-all duration-300 group">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className={`p-4 rounded-2xl ${stat.bg} group-hover:scale-110 transition-transform`}>
+                  <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                </div>
               </div>
-              <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-              <h3 className="text-2xl font-bold text-slate-900">{stat.value}</h3>
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+              <h3 className="text-3xl font-black text-slate-900 tracking-tighter">{stat.value}</h3>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>My Classes</CardTitle>
-              <CardDescription>Upcoming schedule and performance overview.</CardDescription>
-            </div>
-            <Button variant="ghost" className="text-purple-600">View Timetable</Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {classes.map((cls) => (
-              <div key={cls.id} className="p-5 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-purple-200 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-purple-50 rounded-xl text-purple-700 font-bold">
-                    {cls.name}
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-900">{cls.subject}</h4>
-                    <p className="text-sm text-slate-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> Next Lesson: {cls.nextLesson}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-8">
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Avg Performance</p>
-                    <div className="flex items-center gap-2">
-                      <div className="w-24 bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                        <div className="bg-purple-600 h-full" style={{ width: `${cls.performance}%` }}></div>
-                      </div>
-                      <span className="text-sm font-bold">{cls.performance}%</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+         <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white">
+            <CardHeader className="p-10 pb-4 border-b border-slate-50 flex flex-row items-center justify-between">
+               <div>
+                  <CardTitle className="text-2xl font-black">Today's Classes</CardTitle>
+                  <p className="text-sm font-bold text-slate-400 mt-1">Your academic schedule for today</p>
+               </div>
+               <Calendar className="text-slate-200 w-8 h-8" />
+            </CardHeader>
+            <CardContent className="p-0">
+               <div className="divide-y divide-slate-50">
+                  {data.classes.length > 0 ? data.classes.map((cls, idx) => (
+                    <div key={idx} className="p-8 flex items-center justify-between group hover:bg-slate-50/50 transition-colors">
+                       <div className="flex items-center gap-6">
+                          <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-white font-black text-xl">
+                             {cls.name.substring(0, 3)}
+                          </div>
+                          <div>
+                             <p className="text-lg font-black text-slate-900">{cls.name}</p>
+                             <p className="text-sm font-bold text-slate-400">09:00 AM - 10:30 AM • Room 3A</p>
+                          </div>
+                       </div>
+                       <Button variant="ghost" className="rounded-xl font-black text-purple-600 hover:text-purple-700 hover:bg-purple-50">
+                          ATTENDANCE <ArrowRight className="ml-2 w-4 h-4" />
+                       </Button>
                     </div>
-                  </div>
-                  <Button size="icon" variant="ghost" className="text-slate-400">
-                    <ChevronRight className="w-5 h-5" />
+                  )) : (
+                    <div className="p-20 text-center text-slate-400 italic font-medium">No classes scheduled for today</div>
+                  )}
+               </div>
+            </CardContent>
+         </Card>
+
+         <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white">
+            <CardHeader className="p-10 pb-4 border-b border-slate-50 flex flex-row items-center justify-between">
+               <div>
+                  <CardTitle className="text-2xl font-black">Active Assessments</CardTitle>
+                  <p className="text-sm font-bold text-slate-400 mt-1">Monitor live CBT sessions and results</p>
+               </div>
+               <Activity className="text-slate-200 w-8 h-8" />
+            </CardHeader>
+            <CardContent className="p-0">
+               <div className="divide-y divide-slate-50">
+                  {data.upcomingAssessments.length > 0 ? data.upcomingAssessments.map((asmt, idx) => (
+                    <div key={idx} className="p-8 flex items-center justify-between group hover:bg-slate-50/50 transition-colors">
+                       <div className="flex items-center gap-6">
+                          <div className={`w-14 h-14 rounded-2xl ${asmt.status === 'published' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'} flex items-center justify-center`}>
+                             <Activity size={24} />
+                          </div>
+                          <div>
+                             <p className="text-lg font-black text-slate-900">{asmt.title}</p>
+                             <p className="text-sm font-bold text-slate-400">{asmt.duration} Minutes • {asmt.status.toUpperCase()}</p>
+                          </div>
+                       </div>
+                       <Badge className="bg-slate-100 text-slate-900 font-black px-4 py-1 uppercase text-[10px]">View Results</Badge>
+                    </div>
+                  )) : (
+                    <div className="p-20 text-center text-slate-400 italic font-medium">No active assessments found</div>
+                  )}
+               </div>
+               <div className="p-8 border-t border-slate-50">
+                  <Button variant="outline" className="w-full h-14 rounded-2xl font-black border-slate-100 text-slate-600">
+                     VIEW ASSESSMENT ARCHIVE
                   </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Class Analytics</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            <TeacherPerformanceChart data={chartData} />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Upcoming Assessments</CardTitle>
-            <Badge className="bg-purple-100 text-purple-800 border-purple-200">2 New</Badge>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {data.upcomingAssessments.length > 0 ? data.upcomingAssessments.map((exam, idx) => (
-              <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <div>
-                  <p className="font-bold text-slate-900">{exam.title}</p>
-                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                    <span className="font-bold text-purple-600">{exam.subject}</span>
-                    <span>{new Date(exam.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-                <Badge variant={exam.status === 'published' ? 'secondary' : 'outline'}>{exam.status}</Badge>
-              </div>
-            )) : (
-              <p className="text-center text-slate-400 py-4 italic">No upcoming assessments</p>
-            )}
-            <Button variant="link" className="w-full text-purple-600 font-bold" asChild>
-              <Link href="/dashboard/teacher/assessments">Manage All Assessments</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Student Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {[
-              { name: 'Divine Goodnews', action: 'Submitted Math Quiz', time: '10 mins ago', grade: 'A' },
-              { name: 'Emeka Obi', action: 'Viewed Study Materials', time: '45 mins ago', grade: null },
-              { name: 'Sarah Ahmed', action: 'Raised a dispute', time: '1 hour ago', grade: null }
-            ].map((act, idx) => (
-              <div key={idx} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500">
-                    {act.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900">{act.name}</p>
-                    <p className="text-xs text-slate-500">{act.action}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-slate-400">{act.time}</p>
-                  {act.grade && <span className="text-xs font-extrabold text-emerald-600">Grade: {act.grade}</span>}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+               </div>
+            </CardContent>
+         </Card>
       </div>
     </div>
   )
