@@ -1,74 +1,36 @@
 import { text, timestamp, boolean, integer, numeric, date, jsonb, serial, pgTable, foreignKey, unique, check } from 'drizzle-orm/pg-core'
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 
-// ===== BETTER AUTH TABLES =====
+// ===== CORE USER TABLES (Linked to Supabase Auth) =====
 export const user = pgTable('user', {
-  id: text('id').primaryKey(),
+  id: text('id').primaryKey(), // Supabase Auth User ID
   email: text('email').notNull().unique(),
-  emailVerified: boolean('emailVerified').notNull().default(false),
   name: text('name'),
   image: text('image'),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const session = pgTable('session', {
-  id: text('id').primaryKey(),
-  expiresAt: timestamp('expiresAt', { withTimezone: true }).notNull(),
-  token: text('token').notNull().unique(),
-  createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
-  ipAddress: text('ipAddress'),
-  userAgent: text('userAgent'),
-  userId: text('userId').notNull(),
-})
-
-export const account = pgTable('account', {
-  id: text('id').primaryKey(),
-  userId: text('userId').notNull(),
-  type: text('type').notNull(),
-  provider: text('provider').notNull(),
-  providerAccountId: text('providerAccountId').notNull(),
-  refreshToken: text('refreshToken'),
-  accessToken: text('accessToken'),
-  expiresAt: timestamp('expiresAt', { withTimezone: true }),
-  password: text('password'),
-  createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [
-  unique().on(t.provider, t.providerAccountId),
-])
-
-export const verification = pgTable('verification', {
-  id: text('id').primaryKey(),
-  identifier: text('identifier').notNull(),
-  value: text('value').notNull(),
-  expiresAt: timestamp('expiresAt', { withTimezone: true }).notNull(),
-  createdAt: timestamp('createdAt', { withTimezone: true }),
-  updatedAt: timestamp('updatedAt', { withTimezone: true }),
-})
-
-// ===== SCHOOL CORE TABLES =====
 export const userRole = pgTable('user_role', {
   id: text('id').primaryKey(),
   userId: text('userId').notNull().unique(),
-  role: text('role').notNull(),
+  role: text('role').notNull(), // ADMIN, TEACHER, PARENT, STUDENT
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
 ])
 
+// ===== SCHOOL CORE TABLES =====
 export const student = pgTable('student', {
   id: text('id').primaryKey(),
   userId: text('userId').notNull().unique(),
-  studentId: text('studentId').notNull().unique(),
   firstName: text('firstName').notNull(),
   lastName: text('lastName').notNull(),
   dateOfBirth: date('dateOfBirth'),
   gender: text('gender'),
-  class: text('class').notNull(),
-  arm: text('arm'),
-  department: text('department'),
+  class: text('class').notNull(), // e.g., JSS1, SSS3
+  arm: text('arm'), // e.g., A, B, C
+  department: text('department'), // Science, Art, Commercial
   admissionNumber: text('admissionNumber').unique(),
   parentId: text('parentId'),
   profileImage: text('profileImage'),
@@ -83,14 +45,11 @@ export const student = pgTable('student', {
 export const teacher = pgTable('teacher', {
   id: text('id').primaryKey(),
   userId: text('userId').notNull().unique(),
-  teacherId: text('teacherId').notNull().unique(),
+  staffCode: text('staffCode').unique(),
   firstName: text('firstName').notNull(),
   lastName: text('lastName').notNull(),
   qualification: text('qualification'),
   specialization: text('specialization'),
-  dateOfBirth: date('dateOfBirth'),
-  gender: text('gender'),
-  joinDate: date('joinDate'),
   profileImage: text('profileImage'),
   isActive: boolean('isActive').default(true),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
@@ -102,14 +61,10 @@ export const teacher = pgTable('teacher', {
 export const parent = pgTable('parent', {
   id: text('id').primaryKey(),
   userId: text('userId').notNull().unique(),
-  parentId: text('parentId').notNull().unique(),
   firstName: text('firstName').notNull(),
   lastName: text('lastName').notNull(),
   phoneNumber: text('phoneNumber'),
-  relationship: text('relationship'),
-  occupation: text('occupation'),
   address: text('address'),
-  profileImage: text('profileImage'),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
@@ -119,35 +74,27 @@ export const parent = pgTable('parent', {
 // ===== ACADEMIC STRUCTURE =====
 export const academicSession = pgTable('academic_session', {
   id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  startDate: timestamp('startDate').notNull(),
-  endDate: timestamp('endDate').notNull(),
-  isActive: boolean('isActive').default(false),
-  createdAt: timestamp('createdAt').defaultNow(),
+  name: text('name').notNull(), // e.g., 2023/2024
+  startDate: date('startDate').notNull(),
+  endDate: date('endDate').notNull(),
+  isCurrent: boolean('isCurrent').default(false),
 })
 
 export const term = pgTable('term', {
   id: text('id').primaryKey(),
-  name: text('name').notNull(),
   sessionId: text('sessionId').notNull(),
-  startDate: timestamp('startDate').notNull(),
-  endDate: timestamp('endDate').notNull(),
-  isActive: boolean('isActive').default(false),
+  name: text('name').notNull(), // First Term, Second Term, Third Term
+  startDate: date('startDate').notNull(),
+  endDate: date('endDate').notNull(),
+  isCurrent: boolean('isCurrent').default(false),
 }, (t) => [
   foreignKey({ columns: [t.sessionId], foreignColumns: [academicSession.id] }),
 ])
 
 export const class_ = pgTable('class', {
   id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  arm: text('arm'),
-  department: text('department'),
-  description: text('description'),
-  teacherId: text('teacherId'),
-  capacity: integer('capacity').default(50),
-  isActive: boolean('isActive').default(true),
-  createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
+  name: text('name').notNull(), // e.g., JSS1, JSS2
+  teacherId: text('teacherId'), // Class Teacher
 }, (t) => [
   foreignKey({ columns: [t.teacherId], foreignColumns: [teacher.id] }),
 ])
@@ -155,66 +102,51 @@ export const class_ = pgTable('class', {
 export const subject = pgTable('subject', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  code: text('code').notNull().unique(),
-  description: text('description'),
-  isActive: boolean('isActive').default(true),
-  createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
+  code: text('code').unique(),
 })
 
-export const subjectOnClass = pgTable('subject_on_class', {
-  classId: text('classId').notNull(),
-  subjectId: text('subjectId').notNull(),
-}, (t) => [
-  foreignKey({ columns: [t.classId], foreignColumns: [class_.id] }).onDelete('cascade'),
-  foreignKey({ columns: [t.subjectId], foreignColumns: [subject.id] }).onDelete('cascade'),
-  unique().on(t.classId, t.subjectId),
-])
-
 export const teacherOnSubject = pgTable('teacher_on_subject', {
+  id: text('id').primaryKey(),
   teacherId: text('teacherId').notNull(),
   subjectId: text('subjectId').notNull(),
-  classId: text('classId'),
+  classId: text('classId').notNull(),
 }, (t) => [
-  foreignKey({ columns: [t.teacherId], foreignColumns: [teacher.id] }).onDelete('cascade'),
-  foreignKey({ columns: [t.subjectId], foreignColumns: [subject.id] }).onDelete('cascade'),
-  foreignKey({ columns: [t.classId], foreignColumns: [class_.id] }).onDelete('set null'),
-  unique().on(t.teacherId, t.subjectId, t.classId),
+  foreignKey({ columns: [t.teacherId], foreignColumns: [teacher.id] }),
+  foreignKey({ columns: [t.subjectId], foreignColumns: [subject.id] }),
+  foreignKey({ columns: [t.classId], foreignColumns: [class_.id] }),
 ])
 
-// ===== ASSESSMENT & GRADING =====
+// ===== CBT & ASSESSMENT =====
 export const assessment = pgTable('assessment', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   description: text('description'),
   subjectId: text('subjectId').notNull(),
-  termId: text('termId'),
-  assessmentType: text('assessmentType').notNull(),
-  totalMarks: integer('totalMarks').notNull(),
-  passingMarks: integer('passingMarks'),
-  duration: integer('duration'),
-  scheduleDate: timestamp('scheduleDate', { withTimezone: true }).notNull(),
-  status: text('status').default('draft'),
-  createdBy: text('createdBy'),
+  termId: text('termId').notNull(),
+  createdBy: text('createdBy').notNull(),
+  duration: integer('duration').notNull(), // in minutes
+  type: text('type').notNull(), // CBT, MOCK, ASSIGNMENT
+  status: text('status').default('draft'), // draft, published, archived
+  passingScore: integer('passingScore').default(40),
+  totalPoints: integer('totalPoints').default(100),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.subjectId], foreignColumns: [subject.id] }),
-  foreignKey({ columns: [t.createdBy], foreignColumns: [teacher.id] }),
   foreignKey({ columns: [t.termId], foreignColumns: [term.id] }),
+  foreignKey({ columns: [t.createdBy], foreignColumns: [teacher.id] }),
 ])
 
 export const assessmentQuestion = pgTable('assessment_question', {
   id: text('id').primaryKey(),
   assessmentId: text('assessmentId').notNull(),
   questionText: text('questionText').notNull(),
-  questionType: text('questionType').notNull(),
-  marks: integer('marks').notNull(),
-  options: jsonb('options'),
+  questionType: text('questionType').notNull(), // MCQ_Single, MCQ_Multiple, FITB, TrueFalse, Numeric, ShortAnswer
+  options: jsonb('options'), // For MCQs
   correctAnswer: text('correctAnswer'),
+  points: integer('points').default(1),
   explanation: text('explanation'),
-  sequenceNumber: integer('sequenceNumber'),
-  createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+  order: integer('order').notNull(),
 }, (t) => [
   foreignKey({ columns: [t.assessmentId], foreignColumns: [assessment.id] }).onDelete('cascade'),
 ])
@@ -223,15 +155,13 @@ export const assessmentResult = pgTable('assessment_result', {
   id: text('id').primaryKey(),
   assessmentId: text('assessmentId').notNull(),
   studentId: text('studentId').notNull(),
-  totalScore: integer('totalScore'),
-  percentage: numeric('percentage', { precision: 5, scale: 2 }),
-  grade: text('grade'),
-  status: text('status').default('pending'),
-  gradedAt: timestamp('gradedAt', { withTimezone: true }),
+  score: numeric('score', { precision: 5, scale: 2 }).notNull(),
+  totalQuestions: integer('totalQuestions').notNull(),
+  correctAnswers: integer('correctAnswers').notNull(),
+  timeSpent: integer('timeSpent').notNull(), // in seconds
+  status: text('status').notNull(), // passed, failed, pending_grading
   gradedBy: text('gradedBy'),
-  feedback: text('feedback'),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.assessmentId], foreignColumns: [assessment.id] }),
   foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }),
@@ -241,9 +171,9 @@ export const studentAnswer = pgTable('student_answer', {
   id: text('id').primaryKey(),
   assessmentResultId: text('assessmentResultId').notNull(),
   questionId: text('questionId').notNull(),
-  studentAnswer: text('studentAnswer'),
-  score: integer('score'),
+  answerText: text('answerText'),
   isCorrect: boolean('isCorrect'),
+  pointsEarned: integer('pointsEarned'),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.assessmentResultId], foreignColumns: [assessmentResult.id] }).onDelete('cascade'),
@@ -255,7 +185,7 @@ export const attendance = pgTable('attendance', {
   studentId: text('studentId').notNull(),
   classId: text('classId').notNull(),
   date: date('date').notNull(),
-  status: text('status').notNull(),
+  status: text('status').notNull(), // present, absent, late, excused
   remarks: text('remarks'),
   recordedBy: text('recordedBy'),
   recordedAt: timestamp('recordedAt', { withTimezone: true }).notNull().defaultNow(),
@@ -302,7 +232,7 @@ export const payment = pgTable('payment', {
 // ===== MESSAGING SYSTEM =====
 export const conversation = pgTable('conversation', {
   id: text('id').primaryKey(),
-  type: text('type').notNull(),
+  type: text('type').notNull(), // individual, group, broadcast
   name: text('name'),
   createdAt: timestamp('createdAt').defaultNow(),
   updatedAt: timestamp('updatedAt').defaultNow(),
@@ -439,10 +369,10 @@ export const auditLog = pgTable('audit_log', {
 
 // ===== RELATIONS =====
 export const userRelations = relations(user, ({ many, one }) => ({
-  userRole: one(userRole),
-  student: one(student),
-  teacher: one(teacher),
-  parent: one(parent),
+  userRole: one(userRole, { fields: [user.id], references: [userRole.userId] }),
+  student: one(student, { fields: [user.id], references: [student.userId] }),
+  teacher: one(teacher, { fields: [user.id], references: [teacher.userId] }),
+  parent: one(parent, { fields: [user.id], references: [parent.userId] }),
 }))
 
 export const studentRelations = relations(student, ({ one, many }) => ({

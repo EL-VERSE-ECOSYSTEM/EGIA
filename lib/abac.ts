@@ -51,9 +51,9 @@ export async function checkPermission(
   }
 
   // 3. Fallback RBAC Logic (when no specific ABAC policies are seeded in DB)
-  if (role === 'admin') return true
+  if (role.toUpperCase() === 'ADMIN') return true
 
-  if (role === 'teacher') {
+  if (role.toUpperCase() === 'TEACHER') {
     const allowedResources = ['assessment', 'result', 'message', 'dispute', 'student', 'class']
     if (allowedResources.includes(resourceName)) {
       if (action === 'delete') return false // Even teachers shouldn't delete without policy
@@ -61,14 +61,14 @@ export async function checkPermission(
     }
   }
 
-  if (role === 'student') {
+  if (role.toUpperCase() === 'STUDENT') {
     if (resourceName === 'result' || resourceName === 'message' || resourceName === 'assessment') {
       // Students can read assessments/messages/results, and create results (i.e., take assessments)
       return action === 'read' || (action === 'create' && resourceName === 'result')
     }
   }
 
-  if (role === 'parent') {
+  if (role.toUpperCase() === 'PARENT') {
     if (resourceName === 'student' || resourceName === 'result' || resourceName === 'payment' || resourceName === 'message') {
       return action === 'read' || (action === 'create' && resourceName === 'payment')
     }

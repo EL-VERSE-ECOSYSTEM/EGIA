@@ -1,25 +1,22 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import { Footer } from '@/components/footer'
-const NeonAuthUIProvider = ({children}) => <>{children}</>
-import { authClient } from '@/lib/auth-client'
+import { Inter, Playfair_Display } from 'next/font/google'
 import './globals.css'
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const inter = Inter({
+  variable: '--font-inter',
+  subsets: ['latin']
+})
+
+const playfair = Playfair_Display({
+  variable: '--font-playfair',
   subsets: ['latin'],
 })
 
 export const metadata: Metadata = {
-  title: 'EL GOODNEWS Academy - School Management System',
-  description: 'Complete school management system with assessments, grading, attendance tracking, and payment management',
+  title: "EL GOODNEWS INT'L ACADEMY - Empowering Excellence",
+  description: 'Complete school management system with CBT, assessments, and child monitoring.',
   generator: 'ELCODERS',
-  icons: {
-    icon: '/favicon.svg',
-    apple: '/logo.svg',
-  },
 }
 
 export default function RootLayout({
@@ -28,14 +25,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body className="font-sans antialiased flex flex-col min-h-screen">
-        <NeonAuthUIProvider authClient={authClient} redirectTo="/dashboard">
-          <div className="flex-1">
-            {children}
-          </div>
-          <Footer />
-        </NeonAuthUIProvider>
+        <div className="flex-1">
+          {children}
+        </div>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
