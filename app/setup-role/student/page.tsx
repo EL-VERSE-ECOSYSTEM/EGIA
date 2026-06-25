@@ -15,7 +15,6 @@ export default function StudentSetupPage() {
     firstName: '',
     lastName: '',
     class: '',
-    admissionNumber: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,84 +26,80 @@ export default function StudentSetupPage() {
         firstName: formData.firstName,
         lastName: formData.lastName,
         class: formData.class as 'JSS1' | 'JSS2' | 'JSS3' | 'SSS1' | 'SSS2' | 'SSS3',
-        admissionNumber: formData.admissionNumber,
       })
 
       router.push('/dashboard/student/overview')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating student profile:', error)
-      alert('Failed to create student profile. Please try again.')
+      alert(error.message || 'Failed to create student profile. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4 py-12">
-      <Card className="w-full max-w-md border-slate-700 bg-slate-800">
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-900 to-orange-800 px-4 py-12">
+      <Card className="w-full max-w-md border-orange-700 bg-slate-900 shadow-2xl">
         <CardHeader>
-          <CardTitle className="text-white">Student Profile Setup</CardTitle>
-          <CardDescription className="text-slate-400">
-            Complete your student profile information
+          <CardTitle className="text-white text-2xl font-bold">Student Profile Setup</CardTitle>
+          <CardDescription className="text-orange-200/60 font-medium">
+            Complete your information to join EL GOODNEWS Academy
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300">First Name</label>
-              <Input
-                required
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="mt-1 border-slate-600 bg-slate-700 text-white"
-                placeholder="John"
-              />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-orange-100">First Name</label>
+                <Input
+                  required
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  className="border-slate-700 bg-slate-800 text-white h-12 focus:border-orange-500"
+                  placeholder="John"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-orange-100">Last Name</label>
+                <Input
+                  required
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  className="border-slate-700 bg-slate-800 text-white h-12 focus:border-orange-500"
+                  placeholder="Doe"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300">Last Name</label>
-              <Input
-                required
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="mt-1 border-slate-600 bg-slate-700 text-white"
-                placeholder="Doe"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300">Class</label>
-              <Select value={formData.class} onValueChange={(value) => setFormData({ ...formData, class: value })}>
-                <SelectTrigger className="border-slate-600 bg-slate-700 text-white">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-orange-100">Class Allocation</label>
+              <Select required value={formData.class} onValueChange={(value) => setFormData({ ...formData, class: value })}>
+                <SelectTrigger className="border-slate-700 bg-slate-800 text-white h-12">
                   <SelectValue placeholder="Select your class" />
                 </SelectTrigger>
-                <SelectContent className="border-slate-600 bg-slate-700">
-                  <SelectItem value="JSS1">JSS 1</SelectItem>
-                  <SelectItem value="JSS2">JSS 2</SelectItem>
-                  <SelectItem value="JSS3">JSS 3</SelectItem>
-                  <SelectItem value="SSS1">SSS 1</SelectItem>
-                  <SelectItem value="SSS2">SSS 2</SelectItem>
-                  <SelectItem value="SSS3">SSS 3</SelectItem>
+                <SelectContent className="border-slate-700 bg-slate-800 text-white">
+                  <SelectItem value="JSS1">Junior Secondary 1 (JSS1)</SelectItem>
+                  <SelectItem value="JSS2">Junior Secondary 2 (JSS2)</SelectItem>
+                  <SelectItem value="JSS3">Junior Secondary 3 (JSS3)</SelectItem>
+                  <SelectItem value="SSS1">Senior Secondary 1 (SSS1)</SelectItem>
+                  <SelectItem value="SSS2">Senior Secondary 2 (SSS2)</SelectItem>
+                  <SelectItem value="SSS3">Senior Secondary 3 (SSS3)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300">Admission Number (Optional)</label>
-              <Input
-                value={formData.admissionNumber}
-                onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
-                className="mt-1 border-slate-600 bg-slate-700 text-white"
-                placeholder="ADM-2024-001"
-              />
+            <div className="p-4 bg-orange-500/10 rounded-xl border border-orange-500/20">
+               <p className="text-xs text-orange-200 leading-relaxed">
+                 Note: Your Admission Number (GODXXXXX) will be automatically generated upon completion of this setup.
+               </p>
             </div>
 
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white h-14 font-black text-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              {loading ? 'Setting up...' : 'Continue to Dashboard'}
+              {loading ? 'Processing...' : 'Complete Registration'}
             </Button>
           </form>
         </CardContent>
