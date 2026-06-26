@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Footer } from '@/components/footer'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   CheckCircle2,
   Users,
@@ -12,8 +14,18 @@ import {
   Monitor,
   Trophy,
   ArrowRight,
-  GraduationCap
+  GraduationCap,
+  MessageSquare,
+  Mail,
+  MapPin,
+  Phone
 } from 'lucide-react'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 export default async function LandingPage() {
   const cookieStore = await cookies()
@@ -29,23 +41,24 @@ export default async function LandingPage() {
             <div className="bg-amber-600 p-2 rounded-lg">
               <GraduationCap className="text-white w-6 h-6" />
             </div>
-            <span className="font-black text-xl tracking-tight text-slate-900">EL GOODNEWS <span className="text-amber-600">ACADEMY</span></span>
+            <span className="font-black text-xl tracking-tight text-slate-900 uppercase">EL GOODNEWS <span className="text-amber-600">ACADEMY</span></span>
           </div>
           <nav className="hidden md:flex items-center gap-8">
-            <Link href="#about" className="text-sm font-medium text-slate-600 hover:text-amber-600 transition-colors">About</Link>
-            <Link href="#features" className="text-sm font-medium text-slate-600 hover:text-amber-600 transition-colors">Features</Link>
-            <Link href="#portals" className="text-sm font-medium text-slate-600 hover:text-amber-600 transition-colors">Portals</Link>
+            <Link href="#about" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">About</Link>
+            <Link href="#features" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">Features</Link>
+            <Link href="#testimonials" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">Success</Link>
+            <Link href="#faq" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">FAQ</Link>
             {user ? (
               <Link href="/dashboard-redirect">
-                <Button className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-6">Dashboard</Button>
+                <Button className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-6 font-black shadow-lg">DASHBOARD</Button>
               </Link>
             ) : (
               <div className="flex items-center gap-4">
                 <Link href="/auth/signin">
-                  <Button variant="ghost" className="text-slate-600 font-bold">Sign In</Button>
+                  <Button variant="ghost" className="text-slate-600 font-black">SIGN IN</Button>
                 </Link>
                 <Link href="/auth/signup/parent">
-                  <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-6">Join Us</Button>
+                  <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-6 font-black shadow-lg shadow-amber-200">JOIN US</Button>
                 </Link>
               </div>
             )}
@@ -55,141 +68,137 @@ export default async function LandingPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative pt-20 pb-32 overflow-hidden">
-          <div className="container mx-auto px-4 relative z-10">
-            <div className="max-w-4xl mx-auto text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-100 text-amber-700 text-sm font-bold mb-8 animate-bounce">
-                <Trophy className="w-4 h-4" /> Leading the way in academic excellence
-              </div>
-              <h1 className="text-5xl md:text-7xl font-black text-slate-900 mb-8 leading-[1.1] tracking-tight">
-                Empowering <span className="text-amber-600">Excellence</span> in Every Student
-              </h1>
-              <p className="text-xl text-slate-600 mb-12 leading-relaxed max-w-2xl mx-auto">
-                EL GOODNEWS INT'L ACADEMY provides a world-class learning environment,
-                blending traditional values with cutting-edge technology for the 21st-century learner.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/auth/signup/parent">
-                  <Button size="lg" className="bg-amber-600 hover:bg-amber-700 text-white h-16 px-10 rounded-2xl font-black text-lg shadow-xl shadow-amber-200 group">
-                    Join Our Academy <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-                <Link href="/admissions">
-                  <Button variant="outline" size="lg" className="h-16 px-10 rounded-2xl font-bold border-2 text-slate-700">
-                    Explore Admissions
-                  </Button>
-                </Link>
-              </div>
+        <section className="relative pt-24 pb-32 overflow-hidden bg-white">
+          <div className="container mx-auto px-4 relative z-10 text-center max-w-5xl">
+            <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-amber-50 border border-amber-100 text-amber-700 text-sm font-black mb-10 tracking-widest uppercase">
+              <Trophy className="w-4 h-4" /> Academic Excellence in Nigeria
+            </div>
+            <h1 className="text-6xl md:text-9xl font-black text-slate-900 mb-8 leading-[0.9] tracking-tighter">
+              Inspiring <span className="text-amber-600">Greatness</span> In Every Student
+            </h1>
+            <p className="text-xl md:text-2xl text-slate-500 mb-14 leading-relaxed max-w-3xl mx-auto font-medium">
+              EL GOODNEWS INT'L ACADEMY is where traditional values meet 21st-century innovation.
+              Join a community committed to nurturing the total child.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <Link href="/auth/signup/parent">
+                <Button size="lg" className="bg-amber-600 hover:bg-amber-700 text-white h-20 px-14 rounded-[2rem] font-black text-xl shadow-2xl shadow-amber-200 group transition-all hover:scale-105">
+                  START REGISTRATION <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link href="/admissions">
+                <Button variant="outline" size="lg" className="h-20 px-14 rounded-[2rem] font-black text-xl border-4 text-slate-800 border-slate-100 hover:bg-slate-50 transition-all hover:scale-105">
+                  ADMISSIONS
+                </Button>
+              </Link>
             </div>
           </div>
-
-          {/* Decorative Elements */}
-          <div className="absolute top-1/2 left-0 w-64 h-64 bg-amber-200/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-200/20 rounded-full blur-3xl translate-x-1/3 translate-y-1/3" />
+          <div className="absolute top-1/2 left-0 w-[500px] h-[500px] bg-amber-400/5 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-blue-400/5 rounded-full blur-[140px] translate-x-1/3 translate-y-1/3" />
         </section>
 
         {/* Stats Bar */}
-        <section className="py-12 bg-slate-900 text-white relative z-20">
+        <section className="py-24 bg-slate-950 text-white relative z-20">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-              <div className="space-y-2">
-                <div className="text-4xl font-black text-amber-500">15+</div>
-                <div className="text-slate-400 font-medium uppercase tracking-widest text-xs">Years Experience</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-16 text-center">
+              <div className="space-y-4">
+                <div className="text-7xl font-black text-amber-500 tracking-tighter">15+</div>
+                <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-xs">Years of History</div>
               </div>
-              <div className="space-y-2">
-                <div className="text-4xl font-black text-amber-500">50+</div>
-                <div className="text-slate-400 font-medium uppercase tracking-widest text-xs">Certified Teachers</div>
+              <div className="space-y-4">
+                <div className="text-7xl font-black text-amber-500 tracking-tighter">50+</div>
+                <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-xs">Ph.D Educators</div>
               </div>
-              <div className="space-y-2">
-                <div className="text-4xl font-black text-amber-500">1000+</div>
-                <div className="text-slate-400 font-medium uppercase tracking-widest text-xs">Success Stories</div>
+              <div className="space-y-4">
+                <div className="text-7xl font-black text-amber-500 tracking-tighter">100%</div>
+                <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-xs">Exam Pass Rate</div>
               </div>
             </div>
           </div>
         </section>
 
         {/* About Us */}
-        <section id="about" className="py-24 bg-white">
+        <section id="about" className="py-40 bg-white">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-              <div className="relative">
-                <div className="aspect-square bg-slate-100 rounded-3xl overflow-hidden shadow-2xl">
-                   <div className="w-full h-full flex items-center justify-center text-slate-300">
-                     <Users size={120} />
-                   </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-32 items-center">
+              <div className="relative group">
+                <div className="aspect-[3/4] bg-slate-100 rounded-[4rem] overflow-hidden shadow-2xl relative flex items-center justify-center border-[16px] border-slate-50">
+                   <Users size={300} strokeWidth={0.5} className="text-slate-200 group-hover:scale-110 transition-transform duration-1000" />
+                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent opacity-40" />
                 </div>
-                <div className="absolute -bottom-8 -right-8 bg-amber-600 text-white p-8 rounded-3xl shadow-xl max-w-xs hidden md:block">
-                  <p className="font-bold italic">"We nurture the total child for a brighter future."</p>
+                <div className="absolute -bottom-16 -right-16 bg-amber-600 text-white p-14 rounded-[3rem] shadow-[0_50px_100px_-20px_rgba(217,119,6,0.3)] max-w-sm hidden lg:block border-[12px] border-white">
+                  <p className="font-black text-3xl italic leading-[1.2]">"We nurture the total child for a brighter global future."</p>
                 </div>
               </div>
-              <div className="space-y-8">
-                <div className="inline-block px-4 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold uppercase tracking-wider">Our Foundation</div>
-                <h2 className="text-4xl font-black text-slate-900 leading-tight">Committed to Integrity and Academic Rigor</h2>
-                <p className="text-slate-600 text-lg leading-relaxed">
-                  Founded on the principles of discipline and excellence, EL GOODNEWS INT'L ACADEMY has consistently
-                  produced leaders who excel in various fields. Our mission is to provide an inclusive learning
-                  environment that fosters intellectual curiosity and moral uprightness.
+              <div className="space-y-12">
+                <div className="inline-block px-8 py-2 rounded-full bg-amber-100 text-amber-700 text-xs font-black uppercase tracking-[0.3em]">Our Heritage</div>
+                <h2 className="text-6xl md:text-7xl font-black text-slate-900 leading-[0.95] tracking-tighter">Committed to Academic Rigor</h2>
+                <p className="text-slate-500 text-2xl leading-relaxed font-medium">
+                  At EL GOODNEWS ACADEMY, we don't just teach; we inspire. Our curriculum is designed to challenge students
+                  intellectually while grounding them in moral discipline.
                 </p>
-                <ul className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   {[
-                    "Standardized Curriculum",
-                    "Moral & Value-based Education",
-                    "Global Competency Focus",
-                    "Conducive Learning Environment"
+                    "Global Standard",
+                    "Moral Leadership",
+                    "Tech-First Lab",
+                    "Secure Campus"
                   ].map((item, i) => (
-                    <li key={i} className="flex items-center gap-3 font-bold text-slate-700">
-                      <CheckCircle2 className="text-amber-600" size={20} /> {item}
-                    </li>
+                    <div key={i} className="flex items-center gap-5">
+                      <div className="bg-amber-500 p-3 rounded-2xl shadow-lg shadow-amber-200">
+                        <CheckCircle2 className="text-white" size={24} />
+                      </div>
+                      <span className="font-black text-slate-800 text-xl tracking-tight">{item}</span>
+                    </div>
                   ))}
-                </ul>
+                </div>
+                <Button variant="outline" className="h-16 px-10 rounded-2xl font-black text-slate-900 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">LEARN OUR HISTORY</Button>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Features */}
-        <section id="features" className="py-24 bg-[#F8FAFC]">
+        {/* Features Grid */}
+        <section id="features" className="py-40 bg-[#F8FAFC]">
           <div className="container mx-auto px-4">
-            <div className="text-center mb-16 space-y-4">
-              <h2 className="text-4xl font-black text-slate-900">Modern School Management</h2>
-              <p className="text-slate-600 max-w-2xl mx-auto">
-                We leverage technology to simplify school operations and enhance the learning experience.
-              </p>
+            <div className="text-center mb-32 space-y-6">
+               <div className="inline-block px-8 py-2 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.4em]">Technology</div>
+              <h2 className="text-6xl md:text-7xl font-black text-slate-900 tracking-tighter">Advanced Infrastructure</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
               {[
                 {
-                  title: "CBT System",
-                  desc: "Advanced Computer-Based Testing for objective and instant evaluation.",
+                  title: "CBT Portal",
+                  desc: "Digital examination system with anti-cheat and instant analytics.",
                   icon: Monitor,
-                  color: "bg-blue-50 text-blue-600"
+                  color: "bg-blue-600"
                 },
                 {
-                  title: "Digital Library",
-                  desc: "Access to thousands of e-books and research materials anytime.",
+                  title: "E-Library",
+                  desc: "Global access to academic journals and digital textbooks.",
                   icon: BookOpen,
-                  color: "bg-amber-50 text-amber-600"
+                  color: "bg-amber-600"
                 },
                 {
-                  title: "Expert Tutors",
-                  desc: "Guided by highly qualified educators committed to student success.",
+                  title: "Verified Staff",
+                  desc: "All educators are internationally certified and vetted.",
                   icon: GraduationCap,
-                  color: "bg-purple-50 text-purple-600"
+                  color: "bg-purple-600"
                 },
                 {
-                  title: "Child Monitoring",
-                  desc: "Real-time updates for parents on student performance and attendance.",
+                  title: "Parent Sync",
+                  desc: "Real-time performance tracking and fee management.",
                   icon: ShieldCheck,
-                  color: "bg-emerald-50 text-emerald-600"
+                  color: "bg-emerald-600"
                 }
-              ].map((feature, i) => (
-                <Card key={i} className="border-none shadow-sm hover:shadow-xl transition-all group">
-                  <CardContent className="p-8 space-y-4">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${feature.color} group-hover:scale-110 transition-transform`}>
-                      <feature.icon size={28} />
+              ].map((f, i) => (
+                <Card key={i} className="border-none shadow-[0_40px_80px_-20px_rgba(0,0,0,0.05)] hover:shadow-2xl hover:-translate-y-4 transition-all duration-700 rounded-[3rem] bg-white group">
+                  <CardContent className="p-14 space-y-8">
+                    <div className={`w-20 h-20 rounded-3xl flex items-center justify-center ${f.color} text-white shadow-2xl shadow-${f.color.split('-')[1]}-200 group-hover:scale-110 transition-transform duration-700`}>
+                      <f.icon size={36} />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900">{feature.title}</h3>
-                    <p className="text-slate-500 leading-relaxed">{feature.desc}</p>
+                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">{f.title}</h3>
+                    <p className="text-slate-500 text-lg leading-relaxed font-medium">{f.desc}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -197,80 +206,167 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        {/* Role Portals */}
-        <section id="portals" className="py-24 bg-white border-y">
+        {/* Testimonials */}
+        <section id="testimonials" className="py-40 bg-white">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="bg-emerald-50 p-10 rounded-3xl border border-emerald-100 flex flex-col justify-between group hover:bg-emerald-600 transition-colors duration-500">
-                <div className="space-y-4">
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm">
-                    <Users size={32} />
-                  </div>
-                  <h3 className="text-2xl font-black text-slate-900 group-hover:text-white transition-colors">Parent Portal</h3>
-                  <p className="text-slate-600 group-hover:text-emerald-50 transition-colors">
-                    Register and link your children to monitor their performance, pay fees, and communicate with teachers.
-                  </p>
-                </div>
-                <Link href="/auth/signup/parent" className="mt-8">
-                  <Button variant="ghost" className="p-0 text-emerald-600 font-black flex items-center group-hover:text-white transition-colors">
-                    GET STARTED <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="bg-purple-50 p-10 rounded-3xl border border-purple-100 flex flex-col justify-between group hover:bg-purple-600 transition-colors duration-500">
-                <div className="space-y-4">
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-purple-600 shadow-sm">
-                    <GraduationCap size={32} />
-                  </div>
-                  <h3 className="text-2xl font-black text-slate-900 group-hover:text-white transition-colors">Teacher Join</h3>
-                  <p className="text-slate-600 group-hover:text-purple-50 transition-colors">
-                    Join our team of dedicated educators. Use your staff code to register and manage your classes.
-                  </p>
-                </div>
-                <Link href="/auth/signup/teacher" className="mt-8">
-                  <Button variant="ghost" className="p-0 text-purple-600 font-black flex items-center group-hover:text-white transition-colors">
-                    JOIN STAFF <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="bg-orange-50 p-10 rounded-3xl border border-orange-100 flex flex-col justify-between group hover:bg-orange-600 transition-colors duration-500">
-                <div className="space-y-4">
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-orange-600 shadow-sm">
-                    <Monitor size={32} />
-                  </div>
-                  <h3 className="text-2xl font-black text-slate-900 group-hover:text-white transition-colors">Student Portal</h3>
-                  <p className="text-slate-600 group-hover:text-orange-50 transition-colors">
-                    Activate your student account with your admission number to take CBT exams and access materials.
-                  </p>
-                </div>
-                <Link href="/auth/signup/student" className="mt-8">
-                  <Button variant="ghost" className="p-0 text-orange-600 font-black flex items-center group-hover:text-white transition-colors">
-                    ACCESS PORTAL <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </Link>
-              </div>
+            <div className="flex flex-col md:flex-row justify-between items-end gap-10 mb-32">
+               <div className="space-y-6">
+                  <div className="inline-block px-8 py-2 rounded-full bg-amber-100 text-amber-700 text-xs font-black uppercase tracking-[0.3em]">Testimonials</div>
+                  <h2 className="text-6xl md:text-7xl font-black text-slate-900 tracking-tighter">Voices of Success</h2>
+               </div>
+               <p className="text-slate-500 text-xl font-medium max-w-md">Our results speak for themselves. Hear from those who experienced EL GOODNEWS firsthand.</p>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+               {[
+                 {
+                   name: "Mrs. Adebayo",
+                   role: "Parent of 3 Students",
+                   quote: "The transparency is refreshing. I get my children's CBT results before they even get home from school."
+                 },
+                 {
+                   name: "Olawale John",
+                   role: "Class of 2018",
+                   quote: "The academic rigor at EL GOODNEWS prepared me for the competitive world of STEM. I am forever grateful."
+                 },
+                 {
+                   name: "Dr. Evans",
+                   role: "International Alumni",
+                   quote: "Truly a world-class academy. The digital library and expert tutors make it a center of excellence."
+                 }
+               ].map((t, i) => (
+                 <Card key={i} className="border-none bg-slate-50/50 rounded-[3rem] p-14 relative group hover:bg-white hover:shadow-2xl transition-all duration-500 border border-transparent hover:border-slate-100">
+                    <MessageSquare className="text-amber-500/10 absolute top-12 right-12 w-24 h-24" />
+                    <CardContent className="p-0 space-y-10 relative z-10">
+                       <p className="text-2xl text-slate-700 font-black italic leading-snug">"{t.quote}"</p>
+                       <div className="flex items-center gap-6">
+                          <div className="w-16 h-16 rounded-2xl bg-amber-600 flex items-center justify-center text-white font-black text-2xl shadow-xl shadow-amber-200">
+                            {t.name[0]}
+                          </div>
+                          <div>
+                             <p className="font-black text-xl text-slate-900">{t.name}</p>
+                             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">{t.role}</p>
+                          </div>
+                       </div>
+                    </CardContent>
+                 </Card>
+               ))}
             </div>
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-24 bg-amber-600 overflow-hidden relative">
-          <div className="container mx-auto px-4 relative z-10 text-center">
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-8">Ready to secure a bright future?</h2>
-            <p className="text-amber-50 text-xl mb-12 max-w-2xl mx-auto">
-              Admissions are currently open for the 2024/2025 academic session.
-              Be part of EL GOODNEWS ACADEMY family today.
-            </p>
+        {/* FAQ Section */}
+        <section id="faq" className="py-40 bg-slate-950 text-white">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto">
+               <div className="text-center mb-24 space-y-6">
+                  <h2 className="text-6xl md:text-7xl font-black tracking-tighter">Everything You <span className="text-amber-500">Need to Know</span></h2>
+                  <p className="text-slate-500 font-black uppercase tracking-[0.4em] text-xs">Support & Admissions FAQ</p>
+               </div>
+               <Accordion type="single" collapsible className="space-y-6">
+                  {[
+                    {
+                      q: "What are the requirements for admission?",
+                      a: "Applicants are required to create a parent portal account, submit past academic records, and sit for a placement assessment in Mathematics and English."
+                    },
+                    {
+                      q: "How secure is the online payment system?",
+                      a: "We partner with Korapay, a PCI-DSS certified gateway, to ensure all transactions are encrypted and secured using military-grade protection."
+                    },
+                    {
+                      q: "Is the CBT system mobile-friendly?",
+                      a: "Absolutely. Our CBT platform is fully responsive, allowing students to take mock exams and quizzes on any modern smartphone or tablet."
+                    },
+                    {
+                      q: "Can I communicate directly with teachers?",
+                      a: "Yes. The Parent Portal includes an integrated messaging hub for direct, real-time communication with your child's subject and class teachers."
+                    }
+                  ].map((faq, i) => (
+                    <AccordionItem key={i} value={`item-${i}`} className="border-none bg-white/5 rounded-[2rem] px-10 border border-white/5 overflow-hidden">
+                      <AccordionTrigger className="text-2xl font-black text-white hover:no-underline hover:text-amber-500 transition-colors py-10">
+                        {faq.q}
+                      </AccordionTrigger>
+                      <AccordionContent className="text-slate-400 text-xl font-medium pb-10 leading-relaxed border-t border-white/5 pt-6">
+                        {faq.a}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+               </Accordion>
+            </div>
+          </div>
+        </section>
+
+        {/* Contact Section */}
+        <section id="contact" className="py-40 bg-white">
+          <div className="container mx-auto px-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-32">
+               <div className="space-y-16">
+                  <div className="space-y-8">
+                    <div className="inline-block px-8 py-2 rounded-full bg-blue-100 text-blue-700 text-xs font-black uppercase tracking-[0.3em]">Contact Us</div>
+                    <h2 className="text-6xl md:text-7xl font-black text-slate-900 leading-[0.95] tracking-tighter">Get in Touch with Admissions</h2>
+                    <p className="text-slate-500 text-2xl font-medium">Our team is available 24/7 to guide you through the enrollment process.</p>
+                  </div>
+                  <div className="space-y-12">
+                     <div className="flex gap-8 items-start group">
+                        <div className="w-20 h-20 rounded-3xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0 group-hover:bg-amber-600 group-hover:text-white transition-all duration-500 shadow-xl shadow-amber-100">
+                           <MapPin size={32} />
+                        </div>
+                        <div>
+                           <p className="font-black text-2xl text-slate-900 mb-2">Campus Location</p>
+                           <p className="text-slate-500 text-xl font-medium">123 Academy Road, New Estate, Nigeria</p>
+                        </div>
+                     </div>
+                     <div className="flex gap-8 items-start group">
+                        <div className="w-20 h-20 rounded-3xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500 shadow-xl shadow-blue-100">
+                           <Phone size={32} />
+                        </div>
+                        <div>
+                           <p className="font-black text-2xl text-slate-900 mb-2">Direct Hotline</p>
+                           <p className="text-slate-500 text-xl font-medium">+234 (0) 800 123 4567</p>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               <Card className="bg-slate-50 border-none rounded-[4rem] p-16 shadow-2xl shadow-slate-100">
+                  <form className="space-y-10">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div className="space-y-3">
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2">First Name</label>
+                           <Input placeholder="Enter first name" className="h-16 rounded-[1.5rem] bg-white border-none shadow-sm px-8 font-black text-lg focus:ring-8 focus:ring-amber-600/10 transition-all placeholder:text-slate-300" />
+                        </div>
+                        <div className="space-y-3">
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2">Last Name</label>
+                           <Input placeholder="Enter last name" className="h-16 rounded-[1.5rem] bg-white border-none shadow-sm px-8 font-black text-lg focus:ring-8 focus:ring-amber-600/10 transition-all placeholder:text-slate-300" />
+                        </div>
+                     </div>
+                     <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2">Email Address</label>
+                        <Input type="email" placeholder="email@example.com" className="h-16 rounded-[1.5rem] bg-white border-none shadow-sm px-8 font-black text-lg focus:ring-8 focus:ring-amber-600/10 transition-all placeholder:text-slate-300" />
+                     </div>
+                     <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2">Message</label>
+                        <Textarea placeholder="How can we help you?" rows={5} className="rounded-[2rem] bg-white border-none shadow-sm px-8 py-8 font-black text-lg focus:ring-8 focus:ring-amber-600/10 transition-all placeholder:text-slate-300" />
+                     </div>
+                     <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white h-20 rounded-[2rem] font-black text-xl transition-all shadow-2xl shadow-slate-200 uppercase tracking-[0.2em]">
+                        Send Message
+                     </Button>
+                  </form>
+               </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="py-48 bg-amber-600 overflow-hidden relative">
+          <div className="container mx-auto px-4 relative z-10 text-center max-w-4xl">
+            <h2 className="text-7xl md:text-9xl font-black text-white mb-16 tracking-tighter leading-[0.85]">Join The Future of <span className="text-slate-900">Education</span></h2>
             <Link href="/auth/signup/parent">
-              <Button size="lg" className="bg-white text-amber-600 hover:bg-amber-50 h-16 px-12 rounded-2xl font-black text-lg shadow-2xl">
+              <Button size="lg" className="bg-white text-amber-600 hover:bg-amber-50 h-28 px-20 rounded-[3rem] font-black text-3xl shadow-[0_50px_100px_-20px_rgba(0,0,0,0.4)] transition-all hover:scale-105 active:scale-95 uppercase tracking-tighter">
                 Register Your Child Now
               </Button>
             </Link>
           </div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-black/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+          <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-[140px]" />
+          <div className="absolute bottom-0 left-0 w-[1000px] h-[1000px] bg-black/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-[160px]" />
         </section>
       </main>
 

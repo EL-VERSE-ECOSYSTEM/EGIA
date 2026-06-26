@@ -6,13 +6,13 @@
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
 - Environments: .env.local
-✓ Ready in 550ms
+✓ Ready in 583ms
 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
 
 ⨯ Error: Failed query: select "id", "userId", "staffCode", "firstName", "lastName", "qualification", "specialization", "profileImage", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2
 params: ,1
     at async getTeacherProfile (lib/api/queries.ts:26:10)
-    at async TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:26:26)
+    at async TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:23:26)
   24 |
   25 | export async function getTeacherProfile(userId: string) {
 > 26 |   return await db.query.teacher.findFirst({
@@ -22,20 +22,20 @@ params: ,1
   29 | } {
   query: 'select "id", "userId", "staffCode", "firstName", "lastName", "qualification", "specialization", "profileImage", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2',
   params: [ '', 1 ],
-  digest: '1848806440',
+  digest: '3434393472',
   [cause]: AggregateError:
       at ignore-listed frames {
     code: 'ECONNREFUSED',
     [errors]: [ [Error], [Error] ]
   }
 }
- GET /dashboard/teacher 500 in 1781ms (next.js: 337ms, proxy.ts: 168ms, application-code: 1276ms)
+ GET /dashboard/teacher 500 in 1775ms (next.js: 430ms, proxy.ts: 194ms, application-code: 1150ms)
 [browser] Uncaught Error: Failed query: select "id", "userId", "staffCode", "firstName", "lastName", "qualification", "specialization", "profileImage", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2
 params: ,1
     at PostgresJsPreparedQuery.queryWithCache (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
     at <anonymous> (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
     at  getTeacherProfile (lib/api/queries.ts:26:10)
-    at  TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:26:26)
+    at  TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:23:26)
     at TeacherPage (app/dashboard/teacher/page.tsx:7:5)
   71 | 				return await query();
   72 | 			} catch (e) {
@@ -47,7 +47,7 @@ params: ,1
 ⨯ Error: Failed query: select count(*) from "student"
 params:
     at async getAdminDashboardStats (lib/api/queries.ts:58:27)
-    at async AdminOverviewPage (app/dashboard/admin/overview/page.tsx:21:21)
+    at async AdminOverviewPage (app/dashboard/admin/overview/page.tsx:25:21)
   56 |
   57 | export async function getAdminDashboardStats() {
 > 58 |   const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
@@ -57,20 +57,20 @@ params:
   61 |   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).... {
   query: 'select count(*) from "student"',
   params: [],
-  digest: '2988190553',
+  digest: '4293298098',
   [cause]: AggregateError:
       at ignore-listed frames {
     code: 'ECONNREFUSED',
     [errors]: [ [Error], [Error] ]
   }
 }
- GET /dashboard/admin 500 in 332ms (next.js: 29ms, proxy.ts: 11ms, application-code: 292ms)
+ GET /dashboard/admin 500 in 464ms (next.js: 29ms, proxy.ts: 10ms, application-code: 425ms)
 [browser] Uncaught Error: Failed query: select count(*) from "student"
 params:
     at PostgresJsPreparedQuery.queryWithCache (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
     at <anonymous> (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
     at  getAdminDashboardStats (lib/api/queries.ts:58:27)
-    at  AdminOverviewPage (app/dashboard/admin/overview/page.tsx:21:21)
+    at  AdminOverviewPage (app/dashboard/admin/overview/page.tsx:25:21)
     at AdminPage (app/dashboard/admin/page.tsx:7:5)
   71 | 				return await query();
   72 | 			} catch (e) {
@@ -79,6 +79,6 @@ params:
   74 | 			}
   75 | 		}
   76 |
- GET /dashboard/teacher/assessments/create 200 in 123ms (next.js: 21ms, proxy.ts: 7ms, application-code: 95ms)
+ GET /dashboard/teacher/assessments/create 200 in 256ms (next.js: 49ms, proxy.ts: 12ms, application-code: 195ms)
  ELIFECYCLE  Command failed.
 [?25h
