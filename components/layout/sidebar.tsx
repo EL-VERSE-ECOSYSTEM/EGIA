@@ -19,7 +19,9 @@ import {
   User,
   Award,
   FileText,
-  Search
+  Search,
+  Wallet,
+  Clock
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -40,6 +42,7 @@ export function Sidebar({ role }: SidebarProps) {
         { label: 'Students', icon: Users, href: '/dashboard/admin/users/students/list' },
         { label: 'Teachers', icon: User, href: '/dashboard/admin/users/teachers/list' },
         { label: 'Academics', icon: BookOpen, href: '/dashboard/admin/academics' },
+        { label: 'Pending Fees', icon: Clock, href: '/dashboard/admin/finance/fees/pending' },
         { label: 'Finance', icon: CreditCard, href: '/dashboard/admin/finance/fees/structure' },
         { label: 'Communication', icon: MessageSquare, href: '/dashboard/admin/communication' },
         { label: 'Settings', icon: Settings, href: '/dashboard/admin/settings' },
@@ -99,15 +102,6 @@ export function Sidebar({ role }: SidebarProps) {
           </div>
         </div>
 
-        <div className="relative mb-8">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Quick find..."
-            className="w-full h-11 bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-amber-600/50 transition-all"
-          />
-        </div>
-
         <nav className="space-y-1.5">
           {config.links.map((link) => {
             const isActive = pathname.startsWith(link.href)
@@ -132,16 +126,13 @@ export function Sidebar({ role }: SidebarProps) {
 
       <div className="mt-auto p-6">
         <div className="p-6 rounded-[2rem] bg-white/5 border border-white/10 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Settings className="w-20 h-20 rotate-45" />
-          </div>
           <div className="flex items-center gap-4 mb-5 relative z-10">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-300 flex items-center justify-center font-black text-slate-900 text-xs shadow-inner">
-              AD
+              {role[0].toUpperCase()}
             </div>
             <div className="overflow-hidden">
-              <p className="text-xs font-black text-white truncate">Administrator</p>
-              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest">Active</p>
+              <p className="text-xs font-black text-white truncate capitalize">{role} User</p>
+              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest text-pretty">EL GOODNEWS</p>
             </div>
           </div>
           <Button variant="ghost" className="w-full justify-start h-11 px-4 rounded-xl text-white/50 hover:text-white hover:bg-white/10 text-xs font-black relative z-10 transition-all">
