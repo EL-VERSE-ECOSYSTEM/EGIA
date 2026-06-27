@@ -312,7 +312,7 @@ export default async function LandingPage() {
                         </div>
                         <div>
                            <p className="font-black text-2xl text-slate-900 mb-2">Campus Location</p>
-                           <p className="text-slate-500 text-xl font-medium">123 Academy Road, New Estate, Nigeria</p>
+                           <p className="text-slate-500 text-xl font-medium">NO 20, Dr Emmanuella Ville, Orita Ara, Ogun State, Nigeria</p>
                         </div>
                      </div>
                      <div className="flex gap-8 items-start group">
@@ -321,7 +321,7 @@ export default async function LandingPage() {
                         </div>
                         <div>
                            <p className="font-black text-2xl text-slate-900 mb-2">Direct Hotline</p>
-                           <p className="text-slate-500 text-xl font-medium">+234 (0) 800 123 4567</p>
+                           <p className="text-slate-500 text-xl font-medium">+2348108854279</p>
                         </div>
                      </div>
                   </div>

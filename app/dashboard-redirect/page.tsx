@@ -10,16 +10,15 @@ export default async function DashboardRedirect() {
 
   const role = session.user.role
 
-  switch (role) {
-    case 'ADMIN':
-      redirect('/dashboard/admin')
-    case 'TEACHER':
-      redirect('/dashboard/teacher')
-    case 'PARENT':
-      redirect('/dashboard/parent')
-    case 'STUDENT':
-      redirect('/dashboard/student')
-    default:
-      redirect('/')
+  if (role === 'ADMIN') {
+    redirect('/dashboard/admin/overview')
+  } else if (role === 'TEACHER') {
+    redirect('/dashboard/teacher/overview')
+  } else if (role === 'PARENT') {
+    redirect('/dashboard/parent/overview')
+  } else if (role === 'STUDENT') {
+    redirect('/dashboard/student/overview')
+  } else {
+    redirect('/')
   }
 }

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { getAdminDashboardStats, getRecentAuditLogs, getUrgentAlerts } from '@/lib/api/queries'
 import { AdminRevenueChart } from '@/components/charts/admin-revenue-chart'
+import Link from 'next/link'
 
 export default async function AdminOverviewPage() {
   const statsData = await getAdminDashboardStats()
@@ -43,10 +44,9 @@ export default async function AdminOverviewPage() {
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-amber-500 text-xs font-black uppercase tracking-widest mb-6">
                <Calendar className="w-3.5 h-3.5" /> 2024/2025 Academic Session
             </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">Welcome back, Administrator.</h1>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4 text-pretty">Welcome back, Administrator.</h1>
             <p className="text-slate-400 text-lg font-medium max-w-xl">
-               Here is what is happening at EL GOODNEWS ACADEMY today.
-               You have 3 new alerts and 2 pending approvals.
+               Monitor institutional performance and manage academy operations in real-time.
             </p>
          </div>
       </div>
@@ -75,10 +75,12 @@ export default async function AdminOverviewPage() {
         <Card className="lg:col-span-2 border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white overflow-hidden">
           <CardHeader className="p-10 pb-0 flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-2xl font-black text-slate-900">Revenue Collection Trend</CardTitle>
-              <p className="text-sm font-bold text-slate-400 mt-1">Comparison between current and previous term</p>
+              <CardTitle className="text-2xl font-black text-slate-900">Institutional Revenue</CardTitle>
+              <p className="text-sm font-bold text-slate-400 mt-1">Fee collection trends across all departments</p>
             </div>
-            <Button variant="outline" className="rounded-xl font-bold border-slate-100">Details</Button>
+            <Link href="/dashboard/admin/finance/fees/structure">
+               <Button variant="outline" className="rounded-xl font-bold border-slate-100">Details</Button>
+            </Link>
           </CardHeader>
           <CardContent className="p-10 h-[450px]">
             <AdminRevenueChart />
@@ -88,84 +90,50 @@ export default async function AdminOverviewPage() {
         <div className="space-y-8">
           <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white">
             <CardHeader className="p-8 pb-4">
-              <CardTitle className="text-lg font-black flex items-center gap-2">
-                 <AlertTriangle className="text-amber-600 w-5 h-5" /> Urgent Alerts
+              <CardTitle className="text-lg font-black flex items-center gap-2 text-slate-900">
+                 <AlertTriangle className="text-amber-600 w-5 h-5" /> Pending Verifications
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8 pt-0 space-y-4">
-              {alerts.length > 0 ? alerts.map((alert, idx) => (
-                <div key={idx} className="p-5 rounded-2xl border border-slate-50 bg-slate-50/50 group hover:border-amber-200 transition-colors">
-                  <p className="font-black text-sm text-slate-900">{alert.title}</p>
-                  <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">{alert.desc}</p>
-                  <div className="mt-3 flex items-center gap-2">
-                     <Badge className="bg-amber-100 text-amber-700 border-none text-[10px] font-black uppercase px-2">High Priority</Badge>
-                     <span className="text-[10px] text-slate-400 font-bold">2h ago</span>
-                  </div>
-                </div>
-              )) : (
-                <div className="text-center py-10 text-slate-400 italic font-medium">No urgent alerts</div>
-              )}
-              <Button variant="ghost" className="w-full text-amber-600 font-black text-xs uppercase tracking-widest mt-2 hover:bg-amber-50">View All Alerts</Button>
+              <div className="p-6 rounded-[2rem] bg-amber-50 border border-amber-100 space-y-4 text-center">
+                 <p className="text-sm font-bold text-amber-900">There are 8 manual payments waiting for receipt verification.</p>
+                 <Link href="/dashboard/admin/finance/fees/pending" className="block">
+                    <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl h-12 shadow-lg shadow-amber-200">VERIFY NOW</Button>
+                 </Link>
+              </div>
+              <Button variant="ghost" className="w-full text-slate-400 font-black text-xs uppercase tracking-widest mt-2">View Audit Log</Button>
             </CardContent>
           </Card>
 
           <Card className="border-none shadow-xl shadow-slate-900/10 rounded-[2.5rem] bg-slate-900 text-white">
              <CardHeader className="p-8 pb-4">
-                <CardTitle className="text-sm font-black uppercase tracking-widest text-amber-500">Quick Actions</CardTitle>
+                <CardTitle className="text-sm font-black uppercase tracking-widest text-amber-500">Global Actions</CardTitle>
              </CardHeader>
              <CardContent className="p-8 pt-0 grid grid-cols-2 gap-3">
-                <Button className="bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-xs font-black flex items-center gap-2 text-white">
-                   <Plus size={16} /> ENROLL
-                </Button>
-                <Button className="bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-xs font-black flex items-center gap-2 text-white">
-                   <FileText size={16} /> REPORT
-                </Button>
-                <Button className="bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-xs font-black flex items-center gap-2 text-white">
-                   <PieChart size={16} /> ANALYTICS
-                </Button>
-                <Button className="bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-xs font-black flex items-center gap-2 text-white">
-                   <Plus size={16} /> EXAM
-                </Button>
+                <Link href="/dashboard/admin/users/students/add">
+                   <Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-[10px] font-black flex items-center gap-2 text-white">
+                      <Plus size={14} /> ENROLL
+                   </Button>
+                </Link>
+                <Link href="/dashboard/admin/academics/sessions/active">
+                   <Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-[10px] font-black flex items-center gap-2 text-white">
+                      <Calendar size={14} /> SESSION
+                   </Button>
+                </Link>
+                <Link href="/dashboard/admin/finance/fees/structure">
+                   <Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-[10px] font-black flex items-center gap-2 text-white">
+                      <FileText size={14} /> FINANCE
+                   </Button>
+                </Link>
+                <Link href="/dashboard/admin/communication/messages/broadcast">
+                   <Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-[10px] font-black flex items-center gap-2 text-white">
+                      <Activity size={14} /> BROADCAST
+                   </Button>
+                </Link>
              </CardContent>
           </Card>
         </div>
       </div>
-
-      <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white overflow-hidden mb-12">
-        <CardHeader className="p-10 pb-4 border-b border-slate-50 flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-2xl font-black">System Audit Log</CardTitle>
-            <p className="text-sm font-bold text-slate-400 mt-1">Real-time monitoring of all administrative actions</p>
-          </div>
-          <Badge className="bg-slate-100 text-slate-900 font-black px-4 py-1">LIVE FEED</Badge>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-slate-50">
-            {auditLogs.map((log) => (
-              <div key={log.id} className="flex items-center justify-between p-8 hover:bg-slate-50/50 transition-colors">
-                <div className="flex items-center gap-6">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-900">
-                    <Clock className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-black text-slate-900 capitalize">{log.action.replace('_', ' ')}</p>
-                    <p className="text-sm font-bold text-slate-400 mt-0.5">
-                       Resource: <span className="text-slate-600">{log.resource}</span> ({log.resourceId})
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                   <p className="text-sm font-black text-slate-900">{new Date(log.createdAt).toLocaleTimeString()}</p>
-                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{new Date(log.createdAt).toLocaleDateString()}</p>
-                </div>
-              </div>
-            ))}
-            {auditLogs.length === 0 && (
-              <div className="text-center py-20 text-slate-400 italic font-medium">No recent activity found</div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

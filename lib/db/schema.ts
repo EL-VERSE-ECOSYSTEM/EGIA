@@ -23,7 +23,7 @@ export const userRole = pgTable('user_role', {
 // ===== SCHOOL CORE TABLES =====
 export const student = pgTable('student', {
   id: text('id').primaryKey(),
-  userId: text('userId').notNull().unique(),
+  userId: text('userId').unique(),
   firstName: text('firstName').notNull(),
   lastName: text('lastName').notNull(),
   dateOfBirth: date('dateOfBirth'),
@@ -33,6 +33,8 @@ export const student = pgTable('student', {
   department: text('department'), // Science, Art, Commercial
   admissionNumber: text('admissionNumber').unique(),
   parentId: text('parentId'),
+  termId: text('termId'), // Current term registration
+  sessionId: text('sessionId'), // Current session registration
   profileImage: text('profileImage'),
   isActive: boolean('isActive').default(true),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
@@ -114,6 +116,22 @@ export const teacherOnSubject = pgTable('teacher_on_subject', {
   foreignKey({ columns: [t.teacherId], foreignColumns: [teacher.id] }),
   foreignKey({ columns: [t.subjectId], foreignColumns: [subject.id] }),
   foreignKey({ columns: [t.classId], foreignColumns: [class_.id] }),
+])
+
+// ===== PROMOTION & DEMOTION HISTORY =====
+export const promotionHistory = pgTable('promotion_history', {
+  id: text('id').primaryKey(),
+  studentId: text('studentId').notNull(),
+  fromClass: text('fromClass').notNull(),
+  toClass: text('toClass').notNull(),
+  type: text('type').notNull(), // PROMOTION, DEMOTION
+  reason: text('reason'),
+  adminComment: text('adminComment'),
+  performedBy: text('performedBy').notNull(), // Admin ID
+  createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }),
+  foreignKey({ columns: [t.performedBy], foreignColumns: [user.id] }),
 ])
 
 // ===== CBT & ASSESSMENT =====
@@ -219,7 +237,8 @@ export const payment = pgTable('payment', {
   paymentMethod: text('paymentMethod').notNull(),
   transactionReference: text('transactionReference').unique(),
   korapayReference: text('korapayReference').unique(),
-  status: text('status').default('pending'),
+  receiptUrl: text('receiptUrl'), // For manual transfer
+  status: text('status').default('pending'), // pending, success, failed
   paymentDate: timestamp('paymentDate', { withTimezone: true }),
   paidAt: timestamp('paidAt', { withTimezone: true }),
   description: text('description'),
@@ -227,6 +246,19 @@ export const payment = pgTable('payment', {
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }),
+])
+
+export const paymentInstallment = pgTable('payment_installment', {
+  id: text('id').primaryKey(),
+  paymentId: text('paymentId').notNull(),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  dueDate: date('dueDate').notNull(),
+  paidAt: timestamp('paidAt', { withTimezone: true }),
+  status: text('status').default('pending'), // pending, paid, overdue
+  installmentNumber: integer('installmentNumber').notNull(),
+  createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.paymentId], foreignColumns: [payment.id] }),
 ])
 
 // ===== MESSAGING SYSTEM =====
