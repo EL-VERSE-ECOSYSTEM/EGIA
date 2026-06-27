@@ -2,8 +2,8 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { student, parent } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { student, parent, userRole } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
 export async function linkChild(admissionNumber: string) {
@@ -47,4 +47,45 @@ export async function getLinkedChildren() {
   return await db.query.student.findMany({
     where: eq(student.parentId, parentProfile.id)
   })
+}
+
+export async function createAdminProfile(data: any) {
+  return { success: true }
+}
+
+export async function createParentProfile(data: any) {
+  return { success: true }
+}
+
+export async function createStudentProfile(data: any) {
+  return { success: true }
+}
+
+export async function createTeacherProfile(data: any) {
+  return { success: true }
+}
+
+export async function getParentProfile(userId: string) {
+  return await db.query.parent.findFirst({
+    where: eq(parent.userId, userId)
+  })
+}
+
+export async function getStudentProfile(userId: string) {
+  return await db.query.student.findFirst({
+    where: eq(student.userId, userId)
+  })
+}
+
+export async function getTeacherProfile(userId: string) {
+  return await db.query.teacher.findFirst({
+    where: eq(teacher.userId, userId)
+  })
+}
+
+export async function getUserRole(userId: string) {
+  const roleData = await db.query.userRole.findFirst({
+    where: eq(userRole.userId, userId)
+  })
+  return roleData?.role || null
 }

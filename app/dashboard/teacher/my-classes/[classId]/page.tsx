@@ -2,7 +2,7 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { User, GraduationCap, Calendar, FileText, ChevronRight, MoreVertical } from 'lucide-react'
+import { GraduationCap, Calendar, ChevronRight } from 'lucide-react'
 import { getStudentsInClass } from '@/app/actions/teacher'
 import Link from 'next/link'
 
@@ -75,11 +75,13 @@ export default async function TeacherClassDetailsPage({ params }: { params: { cl
                         <td className="p-8">
                            <Badge className="bg-emerald-100 text-emerald-700 border-none font-black px-4">EXCELLENT</Badge>
                         </td>
-                        <td className="p-8">
+                        <td className="p-8 text-right">
                            <div className="flex justify-end gap-3">
-                              <Link href={`/dashboard/teacher/my-classes/student/${s.id}`}><Button variant="outline" className="h-12 px-6 rounded-xl border-slate-100 shadow-sm font-black text-slate-600 gap-2 hover:bg-slate-50">
-                                 VIEW PROFILE <ChevronRight size={16} /></Button></Link>
-                              </Button>
+                              <Link href={`/dashboard/teacher/my-classes/student/${s.id}`}>
+                                <Button variant="outline" className="h-12 px-6 rounded-xl border-slate-100 shadow-sm font-black text-slate-600 gap-2 hover:bg-slate-50">
+                                   VIEW PROFILE <ChevronRight size={16} />
+                                </Button>
+                              </Link>
                            </div>
                         </td>
                       </tr>
