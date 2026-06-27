@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { user as userTable, student, teacher, parent as parentTable, userRole, academicSession, term, class_, payment, promotionHistory, paymentInstallment } from '@/lib/db/schema'
+import { user as userTable, student, teacher, parent as parentTable, userRole, academicSession, term, class_, payment, promotionHistory, paymentInstallment, feeStructure } from '@/lib/db/schema'
 import { eq, sql, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
@@ -65,7 +65,9 @@ export async function createStudent(data: any) {
       admissionNumber: admissionNumber,
       gender: data.gender,
       parentId: parentId,
-      isActive: true
+      isActive: true,
+      termId: data.termId,
+      sessionId: data.sessionId
     }).returning()
 
     revalidatePath('/dashboard/admin/users/students/list')
@@ -258,13 +260,36 @@ export async function createInstallmentPlan(paymentId: string, totalAmount: numb
 }
 
 export async function createTeacher(data: any) {
-  return { success: true }
+  await checkAdminPermission('create', 'teacher')
+  return db.insert(teacher).values({
+    id: randomUUID(),
+    userId: data.userId,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    staffCode: data.staffCode,
+    type: data.type,
+    isClassTeacher: data.isClassTeacher,
+    assignedClassId: data.assignedClassId,
+    daysPresent: data.daysPresent,
+    applicationLetterUrl: data.applicationLetterUrl,
+    cvUrl: data.cvUrl,
+    status: 'APPROVED'
+  }).returning()
 }
 
 export async function getAllClasses() {
-  return []
+  await checkAdminPermission('read', 'class')
+  return db.query.class_.findMany()
 }
 
 export async function processBulkPromotion(data: any) {
-  return { success: true }
+  return await promoteStudents(data.studentIds, data.targetClass, data.reason, data.adminComment)
+}
+
+export async function setFees(data: { class: string, department?: string, feeType: string, amount: string, dueDate: string }) {
+  await checkAdminPermission('create', 'payment')
+  return db.insert(feeStructure).values({
+    id: randomUUID(),
+    ...data
+  }).returning()
 }

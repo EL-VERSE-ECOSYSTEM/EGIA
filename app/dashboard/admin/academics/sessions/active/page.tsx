@@ -10,7 +10,7 @@ import { Calendar, Clock, ArrowRight, Settings2, Plus } from 'lucide-react'
 export default function AcademicSessionsPage() {
   const sessions = [
     { id: '1', name: '2023/2024 Academic Session', start: 'Sept 2023', end: 'July 2024', status: 'ACTIVE', terms: 3 },
-    { id: '2', name: '2024/2025 Academic Session', start: 'Sept 2024', end: 'July 2025', status: 'UPCOMING', terms: 0 }
+    { id: '2', name: '2026/2027 Academic Session', start: 'Sept 2024', end: 'July 2025', status: 'UPCOMING', terms: 0 }
   ]
 
   return (

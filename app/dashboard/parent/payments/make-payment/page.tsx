@@ -1,88 +1,88 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { CreditCard, Wallet, Banknote, ShieldCheck, CheckCircle2, Upload, Loader2, Info } from 'lucide-react'
+import {
+  CreditCard, Banknote, ShieldCheck,
+  CheckCircle2, Info, ArrowRight,
+  Upload, Loader2
+} from 'lucide-react'
 import { getLinkedChildren } from '@/app/actions/user'
-import { submitManualPayment } from '@/app/actions/payments'
-import DashboardLayout from '@/components/layout/dashboard-layout'
+import { submitManualPayment, initializeKorapayPayment } from '@/app/actions/payments'
 import { useRouter } from 'next/navigation'
 
 export default function MakePaymentPage() {
   const router = useRouter()
-  const [amount, setAmount] = useState('')
-  const [feeType, setFeeType] = useState('')
-  const [childId, setChildId] = useState('')
   const [children, setChildren] = useState<any[]>([])
+  const [childId, setChildId] = useState('')
+  const [feeType, setFeeType] = useState('')
+  const [amount, setAmount] = useState('')
   const [method, setMethod] = useState<'KORAPAY' | 'MANUAL'>('KORAPAY')
-  const [isUploading, setIsUploading] = useState(false)
   const [receipt, setReceipt] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   useEffect(() => {
-    async function load() {
-      const data = await getLinkedChildren()
-      setChildren(data)
-    }
-    load()
+    getLinkedChildren().then(setChildren)
   }, [])
 
   const feeTypes = [
-    { id: 'tuition', name: 'Tuition Fees', amount: '55000' },
-    { id: 'exam', name: 'Examination Fees', amount: '5000' },
-    { id: 'bus', name: 'School Bus', amount: '15000' },
-    { id: 'uniform', name: 'Uniforms', amount: '12000' }
+    { id: 'tuition', name: 'Tuition Fee' },
+    { id: 'development', name: 'Development Levy' },
+    { id: 'exam', name: 'Examination Fee' },
+    { id: 'pta', name: 'PTA Levy' },
+    { id: 'ICT', name: 'ICT Fee' },
+    { id: 'uniform', name: 'Uniform Fee' }
   ]
 
-  const handleFeeTypeChange = (val: string) => {
-    setFeeType(val)
-    const selected = feeTypes.find(f => f.id === val)
-    if (selected) setAmount(selected.amount)
-  }
-
   const handlePayment = async () => {
-    if (method === 'KORAPAY') {
-      alert(`Redirecting to Korapay Checkout for ₦${amount}...`)
-    } else {
-      if (!receipt) {
-        alert('Please upload your transfer receipt first.')
-        return
-      }
-      setIsUploading(true)
-      try {
+    if (!childId || !feeType || !amount) return alert('Fill all details')
+
+    setIsUploading(true)
+    try {
+      if (method === 'MANUAL') {
+        if (!receipt) return alert('Please upload receipt')
         await submitManualPayment({
           studentId: childId,
           amount,
           feeType,
-          receiptUrl: receipt.name // Simulation
+          receiptUrl: 'mock-receipt-url'
         })
-        alert('Payment submitted for verification. Admin will notify you once confirmed.')
+        alert('Manual payment submitted for verification')
         router.push('/dashboard/parent/payments/history')
-      } catch (err) {
-        alert('Failed to submit payment.')
-      } finally {
-        setIsUploading(false)
+      } else {
+        const result = await initializeKorapayPayment({
+          studentId: childId,
+          amount: parseFloat(amount),
+          feeType,
+        })
+        window.location.href = result.checkoutUrl
       }
+    } catch (err) {
+      console.error(err)
+      alert('Payment failed to initialize')
+    } finally {
+      setIsUploading(false)
     }
   }
 
   return (
     <DashboardLayout role="parent">
-      <div className="p-8 max-w-6xl mx-auto space-y-10">
-        <div className="mb-8">
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">School Fees & Levies</h1>
-          <p className="text-slate-500 font-medium text-lg">Securely manage payments for your children.</p>
+      <div className="p-8 max-w-7xl mx-auto min-h-screen bg-slate-50/30">
+        <div className="mb-12">
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Secure Payment Portal</h1>
+          <p className="text-slate-500 text-lg font-medium">Quick and reliable fee processing for EL GOODNEWS INT'L ACADEMY.</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          <div className="lg:col-span-2 space-y-8">
-            <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white overflow-hidden">
-              <div className="h-2 bg-emerald-600 w-full" />
-              <CardHeader className="p-10">
-                <CardTitle className="text-2xl font-black">Payment Details</CardTitle>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-2 space-y-12">
+            <Card className="border-none shadow-2xl shadow-slate-200 rounded-[3rem] overflow-hidden bg-white">
+              <CardHeader className="p-10 pb-4">
+                <CardTitle className="text-2xl font-black text-slate-900">Payment Details</CardTitle>
                 <CardDescription className="text-slate-400 font-bold">Select student and fee category</CardDescription>
               </CardHeader>
               <CardContent className="px-10 pb-12 space-y-8">
@@ -102,7 +102,7 @@ export default function MakePaymentPage() {
 
                 <div className="space-y-3">
                   <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Fee Category</Label>
-                  <Select onValueChange={handleFeeTypeChange}>
+                  <Select onValueChange={setFeeType}>
                     <SelectTrigger className="h-14 rounded-2xl border-slate-200 bg-slate-50/50 focus:ring-emerald-600">
                       <SelectValue placeholder="What are you paying for?" />
                     </SelectTrigger>
