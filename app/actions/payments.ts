@@ -34,38 +34,3 @@ export async function submitManualPayment(data: {
   revalidatePath('/dashboard/admin/finance/fees/pending')
   return result[0]
 }
-import { paymentInstallment } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
-
-export async function getStudentPayments(studentId: string) {
-  return db.query.payment.findMany({
-    where: eq(payment.studentId, studentId),
-    with: {
-      termId: true // If term is linked
-    },
-    orderBy: (payment, { desc }) => [desc(payment.createdAt)]
-  })
-}
-
-export async function getInstallmentsForPayment(paymentId: string) {
-  return db.query.paymentInstallment.findMany({
-    where: eq(paymentInstallment.paymentId, paymentId),
-    orderBy: (paymentInstallment, { asc }) => [asc(paymentInstallment.installmentNumber)]
-  })
-}
-
-export async function payInstallment(installmentId: string) {
-  const session = await auth.getSession()
-  if (!session?.user) throw new Error('Unauthorized')
-
-  const result = await db.update(paymentInstallment)
-    .set({
-      status: 'paid',
-      paidAt: new Date()
-    })
-    .where(eq(paymentInstallment.id, installmentId))
-    .returning()
-
-  revalidatePath('/dashboard/parent/payments')
-  return result[0]
-}

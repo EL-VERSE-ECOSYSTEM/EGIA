@@ -174,32 +174,3 @@ export async function activateStudent(data: any) {
     return { error: 'Activation DB link failed' }
   }
 }
-
-export async function loginAdmin(data: any) {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-  const { email, password } = data
-
-  // Security: Only allow specific email or check for default admin
-  if (email === 'admin@elgoodnews.edu.ng' && password === 'GOODNEWS123@') {
-    // Force password change would happen here in a real app
-  }
-
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  })
-
-  if (authError) return { error: authError.message }
-
-  const userId = authData.user.id
-
-  // Verify role in DB
-  const roleData = await db.query.userRole.findFirst({
-    where: and(eq(userRole.userId, userId), eq(userRole.role, 'ADMIN'))
-  })
-
-  if (!roleData) return { error: 'Access denied' }
-
-  return { success: true }
-}

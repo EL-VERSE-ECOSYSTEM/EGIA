@@ -121,7 +121,7 @@ export default function AddStudentPage() {
                         <SelectValue placeholder="Select Class" />
                       </SelectTrigger>
                       <SelectContent>
-                         <SelectItem value="Basic 5">Basic 5</SelectItem><SelectItem value="Basic 6">Basic 6</SelectItem><SelectItem value="JSS1">JSS 1</SelectItem>
+                         <SelectItem value="JSS1">JSS 1</SelectItem>
                          <SelectItem value="JSS2">JSS 2</SelectItem>
                          <SelectItem value="JSS3">JSS 3</SelectItem>
                          <SelectItem value="SSS1">SSS 1</SelectItem>

@@ -15,10 +15,9 @@ import { getConversations, getMessages, sendMessage, createConversation } from '
 
 interface UnifiedChatProps {
   role: 'admin' | 'teacher' | 'parent' | 'student'
-  currentUserId: string
 }
 
-export default function UnifiedChat({ role, currentUserId }: UnifiedChatProps) {
+export default function UnifiedChat({ role }: UnifiedChatProps) {
   const [conversations, setConversations] = useState<any[]>([])
   const [selectedChat, setSelectedChat] = useState<any>(null)
   const [messages, setMessages] = useState<any[]>([])
@@ -128,7 +127,7 @@ export default function UnifiedChat({ role, currentUserId }: UnifiedChatProps) {
                 <div className="flex-grow text-left">
                   <div className="flex justify-between items-center mb-1">
                     <span className={`font-black text-sm truncate max-w-[120px] ${selectedChat?.id === conv.id ? theme.darkText : 'text-slate-900'}`}>
-                      {conv.name || (conv.participants?.find((p: any) => p.userId !== currentUserId)?.user?.name || 'User')}
+                      {conv.name || (conv.participants?.[0]?.user?.name || 'User')}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400">
                       {conv.updatedAt ? new Date(conv.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
@@ -155,7 +154,7 @@ export default function UnifiedChat({ role, currentUserId }: UnifiedChatProps) {
                     {selectedChat.type === 'GROUP' ? <Hash className="w-6 h-6" /> : <User className="w-6 h-6" />}
                   </div>
                   <div>
-                     <h3 className="font-black text-slate-900">{selectedChat.name || (selectedChat.participants?.find((p: any) => p.userId !== currentUserId)?.user?.name || 'Chat')}</h3>
+                     <h3 className="font-black text-slate-900">{selectedChat.name || (selectedChat.participants?.[0]?.user?.name || 'Chat')}</h3>
                      <p className="text-xs font-bold text-emerald-500 flex items-center gap-1">
                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> Active Now
                      </p>
@@ -179,8 +178,8 @@ export default function UnifiedChat({ role, currentUserId }: UnifiedChatProps) {
                   <p className="font-black text-sm uppercase tracking-widest">No messages yet</p>
                 </div>
               ) : (
-                messages.map((msg) => {
-                  const isMe = msg.senderId === currentUserId
+                messages.map((msg, index) => {
+                  const isMe = msg.senderId === 'ME_ID' || index % 2 === 1 // Simulation for now
                   return (
                     <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-md space-y-2 ${isMe ? 'text-right' : 'text-left'}`}>
