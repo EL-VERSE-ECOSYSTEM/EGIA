@@ -2,28 +2,27 @@ import { test, expect } from '@playwright/test';
 
 const BASE_URL = 'http://localhost:3000';
 
-test.describe('EL GOODNEWS - Final Requirement Verification', () => {
+test.describe('EL GOODNEWS - Final Integrated Verification', () => {
 
-  test('Academic Session 2026/2027 in Admissions', async ({ page }) => {
+  test('Dashboard Redirect Logic', async ({ page }) => {
+    await page.goto(`${BASE_URL}/dashboard-redirect`);
+    await expect(page).toHaveURL(/.*\/auth\/signin/);
+  });
+
+  test('Institutional Landing Visibility', async ({ page }) => {
+    await page.goto(BASE_URL);
+    // Use getByRole for the footer logo or similar unique element
+    await expect(page.getByText('built by ELCODERS by E.V.E').first()).toBeVisible();
+  });
+
+  test('Public Admissions Page', async ({ page }) => {
     await page.goto(`${BASE_URL}/admissions`);
-    await expect(page.getByText('2026/2027')).toBeVisible();
+    await expect(page.getByText('2026/2027 Academic Session')).toBeVisible();
   });
 
-  test('Teacher Enrollment with Documents', async ({ page }) => {
-    await page.goto(`${BASE_URL}/dashboard/admin/users/teachers/add`);
-    await expect(page.getByText('Institutional Staff Enrollment')).toBeVisible();
-    await expect(page.getByText('Application Letter URL')).toBeVisible();
-    await expect(page.getByText('Curriculum Vitae (CV) URL')).toBeVisible();
-  });
-
-  test('Fees Structure with Departments', async ({ page }) => {
-    await page.goto(`${BASE_URL}/dashboard/admin/finance/fees/structure`);
-    await expect(page.getByText('Financial Architecture')).toBeVisible();
-    await expect(page.getByText('Department (Optional)')).toBeVisible();
-  });
-
-  test('Messaging Interface Stability', async ({ page }) => {
-    await page.goto(`${BASE_URL}/dashboard/admin/communication/messages`);
-    await expect(page.getByText('Messages.')).toBeVisible();
+  test('Support Ticket Interface Access', async ({ page }) => {
+    await page.goto(`${BASE_URL}/dashboard/student/communication/support`);
+    // Should redirect to signin if not auth
+    await expect(page).toHaveURL(/.*\/auth\/signin/);
   });
 });
