@@ -7,7 +7,12 @@ import { getStudentsInClass } from '@/app/actions/teacher'
 import Link from 'next/link'
 
 export default async function TeacherClassDetailsPage({ params }: { params: { classId: string } }) {
-  const students = await getStudentsInClass(params.classId)
+  let students = []
+  try {
+    students = await getStudentsInClass(params.classId)
+  } catch (e) {
+    console.error(e)
+  }
 
   return (
     <DashboardLayout role="teacher">
@@ -46,13 +51,13 @@ export default async function TeacherClassDetailsPage({ params }: { params: { cl
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {students.length === 0 ? (
-                      <tr><td colSpan={5} className="p-24 text-center text-slate-400 italic font-bold">No students assigned to this class level.</td></tr>
+                      <tr><td colSpan={5} className="p-24 text-center text-slate-400 italic font-bold">No students found or invalid class selection.</td></tr>
                     ) : students.map((s) => (
                       <tr key={s.id} className="hover:bg-slate-50/30 transition-colors group">
                         <td className="p-8">
                            <div className="flex items-center gap-6">
                               <div className="w-14 h-14 rounded-2xl bg-purple-100 flex items-center justify-center font-black text-purple-600 text-lg">
-                                 {s.firstName[0]}{s.lastName[0]}
+                                 {s.firstName?.[0]}{s.lastName?.[0]}
                               </div>
                               <div>
                                  <p className="text-lg font-black text-slate-900">{s.firstName} {s.lastName}</p>

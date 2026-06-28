@@ -34,7 +34,7 @@ export default function AdmissionsPage() {
            <div className="max-w-4xl mx-auto space-y-8 relative z-10">
               <h1 className="text-5xl md:text-8xl font-black text-slate-900 tracking-tighter">Admissions <span className="text-amber-600">Open</span></h1>
               <p className="text-xl md:text-2xl text-slate-500 font-medium leading-relaxed max-w-2xl mx-auto">
-                Join our 2024/2025 academic session. We are currently accepting applications for JSS1 through SSS3.
+                Join our 2026/2027 academic session. We are currently accepting applications for JSS1 through SSS3.
               </p>
            </div>
            <div className="absolute top-0 left-0 w-96 h-96 bg-amber-400/5 rounded-full blur-[100px]" />

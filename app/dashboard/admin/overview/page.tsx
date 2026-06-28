@@ -42,7 +42,7 @@ export default async function AdminOverviewPage() {
          </div>
          <div className="relative z-10">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-amber-500 text-xs font-black uppercase tracking-widest mb-6">
-               <Calendar className="w-3.5 h-3.5" /> 2024/2025 Academic Session
+               <Calendar className="w-3.5 h-3.5" /> 2026/2027 Academic Session
             </div>
             <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4 text-pretty">Welcome back, Administrator.</h1>
             <p className="text-slate-400 text-lg font-medium max-w-xl">

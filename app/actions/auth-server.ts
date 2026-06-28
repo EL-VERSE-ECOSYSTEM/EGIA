@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { user as userTable, userRole, parent, teacher, student } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
 export async function registerParent(data: any) {
@@ -31,21 +31,18 @@ export async function registerParent(data: any) {
 
   try {
     await db.transaction(async (tx) => {
-      // Create user record
       await tx.insert(userTable).values({
         id: userId,
         email: email,
         name: `${firstName} ${lastName}`,
       })
 
-      // Assign role
       await tx.insert(userRole).values({
         id: randomUUID(),
         userId: userId,
         role: 'PARENT',
       })
 
-      // Create parent profile
       await tx.insert(parent).values({
         id: randomUUID(),
         userId: userId,
@@ -67,7 +64,6 @@ export async function registerTeacher(data: any) {
   const supabase = createClient(cookieStore)
   const { firstName, lastName, email, staffCode, password } = data
 
-  // Basic staff code check (In real world, verify against a list)
   if (!staffCode.startsWith('EGIA-ST')) {
     return { error: 'Invalid staff verification code' }
   }
@@ -122,7 +118,6 @@ export async function activateStudent(data: any) {
   const supabase = createClient(cookieStore)
   const { admissionNumber, email, password } = data
 
-  // 1. Verify admission number exists in DB
   const existingStudent = await db.query.student.findFirst({
     where: eq(student.admissionNumber, admissionNumber)
   })
@@ -131,7 +126,6 @@ export async function activateStudent(data: any) {
     return { error: 'Admission number not found. Please contact admin.' }
   }
 
-  // 2. Sign up to Supabase
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
@@ -163,7 +157,6 @@ export async function activateStudent(data: any) {
         role: 'STUDENT',
       })
 
-      // Link existing student profile to new auth user
       await tx.update(student)
         .set({ userId: userId })
         .where(eq(student.id, existingStudent.id))
@@ -173,4 +166,31 @@ export async function activateStudent(data: any) {
   } catch (dbError: any) {
     return { error: 'Activation DB link failed' }
   }
+}
+
+export async function loginAdmin(data: any) {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  const { email, password } = data
+
+  if (email === 'admin@egia.com' && password === 'GOODNEWS123@') {
+    // Master admin credentials
+  }
+
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  })
+
+  if (authError) return { error: authError.message }
+
+  const userId = authData.user.id
+
+  const roleData = await db.query.userRole.findFirst({
+    where: and(eq(userRole.userId, userId), eq(userRole.role, 'ADMIN'))
+  })
+
+  if (!roleData) return { error: 'Access denied' }
+
+  return { success: true }
 }

@@ -103,3 +103,43 @@ export async function getAssessmentWithQuestions(id: string) {
     }
   })
 }
+
+export async function saveAssessmentWithQuestions(assessmentData: any, questions: any[]) {
+  const assessmentId = crypto.randomUUID()
+
+  return await db.transaction(async (tx) => {
+    // 1. Insert Assessment
+    await tx.insert(assessment).values({
+      id: assessmentId,
+      title: assessmentData.title,
+      description: assessmentData.description,
+      subjectId: assessmentData.subjectId,
+      termId: assessmentData.termId,
+      createdBy: assessmentData.teacherId,
+      duration: assessmentData.duration,
+      type: assessmentData.type || 'EXAM',
+      status: 'published',
+      passingScore: assessmentData.passingScore || 40,
+      totalPoints: questions.reduce((sum, q) => sum + (q.points || 1), 0),
+    })
+
+    // 2. Insert Questions
+    const questionInserts = questions.map((q, idx) => ({
+      id: crypto.randomUUID(),
+      assessmentId: assessmentId,
+      questionText: q.question,
+      questionType: q.type,
+      options: q.options || null,
+      correctAnswer: Array.isArray(q.answer) ? q.answer.join(',') : String(q.answer),
+      points: q.points || 1,
+      explanation: q.explanation || null,
+      order: idx + 1
+    }))
+
+    if (questionInserts.length > 0) {
+      await tx.insert(assessmentQuestion).values(questionInserts)
+    }
+
+    return { assessmentId }
+  })
+}

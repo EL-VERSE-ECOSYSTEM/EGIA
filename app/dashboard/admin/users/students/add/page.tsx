@@ -22,7 +22,7 @@ export default function AddStudentPage() {
     admissionNumber: '',
     class: '',
     gender: 'MALE',
-    academicSession: '2024/2025',
+    academicSession: '2026/2027',
     term: 'First Term'
   })
 
@@ -121,7 +121,7 @@ export default function AddStudentPage() {
                         <SelectValue placeholder="Select Class" />
                       </SelectTrigger>
                       <SelectContent>
-                         <SelectItem value="JSS1">JSS 1</SelectItem>
+                         <SelectItem value="Basic 5">Basic 5</SelectItem><SelectItem value="Basic 6">Basic 6</SelectItem><SelectItem value="JSS1">JSS 1</SelectItem>
                          <SelectItem value="JSS2">JSS 2</SelectItem>
                          <SelectItem value="JSS3">JSS 3</SelectItem>
                          <SelectItem value="SSS1">SSS 1</SelectItem>
@@ -143,12 +143,12 @@ export default function AddStudentPage() {
               <CardContent className="p-8 pt-0 space-y-6">
                  <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Session</Label>
-                    <Select defaultValue="2024/2025">
+                    <Select defaultValue="2026/2027">
                        <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none font-bold">
                           <SelectValue />
                        </SelectTrigger>
                        <SelectContent>
-                          <SelectItem value="2024/2025">2024/2025</SelectItem>
+                          <SelectItem value="2026/2027">2026/2027</SelectItem>
                           <SelectItem value="2025/2026">2025/2026</SelectItem>
                        </SelectContent>
                     </Select>

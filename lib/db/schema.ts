@@ -1,6 +1,7 @@
 import { text, timestamp, boolean, integer, numeric, date, jsonb, pgTable, foreignKey, unique } from 'drizzle-orm/pg-core'
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 
+// ===== CORE USER TABLES =====
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
@@ -13,12 +14,13 @@ export const user = pgTable('user', {
 export const userRole = pgTable('user_role', {
   id: text('id').primaryKey(),
   userId: text('userId').notNull().unique(),
-  role: text('role').notNull(),
+  role: text('role').notNull(), // ADMIN, TEACHER, PARENT, STUDENT
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
 ])
 
+// ===== SCHOOL CORE TABLES =====
 export const student = pgTable('student', {
   id: text('id').primaryKey(),
   userId: text('userId').unique(),
@@ -48,9 +50,16 @@ export const teacher = pgTable('teacher', {
   staffCode: text('staffCode').unique(),
   firstName: text('firstName').notNull(),
   lastName: text('lastName').notNull(),
+  type: text('type').default('FULL_TIME'), // FULL_TIME, PART_TIME
+  isClassTeacher: boolean('isClassTeacher').default(false),
+  assignedClassId: text('assignedClassId'),
+  daysPresent: jsonb('daysPresent'),
+  applicationLetterUrl: text('applicationLetterUrl'),
+  cvUrl: text('cvUrl'),
   qualification: text('qualification'),
   specialization: text('specialization'),
   profileImage: text('profileImage'),
+  status: text('status').default('PENDING'),
   isActive: boolean('isActive').default(true),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
@@ -71,6 +80,7 @@ export const parent = pgTable('parent', {
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
 ])
 
+// ===== ACADEMIC STRUCTURE =====
 export const academicSession = pgTable('academic_session', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -115,12 +125,13 @@ export const teacherOnSubject = pgTable('teacher_on_subject', {
   foreignKey({ columns: [t.classId], foreignColumns: [class_.id] }),
 ])
 
+// ===== PROMOTION & DEMOTION HISTORY =====
 export const promotionHistory = pgTable('promotion_history', {
   id: text('id').primaryKey(),
   studentId: text('studentId').notNull(),
   fromClass: text('fromClass').notNull(),
   toClass: text('toClass').notNull(),
-  type: text('type').notNull(),
+  type: text('type').notNull(), // PROMOTION, DEMOTION
   reason: text('reason'),
   adminComment: text('adminComment'),
   performedBy: text('performedBy').notNull(),
@@ -130,6 +141,7 @@ export const promotionHistory = pgTable('promotion_history', {
   foreignKey({ columns: [t.performedBy], foreignColumns: [user.id] }),
 ])
 
+// ===== CBT & ASSESSMENT =====
 export const assessment = pgTable('assessment', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
@@ -192,6 +204,7 @@ export const studentAnswer = pgTable('student_answer', {
   foreignKey({ columns: [t.assessmentResultId], foreignColumns: [assessmentResult.id] }).onDelete('cascade'),
 ])
 
+// ===== ATTENDANCE =====
 export const attendance = pgTable('attendance', {
   id: text('id').primaryKey(),
   studentId: text('studentId').notNull(),
@@ -206,9 +219,11 @@ export const attendance = pgTable('attendance', {
   foreignKey({ columns: [t.classId], foreignColumns: [class_.id] }),
 ])
 
+// ===== FEES & PAYMENTS =====
 export const feeStructure = pgTable('fee_structure', {
   id: text('id').primaryKey(),
   class: text('class').notNull(),
+  department: text('department'),
   feeType: text('feeType').notNull(),
   amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
   dueDate: date('dueDate'),
@@ -217,7 +232,7 @@ export const feeStructure = pgTable('fee_structure', {
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  unique().on(t.class, t.feeType),
+  unique().on(t.class, t.department, t.feeType),
 ])
 
 export const payment = pgTable('payment', {
@@ -254,6 +269,7 @@ export const paymentInstallment = pgTable('payment_installment', {
   foreignKey({ columns: [t.paymentId], foreignColumns: [payment.id] }),
 ])
 
+// ===== MESSAGING SYSTEM =====
 export const conversation = pgTable('conversation', {
   id: text('id').primaryKey(),
   type: text('type').notNull(),
@@ -304,6 +320,7 @@ export const notification = pgTable('notification', {
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
 ])
 
+// ===== DISPUTE & SUPPORT =====
 export const dispute = pgTable('dispute', {
   id: text('id').primaryKey(),
   ticketNumber: text('ticketNumber').notNull().unique(),
@@ -389,6 +406,7 @@ export const auditLog = pgTable('audit_log', {
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
 ])
 
+// ===== RELATIONS =====
 export const userRelations = relations(user, ({ many, one }) => ({
   userRole: one(userRole, { fields: [user.id], references: [userRole.userId] }),
   student: one(student, { fields: [user.id], references: [student.userId] }),

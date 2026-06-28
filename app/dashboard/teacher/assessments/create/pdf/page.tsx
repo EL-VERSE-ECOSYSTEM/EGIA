@@ -1,27 +1,41 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
-  Upload, FileText, CheckCircle, ArrowRight, Zap,
-  Search, Shield, Loader2, Edit3, Trash2, Save
+  Upload, FileText, Loader2, CheckCircle,
+  Trash2, Edit3, Shield, Search, Zap
 } from 'lucide-react'
 import { simulateAIParsing, SimulatedQuestion } from '@/app/actions/ai-parsing'
+import { saveAssessmentWithQuestions } from '@/app/actions/assessments'
+import { getTeacherProfile } from '@/app/actions/teacher'
+import { useRouter } from 'next/navigation'
 
-export default function AIConverterPage() {
+export default function AIConversionPage() {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [questions, setQuestions] = useState<SimulatedQuestion[]>([])
-  const [file, setFile] = useState<File | null>(null)
+  const [teacher, setTeacher] = useState<any>(null)
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Assessment Metadata
+  const [title, setTitle] = useState('New AI Generated Assessment')
+  const [duration, setDuration] = useState('60')
+  const [subjectId, setSubjectId] = useState('')
+
+  useEffect(() => {
+    getTeacherProfile().then(setTeacher)
+  }, [])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0])
       setLoading(true)
       try {
-        // Simulate parsing
         const result = await simulateAIParsing('mock-base64')
         setQuestions(result)
       } catch (err) {
@@ -29,6 +43,27 @@ export default function AIConverterPage() {
       } finally {
         setLoading(false)
       }
+    }
+  }
+
+  const handleSave = async () => {
+    if (!subjectId) return alert('Please select a subject')
+    setIsSaving(true)
+    try {
+      await saveAssessmentWithQuestions({
+        title,
+        duration: parseInt(duration),
+        subjectId,
+        teacherId: teacher.id,
+        termId: 'current-term-id', // Simulation
+        type: 'EXAM'
+      }, questions)
+      router.push('/dashboard/teacher/assessments')
+    } catch (err) {
+      console.error(err)
+      alert('Failed to save assessment')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -54,7 +89,7 @@ export default function AIConverterPage() {
                       </div>
                       <h2 className="text-3xl font-black text-slate-900 mb-4 italic">Analyzing Layout...</h2>
                       <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">
-                        PaddleOCR + DeepSeek-V3 Engine Active
+                        PaddleOCR + Groq Llama3 Engine Active
                       </p>
                     </div>
                   ) : (
@@ -121,8 +156,36 @@ export default function AIConverterPage() {
             </div>
           </div>
         ) : (
-          <div className="space-y-8">
-            <div className="flex items-center justify-between mb-6">
+          <div className="space-y-12">
+            <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] p-10 bg-white">
+              <div className="grid md:grid-cols-3 gap-8">
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase text-slate-400 tracking-widest">Assessment Title</label>
+                  <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-14 rounded-xl border-slate-100 font-bold" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase text-slate-400 tracking-widest">Subject</label>
+                  <Select onValueChange={setSubjectId}>
+                    <SelectTrigger className="h-14 rounded-xl border-slate-100 font-bold">
+                      <SelectValue placeholder="Select Subject" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teacher?.subjects?.map((s: any) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                      <SelectItem value="GEN-MATH">Mathematics</SelectItem>
+                      <SelectItem value="GEN-ENG">English Language</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase text-slate-400 tracking-widest">Duration (Mins)</label>
+                  <Input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} className="h-14 rounded-xl border-slate-100 font-bold" />
+                </div>
+              </div>
+            </Card>
+
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="bg-emerald-100 p-3 rounded-2xl">
                   <CheckCircle className="text-emerald-600 w-6 h-6" />
@@ -136,8 +199,12 @@ export default function AIConverterPage() {
                  <Button variant="outline" className="rounded-xl font-black h-12 border-slate-200" onClick={() => setQuestions([])}>
                    Clear & Restart
                  </Button>
-                 <Button className="bg-purple-600 hover:bg-purple-700 rounded-xl font-black h-12 px-8 shadow-lg shadow-purple-100">
-                   Save Assessment
+                 <Button
+                   onClick={handleSave}
+                   disabled={isSaving}
+                   className="bg-purple-600 hover:bg-purple-700 rounded-xl font-black h-12 px-8 shadow-lg shadow-purple-100"
+                 >
+                   {isSaving ? 'Saving...' : 'Finalize & Publish'}
                  </Button>
               </div>
             </div>
