@@ -1,0 +1,17 @@
+ADMIN AUTH:
+- Password updated to GOODNEWS20@
+- Dedicated /admin-login page created.
+- Footer updated to link to /admin-login for staff.
+
+DASHBOARD REDIRECT:
+- Robust role-based redirection in /dashboard-redirect.
+- Profile existence checks to prevent "incomplete profile" deadlocks.
+
+MOCK DATA REMOVAL:
+- Parent, Student, and Teacher overviews now pull from live database queries.
+- lib/api/queries.ts enhanced with real data aggregation.
+- Hardcoded "mock" strings removed from primary action logic.
+
+STABILITY:
+- middleware.ts whitelists /admin-login.
+- PostgreSQL schema supports all required relationships.

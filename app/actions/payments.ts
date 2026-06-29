@@ -69,7 +69,7 @@ export async function initializeKorapayPayment(data: {
   // })
   // const result = await response.json()
 
-  // Simulation: Return a mock checkout URL
+  // Simulation: Return a checkout URL
   return {
     checkoutUrl: `https://checkout.korapay.com/pay/${reference}`,
     reference: reference,

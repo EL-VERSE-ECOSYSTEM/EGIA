@@ -1,15 +1,35 @@
-# v0 sandbox internal files
-__v0_runtime_loader.js
-__v0_devtools.tsx
-__v0_jsx-dev-runtime.ts
-.snowflake/
-.v0-trash/
-.vercel/
+# dependencies
+/node_modules
+/.pnpm-store
 
-# Environment variables
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
 .env*.local
 
-# Common ignores
-node_modules
-.next/
-.DS_Store
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# tests
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
