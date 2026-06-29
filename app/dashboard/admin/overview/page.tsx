@@ -28,9 +28,9 @@ export default async function AdminOverviewPage() {
   const alerts = await getUrgentAlerts()
 
   const stats = [
-    { label: 'Total Students', value: statsData.totalStudents.toLocaleString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-100', trend: '+12%', up: true },
-    { label: 'Total Teachers', value: statsData.totalTeachers.toString(), icon: UserCheck, color: 'text-purple-600', bg: 'bg-purple-100', trend: '+2%', up: true },
-    { label: 'Revenue (Term)', value: `₦${(parseFloat(statsData.revenue) / 1000000).toFixed(1)}M`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-100', trend: '+12%', up: true },
+    { label: 'Total Students', value: statsData.totalStudents.toLocaleString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-100', trend: 'LIVE', up: true },
+    { label: 'Total Teachers', value: statsData.totalTeachers.toString(), icon: UserCheck, color: 'text-purple-600', bg: 'bg-purple-100', trend: 'LIVE', up: true },
+    { label: 'Revenue (Term)', value: `₦${(parseFloat(statsData.revenue) / 1000000).toFixed(1)}M`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-100', trend: 'ACTUAL', up: true },
     { label: 'Active CBTs', value: statsData.activeCBTs.toString(), icon: GraduationCap, color: 'text-amber-600', bg: 'bg-amber-100', trend: 'Active', up: true }
   ]
 
@@ -59,9 +59,9 @@ export default async function AdminOverviewPage() {
                 <div className={`p-4 rounded-2xl ${stat.bg} group-hover:scale-110 transition-transform`}>
                   <stat.icon className={`w-6 h-6 ${stat.color}`} />
                 </div>
-                <div className={`flex items-center gap-1 text-sm font-black ${stat.up ? 'text-emerald-600' : 'text-red-600'}`}>
+                <div className={`flex items-center gap-1 text-[10px] font-black ${stat.up ? 'text-emerald-600' : 'text-red-600'}`}>
                   {stat.trend}
-                  {stat.up ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                  {stat.up ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                 </div>
               </div>
               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
@@ -96,12 +96,14 @@ export default async function AdminOverviewPage() {
             </CardHeader>
             <CardContent className="p-8 pt-0 space-y-4">
               <div className="p-6 rounded-[2rem] bg-amber-50 border border-amber-100 space-y-4 text-center">
-                 <p className="text-sm font-bold text-amber-900">There are 8 manual payments waiting for receipt verification.</p>
+                 <p className="text-sm font-bold text-amber-900">There are {statsData.pendingPaymentsCount} manual payments waiting for receipt verification.</p>
                  <Link href="/dashboard/admin/finance/fees/pending" className="block">
                     <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl h-12 shadow-lg shadow-amber-200">VERIFY NOW</Button>
                  </Link>
               </div>
-              <Button variant="ghost" className="w-full text-slate-400 font-black text-xs uppercase tracking-widest mt-2">View Audit Log</Button>
+              <Link href="/dashboard/admin/settings/logs">
+                <Button variant="ghost" className="w-full text-slate-400 font-black text-xs uppercase tracking-widest mt-2">View Audit Log</Button>
+              </Link>
             </CardContent>
           </Card>
 

@@ -4,20 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
-  GraduationCap,
   BookOpen,
-  Clock,
-  Calendar,
-  ChevronRight,
-  TrendingUp,
   AlertCircle,
   FileText,
-  Play,
   Activity,
   Award,
   Laptop,
-  MessageSquare,
-  ShieldCheck
 } from 'lucide-react'
 import { getStudentDashboardData, getStudentProfile } from '@/lib/api/queries'
 import { auth } from '@/lib/auth'
@@ -29,10 +21,10 @@ export default async function StudentOverviewPage() {
   const data = await getStudentDashboardData(studentProfile?.id || '', studentProfile?.class || '')
 
   const stats = [
-     { label: 'Completed CBTs', value: '8', icon: Activity, color: 'text-orange-600', bg: 'bg-orange-50' },
-     { label: 'Class Rank', value: '4th', icon: Award, color: 'text-amber-600', bg: 'bg-amber-50' },
-     { label: 'Study Materials', value: '42', icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
-     { label: 'Assignments', value: '3', icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50' }
+     { label: 'Completed CBTs', value: data.completedCBTsCount.toString(), icon: Activity, color: 'text-orange-600', bg: 'bg-orange-50' },
+     { label: 'Class Rank', value: '-', icon: Award, color: 'text-amber-600', bg: 'bg-amber-50' },
+     { label: 'Study Materials', value: data.materialCount.toString(), icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
+     { label: 'Assignments', value: '0', icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50' }
   ]
 
   return (
@@ -48,8 +40,7 @@ export default async function StudentOverviewPage() {
                </div>
                <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">Hello, {studentProfile?.firstName || 'Student'}.</h1>
                <p className="text-slate-400 text-lg font-medium max-w-xl">
-                  You're doing great! You've completed 85% of this term's curriculum.
-                  Check your upcoming assessments below.
+                  Ready to excel? Track your performance and stay on top of your academic goals.
                </p>
             </div>
             <div className="flex gap-4">
@@ -100,7 +91,9 @@ export default async function StudentOverviewPage() {
                              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">{task.subject} • {new Date(task.createdAt).toLocaleDateString()}</p>
                           </div>
                        </div>
-                       <Button className="rounded-[1.25rem] font-black bg-slate-900 hover:bg-slate-800 text-white h-12 px-6">START</Button>
+                       <Link href={`/dashboard/student/assessments/cbt/${task.id}/take`}>
+                          <Button className="rounded-[1.25rem] font-black bg-slate-900 hover:bg-slate-800 text-white h-12 px-6">START</Button>
+                       </Link>
                     </div>
                   )) : (
                     <div className="p-24 text-center text-slate-400 italic font-medium">No assessments currently available</div>
@@ -112,27 +105,16 @@ export default async function StudentOverviewPage() {
          <div className="space-y-8">
             <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white">
                <CardHeader className="p-8 pb-4">
-                  <CardTitle className="text-lg font-black">Learning Progress</CardTitle>
+                  <CardTitle className="text-lg font-black">Study Guide</CardTitle>
                </CardHeader>
                <CardContent className="p-8 pt-0 space-y-8">
-                  <div>
-                    <div className="flex justify-between text-sm mb-3">
-                      <span className="font-black text-slate-700">First Term Syllabus</span>
-                      <span className="font-black text-orange-600 uppercase tracking-widest">65%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-4 rounded-full overflow-hidden shadow-inner">
-                      <div className="bg-gradient-to-r from-orange-500 to-amber-500 h-full w-[65%] rounded-full shadow-lg shadow-orange-200"></div>
-                    </div>
-                  </div>
-
                   <div className="p-6 rounded-[2rem] bg-blue-50 border border-blue-100 flex gap-4">
                     <AlertCircle className="w-6 h-6 text-blue-600 shrink-0" />
                     <div>
-                      <p className="text-sm font-black text-blue-900">AI Study Recommendation</p>
+                      <p className="text-sm font-black text-blue-900">Recommendation</p>
                       <p className="text-xs text-blue-700 mt-1 font-medium leading-relaxed">
-                        Focus on "Quantum Mechanics" in Physics to improve your projected term grade by 12%.
+                        Keep track of your upcoming assessments and review your past CBT attempts to identify areas of improvement.
                       </p>
-                      <Button variant="link" className="text-blue-600 p-0 h-auto text-xs font-black mt-3 uppercase tracking-widest">Start Revision</Button>
                     </div>
                   </div>
                </CardContent>
@@ -142,10 +124,10 @@ export default async function StudentOverviewPage() {
                <div className="p-8 space-y-6 text-white">
                   <h3 className="font-black text-lg text-amber-500">Quick Links</h3>
                   <div className="grid grid-cols-2 gap-4">
-                     <Button className="bg-white/10 hover:bg-white/20 border-none rounded-2xl h-14 font-black text-xs uppercase tracking-widest text-white">NOTES</Button>
-                     <Button className="bg-white/10 hover:bg-white/20 border-none rounded-2xl h-14 font-black text-xs uppercase tracking-widest text-white">TIMETABLE</Button>
-                     <Button className="bg-white/10 hover:bg-white/20 border-none rounded-2xl h-14 font-black text-xs uppercase tracking-widest text-white">GRADES</Button>
-                     <Button className="bg-white/10 hover:bg-white/20 border-none rounded-2xl h-14 font-black text-xs uppercase tracking-widest text-white">SUPPORT</Button>
+                     <Link href="/dashboard/student/materials/notes" className="w-full"><Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-2xl h-14 font-black text-xs uppercase tracking-widest text-white">NOTES</Button></Link>
+                     <Link href="/dashboard/student/timetable" className="w-full"><Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-2xl h-14 font-black text-xs uppercase tracking-widest text-white">TIMETABLE</Button></Link>
+                     <Link href="/dashboard/student/results/current" className="w-full"><Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-2xl h-14 font-black text-xs uppercase tracking-widest text-white">GRADES</Button></Link>
+                     <Link href="/dashboard/student/communication/support/new" className="w-full"><Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-2xl h-14 font-black text-xs uppercase tracking-widest text-white">SUPPORT</Button></Link>
                   </div>
                </div>
             </Card>

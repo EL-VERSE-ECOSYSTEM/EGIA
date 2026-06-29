@@ -173,7 +173,7 @@ export async function loginAdmin(data: any) {
   const supabase = createClient(cookieStore)
   const { email, password } = data
 
-  if (email === 'admin@egia.com' && password === 'GOODNEWS123@') {
+  if (email === 'admin@egia.com' && password === 'GOODNEWS20@') {
     // Master admin credentials
   }
 

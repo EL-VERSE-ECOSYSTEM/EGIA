@@ -9,7 +9,7 @@ export function Footer() {
             <p className="text-sm font-bold text-slate-400">
               &copy; {new Date().getFullYear()} EL GOODNEWS INT'L ACADEMY. All rights reserved.
             </p>
-            <Link href="/auth/signin" className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500 hover:text-amber-400 transition-colors">
+            <Link href="/admin-login" className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500 hover:text-amber-400 transition-colors">
               Staff & Admin Portal
             </Link>
           </div>
