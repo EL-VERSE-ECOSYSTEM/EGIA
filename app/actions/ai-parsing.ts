@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 
-export type ExtractedQuestion = {
+export type SimulatedQuestion = {
   id: string
   type: 'MCQ_Single' | 'MCQ_Multiple' | 'FITB' | 'TrueFalse' | 'Numeric' | 'ShortAnswer'
   question: string
@@ -16,15 +16,15 @@ export type ExtractedQuestion = {
  * Simulates the extraction of questions from a PDF/Image using PaddleOCR + LLM logic.
  * In a real production environment, this would call an external microservice or a worker queue.
  */
-export async function extractQuestionsFromPDF(fileData: string): Promise<ExtractedQuestion[]> {
+export async function extractQuestionsFromPDF(fileData: string): Promise<SimulatedQuestion[]> {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
-  // Artificial delay for processing processing time
+  // Artificial delay to simulate processing time
   await new Promise(resolve => setTimeout(resolve, 3000))
 
-  // Mixed Question Detection (MCQ + FITB)
-  const extractedQuestions: ExtractedQuestion[] = [
+  // Simulate Mixed Question Detection (MCQ + FITB)
+  const simulatedQuestions: SimulatedQuestion[] = [
     {
       id: 'sim-1',
       type: 'MCQ_Single',
@@ -67,5 +67,5 @@ export async function extractQuestionsFromPDF(fileData: string): Promise<Extract
     }
   ]
 
-  return extractedQuestions
+  return simulatedQuestions
 }
