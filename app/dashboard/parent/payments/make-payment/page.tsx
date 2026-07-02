@@ -50,7 +50,7 @@ export default function MakePaymentPage() {
           studentId: childId,
           amount,
           feeType,
-          receiptUrl: 'https://pub-receipts.egia.edu.ng/placeholder.pdf'
+          receiptUrl: 'mock-receipt-url'
         })
         alert('Manual payment submitted for verification')
         router.push('/dashboard/parent/payments/history')

@@ -11,7 +11,7 @@ import {
   Upload, FileText, Loader2, CheckCircle,
   Trash2, Edit3, Shield, Search, Zap
 } from 'lucide-react'
-import { extractQuestionsFromPDF, ExtractedQuestion } from '@/app/actions/ai-parsing'
+import { extractQuestionsFromPDF, SimulatedQuestion } from '@/app/actions/ai-parsing'
 import { saveAssessmentWithQuestions } from '@/app/actions/assessments'
 import { getTeacherProfile } from '@/app/actions/teacher'
 import { useRouter } from 'next/navigation'
@@ -19,7 +19,7 @@ import { useRouter } from 'next/navigation'
 export default function AIConversionPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [questions, setQuestions] = useState<ExtractedQuestion[]>([])
+  const [questions, setQuestions] = useState<SimulatedQuestion[]>([])
   const [teacher, setTeacher] = useState<any>(null)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -36,7 +36,7 @@ export default function AIConversionPage() {
     if (e.target.files && e.target.files[0]) {
       setLoading(true)
       try {
-        const result = await extractQuestionsFromPDF('data:application/pdf;base64,JVBERi0xLjQKJ...')
+        const result = await extractQuestionsFromPDF('mock-base64')
         setQuestions(result)
       } catch (err) {
         console.error(err)

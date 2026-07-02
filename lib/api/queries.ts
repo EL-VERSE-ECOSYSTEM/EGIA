@@ -11,11 +11,8 @@ import {
   attendance,
   dispute,
   subject,
-  message as messageTable,
-  notification,
-  cbtAttempt,
-  learningMaterial,
-  lessonNote
+  message,
+  notification
 } from '@/lib/db/schema'
 import { eq, and, sql, desc, inArray } from 'drizzle-orm'
 
@@ -62,14 +59,12 @@ export async function getAdminDashboardStats() {
   const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
   const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment).where(eq(payment.status, 'success'))
   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).where(eq(assessment.status, 'published'))
-  const [pendingPaymentsCount] = await db.select({ count: sql<number>`count(*)` }).from(payment).where(eq(payment.status, 'pending'))
 
   return {
     totalStudents: Number(studentsCount?.count || 0),
     totalTeachers: Number(teachersCount?.count || 0),
     revenue: totalRevenue?.sum || '0',
-    activeCBTs: Number(activeCBTs?.count || 0),
-    pendingPaymentsCount: Number(pendingPaymentsCount?.count || 0)
+    activeCBTs: Number(activeCBTs?.count || 0)
   }
 }
 
@@ -91,6 +86,7 @@ export async function getUrgentAlerts() {
 
 export async function getTeacherDashboardData(teacherId: string) {
   const classes = await getTeacherClasses(teacherId)
+
   const classNames = classes.map(c => c.name)
 
   const studentCountResult = classNames.length > 0
@@ -104,15 +100,10 @@ export async function getTeacherDashboardData(teacherId: string) {
     .where(and(eq(assessment.createdBy, teacherId), eq(assessment.status, 'published')))
     .limit(5)
 
-  const [lessonNotesCount] = await db.select({ count: sql<number>`count(*)` })
-    .from(lessonNote)
-    .where(eq(lessonNote.teacherId, teacherId))
-
   return {
     classes,
     totalStudents: Number(studentCountResult[0]?.count || 0),
-    upcomingAssessments,
-    lessonNotesCount: Number(lessonNotesCount?.count || 0)
+    upcomingAssessments
   }
 }
 
@@ -123,13 +114,6 @@ export async function getStudentDashboardData(studentId: string, className: stri
     .where(eq(assessment.status, 'published'))
     .limit(5)
 
-  const [completedCBTsCount] = await db.select({ count: sql<number>`count(*)` })
-    .from(cbtAttempt)
-    .where(eq(cbtAttempt.studentId, studentId))
-
-  const [materialCount] = await db.select({ count: sql<number>`count(*)` })
-    .from(learningMaterial)
-
   const recentPayments = await db.select()
     .from(payment)
     .where(eq(payment.studentId, studentId))
@@ -138,37 +122,22 @@ export async function getStudentDashboardData(studentId: string, className: stri
 
   return {
     upcomingAssessments: upcomingAssessments.map(a => ({ ...a.assessment, subject: a.subject.name })),
-    recentPayments,
-    completedCBTsCount: Number(completedCBTsCount?.count || 0),
-    materialCount: Number(materialCount?.count || 0)
+    recentPayments
   }
 }
 
-export async function getParentDashboardData(parentId: string) {
-  const children = await getParentChildren(parentId)
-  const childIds = children.map(c => c.id)
+export async function getMessages(userId: string) {
+  return await db.select()
+    .from(message)
+    .where(eq(message.senderId, userId))
+    .orderBy(desc(message.createdAt))
+    .limit(20)
+}
 
-  const pendingPayments = childIds.length > 0
-    ? await db.select()
-        .from(payment)
-        .where(and(inArray(payment.studentId, childIds), eq(payment.status, 'pending')))
-        .limit(5)
-    : []
-
-  const totalPendingAmount = pendingPayments.reduce((sum, p) => sum + Number(p.amount), 0)
-
-  const recentMessages = await db.query.messageTable.findMany({
-    orderBy: desc(messageTable.createdAt),
-    limit: 5,
-    with: {
-       sender: true
-    }
-  })
-
-  return {
-    children,
-    pendingPayments,
-    totalPendingAmount,
-    recentMessages
-  }
+export async function getNotifications(userId: string) {
+  return await db.select()
+    .from(notification)
+    .where(eq(notification.userId, userId))
+    .orderBy(desc(notification.createdAt))
+    .limit(10)
 }

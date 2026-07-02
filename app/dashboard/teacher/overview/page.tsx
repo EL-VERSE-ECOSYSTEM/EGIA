@@ -8,10 +8,12 @@ import {
   GraduationCap,
   Calendar,
   Clock,
+  BookOpen,
+  ArrowRight,
   Plus,
   FileText,
   Activity,
-  ArrowRight
+  CheckCircle2
 } from 'lucide-react'
 import { getTeacherDashboardData, getTeacherProfile } from '@/lib/api/queries'
 import { auth } from '@/lib/auth'
@@ -26,7 +28,7 @@ export default async function TeacherOverviewPage() {
     { label: 'Assigned Classes', value: data.classes.length.toString(), icon: GraduationCap, color: 'text-purple-600', bg: 'bg-purple-100' },
     { label: 'Total Students', value: data.totalStudents.toLocaleString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
     { label: 'Published CBTs', value: data.upcomingAssessments.length.toString(), icon: Activity, color: 'text-amber-600', bg: 'bg-amber-100' },
-    { label: 'Lesson Notes', value: data.lessonNotesCount.toString(), icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-100' }
+    { label: 'Lesson Notes', value: '12', icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-100' }
   ]
 
   return (
@@ -75,8 +77,8 @@ export default async function TeacherOverviewPage() {
          <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white">
             <CardHeader className="p-10 pb-4 border-b border-slate-50 flex flex-row items-center justify-between text-slate-900">
                <div>
-                  <CardTitle className="text-2xl font-black">Your Classes</CardTitle>
-                  <p className="text-sm font-bold text-slate-400 mt-1">Quick access to assigned class groups</p>
+                  <CardTitle className="text-2xl font-black">Today's Schedule</CardTitle>
+                  <p className="text-sm font-bold text-slate-400 mt-1">Your academic schedule for today</p>
                </div>
                <Calendar className="text-slate-200 w-8 h-8" />
             </CardHeader>
@@ -90,17 +92,17 @@ export default async function TeacherOverviewPage() {
                           </div>
                           <div>
                              <p className="text-lg font-black text-slate-900">{cls.name}</p>
-                             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Class ID: {cls.id.substring(0, 8)}</p>
+                             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Morning Session • Room 3A</p>
                           </div>
                        </div>
-                       <Link href={`/dashboard/teacher/my-classes/${cls.id}`}>
+                       <Link href={`/dashboard/teacher/my-classes/${cls.id}/attendance`}>
                           <Button variant="ghost" className="rounded-xl font-black text-purple-600 hover:text-purple-700 hover:bg-purple-50 px-6">
-                             VIEW <ArrowRight className="ml-2 w-4 h-4" />
+                             MARK <ArrowRight className="ml-2 w-4 h-4" />
                           </Button>
                        </Link>
                     </div>
                   )) : (
-                    <div className="p-20 text-center text-slate-400 italic font-medium">No classes assigned yet</div>
+                    <div className="p-20 text-center text-slate-400 italic font-medium">No classes scheduled for today</div>
                   )}
                </div>
             </CardContent>
@@ -134,6 +136,13 @@ export default async function TeacherOverviewPage() {
                   )) : (
                     <div className="p-20 text-center text-slate-400 italic font-medium">No active assessments found</div>
                   )}
+               </div>
+               <div className="p-8 border-t border-slate-50">
+                  <Link href="/dashboard/teacher/assessments/published">
+                     <Button variant="outline" className="w-full h-14 rounded-2xl font-black border-slate-100 text-slate-600 hover:bg-slate-50 uppercase tracking-widest text-xs">
+                        VIEW ASSESSMENT ARCHIVE
+                     </Button>
+                  </Link>
                </div>
             </CardContent>
          </Card>
