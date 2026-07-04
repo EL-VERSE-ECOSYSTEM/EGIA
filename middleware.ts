@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/middleware'
 
 const publicRoutes = ['/', '/auth/signin', '/auth/signup', '/auth/verify-email', '/auth/callback', '/admissions', '/about', '/news', '/contact', '/faq', '/gallery', '/results-checker']
 
-export default async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { supabase, response } = createClient(request)
   const pathname = request.nextUrl.pathname
 

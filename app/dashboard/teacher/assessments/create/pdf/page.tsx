@@ -11,7 +11,7 @@ import {
   Upload, FileText, Loader2, CheckCircle,
   Trash2, Edit3, Shield, Search, Zap
 } from 'lucide-react'
-import { extractQuestionsFromPDF, SimulatedQuestion } from '@/app/actions/ai-parsing'
+import { simulateAIParsing, SimulatedQuestion } from '@/app/actions/ai-parsing'
 import { saveAssessmentWithQuestions } from '@/app/actions/assessments'
 import { getTeacherProfile } from '@/app/actions/teacher'
 import { useRouter } from 'next/navigation'
@@ -36,7 +36,7 @@ export default function AIConversionPage() {
     if (e.target.files && e.target.files[0]) {
       setLoading(true)
       try {
-        const result = await extractQuestionsFromPDF('mock-base64')
+        const result = await simulateAIParsing('mock-base64')
         setQuestions(result)
       } catch (err) {
         console.error(err)
