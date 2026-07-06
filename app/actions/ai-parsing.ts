@@ -16,7 +16,7 @@ export type SimulatedQuestion = {
  * Simulates the extraction of questions from a PDF/Image using PaddleOCR + LLM logic.
  * In a real production environment, this would call an external microservice or a worker queue.
  */
-export async function extractQuestionsFromPDF(fileData: string): Promise<SimulatedQuestion[]> {
+export async function simulateAIParsing(fileData: string): Promise<SimulatedQuestion[]> {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 

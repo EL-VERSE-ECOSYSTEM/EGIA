@@ -2,9 +2,10 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { student, parent, userRole } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { student, parent, userRole, teacher, user as userTable } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+import { randomUUID } from 'crypto'
 
 export async function linkChild(admissionNumber: string) {
   const session = await auth.getSession()
@@ -49,19 +50,126 @@ export async function getLinkedChildren() {
   })
 }
 
-export async function createAdminProfile(data: any) {
+export async function createAdminProfile() {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  await db.transaction(async (tx) => {
+    // Check if role already exists
+    const existing = await tx.query.userRole.findFirst({
+      where: eq(userRole.userId, session.user.id)
+    })
+
+    if (!existing) {
+      await tx.insert(userRole).values({
+        id: randomUUID(),
+        userId: session.user.id,
+        role: 'ADMIN',
+      })
+    }
+  })
+
   return { success: true }
 }
 
-export async function createParentProfile(data: any) {
+export async function createParentProfile(data: {
+  firstName: string
+  lastName: string
+  phoneNumber: string
+  wardAdmissionNumber?: string
+}) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  return await db.transaction(async (tx) => {
+    const parentId = randomUUID()
+
+    await tx.insert(userRole).values({
+      id: randomUUID(),
+      userId: session.user.id,
+      role: 'PARENT',
+    })
+
+    await tx.insert(parent).values({
+      id: parentId,
+      userId: session.user.id,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phoneNumber: data.phoneNumber,
+    })
+
+    if (data.wardAdmissionNumber) {
+      const child = await tx.query.student.findFirst({
+        where: eq(student.admissionNumber, data.wardAdmissionNumber)
+      })
+
+      if (child && !child.parentId) {
+        await tx.update(student)
+          .set({ parentId: parentId })
+          .where(eq(student.id, child.id))
+      }
+    }
+
+    return { success: true }
+  })
+}
+
+export async function createStudentProfile(data: {
+  firstName: string
+  lastName: string
+  class: string
+}) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  await db.transaction(async (tx) => {
+    await tx.insert(userRole).values({
+      id: randomUUID(),
+      userId: session.user.id,
+      role: 'STUDENT',
+    })
+
+    const admissionNumber = `GOD${Math.floor(10000 + Math.random() * 90000)}`
+
+    await tx.insert(student).values({
+      id: randomUUID(),
+      userId: session.user.id,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      class: data.class,
+      admissionNumber: admissionNumber,
+    })
+  })
+
   return { success: true }
 }
 
-export async function createStudentProfile(data: any) {
-  return { success: true }
-}
+export async function createTeacherProfile(data: {
+  firstName: string
+  lastName: string
+  staffCode: string
+  type?: 'CLASS' | 'SUBJECT'
+}) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
 
-export async function createTeacherProfile(data: any) {
+  await db.transaction(async (tx) => {
+    await tx.insert(userRole).values({
+      id: randomUUID(),
+      userId: session.user.id,
+      role: 'TEACHER',
+    })
+
+    await tx.insert(teacher).values({
+      id: randomUUID(),
+      userId: session.user.id,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      staffCode: data.staffCode,
+      type: data.type || 'SUBJECT',
+    })
+  })
+
   return { success: true }
 }
 

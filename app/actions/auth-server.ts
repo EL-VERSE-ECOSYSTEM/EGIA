@@ -173,8 +173,10 @@ export async function loginAdmin(data: any) {
   const supabase = createClient(cookieStore)
   const { email, password } = data
 
+  // Requirement: Master Admin Credentials Check
   if (email === 'admin@egia.com' && password === 'GOODNEWS20@') {
-    // Master admin credentials
+    // This part assumes the user already exists in Supabase Auth or we bypass it for dev
+    // In production, the master admin should be a pre-created account.
   }
 
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({

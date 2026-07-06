@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
+import { getParentProfile, getStudentProfile, getTeacherProfile } from '@/app/actions/user'
 
 export default async function DashboardRedirect() {
   const session = await auth.getSession()
@@ -12,13 +13,26 @@ export default async function DashboardRedirect() {
 
   if (role === 'ADMIN') {
     redirect('/dashboard/admin/overview')
-  } else if (role === 'TEACHER') {
-    redirect('/dashboard/teacher/overview')
-  } else if (role === 'PARENT') {
-    redirect('/dashboard/parent/overview')
-  } else if (role === 'STUDENT') {
-    redirect('/dashboard/student/overview')
-  } else {
-    redirect('/setup-role')
   }
+
+  if (role === 'TEACHER') {
+    const profile = await getTeacherProfile(session.user.id)
+    if (!profile) redirect('/setup-role/teacher')
+    redirect('/dashboard/teacher/overview')
+  }
+
+  if (role === 'PARENT') {
+    const profile = await getParentProfile(session.user.id)
+    if (!profile) redirect('/setup-role/parent')
+    redirect('/dashboard/parent/overview')
+  }
+
+  if (role === 'STUDENT') {
+    const profile = await getStudentProfile(session.user.id)
+    if (!profile) redirect('/setup-role/student')
+    redirect('/dashboard/student/overview')
+  }
+
+  // If no role or profile found
+  redirect('/setup-role')
 }
