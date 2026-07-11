@@ -4,6 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/utils/supabase/client'
 import {
   LayoutDashboard,
   Users,
@@ -89,6 +90,12 @@ export function Sidebar({ role }: SidebarProps) {
 
   const config = configMap[role]
 
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/auth/signin'
+  }
+
   return (
     <aside className={cn("w-72 flex flex-col h-screen text-slate-400 border-r border-white/5 shadow-2xl z-50 transition-all duration-500", config.color)}>
       <div className="p-8">
@@ -135,7 +142,11 @@ export function Sidebar({ role }: SidebarProps) {
               <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest text-pretty">EL GOODNEWS</p>
             </div>
           </div>
-          <Button variant="ghost" className="w-full justify-start h-11 px-4 rounded-xl text-white/50 hover:text-white hover:bg-white/10 text-xs font-black relative z-10 transition-all">
+          <Button
+            variant="ghost"
+            onClick={handleSignOut}
+            className="w-full justify-start h-11 px-4 rounded-xl text-white/50 hover:text-white hover:bg-white/10 text-xs font-black relative z-10 transition-all"
+          >
             <LogOut className="w-4 h-4 mr-3" /> SIGN OUT
           </Button>
         </div>
