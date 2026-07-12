@@ -1,11 +1,5 @@
-'use client'
-
-const NeonAuthUI = () => <div>Auth Placeholder</div>
+import { redirect } from 'next/navigation'
 
 export default function SignInPage() {
-  return (
-    <main className="min-h-svh bg-background flex items-center justify-center px-4">
-      <NeonAuthUI mode="signin" />
-    </main>
-  )
+  redirect('/auth/signin')
 }
