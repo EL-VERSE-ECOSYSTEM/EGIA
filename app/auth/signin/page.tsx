@@ -13,6 +13,7 @@ import { createClient } from '@/utils/supabase/client'
 export default function SignInPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [selectedRole, setSelectedRole] = useState<'STUDENT' | 'TEACHER' | 'PARENT' | 'ADMIN'>('PARENT')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -23,18 +24,51 @@ export default function SignInPage() {
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
-    if (error) {
-      setError(error.message)
+    if (signInError) {
+      setError(signInError.message)
       setLoading(false)
-    } else {
-      router.refresh()
-      window.location.href = '/dashboard-redirect'
+      return
     }
+
+    if (!signInData?.user) {
+      setError("Sign-in failed. Please try again.")
+      setLoading(false)
+      return
+    }
+
+    // Securely verify that this user has the selected role
+    try {
+      const { getUserRole } = await import('@/app/actions/user')
+      const actualRole = (await getUserRole(signInData.user.id))?.toUpperCase()
+      const selectedRoleUpper = selectedRole.toUpperCase()
+
+      if (actualRole !== selectedRoleUpper) {
+        // Sign out immediately to clear any browser session state
+        await supabase.auth.signOut()
+        setError(`Unauthorized: You do not have the registered role of '${selectedRole}' on this account.`)
+        setLoading(false)
+        return
+      }
+    } catch (dbError) {
+      console.error("Role verification failed:", dbError)
+      // Fallback to metadata check
+      const metadataRole = (signInData.user.user_metadata?.role || '').toUpperCase()
+      const selectedRoleUpper = selectedRole.toUpperCase()
+      if (metadataRole !== selectedRoleUpper) {
+        await supabase.auth.signOut()
+        setError(`Unauthorized: You do not have the registered role of '${selectedRole}' on this account.`)
+        setLoading(false)
+        return
+      }
+    }
+
+    router.refresh()
+    window.location.href = '/dashboard-redirect'
   }
 
   return (
@@ -62,6 +96,20 @@ export default function SignInPage() {
                 {error}
               </div>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="role" className="text-slate-700 font-bold ml-1">Login As</Label>
+              <select
+                id="role"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value as any)}
+                className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-600 focus:outline-none transition-all"
+              >
+                <option value="PARENT">Parent</option>
+                <option value="STUDENT">Student</option>
+                <option value="TEACHER">Teacher</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email" className="text-slate-700 font-bold ml-1">Email Address</Label>
               <Input
@@ -99,7 +147,7 @@ export default function SignInPage() {
 
           <div className="mt-8 text-center text-sm font-medium text-slate-500">
             Don't have an account?
-            <Link href="/auth/signup/parent" className="text-amber-600 font-black hover:underline ml-1">Register Now</Link>
+            <Link href="/auth/signup" className="text-amber-600 font-black hover:underline ml-1">Register Now</Link>
           </div>
         </CardContent>
       </Card>
