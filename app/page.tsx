@@ -16,7 +16,6 @@ import {
   ArrowRight,
   GraduationCap,
   MessageSquare,
-  Mail,
   MapPin,
   Phone
 } from 'lucide-react'
@@ -55,9 +54,9 @@ export default async function LandingPage() {
             ) : (
               <div className="flex items-center gap-4">
                 <Link href="/auth/signin">
-                  <Button variant="ghost" className="text-slate-600 font-black">SIGN IN</Button>
+                  <Button variant="ghost" className="text-slate-600 font-black">LOGIN</Button>
                 </Link>
-                <Link href="/auth/signup/parent">
+                <Link href="/auth/signup">
                   <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-6 font-black shadow-lg shadow-amber-200">JOIN US</Button>
                 </Link>
               </div>
@@ -81,9 +80,14 @@ export default async function LandingPage() {
               Join a community committed to nurturing the total child.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-              <Link href="/auth/signup/parent">
+              <Link href="/auth/signup">
                 <Button size="lg" className="bg-amber-600 hover:bg-amber-700 text-white h-20 px-14 rounded-[2rem] font-black text-xl shadow-2xl shadow-amber-200 group transition-all hover:scale-105">
                   START REGISTRATION <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link href="/auth/signin">
+                <Button size="lg" className="bg-slate-900 hover:bg-slate-800 text-white h-20 px-14 rounded-[2rem] font-black text-xl shadow-2xl shadow-slate-200 transition-all hover:scale-105">
+                  PORTAL LOGIN
                 </Button>
               </Link>
               <Link href="/admissions">
@@ -122,8 +126,12 @@ export default async function LandingPage() {
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-32 items-center">
               <div className="relative group">
-                <div className="aspect-[3/4] bg-slate-100 rounded-[4rem] overflow-hidden shadow-2xl relative flex items-center justify-center border-[16px] border-slate-50">
-                   <Users size={300} strokeWidth={0.5} className="text-slate-200 group-hover:scale-110 transition-transform duration-1000" />
+                <div className="aspect-[3/4] bg-slate-100 rounded-[4rem] overflow-hidden shadow-2xl relative border-[16px] border-slate-50">
+                   <img
+                     src="https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1200"
+                     alt="EL GOODNEWS Academy Classroom"
+                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
+                   />
                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent opacity-40" />
                 </div>
                 <div className="absolute -bottom-16 -right-16 bg-amber-600 text-white p-14 rounded-[3rem] shadow-[0_50px_100px_-20px_rgba(217,119,6,0.3)] max-w-sm hidden lg:block border-[12px] border-white">
@@ -359,7 +367,7 @@ export default async function LandingPage() {
         <section className="py-48 bg-amber-600 overflow-hidden relative">
           <div className="container mx-auto px-4 relative z-10 text-center max-w-4xl">
             <h2 className="text-7xl md:text-9xl font-black text-white mb-16 tracking-tighter leading-[0.85]">Join The Future of <span className="text-slate-900">Education</span></h2>
-            <Link href="/auth/signup/parent">
+            <Link href="/auth/signup">
               <Button size="lg" className="bg-white text-amber-600 hover:bg-amber-50 h-28 px-20 rounded-[3rem] font-black text-3xl shadow-[0_50px_100px_-20px_rgba(0,0,0,0.4)] transition-all hover:scale-105 active:scale-95 uppercase tracking-tighter">
                 Register Your Child Now
               </Button>
