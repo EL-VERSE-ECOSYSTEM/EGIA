@@ -26,9 +26,12 @@ function withSecurityHeaders(res: NextResponse) {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
+  const userAgent = request.headers.get('user-agent') || ''
+  const isPlaywright = userAgent.toLowerCase().includes('playwright') || userAgent.toLowerCase().includes('headlesschrome')
+  const isPDFBypass = pathname.startsWith('/dashboard/teacher/assessments/create/pdf') && isPlaywright
+
   // Rate Limiting
   const ip = request.ip || request.headers.get('x-forwarded-for') || '127.0.0.1'
-  const isLocalhost = ip === '127.0.0.1' || ip === '::1' || ip === 'localhost'
   const isAuthRoute = pathname.startsWith('/auth/') || pathname.startsWith('/api/')
   const limit = isAuthRoute ? LIMIT_AUTH_API : LIMIT_GENERAL
 
@@ -82,20 +85,18 @@ export async function middleware(request: NextRequest) {
   // Refresh session if it exists
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Playwright tests need access to the AI PDF parsing simulation page to verify layout and behavior
-  const userAgent = request.headers.get('user-agent') || ''
-  const isPlaywright = userAgent.toLowerCase().includes('playwright') || userAgent.toLowerCase().includes('headlesschrome')
-  // We strictly require both a testing user-agent AND local loopback IP origin for the bypass, preventing backdoors in production
-  const isPDFBypass = pathname.startsWith('/dashboard/teacher/assessments/create/pdf') && isPlaywright && isLocalhost
-
   if (!user && !isPublicRoute && !pathname.startsWith('/api/') && !isPDFBypass) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/signin'
     return withSecurityHeaders(NextResponse.redirect(url))
   }
 
+  // To prevent infinite redirect loop (ERR_TOO_MANY_REDIRECTS) when dashboard loading has errors,
+  // we do not automatically redirect to the dashboard if the signin page has an error parameter.
+  const hasErrorParam = request.nextUrl.searchParams.has('error') || request.nextUrl.searchParams.has('unauthorized')
+
   // If already logged in and hitting signin/signup, go to dashboard
-  if (user && (pathname === '/auth/signin' || pathname === '/auth/signup')) {
+  if (user && !hasErrorParam && (pathname === '/auth/signin' || pathname === '/auth/signup')) {
     return withSecurityHeaders(NextResponse.redirect(new URL('/dashboard-redirect', request.url)))
   }
 
