@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { getParentProfile, getStudentProfile, getTeacherProfile } from '@/app/actions/user'
+import { createClient } from '@/utils/supabase/server'
+import { cookies } from 'next/headers'
 
 export default async function DashboardRedirect() {
   let session = null
@@ -11,7 +13,16 @@ export default async function DashboardRedirect() {
   }
 
   if (!session) {
-    redirect('/auth/signin')
+    // To prevent infinite redirect loop on the client side, we must sign out the user
+    // from Supabase Auth so that middleware doesn't keep redirecting them back here
+    try {
+      const cookieStore = await cookies()
+      const supabase = createClient(cookieStore)
+      await supabase.auth.signOut()
+    } catch (signOutError) {
+      console.error("DashboardRedirect: signOut failed:", signOutError)
+    }
+    redirect('/auth/signin?error=Session expired or query failed')
   }
 
   const role = session.user.role?.toUpperCase()
