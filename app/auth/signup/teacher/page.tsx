@@ -27,13 +27,20 @@ export default function TeacherSignUpPage() {
     setError(null)
     setLoading(true)
 
-    const result = await registerTeacher(formData)
+    try {
+      const result = await registerTeacher(formData)
 
-    if (result.error) {
-      setError(result.error)
+      if (result.error) {
+        setError(result.error)
+        alert(result.error)
+        setLoading(false)
+      } else {
+        router.push('/auth/verify-email')
+      }
+    } catch (err) {
+      setError('Account failed to create')
+      alert('Account failed to create')
       setLoading(false)
-    } else {
-      router.push('/auth/verify-email')
     }
   }
 

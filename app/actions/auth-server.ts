@@ -12,6 +12,15 @@ export async function registerParent(data: any) {
   const supabase = createClient(cookieStore)
   const { firstName, lastName, email, phone, password } = data
 
+  // Check if account already exists in database
+  const existingUser = await db.query.user.findFirst({
+    where: eq(userTable.email, email)
+  })
+
+  if (existingUser) {
+    return { error: 'Account already exists. An account with this email is already registered.' }
+  }
+
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
@@ -66,6 +75,15 @@ export async function registerTeacher(data: any) {
 
   if (!staffCode.startsWith('EGIA-ST')) {
     return { error: 'Invalid staff verification code' }
+  }
+
+  // Check if account already exists in database
+  const existingUser = await db.query.user.findFirst({
+    where: eq(userTable.email, email)
+  })
+
+  if (existingUser) {
+    return { error: 'Account already exists. An account with this email is already registered.' }
   }
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -124,6 +142,15 @@ export async function activateStudent(data: any) {
 
   if (!existingStudent) {
     return { error: 'Admission number not found. Please contact admin.' }
+  }
+
+  // Check if account already exists in database
+  const existingUser = await db.query.user.findFirst({
+    where: eq(userTable.email, email)
+  })
+
+  if (existingUser) {
+    return { error: 'Account already exists. An account with this email is already registered.' }
   }
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
