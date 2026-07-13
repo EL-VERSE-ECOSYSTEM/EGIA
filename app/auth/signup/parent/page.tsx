@@ -29,17 +29,25 @@ export default function ParentSignUpPage() {
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
+      alert('Passwords do not match')
       return
     }
 
     setLoading(true)
-    const result = await registerParent(formData)
+    try {
+      const result = await registerParent(formData)
 
-    if (result.error) {
-      setError(result.error)
+      if (result.error) {
+        setError(result.error)
+        alert(result.error)
+        setLoading(false)
+      } else {
+        router.push('/auth/verify-email')
+      }
+    } catch (err) {
+      setError('Account failed to create')
+      alert('Account failed to create')
       setLoading(false)
-    } else {
-      router.push('/auth/verify-email')
     }
   }
 
