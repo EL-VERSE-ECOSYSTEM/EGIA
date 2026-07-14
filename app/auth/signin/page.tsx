@@ -24,8 +24,29 @@ export default function SignInPage() {
     setLoading(true)
     setError(null)
 
+    let loginEmail = email
+
+    // Support Student logging in with generated admission number (starts with GOD)
+    if (selectedRole === 'STUDENT' && email.toUpperCase().startsWith('GOD')) {
+      try {
+        const { getStudentEmailByAdmissionNumber } = await import('@/app/actions/user')
+        const resolvedEmail = await getStudentEmailByAdmissionNumber(email.toUpperCase().trim())
+        if (!resolvedEmail) {
+          setError(`No student found with admission number '${email.toUpperCase()}'`)
+          setLoading(false)
+          return
+        }
+        loginEmail = resolvedEmail
+      } catch (err) {
+        console.error("Admission number email lookup failed:", err)
+        setError("Database connection error during admission number lookup.")
+        setLoading(false)
+        return
+      }
+    }
+
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
+      email: loginEmail,
       password,
     })
 
@@ -111,11 +132,13 @@ export default function SignInPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-700 font-bold ml-1">Email Address</Label>
+              <Label htmlFor="email" className="text-slate-700 font-bold ml-1">
+                {selectedRole === 'STUDENT' ? 'Admission Number or Email' : 'Email Address'}
+              </Label>
               <Input
                 id="email"
-                type="email"
-                placeholder="name@example.com"
+                type="text"
+                placeholder={selectedRole === 'STUDENT' ? 'GODXXXXXX or email' : 'name@example.com'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

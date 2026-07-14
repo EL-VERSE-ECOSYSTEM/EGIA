@@ -7,6 +7,16 @@ import { eq, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'crypto'
 
+export async function getStudentEmailByAdmissionNumber(admissionNumber: string) {
+  const studentProfile = await db.query.student.findFirst({
+    where: eq(student.admissionNumber, admissionNumber),
+    with: {
+      user: true
+    }
+  })
+  return studentProfile?.user?.email || null
+}
+
 export async function linkChild(admissionNumber: string) {
   const session = await auth.getSession()
   if (!session?.user || session.user.role !== 'PARENT') {
