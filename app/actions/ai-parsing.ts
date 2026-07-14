@@ -27,7 +27,9 @@ export async function simulateAIParsing(fileData: string): Promise<SimulatedQues
   const isLocalhost = xForwardedFor === '127.0.0.1' || xForwardedFor === '::1' || xForwardedFor === 'localhost' || xForwardedFor === ''
 
   const session = await auth.getSession()
-  if (!session?.user && !(isPlaywright && isLocalhost)) throw new Error('Unauthorized')
+  if (!session?.user && !(isPlaywright && isLocalhost)) {
+    throw new Error('Unauthorized')
+  }
 
   // Artificial delay to simulate processing time
   await new Promise(resolve => setTimeout(resolve, 3000))

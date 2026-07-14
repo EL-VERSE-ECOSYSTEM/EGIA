@@ -4,7 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { GraduationCap, Users, Laptop, Briefcase, ArrowRight } from 'lucide-react'
+import { GraduationCap, Users, Laptop, Briefcase, ArrowRight, ClipboardCheck } from 'lucide-react'
 
 export default function SignUpPage() {
   const options = [
@@ -20,14 +20,25 @@ export default function SignUpPage() {
       link: '/auth/signup/parent'
     },
     {
-      role: 'STUDENT',
-      title: 'Student Activation',
-      desc: 'Activate your digital student portal access with your admission number.',
-      icon: Laptop,
+      role: 'STUDENT_REG',
+      title: 'Student Session Registration',
+      desc: 'Complete full registration & pay account activation fee (₦2,100). Active Aug 16 - Sept 27.',
+      icon: ClipboardCheck,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
       borderColor: 'border-orange-100',
       btnBg: 'bg-orange-600 hover:bg-orange-700',
+      link: '/auth/signup/student-registration'
+    },
+    {
+      role: 'STUDENT_ACT',
+      title: 'Student Portal Activation',
+      desc: 'Already registered? Activate your portal access with your admission number.',
+      icon: Laptop,
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-50',
+      borderColor: 'border-amber-100',
+      btnBg: 'bg-amber-600 hover:bg-amber-700',
       link: '/auth/signup/student'
     },
     {
@@ -59,7 +70,7 @@ export default function SignUpPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl w-full px-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-7xl w-full px-4">
         {options.map((opt) => {
           const Icon = opt.icon
           return (
@@ -69,14 +80,14 @@ export default function SignUpPage() {
                 <div className={`mx-auto ${opt.bgColor} p-4 rounded-2xl w-fit mb-4 group-hover:scale-110 transition-transform duration-500`}>
                   <Icon className={`w-8 h-8 ${opt.color}`} />
                 </div>
-                <CardTitle className="text-2xl font-black text-slate-900">{opt.title}</CardTitle>
-                <CardDescription className="text-slate-500 font-bold mt-2 leading-relaxed min-h-[4rem]">
+                <CardTitle className="text-xl font-black text-slate-900 leading-tight">{opt.title}</CardTitle>
+                <CardDescription className="text-slate-500 font-bold mt-2 leading-relaxed min-h-[5rem] text-xs">
                   {opt.desc}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="px-8 pb-10 mt-auto">
+              <CardContent className="px-6 pb-8 mt-auto">
                 <Link href={opt.link} className="block w-full">
-                  <Button className={`w-full ${opt.btnBg} text-white h-12 rounded-xl font-bold flex items-center justify-center gap-2 transition-all`}>
+                  <Button className={`w-full ${opt.btnBg} text-white h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all`}>
                     Register <ArrowRight className="w-4 h-4" />
                   </Button>
                 </Link>

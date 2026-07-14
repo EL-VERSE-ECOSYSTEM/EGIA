@@ -4,6 +4,8 @@ import { getParentProfile, getStudentProfile, getTeacherProfile } from '@/app/ac
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardRedirect() {
   let session = null
   try {

@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 const fs = require('fs');
 
+test.use({ userAgent: 'Mozilla/5.0 Playwright HeadlessChrome' });
+
 test('verify AI PDF parsing simulation', async ({ page }) => {
   await page.goto('http://localhost:3000/dashboard/teacher/assessments/create/pdf');
   await page.waitForTimeout(2000);
