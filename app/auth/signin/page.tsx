@@ -45,6 +45,25 @@ export default function SignInPage() {
       }
     }
 
+    // Support Staff logging in with generated Staff ID (starts with EGIA-ST)
+    if (selectedRole === 'TEACHER' && email.toUpperCase().startsWith('EGIA-ST')) {
+      try {
+        const { getStaffEmailByStaffId } = await import('@/app/actions/user')
+        const resolvedEmail = await getStaffEmailByStaffId(email.toUpperCase().trim())
+        if (!resolvedEmail) {
+          setError(`No staff found with Staff ID '${email.toUpperCase()}'`)
+          setLoading(false)
+          return
+        }
+        loginEmail = resolvedEmail
+      } catch (err) {
+        console.error("Staff ID email lookup failed:", err)
+        setError("Database connection error during Staff ID lookup.")
+        setLoading(false)
+        return
+      }
+    }
+
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password,
@@ -133,12 +152,12 @@ export default function SignInPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email" className="text-slate-700 font-bold ml-1">
-                {selectedRole === 'STUDENT' ? 'Admission Number or Email' : 'Email Address'}
+                {selectedRole === 'STUDENT' ? 'Admission Number or Email' : selectedRole === 'TEACHER' ? 'Staff ID or Email' : 'Email Address'}
               </Label>
               <Input
                 id="email"
                 type="text"
-                placeholder={selectedRole === 'STUDENT' ? 'GODXXXXXX or email' : 'name@example.com'}
+                placeholder={selectedRole === 'STUDENT' ? 'GODXXXXXX or email' : selectedRole === 'TEACHER' ? 'EGIA-ST-XXXXXX or email' : 'name@example.com'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

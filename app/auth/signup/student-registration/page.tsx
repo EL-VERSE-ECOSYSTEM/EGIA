@@ -22,9 +22,11 @@ export default function StudentRegistrationPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [isPaid, setIsPaid] = useState(false)
   const [isValidDate, setIsValidDate] = useState(false)
   const [generatedAdmissionNumber, setGeneratedAdmissionNumber] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -70,6 +72,7 @@ export default function StudentRegistrationPage() {
       } else {
         setIsPaid(true)
         setGeneratedAdmissionNumber(result.admissionNumber)
+        setShowSuccessModal(true)
         alert(`SUCCESS! Account Activated! Your unique generated Admission Number is: ${result.admissionNumber}. Please write this down to log in.`)
         setLoading(false)
       }
@@ -172,6 +175,10 @@ export default function StudentRegistrationPage() {
                   onChange={e => setFormData({...formData, class: e.target.value})}
                   className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-4 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:outline-none transition-all"
                 >
+                  <option value="Primary 3">Primary 3</option>
+                  <option value="Primary 4">Primary 4</option>
+                  <option value="Primary 5">Primary 5</option>
+                  <option value="Primary 6">Primary 6</option>
                   <option value="JSS1">JSS 1</option>
                   <option value="JSS2">JSS 2</option>
                   <option value="JSS3">JSS 3</option>
@@ -223,6 +230,48 @@ export default function StudentRegistrationPage() {
             </form>
           </CardContent>
         </Card>
+      )}
+
+      {/* Dynamic Success Modal / Pop up Notification */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+          <Card className="max-w-md w-full border-none shadow-2xl rounded-[2.5rem] bg-white overflow-hidden p-8 text-center animate-in fade-in zoom-in duration-300">
+            <div className="mx-auto bg-emerald-50 p-6 rounded-full w-fit mb-6">
+              <CheckCircle2 className="w-16 h-16 text-emerald-600" />
+            </div>
+            <h2 className="text-3xl font-black text-slate-900">Registration Complete</h2>
+            <p className="text-slate-500 font-bold mt-2 uppercase tracking-widest text-xs">Unique Admission Number Generated</p>
+            <div className="my-6 p-6 bg-slate-50 border border-slate-100 rounded-3xl relative group">
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Your Admission Number</p>
+              <p className="text-4xl font-black text-orange-600 mt-2 tracking-widest">{generatedAdmissionNumber}</p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-4 rounded-xl border-slate-200 font-bold text-xs"
+                onClick={() => {
+                  if (generatedAdmissionNumber) {
+                    navigator.clipboard.writeText(generatedAdmissionNumber)
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 2000)
+                  }
+                }}
+              >
+                {copied ? 'Copied!' : 'Copy to Clipboard'}
+              </Button>
+            </div>
+            <p className="text-slate-500 font-medium text-sm leading-relaxed mb-6">
+              Please write this down or copy it to log in to the Student Portal.
+            </p>
+            <Button
+              onClick={() => {
+                setShowSuccessModal(false)
+              }}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white h-14 rounded-2xl font-black text-lg"
+            >
+              Continue
+            </Button>
+          </Card>
+        </div>
       )}
 
       {/* Simulated Korapay Payment Modal */}

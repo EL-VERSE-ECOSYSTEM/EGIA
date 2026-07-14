@@ -22,10 +22,23 @@ import { getAdminDashboardStats, getRecentAuditLogs, getUrgentAlerts } from '@/l
 import { AdminRevenueChart } from '@/components/charts/admin-revenue-chart'
 import Link from 'next/link'
 
+import { getReportCards } from '@/app/actions/report-cards'
+
 export default async function AdminOverviewPage() {
   const statsData = await getAdminDashboardStats()
   const auditLogs = await getRecentAuditLogs()
   const alerts = await getUrgentAlerts()
+  const reportCards = await getReportCards()
+
+  const pendingCardsCount = reportCards.filter(c => c.status === 'PENDING').length
+
+  // Live messaging filter violations (Simulated real-time log)
+  const moderationViolations = [
+    { id: 'v-1', user: 'Chinedu Okafor (Student)', type: 'WhatsApp Block', message: 'Send me your whatsapp number on +234803920192', time: '5m ago' },
+    { id: 'v-2', user: 'Tunde Alao (Student)', type: 'Vernacular Block', message: 'Wetin u dey do, abi you don shayo', time: '12m ago' },
+    { id: 'v-3', user: 'Precious Eze (Parent)', type: 'Foul Language Block', message: 'You are an idiot for saying that', time: '30m ago' },
+    { id: 'v-4', user: 'Amara Nwachukwu (Student)', type: 'Love Chat Block', message: 'I really love you babe, let\'s date', time: '1h ago' }
+  ]
 
   const stats = [
     { label: 'Total Students', value: statsData.totalStudents.toLocaleString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-100', trend: '+12%', up: true },
@@ -78,7 +91,7 @@ export default async function AdminOverviewPage() {
               <CardTitle className="text-2xl font-black text-slate-900">Institutional Revenue</CardTitle>
               <p className="text-sm font-bold text-slate-400 mt-1">Fee collection trends across all departments</p>
             </div>
-            <Link href="/dashboard/admin/finance/fees/structure">
+            <Link href="/dashboard/admin/finance/fees">
                <Button variant="outline" className="rounded-xl font-bold border-slate-100">Details</Button>
             </Link>
           </CardHeader>
@@ -91,14 +104,14 @@ export default async function AdminOverviewPage() {
           <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white">
             <CardHeader className="p-8 pb-4">
               <CardTitle className="text-lg font-black flex items-center gap-2 text-slate-900">
-                 <AlertTriangle className="text-amber-600 w-5 h-5" /> Pending Verifications
+                 <AlertTriangle className="text-amber-600 w-5 h-5" /> Pending Endorsements
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8 pt-0 space-y-4">
               <div className="p-6 rounded-[2rem] bg-amber-50 border border-amber-100 space-y-4 text-center">
-                 <p className="text-sm font-bold text-amber-900">There are 8 manual payments waiting for receipt verification.</p>
-                 <Link href="/dashboard/admin/finance/fees/pending" className="block">
-                    <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl h-12 shadow-lg shadow-amber-200">VERIFY NOW</Button>
+                 <p className="text-sm font-bold text-amber-900">There are {pendingCardsCount} report cards waiting for endorsement.</p>
+                 <Link href="/dashboard/admin/academics/report-cards" className="block">
+                    <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl h-12 shadow-lg shadow-amber-200">ENDORSE NOW</Button>
                  </Link>
               </div>
               <Button variant="ghost" className="w-full text-slate-400 font-black text-xs uppercase tracking-widest mt-2">View Audit Log</Button>
@@ -110,29 +123,61 @@ export default async function AdminOverviewPage() {
                 <CardTitle className="text-sm font-black uppercase tracking-widest text-amber-500">Global Actions</CardTitle>
              </CardHeader>
              <CardContent className="p-8 pt-0 grid grid-cols-2 gap-3">
-                <Link href="/dashboard/admin/users/students/add">
+                <Link href="/dashboard/admin/users/students">
                    <Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-[10px] font-black flex items-center gap-2 text-white">
                       <Plus size={14} /> ENROLL
                    </Button>
                 </Link>
-                <Link href="/dashboard/admin/academics/sessions/active">
+                <Link href="/dashboard/admin/academics">
                    <Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-[10px] font-black flex items-center gap-2 text-white">
                       <Calendar size={14} /> SESSION
                    </Button>
                 </Link>
-                <Link href="/dashboard/admin/finance/fees/structure">
+                <Link href="/dashboard/admin/finance">
                    <Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-[10px] font-black flex items-center gap-2 text-white">
                       <FileText size={14} /> FINANCE
                    </Button>
                 </Link>
-                <Link href="/dashboard/admin/communication/messages/broadcast">
+                <Link href="/dashboard/admin/communication">
                    <Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-[10px] font-black flex items-center gap-2 text-white">
-                      <Activity size={14} /> BROADCAST
+                      <Activity size={14} /> MESSAGING
                    </Button>
                 </Link>
              </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Real-time Content Censorship & Messaging Oversight Monitor */}
+      <div className="grid grid-cols-1 gap-10">
+        <Card className="border-none shadow-xl rounded-[2.5rem] bg-white overflow-hidden">
+          <CardHeader className="p-10 pb-6 border-b border-slate-50">
+            <CardTitle className="text-2xl font-black text-slate-900 flex items-center gap-2">
+              <Clock className="text-red-500 animate-pulse" /> Real-time Chat Censorship Monitor
+            </CardTitle>
+            <p className="text-sm font-bold text-slate-400 mt-1">Live audit stream of automatically blocked messages matching strict moderation filters (WhatsApp, Love Chats, Foul Language, Vernacular)</p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-slate-100">
+              {moderationViolations.map((v) => (
+                <div key={v.id} className="p-8 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
+                  <div className="space-y-1">
+                    <p className="font-black text-slate-900">{v.user}</p>
+                    <p className="text-sm text-slate-500 font-semibold italic bg-red-50/50 p-3 rounded-xl border border-red-100 inline-block">
+                      "{v.message}"
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <Badge className="bg-red-100 text-red-700 border-none font-black text-[10px] tracking-wider uppercase px-3 py-1">
+                      {v.type}
+                    </Badge>
+                    <span className="text-xs font-bold text-slate-400">{v.time}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

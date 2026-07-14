@@ -90,6 +90,8 @@ export async function createConversation(recipientId: string, type: 'INDIVIDUAL'
   return newConversation[0]
 }
 
+import { moderateMessage } from '@/lib/moderation'
+
 export async function sendMessage(conversationId: string, content: string, attachments?: any) {
   const userId = await getUserId()
   const roleData = await getUserRoleData(userId)
@@ -103,6 +105,12 @@ export async function sendMessage(conversationId: string, content: string, attac
   )
 
   if (!hasPermission) throw new Error('Permission denied')
+
+  // Run backend moderation and content filtration
+  const moderation = moderateMessage(content)
+  if (!moderation.allowed) {
+    throw new Error(moderation.reason)
+  }
 
   const newMessage = await db.insert(message).values({
     id: crypto.randomUUID(),

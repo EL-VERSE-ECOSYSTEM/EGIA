@@ -17,6 +17,16 @@ export async function getStudentEmailByAdmissionNumber(admissionNumber: string) 
   return studentProfile?.user?.email || null
 }
 
+export async function getStaffEmailByStaffId(staffId: string) {
+  const teacherProfile = await db.query.teacher.findFirst({
+    where: eq(teacher.staffCode, staffId),
+    with: {
+      user: true
+    }
+  })
+  return teacherProfile?.user?.email || null
+}
+
 export async function linkChild(admissionNumber: string) {
   const session = await auth.getSession()
   if (!session?.user || session.user.role !== 'PARENT') {

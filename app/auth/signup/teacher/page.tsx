@@ -10,16 +10,20 @@ import { Label } from '@/components/ui/label'
 import { User, Loader2, AlertCircle, GraduationCap, Briefcase } from 'lucide-react'
 import { registerTeacher } from '@/app/actions/auth-server'
 
+import { CheckCircle2 } from 'lucide-react'
+
 export default function TeacherSignUpPage() {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
-    staffCode: '',
     password: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [generatedStaffId, setGeneratedStaffId] = useState<string | null>(null)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [copied, setCopied] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,7 +39,10 @@ export default function TeacherSignUpPage() {
         alert(result.error)
         setLoading(false)
       } else {
-        router.push('/auth/verify-email')
+        setGeneratedStaffId(result.staffCode)
+        setShowSuccessModal(true)
+        alert(`SUCCESS! Staff Registered! Your dynamically generated Staff ID is: ${result.staffCode}. Please write this down to log in.`)
+        setLoading(false)
       }
     } catch (err) {
       setError('Account failed to create')
@@ -72,17 +79,6 @@ export default function TeacherSignUpPage() {
                 {error}
               </div>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="staffCode" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Staff Verification Code</Label>
-              <Input
-                id="staffCode"
-                placeholder="EGIA-ST-XXXXX"
-                value={formData.staffCode}
-                onChange={e => setFormData({...formData, staffCode: e.target.value})}
-                required
-                className="h-12 rounded-xl border-slate-200 bg-purple-50/50 uppercase font-black tracking-widest focus:bg-white focus:ring-purple-600"
-              />
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">First Name</Label>
@@ -133,9 +129,9 @@ export default function TeacherSignUpPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white h-14 rounded-2xl font-black text-lg shadow-xl shadow-purple-200 mt-6"
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white h-14 rounded-2xl font-black text-lg shadow-xl shadow-purple-200 mt-6 animate-pulse"
             >
-              {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Register Staff'}
+              {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 'Register Staff'}
             </Button>
           </form>
           <div className="mt-8 text-center text-sm font-bold text-slate-400">
@@ -143,6 +139,49 @@ export default function TeacherSignUpPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dynamic Success Modal / Pop up Notification */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+          <Card className="max-w-md w-full border-none shadow-2xl rounded-[2.5rem] bg-white overflow-hidden p-8 text-center animate-in fade-in zoom-in duration-300">
+            <div className="mx-auto bg-purple-50 p-6 rounded-full w-fit mb-6">
+              <CheckCircle2 className="w-16 h-16 text-purple-600" />
+            </div>
+            <h2 className="text-3xl font-black text-slate-900">Staff Registered</h2>
+            <p className="text-slate-500 font-bold mt-2 uppercase tracking-widest text-xs">Staff ID Generated</p>
+            <div className="my-6 p-6 bg-slate-50 border border-slate-100 rounded-3xl relative group">
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Your Staff ID (Staff Code)</p>
+              <p className="text-4xl font-black text-purple-600 mt-2 tracking-widest">{generatedStaffId}</p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-4 rounded-xl border-slate-200 font-bold text-xs"
+                onClick={() => {
+                  if (generatedStaffId) {
+                    navigator.clipboard.writeText(generatedStaffId)
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 2000)
+                  }
+                }}
+              >
+                {copied ? 'Copied!' : 'Copy to Clipboard'}
+              </Button>
+            </div>
+            <p className="text-slate-500 font-medium text-sm leading-relaxed mb-6">
+              Please write this down or copy it to log in to the Staff/Teacher Portal.
+            </p>
+            <Button
+              onClick={() => {
+                setShowSuccessModal(false)
+                router.push('/auth/signin')
+              }}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white h-14 rounded-2xl font-black text-lg"
+            >
+              Proceed to Sign In
+            </Button>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
