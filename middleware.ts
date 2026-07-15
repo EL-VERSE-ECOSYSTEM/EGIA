@@ -28,7 +28,12 @@ export async function middleware(request: NextRequest) {
 
   const userAgent = request.headers.get('user-agent') || ''
   const isPlaywright = userAgent.toLowerCase().includes('playwright') || userAgent.toLowerCase().includes('headlesschrome')
-  const isPDFBypass = pathname.startsWith('/dashboard/teacher/assessments/create/pdf') && isPlaywright
+  const isLocalHostName = request.nextUrl.hostname === 'localhost' || request.nextUrl.hostname === '127.0.0.1' || request.nextUrl.hostname === '::1' || request.nextUrl.hostname === '0.0.0.0'
+  const isPDFBypass = pathname.startsWith('/dashboard/teacher/assessments/create/pdf') && isPlaywright && isLocalHostName
+
+  if (pathname.startsWith('/dashboard/teacher/assessments/create/pdf')) {
+    console.log('MIDDLEWARE BYPASS DIAGNOSTIC: hostname =', request.nextUrl.hostname, 'isPlaywright =', isPlaywright, 'isLocalHostName =', isLocalHostName, 'isPDFBypass =', isPDFBypass)
+  }
 
   // Rate Limiting
   const ip = request.ip || request.headers.get('x-forwarded-for') || '127.0.0.1'

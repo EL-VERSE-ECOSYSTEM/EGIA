@@ -10,7 +10,18 @@ import { randomUUID } from 'crypto'
 export async function registerStudent(data: any) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
-  const { firstName, lastName, email, class: studentClass, password } = data
+  const {
+    firstName,
+    middleName,
+    lastName,
+    email,
+    class: studentClass,
+    dateOfBirth,
+    dateOfResumption,
+    subjectsDone,
+    profileImage,
+    password
+  } = data
 
   // Check if account already exists in database
   const existingUser = await db.query.user.findFirst({
@@ -47,6 +58,7 @@ export async function registerStudent(data: any) {
         id: userId,
         email: email,
         name: `${firstName} ${lastName}`,
+        image: profileImage || null
       })
 
       await tx.insert(userRole).values({
@@ -59,9 +71,14 @@ export async function registerStudent(data: any) {
         id: randomUUID(),
         userId: userId,
         firstName,
+        middleName: middleName || null,
         lastName,
         class: studentClass,
         admissionNumber,
+        dateOfBirth: dateOfBirth ? dateOfBirth : null,
+        dateOfResumption: dateOfResumption ? dateOfResumption : null,
+        subjectsDone: subjectsDone || null,
+        profileImage: profileImage || null
       })
     })
 
@@ -75,7 +92,7 @@ export async function registerStudent(data: any) {
 export async function registerParent(data: any) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
-  const { firstName, lastName, email, phone, password } = data
+  const { firstName, lastName, email, phone, occupation, profileImage, password } = data
 
   // Check if account already exists in database
   const existingUser = await db.query.user.findFirst({
@@ -109,6 +126,7 @@ export async function registerParent(data: any) {
         id: userId,
         email: email,
         name: `${firstName} ${lastName}`,
+        image: profileImage || null
       })
 
       await tx.insert(userRole).values({
@@ -123,6 +141,8 @@ export async function registerParent(data: any) {
         firstName,
         lastName,
         phoneNumber: phone,
+        occupation: occupation || null,
+        profileImage: profileImage || null
       })
     })
 

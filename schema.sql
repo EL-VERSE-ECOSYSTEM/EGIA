@@ -1148,3 +1148,17 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
   CONSTRAINT audit_log_pkey PRIMARY KEY (id),
   CONSTRAINT audit_log_userId_fkey FOREIGN KEY (userId) REFERENCES public.user(id)
 );
+
+CREATE TABLE IF NOT EXISTS public.report_card (
+  id text NOT NULL,
+  studentId text NOT NULL,
+  studentName text NOT NULL,
+  className text NOT NULL,
+  marks jsonb NOT NULL,
+  teacherRemarks text,
+  status text DEFAULT 'PENDING'::text,
+  adminFeedback text,
+  endorsedAt timestamp with time zone,
+  createdAt timestamp with time zone DEFAULT now(),
+  CONSTRAINT report_card_pkey PRIMARY KEY (id)
+);
