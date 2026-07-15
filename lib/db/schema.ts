@@ -20,13 +20,28 @@ export const userRole = pgTable('user_role', {
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
 ])
 
+export const reportCardTable = pgTable('report_card', {
+  id: text('id').primaryKey(),
+  studentId: text('studentId').notNull(),
+  studentName: text('studentName').notNull(),
+  className: text('className').notNull(),
+  marks: jsonb('marks').notNull(),
+  teacherRemarks: text('teacherRemarks'),
+  status: text('status').default('PENDING'), // PENDING, ENDORSED, REJECTED
+  adminFeedback: text('adminFeedback'),
+  endorsedAt: timestamp('endorsedAt'),
+  createdAt: timestamp('createdAt').defaultNow()
+})
+
 // ===== SCHOOL CORE TABLES =====
 export const student = pgTable('student', {
   id: text('id').primaryKey(),
   userId: text('userId').unique(),
   firstName: text('firstName').notNull(),
+  middleName: text('middleName'),
   lastName: text('lastName').notNull(),
   dateOfBirth: date('dateOfBirth'),
+  dateOfResumption: date('dateOfResumption'),
   gender: text('gender'),
   class: text('class').notNull(),
   arm: text('arm'),
@@ -36,6 +51,7 @@ export const student = pgTable('student', {
   termId: text('termId'),
   sessionId: text('sessionId'),
   profileImage: text('profileImage'),
+  subjectsDone: jsonb('subjectsDone'),
   isActive: boolean('isActive').default(true),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
@@ -52,8 +68,15 @@ export const teacher = pgTable('teacher', {
   lastName: text('lastName').notNull(),
   type: text('type').default('FULL_TIME'), // FULL_TIME, PART_TIME
   isClassTeacher: boolean('isClassTeacher').default(false),
+  isPartTime: boolean('isPartTime').default(false),
   assignedClassId: text('assignedClassId'),
   daysPresent: jsonb('daysPresent'),
+  handlingClasses: jsonb('handlingClasses'),
+  teachingSubjects: jsonb('teachingSubjects'),
+  presentDays: jsonb('presentDays'),
+  resumptionTime: text('resumptionTime'),
+  resumptionDate: date('resumptionDate'),
+  bio: text('bio'),
   applicationLetterUrl: text('applicationLetterUrl'),
   cvUrl: text('cvUrl'),
   qualification: text('qualification'),
@@ -74,6 +97,8 @@ export const parent = pgTable('parent', {
   lastName: text('lastName').notNull(),
   phoneNumber: text('phoneNumber'),
   address: text('address'),
+  profileImage: text('profileImage'),
+  occupation: text('occupation'),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

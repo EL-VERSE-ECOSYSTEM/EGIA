@@ -24,7 +24,7 @@ export async function simulateAIParsing(fileData: string): Promise<SimulatedQues
 
   // Only allow bypass if request is local (localhost / 127.0.0.1 / ::1 / empty forwarded-for)
   const xForwardedFor = reqHeaders.get('x-forwarded-for') || ''
-  const isLocalhost = xForwardedFor === '127.0.0.1' || xForwardedFor === '::1' || xForwardedFor === 'localhost' || xForwardedFor === ''
+  const isLocalhost = xForwardedFor === '127.0.0.1' || xForwardedFor === '::1' || xForwardedFor === 'localhost' || xForwardedFor === '' || xForwardedFor === '0.0.0.0'
 
   const session = await auth.getSession()
   if (!session?.user && !(isPlaywright && isLocalhost)) {

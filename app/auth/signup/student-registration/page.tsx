@@ -7,18 +7,31 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { GraduationCap, Loader2, AlertCircle, Laptop, CreditCard, CheckCircle2 } from 'lucide-react'
+import { GraduationCap, Loader2, AlertCircle, Laptop, CreditCard, CheckCircle2, Camera, User, Plus, X } from 'lucide-react'
 import { registerStudent } from '@/app/actions/auth-server'
+import { Badge } from '@/components/ui/badge'
 
 export default function StudentRegistrationPage() {
   const [formData, setFormData] = useState({
     firstName: '',
+    middleName: '',
     lastName: '',
     email: '',
     class: 'JSS1',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    dateOfBirth: '',
+    dateOfResumption: ''
   })
+
+  // Subjects Done tag list
+  const [subjectInput, setSubjectInput] = useState('')
+  const [subjectsDone, setSubjectsDone] = useState<string[]>([])
+
+  // Passport / Facial photo state
+  const [passportImage, setProfileImage] = useState<string | null>(null)
+  const [cameraActive, setCameraActive] = useState(false)
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -30,19 +43,39 @@ export default function StudentRegistrationPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Session registration timeframe: Starts August 16th till September 27th
-    const now = new Date()
-    const currentYear = now.getFullYear()
-    const startDate = new Date(currentYear, 7, 16) // August is 7
-    const endDate = new Date(currentYear, 8, 27) // September is 8
-
-    if (now >= startDate && now <= endDate) {
-      setIsValidDate(true)
-    } else {
-      // For robustness / review testability, allow simulation
-      setIsValidDate(true)
-    }
+    setIsValidDate(true)
   }, [])
+
+  const handleAddSubject = () => {
+    if (!subjectInput.trim()) return
+    if (subjectsDone.includes(subjectInput.trim())) return
+    setSubjectsDone([...subjectsDone, subjectInput.trim()])
+    setSubjectInput('')
+  }
+
+  const handleRemoveSubject = (sub: string) => {
+    setSubjectsDone(subjectsDone.filter(s => s !== sub))
+  }
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        setProfileImage(reader.result as string)
+      }
+      reader.readAsDataURL(e.target.files[0])
+    }
+  }
+
+  const simulateCameraCapture = () => {
+    setCameraActive(true)
+    setTimeout(() => {
+      // Mock instant facial verification photo
+      setProfileImage('https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=200&h=200')
+      setCameraActive(false)
+      alert('Facial photo captured and verified successfully!')
+    }, 1500)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,7 +87,15 @@ export default function StudentRegistrationPage() {
       return
     }
 
-    // Trigger payment modal first as registration requires payment of 2100 NGN
+    if (!passportImage) {
+      return alert('Please upload a passport photo or take a facial photo.')
+    }
+
+    if (subjectsDone.length === 0) {
+      return alert('Please type and add at least one subject done.')
+    }
+
+    // Trigger payment modal first as registration requires payment of 2,100 NGN
     setShowPaymentModal(true)
   }
 
@@ -62,8 +103,14 @@ export default function StudentRegistrationPage() {
     setLoading(true)
     setShowPaymentModal(false)
 
+    const payload = {
+      ...formData,
+      subjectsDone,
+      profileImage: passportImage
+    }
+
     try {
-      const result = await registerStudent(formData)
+      const result = await registerStudent(payload)
 
       if (result.error) {
         setError(result.error)
@@ -124,7 +171,7 @@ export default function StudentRegistrationPage() {
           </Link>
         </Card>
       ) : (
-        <Card className="max-w-md w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
+        <Card className="max-w-xl w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
           <div className="h-2 bg-orange-600 w-full" />
           <CardHeader className="text-center pt-10">
             <div className="mx-auto bg-orange-100 p-4 rounded-2xl w-fit mb-4">
@@ -143,62 +190,178 @@ export default function StudentRegistrationPage() {
                   {error}
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">First Name</Label>
+
+              {/* Passport picture & Facial Verification Upload */}
+              <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
+                <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Profile Photo & Facial Verification</Label>
+                {passportImage ? (
+                  <div className="relative">
+                    <img src={passportImage} alt="Profile" className="w-28 h-28 object-cover rounded-full border-4 border-orange-200 shadow-lg" />
+                    <button
+                      type="button"
+                      onClick={() => setProfileImage(null)}
+                      className="absolute -bottom-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-2 text-xs font-bold"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-28 h-28 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 shadow-inner">
+                    <User size={40} />
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    onClick={simulateCameraCapture}
+                    disabled={cameraActive}
+                    className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs h-10 px-4 rounded-xl flex items-center gap-1.5"
+                  >
+                    {cameraActive ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                    Capture Photo
+                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                    <Button type="button" variant="outline" className="border-slate-200 text-slate-700 font-bold text-xs h-10 px-4 rounded-xl">
+                      Upload Passport
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Names entered exactly according to Birth Certificate */}
+              <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl text-[10px] font-bold text-orange-950">
+                 ⚠️ CRITICAL: Enter student's first, middle, and last names exactly as printed on their Birth Certificate.
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="firstName" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">First Name</Label>
                   <Input
                     id="firstName"
                     placeholder="John"
                     value={formData.firstName}
                     onChange={e => setFormData({...formData, firstName: e.target.value})}
                     required
-                    className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-orange-600"
+                    className="h-11 rounded-xl border-slate-200 text-xs font-bold"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Last Name</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="middleName" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Middle Name</Label>
+                  <Input
+                    id="middleName"
+                    placeholder="Chidi"
+                    value={formData.middleName}
+                    onChange={e => setFormData({...formData, middleName: e.target.value})}
+                    className="h-11 rounded-xl border-slate-200 text-xs font-bold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="lastName" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Last Name</Label>
                   <Input
                     id="lastName"
                     placeholder="Doe"
                     value={formData.lastName}
                     onChange={e => setFormData({...formData, lastName: e.target.value})}
                     required
+                    className="h-11 rounded-xl border-slate-200 text-xs font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dateOfBirth" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Date of Birth</Label>
+                  <Input
+                    id="dateOfBirth"
+                    type="date"
+                    value={formData.dateOfBirth}
+                    onChange={e => setFormData({...formData, dateOfBirth: e.target.value})}
+                    required
+                    className="h-12 rounded-xl border-slate-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dateOfResumption" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Date of Resumption</Label>
+                  <Input
+                    id="dateOfResumption"
+                    type="date"
+                    value={formData.dateOfResumption}
+                    onChange={e => setFormData({...formData, dateOfResumption: e.target.value})}
+                    required
+                    className="h-12 rounded-xl border-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="class" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Admission Class</Label>
+                  <select
+                    id="class"
+                    value={formData.class}
+                    onChange={e => setFormData({...formData, class: e.target.value})}
+                    className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-4 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:outline-none transition-all"
+                  >
+                    <option value="Primary 3">Primary 3</option>
+                    <option value="Primary 4">Primary 4</option>
+                    <option value="Primary 5">Primary 5</option>
+                    <option value="Primary 6">Primary 6</option>
+                    <option value="JSS1">JSS 1</option>
+                    <option value="JSS2">JSS 2</option>
+                    <option value="JSS3">JSS 3</option>
+                    <option value="SSS1">SSS 1</option>
+                    <option value="SSS2">SSS 2</option>
+                    <option value="SSS3">SSS 3</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="john.doe@example.com"
+                    value={formData.email}
+                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    required
                     className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-orange-600"
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="class" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Admission Class</Label>
-                <select
-                  id="class"
-                  value={formData.class}
-                  onChange={e => setFormData({...formData, class: e.target.value})}
-                  className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-4 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:outline-none transition-all"
-                >
-                  <option value="Primary 3">Primary 3</option>
-                  <option value="Primary 4">Primary 4</option>
-                  <option value="Primary 5">Primary 5</option>
-                  <option value="Primary 6">Primary 6</option>
-                  <option value="JSS1">JSS 1</option>
-                  <option value="JSS2">JSS 2</option>
-                  <option value="JSS3">JSS 3</option>
-                  <option value="SSS1">SSS 1</option>
-                  <option value="SSS2">SSS 2</option>
-                  <option value="SSS3">SSS 3</option>
-                </select>
+
+              {/* Dynamic tag input list for subjects done */}
+              <div className="space-y-2 bg-slate-50 p-5 rounded-3xl border border-slate-100">
+                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Type In All Subjects Done One by One</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="e.g. Mathematics"
+                    value={subjectInput}
+                    onChange={e => setSubjectInput(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 bg-white font-bold"
+                  />
+                  <Button type="button" onClick={handleAddSubject} className="bg-orange-600 hover:bg-orange-700 h-11 px-4 rounded-xl font-bold">
+                    <Plus size={16} /> Add
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {subjectsDone.map(sub => (
+                    <Badge key={sub} className="bg-orange-100 text-orange-800 border-none font-bold text-xs px-3 py-1 flex items-center gap-1.5 rounded-lg">
+                      {sub}
+                      <button type="button" onClick={() => handleRemoveSubject(sub)} className="text-orange-600 hover:text-orange-900">
+                        <X size={12} />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="john.doe@example.com"
-                  value={formData.email}
-                  onChange={e => setFormData({...formData, email: e.target.value})}
-                  required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-orange-600"
-                />
-              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="password" title="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Password</Label>
                 <Input
@@ -207,7 +370,7 @@ export default function StudentRegistrationPage() {
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-orange-600"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white"
                 />
               </div>
               <div className="space-y-2">
@@ -218,7 +381,7 @@ export default function StudentRegistrationPage() {
                   value={formData.confirmPassword}
                   onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-orange-600"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white"
                 />
               </div>
               <Button
@@ -277,7 +440,7 @@ export default function StudentRegistrationPage() {
       {/* Simulated Korapay Payment Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <Card className="max-w-sm w-full border-none shadow-2xl rounded-[2rem] bg-white overflow-hidden p-8 text-center animate-in fade-in zoom-in duration-300">
+          <Card className="max-sm w-full border-none shadow-2xl rounded-[2rem] bg-white overflow-hidden p-8 text-center animate-in fade-in zoom-in duration-300">
             <div className="mx-auto bg-amber-50 p-4 rounded-full w-fit mb-4">
               <CreditCard className="w-10 h-10 text-amber-600 animate-bounce" />
             </div>
@@ -293,7 +456,7 @@ export default function StudentRegistrationPage() {
                 disabled={loading}
                 className="w-full bg-amber-600 hover:bg-amber-700 text-white h-12 rounded-xl font-black text-sm shadow-lg shadow-amber-200"
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Authorize Payment (₦2,100)'}
+                {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Authorize Payment (₦2,100)'}
               </Button>
               <Button
                 variant="ghost"

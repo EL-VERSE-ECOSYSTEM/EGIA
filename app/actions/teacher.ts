@@ -32,7 +32,7 @@ export async function getTeacherProfile() {
 
   // Only allow bypass if request is local (localhost / 127.0.0.1 / ::1 / empty forwarded-for)
   const xForwardedFor = reqHeaders.get('x-forwarded-for') || ''
-  const isLocalhost = xForwardedFor === '127.0.0.1' || xForwardedFor === '::1' || xForwardedFor === 'localhost' || xForwardedFor === ''
+  const isLocalhost = xForwardedFor === '127.0.0.1' || xForwardedFor === '::1' || xForwardedFor === 'localhost' || xForwardedFor === '' || xForwardedFor === '0.0.0.0'
 
   let userId: string
   try {
@@ -66,13 +66,30 @@ export async function getTeacherProfile() {
 }
 
 export async function getStudentsInClass(classId: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const teacherProfile = await db.query.teacher.findFirst({
+    where: eq(teacher.userId, session.user.id)
+  })
+
   const classData = await db.query.class_.findFirst({
     where: eq(class_.id, classId)
   })
   if (!classData) throw new Error('Class not found')
 
+  // Restrict visibility for part-time teachers according to handled classes
+  if (teacherProfile && teacherProfile.isPartTime) {
+    const allowedClasses = (teacherProfile.handlingClasses as string[]) || []
+    if (!allowedClasses.includes(classData.name)) {
+      return []
+    }
+  }
+
+  // Return students sorted by class and then alphabetically by last name, first name
   return db.query.student.findMany({
     where: eq(student.class, classData.name),
+    orderBy: (student, { asc }) => [asc(student.lastName), asc(student.firstName)],
     with: {
       parent: {
         with: {

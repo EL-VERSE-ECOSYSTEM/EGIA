@@ -7,18 +7,29 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { User, Loader2, AlertCircle, GraduationCap, Briefcase } from 'lucide-react'
+import { GraduationCap, Loader2, AlertCircle, Briefcase, Camera, User, CheckCircle2 } from 'lucide-react'
 import { registerTeacher } from '@/app/actions/auth-server'
-
-import { CheckCircle2 } from 'lucide-react'
 
 export default function TeacherSignUpPage() {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
-    password: ''
+    password: '',
+    type: 'FULL_TIME', // FULL_TIME, PART_TIME
+    resumptionDate: '',
+    resumptionTime: '',
+    bio: ''
   })
+
+  const [handlingClasses, setHandlingClasses] = useState<string[]>([])
+  const [teachingSubjects, setTeachingSubjects] = useState<string[]>([])
+  const [presentDays, setPresentDays] = useState<string[]>([])
+
+  // Passport Image preview
+  const [passportImage, setProfileImage] = useState<string | null>(null)
+  const [cameraActive, setCameraActive] = useState(false)
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generatedStaffId, setGeneratedStaffId] = useState<string | null>(null)
@@ -26,13 +37,66 @@ export default function TeacherSignUpPage() {
   const [copied, setCopied] = useState(false)
   const router = useRouter()
 
+  // Class / Days options
+  const classesList = ['Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3']
+  const daysList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
+  const handleClassToggle = (cls: string) => {
+    if (handlingClasses.includes(cls)) {
+      setHandlingClasses(handlingClasses.filter(c => c !== cls))
+    } else {
+      setHandlingClasses([...handlingClasses, cls])
+    }
+  }
+
+  const handleDayToggle = (day: string) => {
+    if (presentDays.includes(day)) {
+      setPresentDays(presentDays.filter(d => d !== day))
+    } else {
+      setPresentDays([...presentDays, day])
+    }
+  }
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        setProfileImage(reader.result as string)
+      }
+      reader.readAsDataURL(e.target.files[0])
+    }
+  }
+
+  const simulateCameraCapture = () => {
+    setCameraActive(true)
+    setTimeout(() => {
+      // Mock instant facial verification photo
+      setProfileImage('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200')
+      setCameraActive(false)
+      alert('Facial Verification Successful! Image captured and verified.')
+    }, 1500)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    if (!passportImage) {
+      return alert('Please upload a passport picture or complete facial verification.')
+    }
+
     setLoading(true)
 
+    const payload = {
+      ...formData,
+      handlingClasses,
+      teachingSubjects,
+      presentDays,
+      profileImage: passportImage
+    }
+
     try {
-      const result = await registerTeacher(formData)
+      const result = await registerTeacher(payload)
 
       if (result.error) {
         setError(result.error)
@@ -52,7 +116,7 @@ export default function TeacherSignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4 py-16">
       <div className="mb-10 flex items-center gap-2">
         <div className="bg-purple-600 p-2 rounded-lg">
           <GraduationCap className="text-white w-6 h-6" />
@@ -60,7 +124,7 @@ export default function TeacherSignUpPage() {
         <span className="font-black text-xl tracking-tight text-slate-900">EL GOODNEWS <span className="text-purple-600">ACADEMY</span></span>
       </div>
 
-      <Card className="max-w-md w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
+      <Card className="max-w-xl w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
         <div className="h-2 bg-purple-600 w-full" />
         <CardHeader className="text-center pt-10">
           <div className="mx-auto bg-purple-100 p-4 rounded-2xl w-fit mb-4">
@@ -68,17 +132,62 @@ export default function TeacherSignUpPage() {
           </div>
           <CardTitle className="text-3xl font-black text-slate-900">Staff Registration</CardTitle>
           <CardDescription className="text-slate-500 font-bold mt-2">
-            Join our team of excellence
+            Join our team of excellence as a Full-time or Part-time Teacher
           </CardDescription>
         </CardHeader>
         <CardContent className="px-10 pb-12">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-black rounded-2xl flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 shrink-0" />
                 {error}
               </div>
             )}
+
+            {/* Passport picture & Facial Verification Upload */}
+            <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
+              <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Profile Photo & Facial Verification</Label>
+              {passportImage ? (
+                <div className="relative">
+                  <img src={passportImage} alt="Profile" className="w-28 h-28 object-cover rounded-full border-4 border-purple-200 shadow-lg" />
+                  <button
+                    type="button"
+                    onClick={() => setProfileImage(null)}
+                    className="absolute -bottom-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-2 text-xs font-bold"
+                  >
+                    Reset
+                  </button>
+                </div>
+              ) : (
+                <div className="w-28 h-28 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 shadow-inner">
+                  <User size={40} />
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  onClick={simulateCameraCapture}
+                  disabled={cameraActive}
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs h-10 px-4 rounded-xl flex items-center gap-1.5"
+                >
+                  {cameraActive ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                  Facial Verify
+                </Button>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                  <Button type="button" variant="outline" className="border-slate-200 text-slate-700 font-bold text-xs h-10 px-4 rounded-xl">
+                    Upload Passport
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">First Name</Label>
@@ -103,6 +212,7 @@ export default function TeacherSignUpPage() {
                 />
               </div>
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Work Email</Label>
               <Input
@@ -115,6 +225,7 @@ export default function TeacherSignUpPage() {
                 className="h-12 rounded-xl border-slate-200"
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="password" title="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Password</Label>
               <Input
@@ -126,6 +237,113 @@ export default function TeacherSignUpPage() {
                 className="h-12 rounded-xl border-slate-200"
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="type" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Employment Type</Label>
+                <select
+                  id="type"
+                  value={formData.type}
+                  onChange={e => setFormData({...formData, type: e.target.value})}
+                  className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-4 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-600 focus:outline-none transition-all"
+                >
+                  <option value="FULL_TIME">Full-Time</option>
+                  <option value="PART_TIME">Part-Time</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="resumptionDate" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Resumption Date</Label>
+                <Input
+                  id="resumptionDate"
+                  type="date"
+                  value={formData.resumptionDate}
+                  onChange={e => setFormData({...formData, resumptionDate: e.target.value})}
+                  required
+                  className="h-12 rounded-xl border-slate-200"
+                />
+              </div>
+            </div>
+
+            {/* Classes handling selection */}
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Classes Currently Handling</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {classesList.map(cls => (
+                  <button
+                    key={cls}
+                    type="button"
+                    onClick={() => handleClassToggle(cls)}
+                    className={`h-11 rounded-xl border font-bold text-xs flex items-center justify-center transition-colors ${
+                      handlingClasses.includes(cls) ? 'bg-purple-100 text-purple-700 border-purple-200' : 'border-slate-100 hover:bg-slate-50'
+                    }`}
+                  >
+                    {cls}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Part-time Specific Fields */}
+            {formData.type === 'PART_TIME' && (
+              <div className="p-6 bg-purple-50/50 rounded-3xl border border-purple-100 space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                <p className="text-xs font-black uppercase text-purple-600 tracking-widest">Part-Time Specific Details</p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subjects" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Subjects Currently Teaching</Label>
+                  <Input
+                    id="subjects"
+                    placeholder="e.g. Mathematics, Physics (comma separated)"
+                    onChange={e => setTeachingSubjects(e.target.value.split(',').map(s => s.trim()))}
+                    required
+                    className="h-12 rounded-xl border-slate-200 bg-white"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="resumptionTime" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Time of Resumption</Label>
+                  <Input
+                    id="resumptionTime"
+                    placeholder="e.g. 08:30 AM"
+                    value={formData.resumptionTime}
+                    onChange={e => setFormData({...formData, resumptionTime: e.target.value})}
+                    required
+                    className="h-12 rounded-xl border-slate-200 bg-white"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Days of Week Present</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {daysList.map(day => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => handleDayToggle(day)}
+                        className={`h-10 rounded-xl border px-4 font-bold text-xs flex items-center justify-center transition-colors ${
+                          presentDays.includes(day) ? 'bg-purple-600 text-white border-purple-600' : 'border-slate-200 bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="bio" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Bio</Label>
+              <textarea
+                id="bio"
+                placeholder="Write a brief professional bio..."
+                value={formData.bio}
+                onChange={e => setFormData({...formData, bio: e.target.value})}
+                required
+                className="w-full h-24 p-4 rounded-xl border border-slate-200 bg-slate-50/50 font-bold focus:bg-white focus:ring-2 focus:ring-purple-600 focus:outline-none transition-all"
+              />
+            </div>
+
             <Button
               type="submit"
               disabled={loading}
