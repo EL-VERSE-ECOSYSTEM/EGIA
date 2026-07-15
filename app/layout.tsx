@@ -17,6 +17,11 @@ export const metadata: Metadata = {
   title: "EL GOODNEWS INT'L ACADEMY - Empowering Excellence",
   description: 'Complete school management system with CBT, assessments, and child monitoring.',
   generator: 'ELCODERS',
+  icons: {
+    icon: '/logo.svg',
+    shortcut: '/logo.svg',
+    apple: '/logo.svg',
+  }
 }
 
 export default function RootLayout({

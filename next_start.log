@@ -23,3 +23,4 @@ getTeacherProfile: getUserId() failed: Unauthorized
 getTeacherProfile: Bypassing auth for Playwright/Localhost
 simulateAIParsing: userAgent = Mozilla/5.0 Playwright HeadlessChrome isPlaywright = true xForwardedFor = ::1 isLocalhost = true
 simulateAIParsing: session user exists = false
+ ELIFECYCLE  Command failed.
