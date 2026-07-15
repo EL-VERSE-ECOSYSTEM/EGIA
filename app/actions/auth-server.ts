@@ -136,11 +136,7 @@ export async function registerParent(data: any) {
 export async function registerTeacher(data: any) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
-  const { firstName, lastName, email, staffCode, password } = data
-
-  if (!staffCode.startsWith('EGIA-ST')) {
-    return { error: 'Invalid staff verification code' }
-  }
+  const { firstName, lastName, email, password } = data
 
   // Check if account already exists in database
   const existingUser = await db.query.user.findFirst({
@@ -151,13 +147,17 @@ export async function registerTeacher(data: any) {
     return { error: 'Account already exists. An account with this email is already registered.' }
   }
 
+  // Generate dynamic unique 6-digit Staff ID
+  const staffCode = `EGIA-ST-${Math.floor(100000 + Math.random() * 900000)}`
+
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
         full_name: `${firstName} ${lastName}`,
-        role: 'TEACHER'
+        role: 'TEACHER',
+        staff_code: staffCode
       }
     }
   })
@@ -190,7 +190,7 @@ export async function registerTeacher(data: any) {
       })
     })
 
-    return { success: true }
+    return { success: true, staffCode }
   } catch (dbError: any) {
     return { error: 'DB registration failed' }
   }

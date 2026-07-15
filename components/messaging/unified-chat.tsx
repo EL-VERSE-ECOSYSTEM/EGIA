@@ -73,8 +73,12 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
     try {
       await sendMessage(selectedChat.id, text)
       fetchMessages(selectedChat.id)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error)
+      const errorMsg = error?.message || 'Failed to send message'
+      alert(errorMsg)
+      // Restore typed message so they can edit it
+      setNewMessage(text)
     }
   }
 
