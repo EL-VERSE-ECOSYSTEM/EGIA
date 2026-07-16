@@ -29,6 +29,7 @@ export default function TeacherSignUpPage() {
 
   // Passport Image preview
   const [passportImage, setProfileImage] = useState<string | null>(null)
+  const [facialVerificationVideo, setFacialVerificationVideo] = useState<string | null>(null)
   const [cameraActive, setCameraActive] = useState(false)
 
   const [loading, setLoading] = useState(false)
@@ -93,7 +94,8 @@ export default function TeacherSignUpPage() {
       handlingClasses,
       teachingSubjects,
       presentDays,
-      profileImage: passportImage
+      profileImage: passportImage,
+      facialVerificationVideo
     }
 
     try {
@@ -160,7 +162,10 @@ export default function TeacherSignUpPage() {
                   </button>
                 </div>
               ) : (
-                <FacialVerification onCapture={(img) => setProfileImage(img)} colorTheme="slate" />
+                  <FacialVerification onCapture={(img, video) => {
+                    setProfileImage(img)
+                    if (video) setFacialVerificationVideo(video)
+                  }} colorTheme="slate" />
               )}
 
               {!passportImage && (

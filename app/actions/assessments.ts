@@ -83,6 +83,38 @@ export async function submitCBT(assessmentId: string, studentId: string, answers
   return { resultId, totalScore, percentage, grade }
 }
 
+export async function saveProctoredAssessmentResult(data: {
+  assessmentId: string
+  studentId: string
+  score: number
+  totalQuestions: number
+  correctAnswers: number
+  timeSpent: number
+  status: string
+  assessmentVideo: string
+  warningCount: number
+  proctorLogs: any
+}) {
+  const resultId = crypto.randomUUID()
+
+  await db.insert(assessmentResult).values({
+    id: resultId,
+    assessmentId: data.assessmentId,
+    studentId: data.studentId,
+    score: String(data.score),
+    totalQuestions: data.totalQuestions,
+    correctAnswers: data.correctAnswers,
+    timeSpent: data.timeSpent,
+    status: data.status,
+    assessmentVideo: data.assessmentVideo || null,
+    warningCount: data.warningCount,
+    proctorLogs: data.proctorLogs || null,
+    createdAt: new Date()
+  })
+
+  return { success: true, resultId }
+}
+
 export async function getUpcomingAssessments(classId: string) {
   return db.query.assessment.findMany({
     where: eq(assessment.status, 'published'),

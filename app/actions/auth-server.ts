@@ -78,7 +78,8 @@ export async function registerStudent(data: any) {
         dateOfBirth: dateOfBirth ? dateOfBirth : null,
         dateOfResumption: dateOfResumption ? dateOfResumption : null,
         subjectsDone: subjectsDone || null,
-        profileImage: profileImage || null
+        profileImage: profileImage || null,
+        facialVerificationVideo: data.facialVerificationVideo || null
       })
     })
 
@@ -142,7 +143,8 @@ export async function registerParent(data: any) {
         lastName,
         phoneNumber: phone,
         occupation: occupation || null,
-        profileImage: profileImage || null
+        profileImage: profileImage || null,
+        facialVerificationVideo: data.facialVerificationVideo || null
       })
     })
 
@@ -208,7 +210,8 @@ export async function registerTeacher(data: any) {
         staffCode,
         firstName,
         lastName,
-        profileImage: profileImage || null
+        profileImage: profileImage || null,
+        facialVerificationVideo: data.facialVerificationVideo || null
       })
     })
 
