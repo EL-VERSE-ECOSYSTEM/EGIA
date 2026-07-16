@@ -96,3 +96,43 @@ params:
  POST /dashboard/student/results/report-card 200 in 762ms (next.js: 6ms, proxy.ts: 8ms, application-code: 748ms)
   └─ ƒ getReportCards() in 707ms actions/report-cards.ts
  GET /dashboard/student/games 200 in 244ms (next.js: 27ms, proxy.ts: 15ms, application-code: 202ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+ GET /dashboard/teacher/assessments/create/pdf 200 in 1817ms (next.js: 356ms, proxy.ts: 263ms, application-code: 1198ms)
+ GET /auth/signin 200 in 1333ms (next.js: 93ms, proxy.ts: 808ms, application-code: 432ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+ POST /dashboard/teacher/assessments/create/pdf 200 in 83ms (next.js: 16ms, proxy.ts: 19ms, application-code: 48ms)
+  └─ ƒ getTeacherProfile() in 19ms actions/teacher.ts
+ GET / 200 in 528ms (next.js: 19ms, proxy.ts: 19ms, application-code: 490ms)
+ GET /admissions 200 in 148ms (next.js: 16ms, proxy.ts: 7ms, application-code: 124ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+ GET /auth/signin 200 in 117ms (next.js: 7ms, proxy.ts: 4ms, application-code: 106ms)
+ GET / 200 in 354ms (next.js: 16ms, proxy.ts: 5ms, application-code: 333ms)
+ GET /auth/signin 200 in 103ms (next.js: 12ms, proxy.ts: 24ms, application-code: 67ms)
+[browser] Received `true` for a non-boolean attribute `collapsible`.
+
+If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
+ POST /dashboard/teacher/assessments/create/pdf 200 in 3.1s (next.js: 13ms, proxy.ts: 11ms, application-code: 3.0s)
+  └─ ƒ simulateAIParsing("mock-base64") in 3008ms actions/ai-parsing.ts
+ GET /auth/signin 200 in 77ms (next.js: 5ms, proxy.ts: 4ms, application-code: 68ms)
+ GET /auth/signin 200 in 87ms (next.js: 9ms, proxy.ts: 13ms, application-code: 66ms)
+ GET /auth/signin 200 in 71ms (next.js: 4ms, proxy.ts: 4ms, application-code: 63ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+ GET /auth/signin 200 in 240ms (next.js: 5ms, proxy.ts: 9ms, application-code: 226ms)
+ GET /dashboard/teacher/assessments/create/pdf 200 in 179ms (next.js: 14ms, proxy.ts: 9ms, application-code: 157ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+ POST /dashboard/teacher/assessments/create/pdf 200 in 183ms (next.js: 121ms, proxy.ts: 37ms, application-code: 25ms)
+  └─ ƒ getTeacherProfile() in 8ms actions/teacher.ts
+ GET / 200 in 363ms (next.js: 6ms, proxy.ts: 6ms, application-code: 351ms)
+ GET /admissions 200 in 96ms (next.js: 4ms, proxy.ts: 4ms, application-code: 88ms)
+ GET /auth/signin 200 in 98ms (next.js: 5ms, proxy.ts: 5ms, application-code: 87ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+ GET / 200 in 275ms (next.js: 3ms, proxy.ts: 4ms, application-code: 267ms)
+[browser] Received `true` for a non-boolean attribute `collapsible`.
+
+If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
+ GET /auth/signin 200 in 64ms (next.js: 13ms, proxy.ts: 9ms, application-code: 41ms)
+ POST /dashboard/teacher/assessments/create/pdf 200 in 3.1s (next.js: 6ms, proxy.ts: 9ms, application-code: 3.1s)
+  └─ ƒ simulateAIParsing("mock-base64") in 3006ms actions/ai-parsing.ts
+ GET /auth/signin 200 in 86ms (next.js: 20ms, proxy.ts: 5ms, application-code: 61ms)
+ GET /auth/signin 200 in 316ms (next.js: 187ms, proxy.ts: 11ms, application-code: 118ms)
+ GET /auth/signin 200 in 102ms (next.js: 7ms, proxy.ts: 6ms, application-code: 89ms)
