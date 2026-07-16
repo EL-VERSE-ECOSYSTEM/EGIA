@@ -18,6 +18,7 @@ import {
 import { getTeacherDashboardData, getTeacherProfile } from '@/lib/api/queries'
 import { auth } from '@/lib/auth'
 import Link from 'next/link'
+import { SubjectConfig } from '@/components/teacher/subject-config'
 
 export default async function TeacherOverviewPage() {
   const session = await auth.getSession()
@@ -72,6 +73,8 @@ export default async function TeacherOverviewPage() {
           </Card>
         ))}
       </div>
+
+      <SubjectConfig initialSubjects={(teacherProfile?.teachingSubjects as string[]) || []} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
          <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white">

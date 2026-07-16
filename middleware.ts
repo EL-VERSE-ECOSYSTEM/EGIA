@@ -29,7 +29,12 @@ export async function middleware(request: NextRequest) {
   const userAgent = request.headers.get('user-agent') || ''
   const isPlaywright = userAgent.toLowerCase().includes('playwright') || userAgent.toLowerCase().includes('headlesschrome')
   const isLocalHostName = request.nextUrl.hostname === 'localhost' || request.nextUrl.hostname === '127.0.0.1' || request.nextUrl.hostname === '::1' || request.nextUrl.hostname === '0.0.0.0'
-  const isPDFBypass = pathname.startsWith('/dashboard/teacher/assessments/create/pdf') && isPlaywright && isLocalHostName
+  const isPDFBypass = (
+    pathname.startsWith('/dashboard/teacher/assessments/create/pdf') ||
+    pathname.startsWith('/dashboard/student/results/report-card') ||
+    pathname.startsWith('/dashboard/parent/results/report-card') ||
+    pathname.startsWith('/dashboard/student/games')
+  ) && isPlaywright && isLocalHostName
 
   if (pathname.startsWith('/dashboard/teacher/assessments/create/pdf')) {
     console.log('MIDDLEWARE BYPASS DIAGNOSTIC: hostname =', request.nextUrl.hostname, 'isPlaywright =', isPlaywright, 'isLocalHostName =', isLocalHostName, 'isPDFBypass =', isPDFBypass)

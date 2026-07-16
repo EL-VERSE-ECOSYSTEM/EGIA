@@ -1,26 +1,54 @@
 
-> my-project@0.1.0 dev
+> my-project@0.1.0 dev /app
 > next dev
 
 ▲ Next.js 16.2.6 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
 - Environments: .env.local
-✓ Ready in 1172ms
-⚠ Turbopack's filesystem cache has been deleted because we previously detected an internal error in Turbopack. Builds or page loads may be slower as a result.
+✓ Ready in 819ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
 
-○ Compiling / ...
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+○ Compiling /dashboard/teacher/assessments/create/pdf ...
+ GET /dashboard/teacher/assessments/create/pdf 200 in 11.6s (next.js: 10.3s, proxy.ts: 250ms, application-code: 1026ms)
+ GET /auth/signin 200 in 11.4s (next.js: 11.1s, proxy.ts: 6ms, application-code: 303ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+DATABASE_URL is not set. Database operations will fail.
+ POST /dashboard/teacher/assessments/create/pdf 200 in 137ms (next.js: 6ms, proxy.ts: 16ms, application-code: 115ms)
+  └─ ƒ getTeacherProfile() in 12ms actions/teacher.ts
 Received `true` for a non-boolean attribute `collapsible`.
 
 If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
- GET /auth/signin 200 in 12.2s (next.js: 10.1s, proxy.ts: 5ms, application-code: 2.0s)
- GET / 200 in 13.7s (next.js: 10.5s, proxy.ts: 262ms, application-code: 2.9s)
- GET / 200 in 711ms (next.js: 60ms, proxy.ts: 89ms, application-code: 562ms)
- GET /auth/signin 200 in 340ms (next.js: 112ms, proxy.ts: 28ms, application-code: 200ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+ GET / 200 in 2.2s (next.js: 1294ms, proxy.ts: 6ms, application-code: 859ms)
+ GET /admissions 200 in 824ms (next.js: 654ms, proxy.ts: 6ms, application-code: 164ms)
+ GET /auth/signin 200 in 93ms (next.js: 4ms, proxy.ts: 9ms, application-code: 80ms)
+ POST /dashboard/teacher/assessments/create/pdf 200 in 3.1s (next.js: 21ms, proxy.ts: 23ms, application-code: 3.0s)
+  └─ ƒ simulateAIParsing("mock-base64") in 3008ms actions/ai-parsing.ts
+ GET / 200 in 337ms (next.js: 4ms, proxy.ts: 7ms, application-code: 326ms)
+ GET /auth/signin 200 in 106ms (next.js: 15ms, proxy.ts: 21ms, application-code: 70ms)
 [browser] Received `true` for a non-boolean attribute `collapsible`.
 
 If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
- GET /admissions 200 in 820ms (next.js: 651ms, proxy.ts: 11ms, application-code: 158ms)
- GET /auth/signin 200 in 71ms (next.js: 4ms, proxy.ts: 5ms, application-code: 62ms)
-[?25h
+ GET /auth/signin 200 in 69ms (next.js: 4ms, proxy.ts: 4ms, application-code: 61ms)
+ GET /auth/signin 200 in 426ms (next.js: 216ms, proxy.ts: 10ms, application-code: 200ms)
+ GET /auth/signin 200 in 74ms (next.js: 10ms, proxy.ts: 4ms, application-code: 60ms)
+ GET /auth/signin 200 in 101ms (next.js: 5ms, proxy.ts: 10ms, application-code: 86ms)
+ GET /auth/signin 200 in 83ms (next.js: 4ms, proxy.ts: 5ms, application-code: 74ms)
+ GET /auth/signin 200 in 95ms (next.js: 4ms, proxy.ts: 5ms, application-code: 85ms)
+ GET /auth/signin 200 in 83ms (next.js: 5ms, proxy.ts: 4ms, application-code: 75ms)
+ GET /auth/signin 200 in 84ms (next.js: 4ms, proxy.ts: 4ms, application-code: 76ms)
+✓ Compiled in 99ms
+ GET /dashboard/student/games 200 in 1309ms (next.js: 856ms, proxy.ts: 118ms, application-code: 335ms)
+ GET /dashboard/student/results/report-card 200 in 1426ms (next.js: 1192ms, proxy.ts: 7ms, application-code: 227ms)
+DATABASE_URL is not set. Database operations will fail.
+Database offline, falling back to memory report cards
+ POST /dashboard/student/results/report-card 200 in 88ms (next.js: 4ms, proxy.ts: 9ms, application-code: 75ms)
+  └─ ƒ getReportCards() in 11ms actions/report-cards.ts
+ GET /dashboard/student/games 200 in 114ms (next.js: 6ms, proxy.ts: 5ms, application-code: 103ms)

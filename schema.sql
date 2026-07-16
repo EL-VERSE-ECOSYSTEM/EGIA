@@ -917,7 +917,7 @@ CREATE TABLE IF NOT EXISTS public.assessment_question (
   correctAnswer text,
   points integer DEFAULT 1,
   explanation text,
-  order integer NOT NULL,
+  "order" integer NOT NULL,
   CONSTRAINT assessment_question_pkey PRIMARY KEY (id),
   CONSTRAINT assessment_question_assessmentId_fkey FOREIGN KEY (assessmentId) REFERENCES public.assessment(id)
 );
@@ -1158,6 +1158,8 @@ CREATE TABLE IF NOT EXISTS public.report_card (
   teacherRemarks text,
   status text DEFAULT 'PENDING'::text,
   adminFeedback text,
+  term text,
+  session text,
   endorsedAt timestamp with time zone,
   createdAt timestamp with time zone DEFAULT now(),
   CONSTRAINT report_card_pkey PRIMARY KEY (id)
