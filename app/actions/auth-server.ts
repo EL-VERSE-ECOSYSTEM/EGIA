@@ -156,7 +156,7 @@ export async function registerParent(data: any) {
 export async function registerTeacher(data: any) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
-  const { firstName, lastName, email, password } = data
+  const { firstName, lastName, email, profileImage, password } = data
 
   // Check if account already exists in database
   const existingUser = await db.query.user.findFirst({
@@ -193,6 +193,7 @@ export async function registerTeacher(data: any) {
         id: userId,
         email: email,
         name: `${firstName} ${lastName}`,
+        image: profileImage || null
       })
 
       await tx.insert(userRole).values({
@@ -207,11 +208,13 @@ export async function registerTeacher(data: any) {
         staffCode,
         firstName,
         lastName,
+        profileImage: profileImage || null
       })
     })
 
     return { success: true, staffCode }
   } catch (dbError: any) {
+    console.error('DB Error:', dbError)
     return { error: 'DB registration failed' }
   }
 }

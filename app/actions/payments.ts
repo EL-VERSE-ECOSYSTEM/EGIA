@@ -80,7 +80,7 @@ export async function initializeKorapayPayment(data: {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.KORAPAY_SECRET_KEY || 'sk_live_e9tiXn1oqUAPpT23YRF3BJPewmGKksuhkdEDPigu'}`
+        'Authorization': `Bearer ${process.env.KORAPAY_SECRET_KEY || ''}`
       },
       body: JSON.stringify(payload)
     })

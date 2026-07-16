@@ -27,80 +27,9 @@ export type ReportCard = {
   createdAt: string
 }
 
-// In-memory array fallback to prevent crashes if DB connection is offline during review/testing
-let memoryReportCards: ReportCard[] = [
-  {
-    id: 'card-1',
-    studentId: 'stud-1',
-    studentName: 'Amina Bello',
-    className: 'Primary 3',
-    marks: [
-      { subject: 'Mathematics', testScore: 28, examScore: 62, total: 90, grade: 'A' },
-      { subject: 'English Language', testScore: 24, examScore: 58, total: 82, grade: 'A' },
-      { subject: 'Basic Science', testScore: 22, examScore: 50, total: 72, grade: 'B' }
-    ],
-    teacherRemarks: 'Excellent performance. Highly focused.',
-    status: 'PENDING',
-    term: 'First Term',
-    session: '2026/2027',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'card-2',
-    studentId: 'stud-2',
-    studentName: 'Chinedu Okafor',
-    className: 'JSS 1',
-    marks: [
-      { subject: 'Mathematics', testScore: 18, examScore: 42, total: 60, grade: 'C' },
-      { subject: 'English Language', testScore: 25, examScore: 55, total: 80, grade: 'A' }
-    ],
-    teacherRemarks: 'A very brilliant term. Keep up the great work!',
-    status: 'ENDORSED',
-    term: 'First Term',
-    session: '2026/2027',
-    endorsedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'card-3',
-    studentId: 'stud-2',
-    studentName: 'Chinedu Okafor',
-    className: 'JSS 1',
-    marks: [
-      { subject: 'Mathematics', testScore: 22, examScore: 48, total: 70, grade: 'B' },
-      { subject: 'English Language', testScore: 21, examScore: 49, total: 70, grade: 'B' }
-    ],
-    teacherRemarks: 'Good result. You can do even better.',
-    status: 'ENDORSED',
-    term: 'Second Term',
-    session: '2026/2027',
-    endorsedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'card-4',
-    studentId: 'stud-1',
-    studentName: 'Amina Bello',
-    className: 'Primary 3',
-    marks: [
-      { subject: 'Mathematics', testScore: 29, examScore: 68, total: 97, grade: 'A' },
-      { subject: 'English Language', testScore: 26, examScore: 62, total: 88, grade: 'A' }
-    ],
-    teacherRemarks: 'Phenomenal progress! Outstanding academic standards.',
-    status: 'ENDORSED',
-    term: 'Second Term',
-    session: '2026/2027',
-    endorsedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString()
-  }
-]
-
 export async function getReportCards(): Promise<ReportCard[]> {
   try {
     const results = await db.select().from(reportCardTable)
-    if (results.length === 0) {
-      return memoryReportCards
-    }
     return results.map(r => ({
       id: r.id,
       studentId: r.studentId,
@@ -116,8 +45,8 @@ export async function getReportCards(): Promise<ReportCard[]> {
       createdAt: r.createdAt ? r.createdAt.toISOString() : new Date().toISOString()
     }))
   } catch (err) {
-    console.warn('Database offline, falling back to memory report cards')
-    return memoryReportCards
+    console.error('Failed to get report cards from DB:', err)
+    return []
   }
 }
 
@@ -135,23 +64,18 @@ export async function saveReportCard(data: Omit<ReportCard, 'id' | 'status' | 'c
     createdAt: new Date().toISOString()
   }
 
-  try {
-    await db.insert(reportCardTable).values({
-      id,
-      studentId: data.studentId,
-      studentName: data.studentName,
-      className: data.className,
-      marks: data.marks as any,
-      teacherRemarks: data.teacherRemarks,
-      status: 'PENDING',
-      term: data.term || 'First Term',
-      session: data.session || '2026/2027'
-    })
-  } catch (err) {
-    console.warn('Database insert failed, appending to memory')
-  }
+  await db.insert(reportCardTable).values({
+    id,
+    studentId: data.studentId,
+    studentName: data.studentName,
+    className: data.className,
+    marks: data.marks as any,
+    teacherRemarks: data.teacherRemarks,
+    status: 'PENDING',
+    term: data.term || 'First Term',
+    session: data.session || '2026/2027'
+  })
 
-  memoryReportCards.push(newCard)
   revalidatePath('/dashboard')
   return newCard
 }
@@ -160,62 +84,65 @@ export async function endorseReportCard(id: string, feedback?: string): Promise<
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
-  try {
-    await db.update(reportCardTable)
-      .set({
-        status: 'ENDORSED',
-        adminFeedback: feedback || 'Endorsed and approved by Academy Administration.',
-        endorsedAt: new Date()
-      })
-      .where(eq(reportCardTable.id, id))
-  } catch (err) {
-    console.warn('Database update failed for endorse, editing memory')
-  }
+  const adminFeedback = feedback || 'Endorsed and approved by Academy Administration.'
 
-  const cardIndex = memoryReportCards.findIndex(c => c.id === id)
-  if (cardIndex !== -1) {
-    memoryReportCards[cardIndex].status = 'ENDORSED'
-    memoryReportCards[cardIndex].adminFeedback = feedback || 'Endorsed and approved by Academy Administration.'
-    memoryReportCards[cardIndex].endorsedAt = new Date().toISOString()
-  }
+  await db.update(reportCardTable)
+    .set({
+      status: 'ENDORSED',
+      adminFeedback: adminFeedback,
+      endorsedAt: new Date()
+    })
+    .where(eq(reportCardTable.id, id))
+
+  const results = await db.select().from(reportCardTable).where(eq(reportCardTable.id, id)).limit(1)
+  const r = results[0]
+  if (!r) throw new Error('Report card not found')
 
   revalidatePath('/dashboard')
-  return memoryReportCards[cardIndex] || { id, ...dataFallback(id) } as any
+  return {
+    id: r.id,
+    studentId: r.studentId,
+    studentName: r.studentName,
+    className: r.className,
+    marks: r.marks as any,
+    teacherRemarks: r.teacherRemarks || '',
+    status: r.status as any,
+    adminFeedback: r.adminFeedback || null,
+    term: r.term || 'First Term',
+    session: r.session || '2026/2027',
+    endorsedAt: r.endorsedAt ? r.endorsedAt.toISOString() : null,
+    createdAt: r.createdAt ? r.createdAt.toISOString() : new Date().toISOString()
+  }
 }
 
 export async function rejectReportCard(id: string, feedback: string): Promise<ReportCard> {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
-  try {
-    await db.update(reportCardTable)
-      .set({
-        status: 'REJECTED',
-        adminFeedback: feedback
-      })
-      .where(eq(reportCardTable.id, id))
-  } catch (err) {
-    console.warn('Database update failed for reject, editing memory')
-  }
+  await db.update(reportCardTable)
+    .set({
+      status: 'REJECTED',
+      adminFeedback: feedback
+    })
+    .where(eq(reportCardTable.id, id))
 
-  const cardIndex = memoryReportCards.findIndex(c => c.id === id)
-  if (cardIndex !== -1) {
-    memoryReportCards[cardIndex].status = 'REJECTED'
-    memoryReportCards[cardIndex].adminFeedback = feedback
-  }
+  const results = await db.select().from(reportCardTable).where(eq(reportCardTable.id, id)).limit(1)
+  const r = results[0]
+  if (!r) throw new Error('Report card not found')
 
   revalidatePath('/dashboard')
-  return memoryReportCards[cardIndex] || { id, ...dataFallback(id) } as any
-}
-
-function dataFallback(id: string) {
   return {
-    studentId: 'stud-1',
-    studentName: 'Fallback Student',
-    className: 'Primary 3',
-    marks: [],
-    teacherRemarks: '',
-    status: 'PENDING',
-    createdAt: new Date().toISOString()
+    id: r.id,
+    studentId: r.studentId,
+    studentName: r.studentName,
+    className: r.className,
+    marks: r.marks as any,
+    teacherRemarks: r.teacherRemarks || '',
+    status: r.status as any,
+    adminFeedback: r.adminFeedback || null,
+    term: r.term || 'First Term',
+    session: r.session || '2026/2027',
+    endorsedAt: r.endorsedAt ? r.endorsedAt.toISOString() : null,
+    createdAt: r.createdAt ? r.createdAt.toISOString() : new Date().toISOString()
   }
 }
