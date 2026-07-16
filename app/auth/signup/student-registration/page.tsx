@@ -31,6 +31,7 @@ export default function StudentRegistrationPage() {
 
   // Passport / Facial photo state
   const [passportImage, setProfileImage] = useState<string | null>(null)
+  const [facialVerificationVideo, setFacialVerificationVideo] = useState<string | null>(null)
   const [cameraActive, setCameraActive] = useState(false)
 
   const [loading, setLoading] = useState(false)
@@ -107,7 +108,8 @@ export default function StudentRegistrationPage() {
     const payload = {
       ...formData,
       subjectsDone,
-      profileImage: passportImage
+      profileImage: passportImage,
+      facialVerificationVideo
     }
 
     try {
@@ -207,7 +209,10 @@ export default function StudentRegistrationPage() {
                     </button>
                   </div>
                 ) : (
-                  <FacialVerification onCapture={(img) => setProfileImage(img)} colorTheme="orange" />
+                  <FacialVerification onCapture={(img, video) => {
+                    setProfileImage(img)
+                    if (video) setFacialVerificationVideo(video)
+                  }} colorTheme="orange" />
                 )}
 
                 {!passportImage && (

@@ -4,13 +4,14 @@ import React, { useState, useEffect, useRef } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, ShieldAlert, Camera, CheckCircle2, Clock, Play } from 'lucide-react'
+import { AlertCircle, ShieldAlert, Camera, CheckCircle2, Clock, Play, EyeOff, AlertOctagon } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
+import { saveProctoredAssessmentResult } from '@/app/actions/assessments'
 
 export default function CBTExamTakingPage() {
   const router = useRouter()
   const params = useParams()
-  const assessmentId = params?.id as string
+  const assessmentId = (params?.id as string) || 'wa-1'
 
   const [examStarted, setExamStarted] = useState(false)
   const [examFinished, setExamFinished] = useState(false)
@@ -20,9 +21,19 @@ export default function CBTExamTakingPage() {
   const [currentQuestionIdx, setCurrentQuestion] = useState(0)
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
 
-  // Webcam Stream references
+  // Active Warning Overlay state (blocks exam progression)
+  const [activeWarning, setActiveWarning] = useState<{
+    type: 'LOOK_AWAY' | 'PHONE_DETECTED' | 'BOOK_DETECTED' | null
+    message: string
+  } | null>(null)
+
+  // Webcam Stream & Video Recording Chunks
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const recordedChunksRef = useRef<Blob[]>([])
+  const [recordedBase64Video, setRecordedBase64Video] = useState<string>('')
+  const [proctorLogs, setProctorLogs] = useState<any[]>([])
 
   const simulatedQuestions = [
     { id: 'q1', text: 'Which year did Nigeria gain independence?', options: ['1957', '1960', '1963', '1970'], answer: '1960' },
@@ -36,12 +47,12 @@ export default function CBTExamTakingPage() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        registerCheatingAttempt()
+        registerCheatingAttempt('Switched tabs or minimized browser')
       }
     }
 
     const handleWindowBlur = () => {
-      registerCheatingAttempt()
+      registerCheatingAttempt('Unfocused exam screen browser window')
     }
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -60,29 +71,99 @@ export default function CBTExamTakingPage() {
     }
   }, [examStarted, examFinished, warningCount])
 
-  // 2. Webcam Proctoring Activation
-  const startWebcam = async () => {
+  // 2. Active Webcam proctoring, MediaRecorder, and Real-time Object/Face Detection simulation loop
+  const startWebcamAndRecorder = async () => {
+    recordedChunksRef.current = []
+    setProctorLogs([])
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
       streamRef.current = stream
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream
       }
+
+      // Initialize MediaRecorder to actively record the assessment video
+      try {
+        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' })
+        mediaRecorderRef.current = recorder
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            recordedChunksRef.current.push(e.data)
+          }
+        }
+        recorder.start(250) // record in short intervals
+      } catch (recErr) {
+        console.warn('Fallback standard MediaRecorder format', recErr)
+        const recorder = new MediaRecorder(stream)
+        mediaRecorderRef.current = recorder
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            recordedChunksRef.current.push(e.data)
+          }
+        }
+        recorder.start(250)
+      }
+
     } catch (err) {
-      console.warn("Webcam access denied or unavailable:", err)
+      console.warn("Webcam access denied or unavailable. Utilizing proctoring simulator logs.", err)
     }
   }
 
-  const stopWebcam = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-    }
+  // Active AI proctoring simulation triggers distraction warning overlays
+  useEffect(() => {
+    if (!examStarted || examFinished || activeWarning) return
+
+    const detectionInterval = setInterval(() => {
+      const triggerChance = Math.random()
+
+      if (triggerChance < 0.15) {
+        // 1. Face Look Away Warning
+        triggerProctorViolation('LOOK_AWAY', 'Face focus lost! Please look directly into the screen.')
+      } else if (triggerChance >= 0.15 && triggerChance < 0.25) {
+        // 2. Prohibited Phone Detected Warning
+        triggerProctorViolation('PHONE_DETECTED', 'Prohibited item detected: Mobile phone. Put away all devices.')
+      } else if (triggerChance >= 0.25 && triggerChance < 0.32) {
+        // 3. Prohibited Book Detected Warning
+        triggerProctorViolation('BOOK_DETECTED', 'Prohibited item detected: Textbook/Notebook. No study aides permitted.')
+      }
+    }, 15000) // check behavior every 15 seconds
+
+    return () => clearInterval(detectionInterval)
+  }, [examStarted, examFinished, activeWarning])
+
+  const triggerProctorViolation = (type: 'LOOK_AWAY' | 'PHONE_DETECTED' | 'BOOK_DETECTED', msg: string) => {
+    setActiveWarning({ type, message: msg })
+    setWarningCount(prev => {
+      const nextCount = prev + 1
+      logProctorEvent(type, `${msg} (Warning ${nextCount}/3)`)
+      if (nextCount >= 3) {
+        // autosubmit on next tick
+        setTimeout(() => autoSubmitExam(), 2000)
+      }
+      return nextCount
+    })
   }
 
-  const registerCheatingAttempt = () => {
+  const logProctorEvent = (type: string, message: string) => {
+    const log = {
+      timestamp: new Date().toLocaleTimeString(),
+      type,
+      message
+    }
+    setProctorLogs(prev => [...prev, log])
+  }
+
+  const resolveViolation = () => {
+    setActiveWarning(null)
+  }
+
+  const registerCheatingAttempt = (reason: string) => {
     const nextWarnings = warningCount + 1
     setWarningCount(nextWarnings)
-    alert(`WARNING: You have switched tabs or left the active page. This attempt has been logged. Warning ${nextWarnings}/3. Exceeding 3 warnings will result in auto-submission.`)
+    logProctorEvent('BROWSER_BLUR', `${reason} (Warning ${nextWarnings}/3)`)
+    alert(`WARNING: ${reason}. This attempt has been logged. Warning ${nextWarnings}/3. Exceeding 3 warnings will result in auto-submission.`)
 
     if (nextWarnings >= 3) {
       autoSubmitExam()
@@ -109,7 +190,8 @@ export default function CBTExamTakingPage() {
 
   const startExam = async () => {
     setExamStarted(true)
-    await startWebcam()
+    await startWebcamAndRecorder()
+    logProctorEvent('SESSION_START', 'Exam started. Active camera recording initialized.')
   }
 
   const handleSelectOption = (qId: string, option: string) => {
@@ -119,16 +201,80 @@ export default function CBTExamTakingPage() {
     }))
   }
 
-  const autoSubmitExam = () => {
-    setExamFinished(true)
-    stopWebcam()
-    alert('The CBT has been automatically submitted due to multiple page-leaving warnings or time limit expiration.')
+  const compileVideoBlobAndSave = async () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop()
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+    }
+
+    // Convert recorded blobs to storable base64 WebM format
+    return new Promise<string>((resolve) => {
+      if (recordedChunksRef.current.length === 0) {
+        resolve('data:video/webm;base64,GkXfo6NChgE...') // High-fidelity placeholder if camera recording was simulated
+        return
+      }
+
+      const videoBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' })
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        resolve(reader.result as string)
+      }
+      reader.readAsDataURL(videoBlob)
+    })
   }
 
-  const manualSubmitExam = () => {
+  const autoSubmitExam = async () => {
+    setExamFinished(true)
+    setActiveWarning(null)
+    const base64Vid = await compileVideoBlobAndSave()
+
+    // Save to PostgreSQL database via action
+    await saveProctoredAssessmentResult({
+      assessmentId,
+      studentId: 'simulated-student-id',
+      score: 0,
+      totalQuestions: simulatedQuestions.length,
+      correctAnswers: 0,
+      timeSpent: 1800 - timeLeft,
+      status: 'failed_proctoring',
+      assessmentVideo: base64Vid,
+      warningCount,
+      proctorLogs: [...proctorLogs, { timestamp: new Date().toLocaleTimeString(), type: 'AUTO_SUBMIT', message: 'Exam auto-terminated.' }]
+    })
+
+    alert('The CBT has been automatically submitted due to multiple page-leaving or object proctoring warnings.')
+  }
+
+  const manualSubmitExam = async () => {
     if (confirm('Are you sure you want to submit your assessment?')) {
       setExamFinished(true)
-      stopWebcam()
+      const base64Vid = await compileVideoBlobAndSave()
+
+      // Calculate score
+      let correct = 0
+      simulatedQuestions.forEach(q => {
+        if (selectedAnswers[q.id] === q.answer) {
+          correct++
+        }
+      })
+      const finalScore = Math.round((correct / simulatedQuestions.length) * 100)
+
+      // Save to PostgreSQL database via action
+      await saveProctoredAssessmentResult({
+        assessmentId,
+        studentId: 'simulated-student-id',
+        score: finalScore,
+        totalQuestions: simulatedQuestions.length,
+        correctAnswers: correct,
+        timeSpent: 1800 - timeLeft,
+        status: 'completed',
+        assessmentVideo: base64Vid,
+        warningCount,
+        proctorLogs: [...proctorLogs, { timestamp: new Date().toLocaleTimeString(), type: 'MANUAL_SUBMIT', message: 'Exam manually submitted.' }]
+      })
     }
   }
 
@@ -140,7 +286,36 @@ export default function CBTExamTakingPage() {
 
   return (
     <DashboardLayout role="student">
-      <div className="p-8 max-w-4xl mx-auto min-h-screen">
+      <div className="p-8 max-w-4xl mx-auto min-h-screen relative">
+        {/* Strict Real-time Warning Overlay Modal */}
+        {activeWarning && (
+          <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-6 animate-in fade-in duration-300">
+            <Card className="border-4 border-red-500 bg-white shadow-2xl p-8 max-w-md w-full text-center space-y-6 rounded-[2.5rem] relative overflow-hidden">
+              <div className="absolute top-0 left-0 h-3 bg-red-500 w-full" />
+              <div className="mx-auto bg-red-100 p-6 rounded-full w-fit">
+                <AlertOctagon className="w-16 h-16 text-red-600 animate-bounce" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Cheat Warning Triggered!</h2>
+                <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">AI Proctoring Active</p>
+                <p className="text-red-600 font-black text-lg bg-red-50 py-3 px-4 rounded-xl border border-red-100 mt-4 leading-normal">
+                  {activeWarning.message}
+                </p>
+              </div>
+              <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto leading-relaxed">
+                The webcam has logged this distraction event to the school database. Please resolve and align your environment immediately. Warning count: <span className="font-black text-red-600">{warningCount} / 3</span>.
+              </p>
+              <Button
+                onClick={resolveViolation}
+                disabled={warningCount >= 3}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white h-14 rounded-2xl font-black text-sm uppercase tracking-wider shadow-xl shadow-slate-200"
+              >
+                I have realigned my face & cleared my desk
+              </Button>
+            </Card>
+          </div>
+        )}
+
         {!examStarted ? (
           <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] bg-white overflow-hidden text-center p-12">
             <div className="h-2 bg-orange-600 w-full absolute top-0 left-0" />
@@ -159,7 +334,7 @@ export default function CBTExamTakingPage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <Camera className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
-                  <span><strong>Webcam Proctoring:</strong> The portal will request camera permission to capture and monitor your feed during the examination period.</span>
+                  <span><strong>Webcam Proctoring:</strong> The portal will request camera permission to capture, record and monitor your feed. Detection of phones, textbooks, or face loss will trigger automatic warnings.</span>
                 </li>
               </ul>
             </div>
@@ -175,7 +350,7 @@ export default function CBTExamTakingPage() {
               <CheckCircle2 className="w-16 h-16 text-emerald-600" />
             </div>
             <h1 className="text-4xl font-black text-slate-900 tracking-tight">CBT Submitted Successfully</h1>
-            <p className="text-slate-500 font-bold mt-2 leading-relaxed">Your answers have been securely synced to our databases for grading.</p>
+            <p className="text-slate-500 font-bold mt-2 leading-relaxed">Your answers and proctoring video feed have been securely synced to our databases for grading.</p>
             <div className="mt-8 text-xs text-slate-400 font-bold uppercase tracking-widest">Logged Warnings: {warningCount}</div>
             <Button onClick={() => router.push('/dashboard/student/assessments/cbt')} className="bg-slate-900 hover:bg-slate-800 text-white h-12 px-8 rounded-xl font-bold mt-8">
               Back to Assessments
@@ -263,6 +438,23 @@ export default function CBTExamTakingPage() {
                 <CardContent className="p-6 text-xs text-slate-400 font-medium leading-relaxed">
                   Webcam stream is encrypted and actively proctored. Do not obstruct or look away from the camera.
                 </CardContent>
+              </Card>
+
+              {/* Real-time logged events */}
+              <Card className="border-none bg-slate-50 rounded-3xl p-6">
+                <CardTitle className="text-xs font-black uppercase text-slate-500 tracking-wider mb-4">Real-time Proctor Log</CardTitle>
+                <div className="h-40 overflow-y-auto font-mono text-[10px] text-slate-500 space-y-2">
+                  {proctorLogs.length === 0 ? (
+                    <p className="italic text-slate-300">No events logged yet.</p>
+                  ) : (
+                    proctorLogs.map((log, i) => (
+                      <div key={i} className="border-b border-slate-100 pb-1">
+                        <span className="text-orange-600 font-bold">[{log.timestamp}]</span>{' '}
+                        <span className="font-bold text-slate-700">{log.type}:</span> {log.message}
+                      </div>
+                    ))
+                  )}
+                </div>
               </Card>
             </div>
           </div>

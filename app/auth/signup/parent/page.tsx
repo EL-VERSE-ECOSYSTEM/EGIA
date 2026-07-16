@@ -31,6 +31,7 @@ export default function ParentSignUpPage() {
 
   // Profile image upload
   const [profileImage, setProfileImage] = useState<string | null>(null)
+  const [facialVerificationVideo, setFacialVerificationVideo] = useState<string | null>(null)
   const [cameraActive, setCameraActive] = useState(false)
 
   const [loading, setLoading] = useState(false)
@@ -90,7 +91,8 @@ export default function ParentSignUpPage() {
 
     const payload = {
       ...formData,
-      profileImage
+      profileImage,
+      facialVerificationVideo
     }
 
     try {
@@ -155,7 +157,10 @@ export default function ParentSignUpPage() {
                   </button>
                 </div>
               ) : (
-                <FacialVerification onCapture={(img) => setProfileImage(img)} colorTheme="emerald" />
+                <FacialVerification onCapture={(img, video) => {
+                  setProfileImage(img)
+                  if (video) setFacialVerificationVideo(video)
+                }} colorTheme="emerald" />
               )}
 
               {!profileImage && (
