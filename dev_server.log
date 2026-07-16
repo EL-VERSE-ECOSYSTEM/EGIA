@@ -52,3 +52,47 @@ Database offline, falling back to memory report cards
  POST /dashboard/student/results/report-card 200 in 88ms (next.js: 4ms, proxy.ts: 9ms, application-code: 75ms)
   └─ ƒ getReportCards() in 11ms actions/report-cards.ts
  GET /dashboard/student/games 200 in 114ms (next.js: 6ms, proxy.ts: 5ms, application-code: 103ms)
+✓ Compiled in 2.8s
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+ GET /dashboard/teacher/assessments/create/pdf 200 in 4.0s (next.js: 2.0s, proxy.ts: 487ms, application-code: 1444ms)
+ GET /auth/signin 200 in 3.3s (next.js: 2.8s, proxy.ts: 113ms, application-code: 397ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+DATABASE_URL is not set. Database operations will fail.
+ POST /dashboard/teacher/assessments/create/pdf 200 in 332ms (next.js: 150ms, proxy.ts: 118ms, application-code: 65ms)
+  └─ ƒ getTeacherProfile() in 6ms actions/teacher.ts
+ GET / 200 in 838ms (next.js: 106ms, proxy.ts: 8ms, application-code: 724ms)
+ GET /admissions 200 in 215ms (next.js: 45ms, proxy.ts: 5ms, application-code: 164ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+ GET /auth/signin 200 in 91ms (next.js: 4ms, proxy.ts: 5ms, application-code: 82ms)
+ GET / 200 in 341ms (next.js: 4ms, proxy.ts: 5ms, application-code: 332ms)
+ GET /auth/signin 200 in 100ms (next.js: 7ms, proxy.ts: 15ms, application-code: 77ms)
+[browser] Received `true` for a non-boolean attribute `collapsible`.
+
+If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
+ POST /dashboard/teacher/assessments/create/pdf 200 in 3.0s (next.js: 6ms, proxy.ts: 10ms, application-code: 3.0s)
+  └─ ƒ simulateAIParsing("mock-base64") in 3009ms actions/ai-parsing.ts
+ GET /auth/signin 200 in 74ms (next.js: 4ms, proxy.ts: 4ms, application-code: 66ms)
+ GET /auth/signin 200 in 69ms (next.js: 5ms, proxy.ts: 4ms, application-code: 59ms)
+ GET /auth/signin 200 in 87ms (next.js: 5ms, proxy.ts: 5ms, application-code: 78ms)
+ GET /dashboard/student/results/report-card 200 in 285ms (next.js: 41ms, proxy.ts: 9ms, application-code: 236ms)
+Failed to get report cards from DB: Error: Failed query: select "id", "studentId", "studentName", "className", "marks", "teacherRemarks", "status", "adminFeedback", "term", "session", "endorsedAt", "createdAt" from "report_card"
+params:
+    at async getReportCards (app/actions/report-cards.ts:32:21)
+  30 | export async function getReportCards(): Promise<ReportCard[]> {
+  31 |   try {
+> 32 |     const results = await db.select().from(reportCardTable)
+     |                     ^
+  33 |     return results.map(r => ({
+  34 |       id: r.id,
+  35 |       studentId: r.studentId, {
+  query: 'select "id", "studentId", "studentName", "className", "marks", "teacherRemarks", "status", "adminFeedback", "term", "session", "endorsedAt", "createdAt" from "report_card"',
+  params: [],
+  [cause]: AggregateError:
+      at ignore-listed frames {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+ POST /dashboard/student/results/report-card 200 in 762ms (next.js: 6ms, proxy.ts: 8ms, application-code: 748ms)
+  └─ ƒ getReportCards() in 707ms actions/report-cards.ts
+ GET /dashboard/student/games 200 in 244ms (next.js: 27ms, proxy.ts: 15ms, application-code: 202ms)

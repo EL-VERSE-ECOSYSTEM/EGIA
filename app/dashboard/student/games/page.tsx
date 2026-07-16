@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Gamepad2, Trophy, Clock, RefreshCw, Star, HelpCircle, ChevronRight, Check, AlertCircle } from 'lucide-react'
+import { Gamepad2, Trophy, Clock, RefreshCw, Star, HelpCircle, ChevronRight, Check, AlertCircle, Sparkles } from 'lucide-react'
 
 // Game Types
-type GameType = 'CHESS' | 'MATH' | 'SCRAMBLE' | 'HOME'
+type GameType = 'CHESS' | 'MATH' | 'SCRAMBLE' | 'SUDOKU' | 'TRIVIA' | 'HOME'
 
 // Chess types
 type PieceType = 'p' | 'r' | 'n' | 'b' | 'q' | 'k' | ''
@@ -43,7 +43,7 @@ export default function StudentGamesPage() {
         </div>
 
         {activeGame === 'HOME' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
             {/* Chess Card */}
             <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 rounded-[2.5rem] bg-white overflow-hidden flex flex-col justify-between group">
               <div className="h-3 bg-purple-600 w-full" />
@@ -109,6 +109,50 @@ export default function StudentGamesPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Sudoku Challenge Card */}
+            <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 rounded-[2.5rem] bg-white overflow-hidden flex flex-col justify-between group">
+              <div className="h-3 bg-blue-600 w-full" />
+              <CardContent className="p-8 flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="w-16 h-16 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-black text-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
+                    🧩
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-2">Sudoku Logic Puzzle</h3>
+                  <p className="text-slate-500 font-medium text-sm leading-relaxed mb-6">
+                    Challenge your logical brain with the famous Sudoku! Arrange numbers 1 to 4 correctly so they never repeat in rows, columns, or grids.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setActiveGame('SUDOKU')}
+                  className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-xs uppercase tracking-widest"
+                >
+                  PLAY SUDOKU <ChevronRight size={14} className="ml-1" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Subject Trivia Card */}
+            <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 rounded-[2.5rem] bg-white overflow-hidden flex flex-col justify-between group">
+              <div className="h-3 bg-pink-600 w-full" />
+              <CardContent className="p-8 flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="w-16 h-16 rounded-2xl bg-pink-100 text-pink-600 flex items-center justify-center font-black text-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
+                    💡
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-2">Subject Trivia Master</h3>
+                  <p className="text-slate-500 font-medium text-sm leading-relaxed mb-6">
+                    Prove your knowledge! Answer rapid quizzes spanning Mathematics, Science, Literature, History, and Geography with detailed explanations!
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setActiveGame('TRIVIA')}
+                  className="w-full h-12 bg-pink-600 hover:bg-pink-700 text-white font-black rounded-xl text-xs uppercase tracking-widest"
+                >
+                  START TRIVIA <ChevronRight size={14} className="ml-1" />
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -120,6 +164,12 @@ export default function StudentGamesPage() {
 
         {/* Word Scramble Challenge */}
         {activeGame === 'SCRAMBLE' && <WordScramble onBack={() => setActiveGame('HOME')} />}
+
+        {/* Sudoku Challenge */}
+        {activeGame === 'SUDOKU' && <SudokuGame onBack={() => setActiveGame('HOME')} />}
+
+        {/* Trivia Game */}
+        {activeGame === 'TRIVIA' && <TriviaGame onBack={() => setActiveGame('HOME')} />}
       </div>
     </DashboardLayout>
   )
@@ -371,7 +421,7 @@ function ChessGame({ onBack }: { onBack: () => void }) {
               </div>
             ) : (
               <div className="p-4 bg-purple-50 border border-purple-100 rounded-xl text-purple-800 text-sm font-black flex items-center gap-2">
-                🎮 TURN: {turn === 'w' ? 'White (You)' : 'Black (AIThinking...)'}
+                🎮 TURN: {turn === 'w' ? 'White (You)' : 'Black (AI Thinking...)'}
               </div>
             )}
 
@@ -498,7 +548,7 @@ function MathChallenge({ onBack }: { onBack: () => void }) {
       </div>
 
       {gameState === 'START' && (
-        <div className="py-12 flex flex-col items-center justify-center space-y-6 text-center">
+        <div className="py-12 flex flex-col items-center justify-center space-y-6 text-center animate-in zoom-in-95">
           <div className="w-24 h-24 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-black text-4xl">
             ⏱
           </div>
@@ -721,6 +771,306 @@ function WordScramble({ onBack }: { onBack: () => void }) {
             <Badge className="bg-emerald-600 text-white font-black text-base px-4 py-1.5 rounded-xl">
               {score} PTS
             </Badge>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+/* ====================================================================
+   4. SUDOKU LOGIC PUZZLE (4x4)
+   ==================================================================== */
+function SudokuGame({ onBack }: { onBack: () => void }) {
+  // A standard valid 4x4 Sudoku template
+  // Rows:
+  // [1, 2, 3, 4]
+  // [3, 4, 1, 2]
+  // [2, 3, 4, 1]
+  // [4, 1, 2, 3]
+  const solution = [
+    [1, 2, 3, 4],
+    [3, 4, 1, 2],
+    [2, 3, 4, 1],
+    [4, 1, 2, 3]
+  ]
+
+  // Mask some elements to create a playable puzzle
+  const initialGrid = [
+    [1, 0, 3, 0],
+    [0, 4, 0, 2],
+    [2, 0, 4, 0],
+    [0, 1, 0, 3]
+  ]
+
+  const [grid, setGrid] = useState<number[][]>(initialGrid.map(row => [...row]))
+  const [score, setScore] = useState(0)
+  const [status, setStatus] = useState<'PLAYING' | 'SOLVED' | 'INVALID'>('PLAYING')
+
+  const handleChange = (r: number, c: number, val: string) => {
+    if (initialGrid[r][c] !== 0) return // locked cells
+    const num = parseInt(val)
+    const newGrid = grid.map(row => [...row])
+    if (isNaN(num) || num < 1 || num > 4) {
+      newGrid[r][c] = 0
+    } else {
+      newGrid[r][c] = num
+    }
+    setGrid(newGrid)
+    setStatus('PLAYING')
+  }
+
+  const checkSolution = () => {
+    let matches = true
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (grid[r][c] !== solution[r][c]) {
+          matches = false
+        }
+      }
+    }
+
+    if (matches) {
+      setStatus('SOLVED')
+      setScore(prev => prev + 50)
+      alert('Congratulations! Correctly Solved! +50 Points')
+    } else {
+      setStatus('INVALID')
+      alert('Some numbers are repeating or placed incorrectly according to Sudoku logic. Look closely and try again!')
+    }
+  }
+
+  const showSolution = () => {
+    setGrid(solution.map(row => [...row]))
+    setStatus('SOLVED')
+  }
+
+  const resetGame = () => {
+    setGrid(initialGrid.map(row => [...row]))
+    setStatus('PLAYING')
+  }
+
+  return (
+    <Card className="border-none shadow-2xl rounded-[2.5rem] bg-white overflow-hidden p-8 space-y-6">
+      <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+        <div>
+          <button onClick={onBack} className="text-blue-600 font-black text-xs uppercase tracking-widest hover:underline mb-2 block">
+            ← BACK TO ARENA
+          </button>
+          <CardTitle className="text-3xl font-black text-slate-900">4x4 Sudoku Logic Puzzle 🧩</CardTitle>
+          <p className="text-slate-400 font-bold text-xs mt-0.5">Arrange numbers 1-4. No repeating values in rows, columns, or 2x2 grids!</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={resetGame} variant="outline" className="border-2 border-blue-100 text-blue-600 font-black rounded-xl text-xs h-10">
+            <RefreshCw size={12} className="mr-1" /> RESET
+          </Button>
+          <Button onClick={showSolution} variant="ghost" className="text-slate-500 font-black hover:bg-slate-100 rounded-xl text-xs h-10">
+            SOLVE
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-2 flex flex-col items-center justify-center p-8 bg-slate-50 rounded-3xl border border-slate-100">
+          <div className="grid grid-cols-2 gap-1 bg-slate-300 p-1 rounded-2xl border-4 border-slate-900">
+            {/* 2x2 Quadrant groupings */}
+            {[0, 1].map((quadRow) => (
+              <div key={quadRow} className="grid grid-cols-2 gap-1">
+                {[0, 1].map((quadCol) => {
+                  const startRow = quadRow * 2
+                  const startCol = quadCol * 2
+                  return (
+                    <div key={quadCol} className="grid grid-cols-2 gap-1 bg-white p-1 rounded-lg">
+                      {[0, 1].map((rOffset) => {
+                        const r = startRow + rOffset
+                        return [0, 1].map((cOffset) => {
+                          const c = startCol + cOffset
+                          const isLocked = initialGrid[r][c] !== 0
+                          const cellVal = grid[r][c]
+                          return (
+                            <input
+                              key={`${r}-${c}`}
+                              type="text"
+                              maxLength={1}
+                              disabled={isLocked}
+                              value={cellVal === 0 ? '' : cellVal}
+                              onChange={(e) => handleChange(r, c, e.target.value)}
+                              className={`w-14 h-14 text-2xl font-black text-center rounded-xl focus:ring-4 focus:ring-blue-600 border border-slate-200 outline-none transition-all
+                                ${isLocked ? 'bg-slate-100 text-slate-800 border-none' : 'text-blue-600 bg-white font-mono'}
+                              `}
+                            />
+                          )
+                        })
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+
+          <Button
+            onClick={checkSolution}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-black h-12 px-8 rounded-xl mt-6 tracking-wider shadow-lg shadow-blue-100"
+          >
+            VERIFY MY PUZZLE
+          </Button>
+        </div>
+
+        <div className="space-y-6">
+          <div className="p-6 bg-blue-50/50 border border-blue-100 rounded-3xl space-y-4">
+            <h4 className="font-black text-xs uppercase text-blue-800 tracking-wider">How to Play</h4>
+            <p className="text-slate-700 font-semibold leading-relaxed text-xs">
+              1. Cells pre-filled with dark letters are locked.
+              <br />
+              2. Type any number 1 to 4 into the white cells.
+              <br />
+              3. Check solution when fully filled!
+            </p>
+          </div>
+
+          <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl flex justify-between items-center">
+            <span className="text-xs font-black uppercase text-slate-400 tracking-wider">Puzzles Solved</span>
+            <Badge className="bg-blue-600 text-white font-black text-base px-4 py-1.5 rounded-xl">
+              {score} PTS
+            </Badge>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+/* ====================================================================
+   5. SUBJECT TRIVIA QUIZ MASTER
+   ==================================================================== */
+function TriviaGame({ onBack }: { onBack: () => void }) {
+  const quizQuestions = [
+    {
+      q: 'Which of the following is the standard unit of force?',
+      options: ['Watt', 'Joule', 'Newton', 'Pascal'],
+      answer: 'Newton',
+      explanation: 'Newton (N) is the SI unit of force named in honor of Sir Isaac Newton and his works on gravitational laws.'
+    },
+    {
+      q: 'Solve for x: 3x + 12 = 27',
+      options: ['x = 3', 'x = 5', 'x = 7', 'x = 9'],
+      answer: 'x = 5',
+      explanation: 'Subtract 12 from both sides: 3x = 15. Divide by 3: x = 5.'
+    },
+    {
+      q: 'What gas do plants absorb from the air to facilitate photosynthesis?',
+      options: ['Oxygen', 'Nitrogen', 'Carbon Dioxide', 'Hydrogen'],
+      answer: 'Carbon Dioxide',
+      explanation: 'Plants absorb Carbon Dioxide (CO2) from the air to build glucose during standard dark/light cycle photosynthesis.'
+    },
+    {
+      q: 'Who was the first president of Nigeria?',
+      options: ['Nnamdi Azikiwe', 'Obafemi Awolowo', 'Tafawa Balewa', 'Ahmadu Bello'],
+      answer: 'Nnamdi Azikiwe',
+      explanation: 'Dr. Nnamdi Azikiwe became the first ceremonial President of Nigeria on November 16, 1963.'
+    }
+  ]
+
+  const [qIdx, setQIdx] = useState(0)
+  const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  const [showAnswer, setShowAnswer] = useState(false)
+  const [score, setScore] = useState(0)
+
+  const handleOptionSelect = (opt: string) => {
+    if (showAnswer) return
+    setSelectedOption(opt)
+  }
+
+  const handleVerify = () => {
+    if (!selectedOption) return
+    setShowAnswer(true)
+    if (selectedOption === quizQuestions[qIdx].answer) {
+      setScore(prev => prev + 25)
+    }
+  }
+
+  const handleNext = () => {
+    setSelectedOption(null)
+    setShowAnswer(false)
+    setQIdx(prev => (prev + 1) % quizQuestions.length)
+  }
+
+  const current = quizQuestions[qIdx]
+
+  return (
+    <Card className="border-none shadow-2xl rounded-[2.5rem] bg-white overflow-hidden p-8 space-y-6">
+      <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+        <div>
+          <button onClick={onBack} className="text-pink-600 font-black text-xs uppercase tracking-widest hover:underline mb-2 block">
+            ← BACK TO ARENA
+          </button>
+          <CardTitle className="text-3xl font-black text-slate-900">Subject Trivia Master 💡</CardTitle>
+          <p className="text-slate-400 font-bold text-xs mt-0.5">Answer core academic questions correctly to build elite scholarship skills!</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-2 space-y-8 flex flex-col items-start py-8 px-10 bg-slate-50 border border-slate-100 rounded-3xl">
+          <div className="text-xs font-black uppercase text-pink-600 tracking-widest">
+            Question {qIdx + 1} of {quizQuestions.length}
+          </div>
+          <div className="text-2xl font-black text-slate-900 leading-snug">
+            {current.q}
+          </div>
+
+          <div className="w-full space-y-3">
+            {current.options.map((opt) => {
+              const isSelected = selectedOption === opt
+              const isCorrect = opt === current.answer
+
+              let styleClass = 'border-slate-100 bg-white hover:border-pink-200'
+              if (isSelected) styleClass = 'border-pink-600 bg-pink-50'
+              if (showAnswer && isCorrect) styleClass = 'border-emerald-500 bg-emerald-50 text-emerald-800'
+              if (showAnswer && isSelected && !isCorrect) styleClass = 'border-red-500 bg-red-50 text-red-800'
+
+              return (
+                <div
+                  key={opt}
+                  onClick={() => handleOptionSelect(opt)}
+                  className={`p-5 rounded-2xl border-2 font-black text-sm cursor-pointer transition-all flex items-center justify-between ${styleClass}`}
+                >
+                  <span>{opt}</span>
+                  {showAnswer && isCorrect && <Check size={18} className="text-emerald-600 shrink-0" />}
+                </div>
+              )
+            })}
+          </div>
+
+          {!showAnswer ? (
+            <Button
+              onClick={handleVerify}
+              disabled={!selectedOption}
+              className="bg-pink-600 hover:bg-pink-700 text-white font-black h-12 px-8 rounded-xl shadow-lg shadow-pink-100"
+            >
+              SUBMIT & VERIFY
+            </Button>
+          ) : (
+            <Button onClick={handleNext} className="bg-slate-900 hover:bg-slate-800 text-white font-black h-12 px-8 rounded-xl shadow-lg">
+              NEXT QUESTION
+            </Button>
+          )}
+
+          {showAnswer && (
+            <div className="p-6 bg-pink-50/50 border border-pink-100 rounded-2xl w-full animate-in slide-in-from-bottom-2 space-y-2">
+              <p className="text-xs font-black uppercase text-pink-600 tracking-wider">Academic Explanation</p>
+              <p className="text-xs text-slate-700 leading-relaxed font-semibold">
+                {current.explanation}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <div className="p-6 bg-pink-50 border border-pink-100 rounded-3xl space-y-2 text-center">
+            <Trophy size={48} className="text-pink-600 mx-auto animate-pulse" />
+            <h4 className="font-black text-xs uppercase text-pink-800 tracking-wider mt-2">Scholar Score</h4>
+            <p className="text-3xl font-black text-slate-900">{score} PTS</p>
           </div>
         </div>
       </div>
