@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { GraduationCap, Loader2, AlertCircle, Laptop, CreditCard, CheckCircle2, Camera, User, Plus, X } from 'lucide-react'
 import { registerStudent } from '@/app/actions/auth-server'
 import { Badge } from '@/components/ui/badge'
+import { FacialVerification } from '@/components/auth/facial-verification'
 
 export default function StudentRegistrationPage() {
   const [formData, setFormData] = useState({
@@ -206,33 +207,25 @@ export default function StudentRegistrationPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="w-28 h-28 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 shadow-inner">
-                    <User size={40} />
-                  </div>
+                  <FacialVerification onCapture={(img) => setProfileImage(img)} colorTheme="orange" />
                 )}
 
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    onClick={simulateCameraCapture}
-                    disabled={cameraActive}
-                    className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs h-10 px-4 rounded-xl flex items-center gap-1.5"
-                  >
-                    {cameraActive ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
-                    Capture Photo
-                  </Button>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                    />
-                    <Button type="button" variant="outline" className="border-slate-200 text-slate-700 font-bold text-xs h-10 px-4 rounded-xl">
-                      Upload Passport
-                    </Button>
+                {!passportImage && (
+                  <div className="relative w-full text-center">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Or upload a passport image manually:</span>
+                    <div className="relative inline-block mt-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                      <Button type="button" variant="outline" className="border-slate-200 text-slate-700 font-bold text-xs h-10 px-4 rounded-xl">
+                        Upload Passport
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Names entered exactly according to Birth Certificate */}

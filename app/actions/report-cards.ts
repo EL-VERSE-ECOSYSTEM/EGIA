@@ -21,6 +21,8 @@ export type ReportCard = {
   teacherRemarks: string
   status: 'PENDING' | 'ENDORSED' | 'REJECTED'
   adminFeedback?: string | null
+  term?: string | null
+  session?: string | null
   endorsedAt?: string | null
   createdAt: string
 }
@@ -39,6 +41,8 @@ let memoryReportCards: ReportCard[] = [
     ],
     teacherRemarks: 'Excellent performance. Highly focused.',
     status: 'PENDING',
+    term: 'First Term',
+    session: '2026/2027',
     createdAt: new Date().toISOString()
   },
   {
@@ -52,6 +56,40 @@ let memoryReportCards: ReportCard[] = [
     ],
     teacherRemarks: 'A very brilliant term. Keep up the great work!',
     status: 'ENDORSED',
+    term: 'First Term',
+    session: '2026/2027',
+    endorsedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'card-3',
+    studentId: 'stud-2',
+    studentName: 'Chinedu Okafor',
+    className: 'JSS 1',
+    marks: [
+      { subject: 'Mathematics', testScore: 22, examScore: 48, total: 70, grade: 'B' },
+      { subject: 'English Language', testScore: 21, examScore: 49, total: 70, grade: 'B' }
+    ],
+    teacherRemarks: 'Good result. You can do even better.',
+    status: 'ENDORSED',
+    term: 'Second Term',
+    session: '2026/2027',
+    endorsedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'card-4',
+    studentId: 'stud-1',
+    studentName: 'Amina Bello',
+    className: 'Primary 3',
+    marks: [
+      { subject: 'Mathematics', testScore: 29, examScore: 68, total: 97, grade: 'A' },
+      { subject: 'English Language', testScore: 26, examScore: 62, total: 88, grade: 'A' }
+    ],
+    teacherRemarks: 'Phenomenal progress! Outstanding academic standards.',
+    status: 'ENDORSED',
+    term: 'Second Term',
+    session: '2026/2027',
     endorsedAt: new Date().toISOString(),
     createdAt: new Date().toISOString()
   }
@@ -72,6 +110,8 @@ export async function getReportCards(): Promise<ReportCard[]> {
       teacherRemarks: r.teacherRemarks || '',
       status: r.status as any,
       adminFeedback: r.adminFeedback || null,
+      term: r.term || 'First Term',
+      session: r.session || '2026/2027',
       endorsedAt: r.endorsedAt ? r.endorsedAt.toISOString() : null,
       createdAt: r.createdAt ? r.createdAt.toISOString() : new Date().toISOString()
     }))
@@ -90,6 +130,8 @@ export async function saveReportCard(data: Omit<ReportCard, 'id' | 'status' | 'c
     ...data,
     id,
     status: 'PENDING',
+    term: data.term || 'First Term',
+    session: data.session || '2026/2027',
     createdAt: new Date().toISOString()
   }
 
@@ -101,7 +143,9 @@ export async function saveReportCard(data: Omit<ReportCard, 'id' | 'status' | 'c
       className: data.className,
       marks: data.marks as any,
       teacherRemarks: data.teacherRemarks,
-      status: 'PENDING'
+      status: 'PENDING',
+      term: data.term || 'First Term',
+      session: data.session || '2026/2027'
     })
   } catch (err) {
     console.warn('Database insert failed, appending to memory')

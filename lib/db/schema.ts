@@ -29,6 +29,8 @@ export const reportCardTable = pgTable('report_card', {
   teacherRemarks: text('teacherRemarks'),
   status: text('status').default('PENDING'), // PENDING, ENDORSED, REJECTED
   adminFeedback: text('adminFeedback'),
+  term: text('term'),
+  session: text('session'),
   endorsedAt: timestamp('endorsedAt'),
   createdAt: timestamp('createdAt').defaultNow()
 })

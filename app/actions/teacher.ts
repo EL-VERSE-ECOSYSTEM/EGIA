@@ -100,6 +100,30 @@ export async function getStudentsInClass(classId: string) {
   })
 }
 
+export async function updateTeacherSubjects(subjects: string[]) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  await db.update(teacher)
+    .set({
+      teachingSubjects: subjects,
+      updatedAt: new Date()
+    })
+    .where(eq(teacher.userId, session.user.id))
+
+  revalidatePath('/dashboard/teacher/overview')
+  return { success: true }
+}
+
+export async function getStudentsBySubject(subjectName: string) {
+  const studentsList = await db.query.student.findMany()
+  // Filter students whose 'subjectsDone' list contains this subject name
+  return studentsList.filter(s => {
+    const subjects = (s.subjectsDone as string[]) || []
+    return subjects.map(x => x.toLowerCase()).includes(subjectName.toLowerCase())
+  })
+}
+
 export async function getStudentFullProfile(studentId: string) {
   return db.query.student.findFirst({
     where: eq(student.id, studentId),
