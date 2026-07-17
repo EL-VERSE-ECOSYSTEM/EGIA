@@ -74,6 +74,7 @@ export async function registerStudent(data: any) {
         middleName: middleName || null,
         lastName,
         class: studentClass,
+        department: data.department || null,
         admissionNumber,
         dateOfBirth: dateOfBirth ? dateOfBirth : null,
         dateOfResumption: dateOfResumption ? dateOfResumption : null,

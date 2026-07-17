@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Filter, MoreVertical, GraduationCap, ChevronRight, BookOpen, ArrowUpDown } from 'lucide-react'
+import { Plus, Search, Filter, MoreVertical, GraduationCap, ChevronRight, BookOpen, ArrowUpDown, School, LayoutGrid } from 'lucide-react'
 import { getAllStudents } from '@/app/actions/admin'
 import Link from 'next/link'
 
@@ -13,10 +13,14 @@ export default function StudentListPage() {
   const [students, setStudents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Search & sorting filters
+  // Search, sorting & multi-filter states
   const [searchQuery, setSearchQuery] = useState('')
   const [subjectFilter, setSubjectFilter] = useState('')
+  const [classFilter, setClassFilter] = useState('')
+  const [departmentFilter, setDepartmentFilter] = useState('')
   const [sortBySubjectCount, setSortBySubjectCount] = useState<'none' | 'asc' | 'desc'>('none')
+
+  const classesList = ['Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3', 'JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3']
 
   useEffect(() => {
     async function load() {
@@ -26,9 +30,11 @@ export default function StudentListPage() {
       } catch (err) {
         console.warn('Could not load student directory from DB, using fallback data.', err)
         setStudents([
-          { id: '1', firstName: 'Amina', lastName: 'Bello', gender: 'FEMALE', class: 'Primary 3', admissionNumber: 'GOD100293', subjectsDone: ['Mathematics', 'English Language', 'Social Studies'] },
-          { id: '2', firstName: 'Chinedu', lastName: 'Okafor', gender: 'MALE', class: 'JSS 1', admissionNumber: 'GOD200382', subjectsDone: ['Mathematics', 'English Language', 'Integrated Science', 'Intro Tech'] },
-          { id: '3', firstName: 'Fatima', lastName: 'Abubakar', gender: 'FEMALE', class: 'SSS 2', admissionNumber: 'GOD392847', subjectsDone: ['Physics', 'Chemistry'] }
+          { id: '1', firstName: 'Amina', lastName: 'Bello', gender: 'FEMALE', class: 'Primary 3', department: null, admissionNumber: 'GOD100293', subjectsDone: ['Mathematics', 'English Language', 'Social Studies'] },
+          { id: '2', firstName: 'Chinedu', lastName: 'Okafor', gender: 'MALE', class: 'JSS1', department: null, admissionNumber: 'GOD200382', subjectsDone: ['Mathematics', 'English Language', 'Integrated Science', 'Intro Tech'] },
+          { id: '3', firstName: 'Fatima', lastName: 'Abubakar', gender: 'FEMALE', class: 'SSS2', department: 'SCIENCE', admissionNumber: 'GOD392847', subjectsDone: ['Physics', 'Chemistry', 'Biology', 'Further Mathematics', 'English Language'] },
+          { id: '4', firstName: 'John', lastName: 'Audu', gender: 'MALE', class: 'SSS1', department: 'ARTS', admissionNumber: 'GOD582940', subjectsDone: ['Government', 'Literature', 'English Language'] },
+          { id: '5', firstName: 'Sarah', lastName: 'Idris', gender: 'FEMALE', class: 'SSS3', department: 'COMMERCIAL', admissionNumber: 'GOD401928', subjectsDone: ['Accounting', 'Commerce', 'Economics', 'Mathematics'] }
         ])
       } finally {
         setLoading(false)
@@ -37,7 +43,7 @@ export default function StudentListPage() {
     load()
   }, [])
 
-  // Dynamic filter logic
+  // Dynamic multi-filtering logic
   const filteredStudents = students.filter(s => {
     const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase()
     const matchesSearch = fullName.includes(searchQuery.toLowerCase()) ||
@@ -48,10 +54,17 @@ export default function StudentListPage() {
       s.subjectsDone.some((subj: string) => subj.toLowerCase().includes(subjectFilter.toLowerCase()))
     )
 
-    return matchesSearch && matchesSubject
+    // Normalize class comparisons (remove spaces if any)
+    const normalizedSClass = (s.class || '').replace(/\s+/g, '').toUpperCase()
+    const normalizedFClass = classFilter.replace(/\s+/g, '').toUpperCase()
+    const matchesClass = !classFilter ? true : normalizedSClass === normalizedFClass
+
+    const matchesDepartment = !departmentFilter ? true : s.department === departmentFilter
+
+    return matchesSearch && matchesSubject && matchesClass && matchesDepartment
   })
 
-  // Dynamic sorting logic
+  // Dynamic sorting logic by Subject Count
   const sortedStudents = [...filteredStudents].sort((a, b) => {
     if (sortBySubjectCount === 'asc') {
       const countA = Array.isArray(a.subjectsDone) ? a.subjectsDone.length : 0
@@ -78,9 +91,9 @@ export default function StudentListPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
             <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Student Directory</h1>
-            <p className="text-slate-500 font-medium text-lg">Manage and sort all enrolled students across the academy.</p>
+            <p className="text-slate-500 font-medium text-lg">Manage, filter, and sort all enrolled students by class and department.</p>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
              <Button
                 variant={sortBySubjectCount !== 'none' ? 'default' : 'outline'}
                 onClick={toggleSubjectSort}
@@ -99,28 +112,57 @@ export default function StudentListPage() {
           </div>
         </div>
 
+        {/* Dynamic Filters Bar */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="relative">
+             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+             <input
+               placeholder="Search name or admission number..."
+               value={searchQuery}
+               onChange={(e) => setSearchQuery(e.target.value)}
+               className="w-full h-12 bg-white border border-slate-200 rounded-xl pl-12 pr-6 font-bold text-xs text-slate-900 focus:ring-2 focus:ring-amber-600/20 focus:outline-none transition-all"
+             />
+          </div>
+          <div className="relative">
+             <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+             <input
+               placeholder="Filter by Subject..."
+               value={subjectFilter}
+               onChange={(e) => setSubjectFilter(e.target.value)}
+               className="w-full h-12 bg-white border border-slate-200 rounded-xl pl-12 pr-6 font-bold text-xs text-slate-900 focus:ring-2 focus:ring-amber-600/20 focus:outline-none transition-all"
+             />
+          </div>
+          <div className="relative flex items-center">
+             <School className="absolute left-4 text-slate-400 w-5 h-5 pointer-events-none" />
+             <select
+               value={classFilter}
+               onChange={(e) => setClassFilter(e.target.value)}
+               className="w-full h-12 bg-white border border-slate-200 rounded-xl pl-12 pr-4 font-bold text-xs text-slate-900 focus:ring-2 focus:ring-amber-600/20 focus:outline-none transition-all appearance-none cursor-pointer"
+             >
+               <option value="">All Classes</option>
+               {classesList.filter((c, i, self) => self.indexOf(c) === i).map(c => (
+                 <option key={c} value={c}>{c}</option>
+               ))}
+             </select>
+          </div>
+          <div className="relative flex items-center">
+             <LayoutGrid className="absolute left-4 text-slate-400 w-5 h-5 pointer-events-none" />
+             <select
+               value={departmentFilter}
+               onChange={(e) => setDepartmentFilter(e.target.value)}
+               className="w-full h-12 bg-white border border-slate-200 rounded-xl pl-12 pr-4 font-bold text-xs text-slate-900 focus:ring-2 focus:ring-amber-600/20 focus:outline-none transition-all appearance-none cursor-pointer"
+             >
+               <option value="">All SSS Departments</option>
+               <option value="SCIENCE">SCIENCE</option>
+               <option value="ARTS">ARTS</option>
+               <option value="COMMERCIAL">COMMERCIAL</option>
+             </select>
+          </div>
+        </div>
+
         <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
-          <CardHeader className="p-10 border-b border-slate-50 flex flex-col md:flex-row gap-6 items-center justify-between">
-             <div className="flex flex-col sm:flex-row gap-4 w-full max-w-2xl">
-                <div className="relative flex-1">
-                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-                   <input
-                     placeholder="Search by name or admission number..."
-                     value={searchQuery}
-                     onChange={(e) => setSearchQuery(e.target.value)}
-                     className="w-full h-14 bg-slate-50 border-none rounded-2xl pl-12 pr-6 font-bold text-slate-900 focus:ring-4 focus:ring-amber-600/10 transition-all"
-                   />
-                </div>
-                <div className="relative flex-1">
-                   <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-                   <input
-                     placeholder="Filter by Subject entered..."
-                     value={subjectFilter}
-                     onChange={(e) => setSubjectFilter(e.target.value)}
-                     className="w-full h-14 bg-slate-50 border-none rounded-2xl pl-12 pr-6 font-bold text-slate-900 focus:ring-4 focus:ring-amber-600/10 transition-all"
-                   />
-                </div>
-             </div>
+          <CardHeader className="p-10 border-b border-slate-50 flex flex-row items-center justify-between">
+             <CardTitle className="text-xl font-black text-slate-900">Student Profiles Listing</CardTitle>
              <Badge className="bg-slate-100 text-slate-900 h-10 px-6 rounded-xl font-black text-xs uppercase tracking-widest">{sortedStudents.length} VISIBLE</Badge>
           </CardHeader>
           <CardContent className="p-0">
@@ -148,7 +190,16 @@ export default function StudentListPage() {
                                  {s.firstName ? s.firstName[0] : 'S'}{s.lastName ? s.lastName[0] : 'U'}
                               </div>
                               <div>
-                                 <p className="text-lg font-black text-slate-900">{s.firstName} {s.lastName}</p>
+                                 <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-lg font-black text-slate-900">{s.firstName} {s.lastName}</p>
+
+                                    {/* Department Badge for SSS1 - SSS3 */}
+                                    {s.department && (
+                                      <Badge className="bg-blue-100 text-blue-800 border-none font-black text-[9px] px-2 py-0.5 rounded-md">
+                                        {s.department}
+                                      </Badge>
+                                    )}
+                                 </div>
                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{s.gender || 'STUDENT'}</p>
 
                                  {/* Interactive/Dynamic Subjects Badge Lists */}
