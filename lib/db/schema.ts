@@ -29,6 +29,8 @@ export const reportCardTable = pgTable('report_card', {
   teacherRemarks: text('teacherRemarks'),
   status: text('status').default('PENDING'), // PENDING, ENDORSED, REJECTED
   adminFeedback: text('adminFeedback'),
+  term: text('term'),
+  session: text('session'),
   endorsedAt: timestamp('endorsedAt'),
   createdAt: timestamp('createdAt').defaultNow()
 })
@@ -51,6 +53,7 @@ export const student = pgTable('student', {
   termId: text('termId'),
   sessionId: text('sessionId'),
   profileImage: text('profileImage'),
+  facialVerificationVideo: text('facialVerificationVideo'),
   subjectsDone: jsonb('subjectsDone'),
   isActive: boolean('isActive').default(true),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
@@ -82,6 +85,7 @@ export const teacher = pgTable('teacher', {
   qualification: text('qualification'),
   specialization: text('specialization'),
   profileImage: text('profileImage'),
+  facialVerificationVideo: text('facialVerificationVideo'),
   status: text('status').default('PENDING'),
   isActive: boolean('isActive').default(true),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
@@ -98,6 +102,7 @@ export const parent = pgTable('parent', {
   phoneNumber: text('phoneNumber'),
   address: text('address'),
   profileImage: text('profileImage'),
+  facialVerificationVideo: text('facialVerificationVideo'),
   occupation: text('occupation'),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
@@ -211,6 +216,9 @@ export const assessmentResult = pgTable('assessment_result', {
   timeSpent: integer('timeSpent').notNull(),
   status: text('status').notNull(),
   gradedBy: text('gradedBy'),
+  assessmentVideo: text('assessmentVideo'),
+  warningCount: integer('warningCount').default(0),
+  proctorLogs: jsonb('proctorLogs'),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.assessmentId], foreignColumns: [assessment.id] }),

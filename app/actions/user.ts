@@ -6,6 +6,8 @@ import { student, parent, userRole, teacher, user as userTable } from '@/lib/db/
 import { eq, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'crypto'
+import { cookies } from 'next/headers'
+import { createClient } from '@/utils/supabase/server'
 
 export async function getStudentEmailByAdmissionNumber(admissionNumber: string) {
   const studentProfile = await db.query.student.findFirst({
@@ -216,4 +218,22 @@ export async function getUserRole(userId: string) {
     where: eq(userRole.userId, userId)
   })
   return roleData?.role || null
+}
+
+export async function deleteUserAccount() {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const userId = session.user.id
+
+  // Delete local DB profiles (cascades to related tables due to DB constraint / Cascade rules)
+  await db.delete(userTable).where(eq(userTable.id, userId))
+  await db.delete(userRole).where(eq(userRole.userId, userId))
+
+  // Complete Supabase sign out
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  await supabase.auth.signOut()
+
+  return { success: true }
 }

@@ -22,7 +22,8 @@ import {
   FileText,
   Search,
   Wallet,
-  Clock
+  Clock,
+  Gamepad2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -82,6 +83,7 @@ export function Sidebar({ role }: SidebarProps) {
         { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/student/overview' },
         { label: 'Assessments', icon: GraduationCap, href: '/dashboard/student/assessments/upcoming' },
         { label: 'Results', icon: Award, href: '/dashboard/student/results/current' },
+        { label: 'Games & Puzzles', icon: Gamepad2, href: '/dashboard/student/games' },
         { label: 'Timetable', icon: Calendar, href: '/dashboard/student/timetable' },
         { label: 'Profile', icon: User, href: '/dashboard/student/profile' },
       ]

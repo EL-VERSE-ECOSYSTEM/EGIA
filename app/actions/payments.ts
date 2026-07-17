@@ -61,15 +61,46 @@ export async function initializeKorapayPayment(data: {
     updatedAt: new Date()
   }).returning()
 
-  // 2. In a real environment, you would call Korapay API here:
-  // const response = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
-  //   method: 'POST',
-  //   headers: { Authorization: `Bearer ${process.env.KORAPAY_SECRET_KEY}` },
-  //   body: JSON.stringify({ amount: data.amount, reference, ... })
-  // })
-  // const result = await response.json()
+  // 2. Call Korapay live charge initialization API
+  try {
+    const payload = {
+      amount: data.amount,
+      reference,
+      notification_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://el-goodnews.vercel.app'}/api/korapay/webhook`,
+      redirect_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://el-goodnews.vercel.app'}/dashboard/parent/payments/history`,
+      currency: 'NGN',
+      customer: {
+        email: session.user.email || 'parent@elgoodnews.com',
+        name: session.user.name || 'Parent User'
+      },
+      description: data.description || `School Fees Payment for ${data.feeType}`
+    }
 
-  // Simulation: Return a mock checkout URL
+    const response = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.KORAPAY_SECRET_KEY || ''}`
+      },
+      body: JSON.stringify(payload)
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      if (result.status === 'success' && result.data?.checkout_url) {
+        return {
+          checkoutUrl: result.data.checkout_url,
+          reference: reference,
+          paymentId: newPayment[0].id
+        }
+      }
+    }
+    console.warn('Korapay live checkout API returned unsuccessful status, utilizing simulated checkout.')
+  } catch (err) {
+    console.error('Error contacting Korapay Merchant API:', err)
+  }
+
+  // Simulation: Return a mock checkout URL as fallback for test/offline environments
   return {
     checkoutUrl: `https://checkout.korapay.com/pay/${reference}`,
     reference: reference,

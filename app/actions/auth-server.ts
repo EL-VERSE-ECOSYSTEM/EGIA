@@ -78,7 +78,8 @@ export async function registerStudent(data: any) {
         dateOfBirth: dateOfBirth ? dateOfBirth : null,
         dateOfResumption: dateOfResumption ? dateOfResumption : null,
         subjectsDone: subjectsDone || null,
-        profileImage: profileImage || null
+        profileImage: profileImage || null,
+        facialVerificationVideo: data.facialVerificationVideo || null
       })
     })
 
@@ -142,7 +143,8 @@ export async function registerParent(data: any) {
         lastName,
         phoneNumber: phone,
         occupation: occupation || null,
-        profileImage: profileImage || null
+        profileImage: profileImage || null,
+        facialVerificationVideo: data.facialVerificationVideo || null
       })
     })
 
@@ -156,7 +158,7 @@ export async function registerParent(data: any) {
 export async function registerTeacher(data: any) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
-  const { firstName, lastName, email, password } = data
+  const { firstName, lastName, email, profileImage, password } = data
 
   // Check if account already exists in database
   const existingUser = await db.query.user.findFirst({
@@ -193,6 +195,7 @@ export async function registerTeacher(data: any) {
         id: userId,
         email: email,
         name: `${firstName} ${lastName}`,
+        image: profileImage || null
       })
 
       await tx.insert(userRole).values({
@@ -207,11 +210,14 @@ export async function registerTeacher(data: any) {
         staffCode,
         firstName,
         lastName,
+        profileImage: profileImage || null,
+        facialVerificationVideo: data.facialVerificationVideo || null
       })
     })
 
     return { success: true, staffCode }
   } catch (dbError: any) {
+    console.error('DB Error:', dbError)
     return { error: 'DB registration failed' }
   }
 }
