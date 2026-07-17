@@ -1,0 +1,25 @@
+import { MetadataRoute } from 'next'
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "EL GOODNEWS INT'L ACADEMY Portal",
+    short_name: "EL GOODNEWS",
+    description: "Complete school management system with CBT, assessments, and child monitoring.",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#f97316",
+    icons: [
+      {
+        src: "/logo.svg",
+        sizes: "192x192",
+        type: "image/svg+xml"
+      },
+      {
+        src: "/logo.svg",
+        sizes: "512x512",
+        type: "image/svg+xml"
+      }
+    ]
+  }
+}

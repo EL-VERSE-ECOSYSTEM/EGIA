@@ -21,6 +21,12 @@ export const metadata: Metadata = {
     icon: '/logo.svg',
     shortcut: '/logo.svg',
     apple: '/logo.svg',
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: "EL GOODNEWS",
   }
 }
 
@@ -36,6 +42,22 @@ export default function RootLayout({
           {children}
         </div>
         {process.env.NODE_ENV === 'production' && <Analytics />}
+        {/* Simple inline PWA registration block */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                    console.log('ServiceWorker registered with scope: ', reg.scope);
+                  }, function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                  });
+                });
+              }
+            `
+          }}
+        />
       </body>
     </html>
   )
