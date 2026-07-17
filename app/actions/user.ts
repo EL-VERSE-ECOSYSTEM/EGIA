@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { student, parent, userRole, teacher, user as userTable } from '@/lib/db/schema'
+import { student, parent, userRole, teacher, user as userTable, notification } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'crypto'
@@ -104,6 +104,19 @@ export async function getStudentByAdmissionNumber(admissionNumber: string) {
     admissionNumber: s.admissionNumber,
     class: s.class
   }
+}
+
+export async function getLoggedInNotifications() {
+  const session = await auth.getSession()
+  if (!session?.user) return []
+
+  const list = await db.select()
+    .from(notification)
+    .where(eq(notification.userId, session.user.id))
+    .orderBy(desc(notification.createdAt))
+    .limit(15)
+
+  return list || []
 }
 
 export async function createParentProfile(data: {
