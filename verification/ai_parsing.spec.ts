@@ -13,8 +13,8 @@ test('verify AI PDF parsing simulation', async ({ page }) => {
   // Create a dummy file
   fs.writeFileSync('dummy.pdf', 'fake pdf content');
 
-  // Find the file input and set it
-  const fileInput = await page.locator('input[type="file"]');
+  // Find the file input by its ID and set it
+  const fileInput = await page.locator('input#pdf-upload');
   await fileInput.setInputFiles('dummy.pdf');
 
   // Wait for results - using a longer timeout and checking for the text

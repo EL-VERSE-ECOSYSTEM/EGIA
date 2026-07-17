@@ -7,10 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Users, Loader2, AlertCircle, GraduationCap, Camera, User, Search, Link as LinkIcon } from 'lucide-react'
+import { Users, Loader2, AlertCircle, GraduationCap, User, Search, Link as LinkIcon } from 'lucide-react'
 import { registerParent } from '@/app/actions/auth-server'
+import { getStudentByAdmissionNumber } from '@/app/actions/user'
 import { Badge } from '@/components/ui/badge'
-import { FacialVerification } from '@/components/auth/facial-verification'
 
 export default function ParentSignUpPage() {
   const [formData, setFormData] = useState({
@@ -31,8 +31,6 @@ export default function ParentSignUpPage() {
 
   // Profile image upload
   const [profileImage, setProfileImage] = useState<string | null>(null)
-  const [facialVerificationVideo, setFacialVerificationVideo] = useState<string | null>(null)
-  const [cameraActive, setCameraActive] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,27 +48,27 @@ export default function ParentSignUpPage() {
     }
   }
 
-  const simulateCameraCapture = () => {
-    setCameraActive(true)
-    setTimeout(() => {
-      // Mock photo capture
-      setProfileImage('https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200')
-      setCameraActive(false)
-      alert('Facial photo captured and verified successfully!')
-    }, 1500)
-  }
-
-  const handleSearchWard = () => {
+  const handleSearchWard = async () => {
     if (!wardAdmissionNumber.trim()) return alert('Please enter admission number')
     setSearching(true)
-    setTimeout(() => {
-      // Dynamic Search simulation based on Class selection and admission number
-      setFoundWard({
-        name: 'Amina Bello',
-        admissionNumber: wardAdmissionNumber.toUpperCase().trim()
-      })
+    try {
+      const studentData = await getStudentByAdmissionNumber(wardAdmissionNumber.trim().toUpperCase())
+      if (studentData) {
+        setFoundWard({
+          name: studentData.name,
+          admissionNumber: studentData.admissionNumber
+        })
+        setWardClass(studentData.class || 'Primary 3')
+      } else {
+        setFoundWard(null)
+        alert('Student with that admission number not found in our database.')
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Error searching for student.')
+    } finally {
       setSearching(false)
-    }, 1000)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,7 +82,7 @@ export default function ParentSignUpPage() {
     }
 
     if (!profileImage) {
-      return alert('Please upload a profile photo or take a facial photo.')
+      return alert('Please upload a passport photo.')
     }
 
     setLoading(true)
@@ -92,7 +90,8 @@ export default function ParentSignUpPage() {
     const payload = {
       ...formData,
       profileImage,
-      facialVerificationVideo
+      facialVerificationVideo: null,
+      wardAdmissionNumber: foundWard ? foundWard.admissionNumber : undefined
     }
 
     try {
@@ -142,9 +141,9 @@ export default function ParentSignUpPage() {
               </div>
             )}
 
-            {/* Passport picture & Facial Verification Upload */}
+            {/* Passport picture Upload Block */}
             <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
-              <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Profile Photo / Passport picture</Label>
+              <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Passport Photograph</Label>
               {profileImage ? (
                 <div className="relative">
                   <img src={profileImage} alt="Profile" className="w-28 h-28 object-cover rounded-full border-4 border-emerald-200 shadow-lg" />
@@ -157,28 +156,27 @@ export default function ParentSignUpPage() {
                   </button>
                 </div>
               ) : (
-                <FacialVerification onCapture={(img, video) => {
-                  setProfileImage(img)
-                  if (video) setFacialVerificationVideo(video)
-                }} colorTheme="emerald" />
-              )}
-
-              {!profileImage && (
-                <div className="relative w-full text-center">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Or upload a passport image manually:</span>
-                  <div className="relative inline-block mt-2">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                    />
-                    <Button type="button" variant="outline" className="border-slate-200 text-slate-700 font-bold text-xs h-10 px-4 rounded-xl">
-                      Upload Photo
-                    </Button>
-                  </div>
+                <div className="flex flex-col items-center justify-center text-slate-300">
+                  <User className="w-16 h-16 bg-slate-100 p-3 rounded-full text-slate-400 border border-slate-200" />
                 </div>
               )}
+
+              <div className="relative w-full text-center">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                  {profileImage ? 'Change passport photo:' : 'Upload a passport photograph (JPG or PNG):'}
+                </p>
+                <div className="relative inline-block mt-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                  />
+                  <Button type="button" variant="outline" className="border-slate-200 text-slate-700 font-bold text-xs h-10 px-4 rounded-xl">
+                    Select Passport Image
+                  </Button>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

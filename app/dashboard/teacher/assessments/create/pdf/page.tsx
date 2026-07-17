@@ -29,7 +29,12 @@ export default function AIConversionPage() {
   const [subjectId, setSubjectId] = useState('')
 
   useEffect(() => {
-    getTeacherProfile().then(setTeacher)
+    getTeacherProfile()
+      .then(setTeacher)
+      .catch(err => {
+        console.warn('Could not load teacher profile from DB', err)
+        setTeacher({ id: 'fallback-teacher-id', subjects: [] })
+      })
   }, [])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

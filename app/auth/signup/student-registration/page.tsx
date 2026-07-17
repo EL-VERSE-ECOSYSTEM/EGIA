@@ -7,10 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { GraduationCap, Loader2, AlertCircle, Laptop, CreditCard, CheckCircle2, Camera, User, Plus, X } from 'lucide-react'
+import { GraduationCap, Loader2, AlertCircle, Laptop, CreditCard, CheckCircle2, User, Plus, X } from 'lucide-react'
 import { registerStudent } from '@/app/actions/auth-server'
 import { Badge } from '@/components/ui/badge'
-import { FacialVerification } from '@/components/auth/facial-verification'
 
 export default function StudentRegistrationPage() {
   const [formData, setFormData] = useState({
@@ -29,10 +28,8 @@ export default function StudentRegistrationPage() {
   const [subjectInput, setSubjectInput] = useState('')
   const [subjectsDone, setSubjectsDone] = useState<string[]>([])
 
-  // Passport / Facial photo state
+  // Passport photo state
   const [passportImage, setProfileImage] = useState<string | null>(null)
-  const [facialVerificationVideo, setFacialVerificationVideo] = useState<string | null>(null)
-  const [cameraActive, setCameraActive] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -69,16 +66,6 @@ export default function StudentRegistrationPage() {
     }
   }
 
-  const simulateCameraCapture = () => {
-    setCameraActive(true)
-    setTimeout(() => {
-      // Mock instant facial verification photo
-      setProfileImage('https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=200&h=200')
-      setCameraActive(false)
-      alert('Facial photo captured and verified successfully!')
-    }, 1500)
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -90,7 +77,7 @@ export default function StudentRegistrationPage() {
     }
 
     if (!passportImage) {
-      return alert('Please upload a passport photo or take a facial photo.')
+      return alert('Please upload a passport photo.')
     }
 
     if (subjectsDone.length === 0) {
@@ -109,7 +96,7 @@ export default function StudentRegistrationPage() {
       ...formData,
       subjectsDone,
       profileImage: passportImage,
-      facialVerificationVideo
+      facialVerificationVideo: null
     }
 
     try {
@@ -167,11 +154,12 @@ export default function StudentRegistrationPage() {
           <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8">
             You can now use this unique Admission Number and your set password to log in to the student portal.
           </p>
-          <Link href="/auth/signin">
-            <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white h-14 rounded-2xl font-black text-lg">
-              Proceed to Sign In
-            </Button>
-          </Link>
+          <Button
+            onClick={() => router.push('/auth/signin')}
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white h-14 rounded-2xl font-black text-lg"
+          >
+            Proceed to Sign In
+          </Button>
         </Card>
       ) : (
         <Card className="max-w-xl w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
@@ -194,9 +182,9 @@ export default function StudentRegistrationPage() {
                 </div>
               )}
 
-              {/* Passport picture & Facial Verification Upload */}
+              {/* Passport picture Upload Block */}
               <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
-                <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Profile Photo & Facial Verification</Label>
+                <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Passport Photograph</Label>
                 {passportImage ? (
                   <div className="relative">
                     <img src={passportImage} alt="Profile" className="w-28 h-28 object-cover rounded-full border-4 border-orange-200 shadow-lg" />
@@ -209,28 +197,27 @@ export default function StudentRegistrationPage() {
                     </button>
                   </div>
                 ) : (
-                  <FacialVerification onCapture={(img, video) => {
-                    setProfileImage(img)
-                    if (video) setFacialVerificationVideo(video)
-                  }} colorTheme="orange" />
-                )}
-
-                {!passportImage && (
-                  <div className="relative w-full text-center">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Or upload a passport image manually:</span>
-                    <div className="relative inline-block mt-2">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                      />
-                      <Button type="button" variant="outline" className="border-slate-200 text-slate-700 font-bold text-xs h-10 px-4 rounded-xl">
-                        Upload Passport
-                      </Button>
-                    </div>
+                  <div className="flex flex-col items-center justify-center text-slate-300">
+                    <User className="w-16 h-16 bg-slate-100 p-3 rounded-full text-slate-400 border border-slate-200" />
                   </div>
                 )}
+
+                <div className="relative w-full text-center">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                    {passportImage ? 'Change passport photo:' : 'Upload a passport photograph (JPG or PNG):'}
+                  </p>
+                  <div className="relative inline-block mt-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                    />
+                    <Button type="button" variant="outline" className="border-slate-200 text-slate-700 font-bold text-xs h-10 px-4 rounded-xl">
+                      Upload Passport
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               {/* Names entered exactly according to Birth Certificate */}
@@ -426,6 +413,7 @@ export default function StudentRegistrationPage() {
             <Button
               onClick={() => {
                 setShowSuccessModal(false)
+                router.push('/auth/signin')
               }}
               className="w-full bg-slate-900 hover:bg-slate-800 text-white h-14 rounded-2xl font-black text-lg"
             >
