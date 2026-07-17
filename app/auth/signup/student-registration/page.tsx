@@ -18,6 +18,7 @@ export default function StudentRegistrationPage() {
     lastName: '',
     email: '',
     class: 'JSS1',
+    department: 'SCIENCE',
     password: '',
     confirmPassword: '',
     dateOfBirth: '',
@@ -94,6 +95,7 @@ export default function StudentRegistrationPage() {
 
     const payload = {
       ...formData,
+      department: (formData.class === 'SSS1' || formData.class === 'SSS2' || formData.class === 'SSS3') ? (formData.department || 'SCIENCE') : null,
       subjectsDone,
       profileImage: passportImage,
       facialVerificationVideo: null
@@ -306,6 +308,24 @@ export default function StudentRegistrationPage() {
                     <option value="SSS3">SSS 3</option>
                   </select>
                 </div>
+
+              {/* Dynamic Department Selector for SSS 1 - SSS 3 */}
+              {(formData.class === 'SSS1' || formData.class === 'SSS2' || formData.class === 'SSS3') && (
+                <div className="space-y-2 bg-orange-50/50 p-5 rounded-3xl border border-orange-100 animate-in fade-in duration-300">
+                  <Label htmlFor="department" className="text-[10px] font-black uppercase text-orange-800 tracking-widest ml-1">Select SSS Academic Department</Label>
+                  <select
+                    id="department"
+                    value={formData.department || 'SCIENCE'}
+                    onChange={e => setFormData({...formData, department: e.target.value})}
+                    required
+                    className="w-full h-12 rounded-xl border border-orange-200 bg-white px-4 font-bold text-slate-800 focus:ring-2 focus:ring-orange-600 focus:outline-none transition-all"
+                  >
+                    <option value="SCIENCE">SCIENCE</option>
+                    <option value="ARTS">ARTS</option>
+                    <option value="COMMERCIAL">COMMERCIAL</option>
+                  </select>
+                </div>
+              )}
 
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Email Address</Label>
