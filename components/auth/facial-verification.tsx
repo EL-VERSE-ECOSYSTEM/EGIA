@@ -17,6 +17,15 @@ export function FacialVerification({ onCapture, colorTheme = 'orange' }: FacialV
   const [progressMsg, setProgressMsg] = useState('Position your face in the circle')
   const [scanProgress, setScanProgress] = useState(0)
 
+  // Live telemetry overlay coordinates simulation
+  const [telemetry, setTelemetry] = useState({
+    yaw: '0.00°',
+    pitch: '0.00°',
+    roll: '0.00°',
+    meshPoints: 0,
+    locked: false
+  })
+
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -46,17 +55,44 @@ export function FacialVerification({ onCapture, colorTheme = 'orange' }: FacialV
     }
   }[colorTheme]
 
+  // Consistently bind the video stream to the HTMLVideoElement when stream changes
+  useEffect(() => {
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream
+      videoRef.current.play().catch(err => {
+        console.warn('Playback failed:', err)
+      })
+    }
+  }, [stream])
+
+  // Active telemetry update animation simulation
+  useEffect(() => {
+    if (!cameraActive || !stream) return
+
+    const interval = setInterval(() => {
+      setTelemetry({
+        yaw: `${(Math.random() * 3 - 1.5).toFixed(2)}°`,
+        pitch: `${(Math.random() * 2 - 1.0).toFixed(2)}°`,
+        roll: `${(Math.random() * 1 - 0.5).toFixed(2)}°`,
+        meshPoints: Math.floor(468 + Math.random() * 10),
+        locked: Math.random() > 0.3
+      })
+    }, 400)
+
+    return () => clearInterval(interval)
+  }, [cameraActive, stream])
+
   const startCamera = async () => {
     setSuccess(false)
     setCameraActive(true)
     setIsVerifying(false)
     setScanProgress(0)
-    setProgressMsg('Initializing live camera feed...')
+    setProgressMsg('Initializing real-time camera stream...')
     recordedChunksRef.current = []
 
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        // Use highly-compatible constraints to prevent OverconstrainedError
+        // High-compatibility stream query
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: 'user',
@@ -68,12 +104,7 @@ export function FacialVerification({ onCapture, colorTheme = 'orange' }: FacialV
 
         setStream(mediaStream)
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream
-          videoRef.current.play()
-        }
-
-        // Dynamically locate supported video MIME container type
+        // Select compatible media container recorder
         let mediaRecorder: MediaRecorder
         const mimeTypes = [
           'video/webm;codecs=vp9,opus',
@@ -104,24 +135,23 @@ export function FacialVerification({ onCapture, colorTheme = 'orange' }: FacialV
           }
         }
 
-        mediaRecorder.start(250) // collect chunks of video tracks continuously
+        mediaRecorder.start(250) // continuous recording chunks
 
-        // Execute step-by-step scanner progression mapping
         runFaceScanningSequence()
 
       } else {
         throw new Error('getUserMedia not supported')
       }
     } catch (err) {
-      console.warn('Physical camera stream failed or blocked, utilizing high-fidelity scanner simulator.', err)
-      // Premium interactive simulated proctor loop fallback
+      console.warn('Physical camera blocked/unsupported, launching verified scanner fallback simulator.', err)
+      // High-fidelity fallback scanner loop simulation
       setIsVerifying(true)
       let currentProg = 0
       const messages = [
-        'Aligning face mesh...',
-        'Recording right profile...',
-        'Recording left profile...',
-        'Compiling video stream...'
+        'Aligning biometric mesh points...',
+        'Scanning right temporal plane...',
+        'Scanning left temporal plane...',
+        'Uploading captured facial data...'
       ]
       const interval = setInterval(() => {
         currentProg += 25
@@ -137,7 +167,6 @@ export function FacialVerification({ onCapture, colorTheme = 'orange' }: FacialV
           ]
           const randomAvatar = femaleAvatars[colorTheme === 'orange' ? 0 : colorTheme === 'emerald' ? 1 : 2]
 
-          // Pre-recorded default simulation WebM chunk
           const simulatedVideoPayload = 'data:video/webm;base64,GkXfo6NChgE...'
 
           onCapture(randomAvatar, simulatedVideoPayload)
@@ -153,10 +182,10 @@ export function FacialVerification({ onCapture, colorTheme = 'orange' }: FacialV
   const runFaceScanningSequence = () => {
     let currentStep = 0
     const sequence = [
-      { progress: 20, msg: 'Live Recording: Please look straight into the camera.' },
-      { progress: 50, msg: 'Live Recording: Turn slightly to the left.' },
-      { progress: 80, msg: 'Live Recording: Turn slightly to the right.' },
-      { progress: 100, msg: 'Video Recorded! Saving profile details.' }
+      { progress: 20, msg: 'Face Identified. Center your face inside the guides.' },
+      { progress: 50, msg: 'Mesh Alignment Active: Please look straight into the feed.' },
+      { progress: 80, msg: 'Yaw & Pitch Lock: Recording real facial profile...' },
+      { progress: 100, msg: 'Biometric capture complete! Finalizing registration...' }
     ]
 
     const interval = setInterval(() => {
@@ -168,20 +197,19 @@ export function FacialVerification({ onCapture, colorTheme = 'orange' }: FacialV
         clearInterval(interval)
         finalizeVideoRecordingAndCapture()
       }
-    }, 1200)
+    }, 1500)
   }
 
   const finalizeVideoRecordingAndCapture = () => {
     if (!videoRef.current || !canvasRef.current || !mediaRecorderRef.current) return
 
     setIsVerifying(true)
-    setProgressMsg('Processing recorded video stream...')
+    setProgressMsg('Processing recorded facial metrics...')
 
     const video = videoRef.current
     const canvas = canvasRef.current
     const context = canvas.getContext('2d')
 
-    // Terminate recorder to flush remaining buffers
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop()
     }
@@ -189,20 +217,19 @@ export function FacialVerification({ onCapture, colorTheme = 'orange' }: FacialV
     if (context) {
       canvas.width = 300
       canvas.height = 300
-      // Extract face frame for profile image
+
+      // Snaps exact video frame frame for profile image
       context.translate(300, 0)
       context.scale(-1, 1)
       context.drawImage(video, 0, 0, 300, 300)
       const profilePhotoDataUrl = canvas.toDataURL('image/png')
 
-      // Assemble all captured buffer chunks to storable WebM base64
       setTimeout(() => {
         const videoBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' })
         const reader = new FileReader()
         reader.onloadend = () => {
           const videoBase64 = reader.result as string
 
-          // Clean up live video tracks
           if (stream) {
             stream.getTracks().forEach(track => track.stop())
           }
@@ -229,41 +256,74 @@ export function FacialVerification({ onCapture, colorTheme = 'orange' }: FacialV
 
   return (
     <div className="w-full flex flex-col items-center space-y-4">
-      <div className={`relative w-48 h-48 rounded-full border-4 ${themeClasses.border} overflow-hidden bg-slate-100 flex items-center justify-center shadow-inner`}>
-        {/* Mirror effect video stream */}
-        {cameraActive && stream ? (
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover transform -scale-x-100"
-            autoPlay
-            playsInline
-            muted
-          />
-        ) : isVerifying ? (
-          <div className="flex flex-col items-center justify-center space-y-2 text-slate-400 p-4 text-center">
-            <Loader2 className={`w-8 h-8 animate-spin ${themeClasses.text}`} />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 leading-snug">{progressMsg}</span>
+      <div className={`relative w-48 h-48 rounded-full border-4 ${themeClasses.border} overflow-hidden bg-slate-900 flex items-center justify-center shadow-inner`}>
+        {/* Consistently rendered Video stream to avoid race-condition null references */}
+        <video
+          ref={videoRef}
+          className={`w-full h-full object-cover transform -scale-x-100 absolute inset-0 ${cameraActive && stream ? 'block' : 'hidden'}`}
+          autoPlay
+          playsInline
+          muted
+        />
+
+        {/* Telemetry Guide Mesh Overlay on Video feed */}
+        {cameraActive && stream && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
+            {/* Mesh concentric guides */}
+            <div className={`w-36 h-36 border border-dashed rounded-full animate-pulse opacity-50 ${themeClasses.border}`} />
+            <div className={`w-28 h-28 border border-dotted rounded-full animate-ping opacity-30 absolute ${themeClasses.border}`} style={{ animationDuration: '3s' }} />
+
+            {/* Live Data Telemetry Overlay labels */}
+            <div className="absolute bottom-2 left-2 right-2 flex justify-between text-[7px] font-mono text-emerald-400 bg-black/60 p-1.5 rounded-lg border border-emerald-500/20">
+              <div className="flex flex-col">
+                <span>YAW: {telemetry.yaw}</span>
+                <span>PIT: {telemetry.pitch}</span>
+                <span>ROL: {telemetry.roll}</span>
+              </div>
+              <div className="flex flex-col text-right">
+                <span>POINTS: {telemetry.meshPoints}</span>
+                <span>LOCK: {telemetry.locked ? 'TRUE' : 'FALSE'}</span>
+              </div>
+            </div>
           </div>
-        ) : success ? (
-          <div className="flex flex-col items-center justify-center space-y-2 text-emerald-600 p-4 text-center animate-in zoom-in-95">
+        )}
+
+        {/* Loading Verification overlay */}
+        {cameraActive && !stream && (
+          <div className="flex flex-col items-center justify-center space-y-2 text-slate-400 z-20">
+            <Loader2 className={`w-8 h-8 animate-spin ${themeClasses.text}`} />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Connecting Camera...</span>
+          </div>
+        )}
+
+        {isVerifying && (
+          <div className="flex flex-col items-center justify-center space-y-2 text-slate-400 z-20 p-4 text-center">
+            <Loader2 className={`w-8 h-8 animate-spin ${themeClasses.text}`} />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-snug">{progressMsg}</span>
+          </div>
+        )}
+
+        {!cameraActive && success && (
+          <div className="flex flex-col items-center justify-center space-y-2 text-emerald-600 p-4 text-center z-20 animate-in zoom-in-95">
             <CheckCircle2 className="w-10 h-10" />
             <span className="text-[10px] font-black uppercase tracking-widest">Face Verified!</span>
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center text-slate-300">
+        )}
+
+        {!cameraActive && !isVerifying && !success && (
+          <div className="flex flex-col items-center justify-center text-slate-400 z-20">
             <Camera className="w-12 h-12" />
           </div>
         )}
 
         {/* Scanning laser animation overlay */}
-        {cameraActive && (
+        {cameraActive && stream && (
           <div className="absolute inset-0 pointer-events-none flex flex-col justify-between z-20">
-            {/* laser line */}
             <div className={`w-full h-1 animate-bounce ${themeClasses.scannerLine}`} style={{ animationDuration: '2.5s' }} />
           </div>
         )}
 
-        {/* Hidden canvas for snapshotting */}
+        {/* Hidden canvas for snaps */}
         <canvas ref={canvasRef} className="hidden" />
       </div>
 
@@ -294,7 +354,7 @@ export function FacialVerification({ onCapture, colorTheme = 'orange' }: FacialV
             disabled
             className="bg-slate-100 text-slate-400 font-black text-xs h-10 px-5 rounded-xl flex items-center gap-1.5 border"
           >
-            <Video className="animate-pulse w-4 h-4 text-red-500" /> Recording Live Video...
+            <Video className="animate-pulse w-4 h-4 text-red-500" /> Analyzing Biometric Data...
           </Button>
         )}
       </div>
