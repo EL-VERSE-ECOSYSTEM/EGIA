@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { payment } from '@/lib/db/schema'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
+import { eq } from 'drizzle-orm'
 
 export async function submitManualPayment(data: {
   studentId: string
