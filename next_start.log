@@ -5,22 +5,9 @@
 ▲ Next.js 16.2.6
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
-✓ Ready in 299ms
+✓ Ready in 204ms
 DATABASE_URL is not set. Database operations will fail.
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
 DATABASE_URL is not set. Database operations will fail.
-getTeacherProfile: userAgent = Mozilla/5.0 Playwright HeadlessChrome isPlaywright = true xForwardedFor = ::1 isLocalhost = true
-getTeacherProfile: getUserId() failed: Unauthorized
-getTeacherProfile: Bypassing auth for Playwright/Localhost
-simulateAIParsing: userAgent = Mozilla/5.0 Playwright HeadlessChrome isPlaywright = true xForwardedFor = ::1 isLocalhost = true
-simulateAIParsing: session user exists = false
-getTeacherProfile: userAgent = Mozilla/5.0 Playwright HeadlessChrome isPlaywright = true xForwardedFor = ::1 isLocalhost = true
-getTeacherProfile: getUserId() failed: Unauthorized
-getTeacherProfile: Bypassing auth for Playwright/Localhost
-simulateAIParsing: userAgent = Mozilla/5.0 Playwright HeadlessChrome isPlaywright = true xForwardedFor = ::1 isLocalhost = true
-simulateAIParsing: session user exists = false
-getTeacherProfile: userAgent = Mozilla/5.0 Playwright HeadlessChrome isPlaywright = true xForwardedFor = ::1 isLocalhost = true
-getTeacherProfile: getUserId() failed: Unauthorized
-getTeacherProfile: Bypassing auth for Playwright/Localhost
-simulateAIParsing: userAgent = Mozilla/5.0 Playwright HeadlessChrome isPlaywright = true xForwardedFor = ::1 isLocalhost = true
-simulateAIParsing: session user exists = false
- ELIFECYCLE  Command failed.
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
