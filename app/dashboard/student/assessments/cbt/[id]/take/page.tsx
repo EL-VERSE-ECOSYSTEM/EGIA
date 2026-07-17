@@ -4,9 +4,9 @@ import React, { useState, useEffect, useRef } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, ShieldAlert, Camera, CheckCircle2, Clock, Play, EyeOff, AlertOctagon } from 'lucide-react'
+import { AlertCircle, ShieldAlert, Camera, CheckCircle2, Clock, Play, EyeOff, AlertOctagon, Loader2 } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
-import { saveProctoredAssessmentResult } from '@/app/actions/assessments'
+import { saveProctoredAssessmentResult, getLoggedInStudentAndQuestions } from '@/app/actions/assessments'
 
 export default function CBTExamTakingPage() {
   const router = useRouter()
@@ -21,6 +21,12 @@ export default function CBTExamTakingPage() {
   const [currentQuestionIdx, setCurrentQuestion] = useState(0)
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
 
+  // Real Database state
+  const [studentId, setStudentId] = useState<string>('current-student-id')
+  const [questions, setQuestions] = useState<any[]>([])
+  const [assessmentTitle, setAssessmentTitle] = useState<string>('CBT Assessment')
+  const [loading, setLoading] = useState(true)
+
   // Active Warning Overlay state (blocks exam progression)
   const [activeWarning, setActiveWarning] = useState<{
     type: 'LOOK_AWAY' | 'PHONE_DETECTED' | 'BOOK_DETECTED' | null
@@ -32,14 +38,31 @@ export default function CBTExamTakingPage() {
   const streamRef = useRef<MediaStream | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordedChunksRef = useRef<Blob[]>([])
-  const [recordedBase64Video, setRecordedBase64Video] = useState<string>('')
   const [proctorLogs, setProctorLogs] = useState<any[]>([])
 
-  const simulatedQuestions = [
-    { id: 'q1', text: 'Which year did Nigeria gain independence?', options: ['1957', '1960', '1963', '1970'], answer: '1960' },
-    { id: 'q2', text: 'What is the capital city of Nigeria?', options: ['Lagos', 'Calabar', 'Abuja', 'Enugu'], answer: 'Abuja' },
-    { id: 'q3', text: 'How many geopolitical zones are in Nigeria?', options: ['4', '5', '6', '7'], answer: '6' }
-  ]
+  // Load actual data from PostgreSQL Database on mount
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const data = await getLoggedInStudentAndQuestions(assessmentId)
+        if (data) {
+          setStudentId(data.studentId)
+          setQuestions(data.questions)
+          setAssessmentTitle(data.title)
+        }
+      } catch (err) {
+        console.warn('Could not retrieve DB data. Using default/fallback questions.', err)
+        setQuestions([
+          { id: 'q1', text: 'Which year did Nigeria gain independence?', options: ['1957', '1960', '1963', '1970'], answer: '1960' },
+          { id: 'q2', text: 'What is the capital city of Nigeria?', options: ['Lagos', 'Calabar', 'Abuja', 'Enugu'], answer: 'Abuja' },
+          { id: 'q3', text: 'How many geopolitical zones are in Nigeria?', options: ['4', '5', '6', '7'], answer: '6' }
+        ])
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [assessmentId])
 
   // 1. Anti-Cheat: Tab Switch & Window Focus monitoring
   useEffect(() => {
@@ -234,9 +257,9 @@ export default function CBTExamTakingPage() {
     // Save to PostgreSQL database via action
     await saveProctoredAssessmentResult({
       assessmentId,
-      studentId: 'simulated-student-id',
+      studentId,
       score: 0,
-      totalQuestions: simulatedQuestions.length,
+      totalQuestions: questions.length || 3,
       correctAnswers: 0,
       timeSpent: 1800 - timeLeft,
       status: 'failed_proctoring',
@@ -255,19 +278,19 @@ export default function CBTExamTakingPage() {
 
       // Calculate score
       let correct = 0
-      simulatedQuestions.forEach(q => {
+      questions.forEach(q => {
         if (selectedAnswers[q.id] === q.answer) {
           correct++
         }
       })
-      const finalScore = Math.round((correct / simulatedQuestions.length) * 100)
+      const finalScore = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0
 
       // Save to PostgreSQL database via action
       await saveProctoredAssessmentResult({
         assessmentId,
-        studentId: 'simulated-student-id',
+        studentId,
         score: finalScore,
-        totalQuestions: simulatedQuestions.length,
+        totalQuestions: questions.length || 3,
         correctAnswers: correct,
         timeSpent: 1800 - timeLeft,
         status: 'completed',
@@ -316,13 +339,22 @@ export default function CBTExamTakingPage() {
           </div>
         )}
 
-        {!examStarted ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+            {/* Dynamic, responsive SVG loader custom built for EL GOODNEWS */}
+            <svg className="w-16 h-16 animate-spin text-orange-600" viewBox="0 0 50 50">
+              <circle className="opacity-25" cx="25" cy="25" r="20" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 25a21 21 0 0 1 21-21v4a17 17 0 0 0-17 17z" />
+            </svg>
+            <p className="text-sm font-black text-slate-500 uppercase tracking-widest animate-pulse">Connecting to database & preparing assessment questions...</p>
+          </div>
+        ) : !examStarted ? (
           <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] bg-white overflow-hidden text-center p-12">
             <div className="h-2 bg-orange-600 w-full absolute top-0 left-0" />
             <div className="mx-auto bg-orange-50 p-6 rounded-full w-fit mb-6">
               <ShieldAlert className="w-16 h-16 text-orange-600" />
             </div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Active Exam Portal</h1>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight">{assessmentTitle}</h1>
             <p className="text-slate-500 font-bold mt-2 uppercase tracking-widest text-xs">EL GOODNEWS INT'L ACADEMY CBT</p>
 
             <div className="my-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 text-left max-w-lg mx-auto space-y-4">
@@ -352,8 +384,8 @@ export default function CBTExamTakingPage() {
             <h1 className="text-4xl font-black text-slate-900 tracking-tight">CBT Submitted Successfully</h1>
             <p className="text-slate-500 font-bold mt-2 leading-relaxed">Your answers and proctoring video feed have been securely synced to our databases for grading.</p>
             <div className="mt-8 text-xs text-slate-400 font-bold uppercase tracking-widest">Logged Warnings: {warningCount}</div>
-            <Button onClick={() => router.push('/dashboard/student/assessments/cbt')} className="bg-slate-900 hover:bg-slate-800 text-white h-12 px-8 rounded-xl font-bold mt-8">
-              Back to Assessments
+            <Button onClick={() => router.push('/dashboard/student/assessments/weekend')} className="bg-slate-900 hover:bg-slate-800 text-white h-12 px-8 rounded-xl font-bold mt-8">
+              Back to Weekend Assessments
             </Button>
           </Card>
         ) : (
@@ -369,25 +401,27 @@ export default function CBTExamTakingPage() {
                 </div>
               </div>
 
-              <Card className="border-none shadow-xl shadow-slate-100 rounded-[2rem] bg-white overflow-hidden">
-                <CardHeader className="p-8 border-b border-slate-100">
-                  <div className="text-xs font-black text-orange-600 uppercase tracking-widest">Question {currentQuestionIdx + 1} of {simulatedQuestions.length}</div>
-                  <CardTitle className="text-xl font-bold text-slate-800 mt-2">
-                    {simulatedQuestions[currentQuestionIdx].text}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-8 space-y-4">
-                  {simulatedQuestions[currentQuestionIdx].options.map((opt) => (
-                    <div
-                      key={opt}
-                      onClick={() => handleSelectOption(simulatedQuestions[currentQuestionIdx].id, opt)}
-                      className={`p-5 rounded-2xl border-2 ${selectedAnswers[simulatedQuestions[currentQuestionIdx].id] === opt ? 'border-orange-500 bg-orange-50 text-orange-950 font-black' : 'border-slate-100 text-slate-700 font-medium'} cursor-pointer hover:border-orange-200 transition-all`}
-                    >
-                      {opt}
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+              {questions.length > 0 && (
+                <Card className="border-none shadow-xl shadow-slate-100 rounded-[2rem] bg-white overflow-hidden animate-in fade-in duration-300">
+                  <CardHeader className="p-8 border-b border-slate-100">
+                    <div className="text-xs font-black text-orange-600 uppercase tracking-widest">Question {currentQuestionIdx + 1} of {questions.length}</div>
+                    <CardTitle className="text-xl font-bold text-slate-800 mt-2">
+                      {questions[currentQuestionIdx].text}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-8 space-y-4">
+                    {questions[currentQuestionIdx].options.map((opt: string) => (
+                      <div
+                        key={opt}
+                        onClick={() => handleSelectOption(questions[currentQuestionIdx].id, opt)}
+                        className={`p-5 rounded-2xl border-2 ${selectedAnswers[questions[currentQuestionIdx].id] === opt ? 'border-orange-500 bg-orange-50 text-orange-950 font-black' : 'border-slate-100 text-slate-700 font-medium'} cursor-pointer hover:border-orange-200 transition-all`}
+                      >
+                        {opt}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
 
               <div className="flex justify-between">
                 <Button
@@ -398,7 +432,7 @@ export default function CBTExamTakingPage() {
                 >
                   Previous
                 </Button>
-                {currentQuestionIdx < simulatedQuestions.length - 1 ? (
+                {questions.length > 0 && currentQuestionIdx < questions.length - 1 ? (
                   <Button
                     onClick={() => setCurrentQuestion(prev => prev + 1)}
                     className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold h-12"

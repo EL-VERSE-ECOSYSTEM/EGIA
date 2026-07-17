@@ -1,9 +1,10 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { assessment, assessmentQuestion, assessmentResult, studentAnswer } from '@/lib/db/schema'
+import { assessment, assessmentQuestion, assessmentResult, studentAnswer, student } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+import { auth } from '@/lib/auth'
 
 function calculateGrade(percentage: number) {
   if (percentage >= 90) return 'A'
@@ -174,4 +175,38 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
 
     return { assessmentId }
   })
+}
+
+export async function getLoggedInStudentAndQuestions(assessmentId: string) {
+  const session = await auth.getSession()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
+  const studentProfile = await db.query.student.findFirst({
+    where: eq(student.userId, session.user.id)
+  })
+
+  const dbAssessment = await getAssessmentWithQuestions(assessmentId)
+
+  let questionsList = [
+    { id: 'q1', text: 'Which year did Nigeria gain independence?', options: ['1957', '1960', '1963', '1970'], answer: '1960' },
+    { id: 'q2', text: 'What is the capital city of Nigeria?', options: ['Lagos', 'Calabar', 'Abuja', 'Enugu'], answer: 'Abuja' },
+    { id: 'q3', text: 'How many geopolitical zones are in Nigeria?', options: ['4', '5', '6', '7'], answer: '6' }
+  ]
+
+  if (dbAssessment && dbAssessment.questions && dbAssessment.questions.length > 0) {
+    questionsList = dbAssessment.questions.map(q => ({
+      id: q.id,
+      text: q.questionText,
+      options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : ['A', 'B', 'C', 'D'],
+      answer: q.correctAnswer
+    }))
+  }
+
+  return {
+    studentId: studentProfile?.id || session.user.id,
+    questions: questionsList,
+    title: dbAssessment?.title || 'Weekend Assessment'
+  }
 }

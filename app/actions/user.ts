@@ -94,6 +94,18 @@ export async function createAdminProfile() {
   return { success: true }
 }
 
+export async function getStudentByAdmissionNumber(admissionNumber: string) {
+  const s = await db.query.student.findFirst({
+    where: eq(student.admissionNumber, admissionNumber)
+  })
+  if (!s) return null
+  return {
+    name: `${s.firstName} ${s.lastName}`,
+    admissionNumber: s.admissionNumber,
+    class: s.class
+  }
+}
+
 export async function createParentProfile(data: {
   firstName: string
   lastName: string
