@@ -2,10 +2,10 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { payment } from '@/lib/db/schema'
+import { payment, paymentInstallment, student } from '@/lib/db/schema'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
-import { eq } from 'drizzle-orm'
+import { eq, desc } from 'drizzle-orm'
 
 export async function submitManualPayment(data: {
   studentId: string
@@ -123,4 +123,40 @@ export async function getPaymentSummary(studentId: string) {
     .reduce((sum, p) => sum + Number(p.amount), 0)
 
   return { totalPaid, pending, paymentCount: payments.length }
+}
+
+export async function getParentPaymentHistory() {
+  const session = await auth.getSession()
+  if (!session?.user) return []
+
+  const list = await db.select()
+    .from(payment)
+    .where(eq(payment.parentId, session.user.id))
+    .orderBy(desc(payment.createdAt))
+
+  const result = []
+  for (const p of list) {
+    const s = await db.query.student.findFirst({
+      where: eq(student.id, p.studentId)
+    })
+    result.push({
+      ...p,
+      childName: s ? `${s.firstName} ${s.lastName}` : 'Enrolled Pupil'
+    })
+  }
+  return result
+}
+
+export async function simulatePaymentSuccess(paymentId: string) {
+  const result = await db.update(payment)
+    .set({
+      status: 'success',
+      paidAt: new Date(),
+      updatedAt: new Date()
+    })
+    .where(eq(payment.id, paymentId))
+    .returning()
+
+  revalidatePath('/dashboard/parent/payments/history')
+  return result[0]
 }
