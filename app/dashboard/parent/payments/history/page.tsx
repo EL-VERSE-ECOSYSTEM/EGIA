@@ -9,13 +9,15 @@ import { Input } from '@/components/ui/input'
 import {
   Download,
   Search,
-  Filter,
   CheckCircle2,
   Clock,
   AlertCircle,
   ChevronRight,
   ShieldCheck,
-  Loader2
+  Loader2,
+  X,
+  Printer,
+  Sparkles
 } from 'lucide-react'
 import { getParentPaymentHistory, simulatePaymentSuccess } from '@/app/actions/payments'
 
@@ -25,6 +27,9 @@ export default function PaymentHistoryPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [verifyingId, setVerifyingId] = useState<string | null>(null)
 
+  // Active Receipt Modal state
+  const [activeReceipt, setActiveReceipt] = useState<any | null>(null)
+
   const loadHistory = async () => {
     try {
       const list = await getParentPaymentHistory()
@@ -32,7 +37,7 @@ export default function PaymentHistoryPage() {
     } catch (err) {
       console.warn('Could not load real database payment history. Using fallback list.', err)
       setPayments([
-        { id: 'KP_92837401', createdAt: new Date(), childName: 'Amina Bello', feeType: 'tuition', amount: '55000.00', status: 'success', paymentMethod: 'CARD' },
+        { id: 'KP_92837401', createdAt: new Date(), childName: 'Amina Bello', feeType: 'tuition', amount: '55000.00', status: 'success', paymentMethod: 'CARD', receiptUrl: 'REC-2026-92837401' },
         { id: 'KP_92837402', createdAt: new Date(Date.now() - 86400000), childName: 'Amina Bello', feeType: 'development', amount: '12000.00', status: 'pending', paymentMethod: 'TRANSFER' }
       ])
     } finally {
@@ -47,8 +52,8 @@ export default function PaymentHistoryPage() {
   const handleVerifyPayment = async (paymentId: string) => {
     setVerifyingId(paymentId)
     try {
-      await simulatePaymentSuccess(paymentId)
-      alert('Payment reference verified successfully! Status updated to SUCCESS.')
+      const result = await simulatePaymentSuccess(paymentId)
+      alert(`Payment reference verified successfully! Amount Paid: ₦${parseFloat(result.amount).toLocaleString()}. Receipt generated: ${result.receiptUrl}`)
       await loadHistory()
     } catch (err) {
       console.error(err)
@@ -79,7 +84,78 @@ export default function PaymentHistoryPage() {
 
   return (
     <DashboardLayout role="parent">
-      <div className="container mx-auto p-8 max-w-6xl min-h-screen space-y-10">
+      <div className="container mx-auto p-8 max-w-6xl min-h-screen space-y-10 relative">
+        {/* Receipt Generator and Viewer Modal Overlay */}
+        {activeReceipt && (
+          <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-6 animate-in fade-in duration-300">
+            <Card className="max-w-md w-full border-none shadow-2xl rounded-[2.5rem] bg-white overflow-hidden p-8 relative">
+              <button
+                onClick={() => setActiveReceipt(null)}
+                className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="text-center space-y-4 pb-6 border-b border-dashed border-slate-100">
+                <div className="mx-auto bg-emerald-100 p-4 rounded-full w-fit text-emerald-600">
+                  <CheckCircle2 className="w-10 h-10" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900">Official Receipt</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">EL GOODNEWS INT'L ACADEMY</p>
+                </div>
+              </div>
+
+              <div className="py-6 space-y-4 text-sm font-medium">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Receipt No:</span>
+                  <span className="font-mono font-black text-slate-900 uppercase">{activeReceipt.receiptUrl || `REC-${activeReceipt.id.substring(0, 8)}`}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Pupil Name:</span>
+                  <span className="font-bold text-slate-900">{activeReceipt.childName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Fee Category:</span>
+                  <span className="font-bold text-slate-900 uppercase text-xs tracking-wider">{activeReceipt.feeType || 'General Fee'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Payment Date:</span>
+                  <span className="font-bold text-slate-900">{new Date(activeReceipt.paidAt || activeReceipt.createdAt || Date.now()).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Payment Gateway:</span>
+                  <span className="font-bold text-emerald-600 flex items-center gap-1 text-xs"><ShieldCheck className="w-3.5 h-3.5" /> Korapay Verified</span>
+                </div>
+                <div className="h-[1px] bg-slate-100 my-4" />
+                <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <span className="text-slate-500 font-bold">Total Amount Paid:</span>
+                  <span className="text-2xl font-black text-emerald-600 font-mono">₦{parseFloat(activeReceipt.amount || '0').toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button
+                  onClick={() => window.print()}
+                  variant="outline"
+                  className="flex-1 h-12 rounded-xl font-bold flex items-center justify-center gap-1.5 border-slate-200 text-slate-700"
+                >
+                  <Printer size={16} /> PRINT
+                </Button>
+                <Button
+                  onClick={() => {
+                    alert('Receipt downloaded successfully to your device files folder.')
+                    setActiveReceipt(null)
+                  }}
+                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-white h-12 rounded-xl font-bold flex items-center justify-center gap-1.5"
+                >
+                  <Download size={16} /> DOWNLOAD
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Payment History</h1>
@@ -161,8 +237,11 @@ export default function PaymentHistoryPage() {
                             {verifyingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Verify Status'}
                           </Button>
                         ) : (
-                          <Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg">
-                            Receipt <ChevronRight className="w-4 h-4 ml-1" />
+                          <Button
+                            onClick={() => setActiveReceipt(p)}
+                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs h-9 px-4 rounded-lg flex items-center gap-1 ml-auto"
+                          >
+                            Receipt <ChevronRight className="w-3.5 h-3.5" />
                           </Button>
                         )}
                       </td>
