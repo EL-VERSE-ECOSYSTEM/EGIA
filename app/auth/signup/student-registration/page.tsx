@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GraduationCap, Loader2, AlertCircle, Laptop, CreditCard, CheckCircle2, User, Plus, X } from 'lucide-react'
 import { registerStudent } from '@/app/actions/auth-server'
+import { initializeKorapayPayment } from '@/app/actions/payments'
 import { Badge } from '@/components/ui/badge'
 
 export default function StudentRegistrationPage() {
@@ -34,7 +35,6 @@ export default function StudentRegistrationPage() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [isPaid, setIsPaid] = useState(false)
   const [isValidDate, setIsValidDate] = useState(false)
@@ -85,39 +85,47 @@ export default function StudentRegistrationPage() {
       return alert('Please type and add at least one subject done.')
     }
 
-    // Trigger payment modal first as registration requires payment of 2,100 NGN
-    setShowPaymentModal(true)
-  }
-
-  const handleCompletePayment = async () => {
     setLoading(true)
-    setShowPaymentModal(false)
-
-    const payload = {
-      ...formData,
-      department: (formData.class === 'SSS1' || formData.class === 'SSS2' || formData.class === 'SSS3') ? (formData.department || 'SCIENCE') : null,
-      subjectsDone,
-      profileImage: passportImage,
-      facialVerificationVideo: null
-    }
 
     try {
-      const result = await registerStudent(payload)
+      // 1. Initialize actual Korapay checkout session URL
+      const paymentRes = await initializeKorapayPayment({
+        studentId: 'pending-activation',
+        amount: 2100,
+        feeType: 'ACTIVATION',
+        description: `Activation Fee: ${formData.firstName} ${formData.lastName}`
+      })
 
-      if (result.error) {
-        setError(result.error)
-        alert(result.error)
-        setLoading(false)
+      if (paymentRes && paymentRes.checkoutUrl) {
+        // 2. Insert and create the student record directly in local PostgreSQL database
+        const payload = {
+          ...formData,
+          department: (formData.class === 'SSS1' || formData.class === 'SSS2' || formData.class === 'SSS3') ? (formData.department || 'SCIENCE') : null,
+          subjectsDone,
+          profileImage: passportImage,
+          facialVerificationVideo: null
+        }
+
+        const result = await registerStudent(payload)
+
+        if (result.error) {
+          setError(result.error)
+          alert(result.error)
+          setLoading(false)
+        } else {
+          setGeneratedAdmissionNumber(result.admissionNumber)
+          alert(`SUCCESS! Account registered in database. Generated Admission Number: ${result.admissionNumber}. Redirecting to secure Korapay payment gateway to complete activation (₦2,100)...`)
+
+          // 3. Directly load up the actual Korapay checkout page
+          window.location.href = paymentRes.checkoutUrl
+        }
       } else {
-        setIsPaid(true)
-        setGeneratedAdmissionNumber(result.admissionNumber)
-        setShowSuccessModal(true)
-        alert(`SUCCESS! Account Activated! Your unique generated Admission Number is: ${result.admissionNumber}. Please write this down to log in.`)
-        setLoading(false)
+        throw new Error('Payment initialization failed')
       }
-    } catch (err) {
-      setError('Account failed to create')
-      alert('Account failed to create')
+    } catch (err: any) {
+      console.error(err)
+      setError('Korapay checkout failed to initialize. Please try again.')
+      alert('Korapay checkout failed to initialize. Please try again.')
       setLoading(false)
     }
   }
@@ -309,6 +317,20 @@ export default function StudentRegistrationPage() {
                   </select>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="john.doe@example.com"
+                    value={formData.email}
+                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    required
+                    className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-orange-600"
+                  />
+                </div>
+              </div>
+
               {/* Dynamic Department Selector for SSS 1 - SSS 3 */}
               {(formData.class === 'SSS1' || formData.class === 'SSS2' || formData.class === 'SSS3') && (
                 <div className="space-y-2 bg-orange-50/50 p-5 rounded-3xl border border-orange-100 animate-in fade-in duration-300">
@@ -326,20 +348,6 @@ export default function StudentRegistrationPage() {
                   </select>
                 </div>
               )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="john.doe@example.com"
-                    value={formData.email}
-                    onChange={e => setFormData({...formData, email: e.target.value})}
-                    required
-                    className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-orange-600"
-                  />
-                </div>
-              </div>
 
               {/* Dynamic tag input list for subjects done */}
               <div className="space-y-2 bg-slate-50 p-5 rounded-3xl border border-slate-100">
@@ -391,9 +399,10 @@ export default function StudentRegistrationPage() {
               </div>
               <Button
                 type="submit"
+                disabled={loading}
                 className="w-full bg-orange-600 hover:bg-orange-700 text-white h-14 rounded-2xl font-black text-lg shadow-xl shadow-orange-200 mt-6 transition-all"
               >
-                Proceed to Payment (₦2,100)
+                {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 'Register & Proceed to Payment'}
               </Button>
             </form>
           </CardContent>
@@ -439,39 +448,6 @@ export default function StudentRegistrationPage() {
             >
               Continue
             </Button>
-          </Card>
-        </div>
-      )}
-
-      {/* Simulated Korapay Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <Card className="max-sm w-full border-none shadow-2xl rounded-[2rem] bg-white overflow-hidden p-8 text-center animate-in fade-in zoom-in duration-300">
-            <div className="mx-auto bg-amber-50 p-4 rounded-full w-fit mb-4">
-              <CreditCard className="w-10 h-10 text-amber-600 animate-bounce" />
-            </div>
-            <h3 className="text-2xl font-black text-slate-900">Korapay Checkout</h3>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Merchant: EL GOODNEWS ACADEMY</p>
-            <div className="my-6 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-              <p className="text-sm font-bold text-slate-500">Registration Activation Fee</p>
-              <p className="text-3xl font-black text-slate-900 mt-1">₦2,100.00</p>
-            </div>
-            <div className="space-y-3">
-              <Button
-                onClick={handleCompletePayment}
-                disabled={loading}
-                className="w-full bg-amber-600 hover:bg-amber-700 text-white h-12 rounded-xl font-black text-sm shadow-lg shadow-amber-200"
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Authorize Payment (₦2,100)'}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setShowPaymentModal(false)}
-                className="w-full text-slate-500 font-bold h-12 rounded-xl text-sm"
-              >
-                Cancel
-              </Button>
-            </div>
           </Card>
         </div>
       )}
