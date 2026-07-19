@@ -142,6 +142,43 @@ export async function simulatePaymentSuccess(paymentId: string) {
   return result[0]
 }
 
+export async function submitRegistrationManualPayment(data: {
+  studentId: string
+  amount: string
+  feeType: string
+  receiptUrl: string
+}) {
+  return await db.insert(payment).values({
+    id: randomUUID(),
+    studentId: data.studentId,
+    amount: data.amount,
+    feeType: data.feeType,
+    paymentMethod: 'TRANSFER',
+    transactionReference: `MAN-REG-${Date.now()}`,
+    receiptUrl: data.receiptUrl,
+    status: 'pending',
+    description: `Student activation registration fee manual transfer receipt.`,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }).returning()
+}
+
+export async function getStudentIdByAdmissionNumber(admissionNumber: string) {
+  const s = await db.query.student.findFirst({
+    where: eq(student.admissionNumber, admissionNumber)
+  })
+  return s ? s.id : null
+}
+
+export async function getFeeStructuresForClass(className: string, department?: string) {
+  return await db.query.feeStructure.findMany({
+    where: and(
+      eq(feeStructure.class, className),
+      eq(feeStructure.isActive, true)
+    )
+  })
+}
+
 export async function authenticatePaymentByReference(reference: string) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')

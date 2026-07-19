@@ -13,7 +13,7 @@ import {
   Upload, Loader2
 } from 'lucide-react'
 import { getLinkedChildren } from '@/app/actions/user'
-import { submitManualPayment, initializeKorapayPayment } from '@/app/actions/payments'
+import { submitManualPayment, initializeKorapayPayment, getFeeStructuresForClass } from '@/app/actions/payments'
 import { useRouter } from 'next/navigation'
 
 export default function MakePaymentPage() {
@@ -26,18 +26,36 @@ export default function MakePaymentPage() {
   const [receipt, setReceipt] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
 
+  // Dynamic Admin Fee structures
+  const [availableFees, setAvailableFees] = useState<any[]>([])
+
   useEffect(() => {
     getLinkedChildren().then(setChildren)
   }, [])
 
-  const feeTypes = [
-    { id: 'tuition', name: 'Tuition Fee' },
-    { id: 'development', name: 'Development Levy' },
-    { id: 'exam', name: 'Examination Fee' },
-    { id: 'pta', name: 'PTA Levy' },
-    { id: 'ICT', name: 'ICT Fee' },
-    { id: 'uniform', name: 'Uniform Fee' }
-  ]
+  // Fetch fees when a child is selected
+  const handleChildSelect = async (id: string) => {
+    setChildId(id)
+    const selectedChild = children.find(c => c.id === id)
+    if (selectedChild) {
+      try {
+        const fees = await getFeeStructuresForClass(selectedChild.class, selectedChild.department)
+        setAvailableFees(fees || [])
+        setFeeType('')
+        setAmount('')
+      } catch (err) {
+        console.error(err)
+      }
+    }
+  }
+
+  const handleFeeSelect = (type: string) => {
+    setFeeType(type)
+    const selectedFee = availableFees.find(f => f.feeType === type)
+    if (selectedFee) {
+      setAmount(selectedFee.amount)
+    }
+  }
 
   const handlePayment = async () => {
     if (!childId || !feeType || !amount) return alert('Fill all details')
@@ -88,7 +106,7 @@ export default function MakePaymentPage() {
               <CardContent className="px-10 pb-12 space-y-8">
                 <div className="space-y-3">
                   <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Select Child</Label>
-                  <Select onValueChange={setChildId}>
+                  <Select onValueChange={handleChildSelect}>
                     <SelectTrigger className="h-14 rounded-2xl border-slate-200 bg-slate-50/50 focus:ring-emerald-600">
                       <SelectValue placeholder="Choose student" />
                     </SelectTrigger>
@@ -101,27 +119,31 @@ export default function MakePaymentPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Fee Category</Label>
-                  <Select onValueChange={setFeeType}>
+                  <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Fee Category (Created by Admin)</Label>
+                  <Select onValueChange={handleFeeSelect} value={feeType}>
                     <SelectTrigger className="h-14 rounded-2xl border-slate-200 bg-slate-50/50 focus:ring-emerald-600">
                       <SelectValue placeholder="What are you paying for?" />
                     </SelectTrigger>
                     <SelectContent>
-                      {feeTypes.map(f => (
-                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                      ))}
+                      {availableFees.length === 0 ? (
+                        <SelectItem value="none" disabled>No active fees set by Admin for this class</SelectItem>
+                      ) : (
+                        availableFees.map(f => (
+                          <SelectItem key={f.id} value={f.feeType}>{f.feeType} (₦{parseFloat(f.amount).toLocaleString()})</SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Amount (₦)</Label>
+                  <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Amount (₦) - Pre-approved by Admin</Label>
                   <Input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="text-4xl font-black h-24 rounded-3xl border-slate-200 bg-slate-50/50 text-emerald-600 focus:bg-white focus:ring-emerald-600"
+                    type="text"
+                    value={amount ? `₦${parseFloat(amount).toLocaleString()}` : ''}
+                    readOnly
+                    placeholder="₦0.00"
+                    className="text-4xl font-black h-24 rounded-3xl border-slate-200 bg-slate-50/50 text-emerald-600 focus:bg-white focus:ring-emerald-600 cursor-not-allowed"
                   />
                 </div>
               </CardContent>
