@@ -47,6 +47,22 @@ export async function initializeKorapayPayment(data: {
 
   const reference = `KOR-${Date.now()}-${Math.random().toString(36).substring(7)}`
 
+  // If studentId is 'pending-activation', ensure a record exists to prevent foreign key violation
+  if (data.studentId === 'pending-activation') {
+    const existing = await db.query.student.findFirst({
+      where: eq(student.id, 'pending-activation')
+    })
+    if (!existing) {
+      await db.insert(student).values({
+        id: 'pending-activation',
+        firstName: 'Pending',
+        lastName: 'Activation',
+        class: 'JSS1',
+        admissionNumber: `PENDING-${Date.now()}`
+      })
+    }
+  }
+
   // 1. Create a pending payment record
   const newPayment = await db.insert(payment).values({
     id: randomUUID(),
