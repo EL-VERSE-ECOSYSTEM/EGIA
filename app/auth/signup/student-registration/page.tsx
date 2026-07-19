@@ -43,7 +43,9 @@ export default function StudentRegistrationPage() {
   const router = useRouter()
 
   useEffect(() => {
-    setIsValidDate(true)
+    const now = new Date()
+    const deadline = new Date('2026-09-30T23:59:59')
+    setIsValidDate(now <= deadline)
   }, [])
 
   const handleAddSubject = () => {
