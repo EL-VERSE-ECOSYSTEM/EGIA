@@ -46,6 +46,7 @@ export function Sidebar({ role }: SidebarProps) {
         { label: 'Academics', icon: BookOpen, href: '/dashboard/admin/academics' },
         { label: 'Pending Fees', icon: Clock, href: '/dashboard/admin/finance/fees/pending' },
         { label: 'Finance', icon: CreditCard, href: '/dashboard/admin/finance/fees/structure' },
+        { label: 'Teacher Utility & Payroll', icon: Wallet, href: '/dashboard/admin/finance/teacher-requests' },
         { label: 'Communication', icon: MessageSquare, href: '/dashboard/admin/communication' },
         { label: 'Settings', icon: Settings, href: '/dashboard/admin/settings' },
       ]
@@ -60,6 +61,7 @@ export function Sidebar({ role }: SidebarProps) {
         { label: 'Assessments', icon: GraduationCap, href: '/dashboard/teacher/assessments/create' },
         { label: 'Lesson Notes', icon: FileText, href: '/dashboard/teacher/lesson-notes' },
         { label: 'Results', icon: Award, href: '/dashboard/teacher/results' },
+        { label: 'My Wallet', icon: Wallet, href: '/dashboard/teacher/wallet' },
         { label: 'Profile', icon: User, href: '/dashboard/teacher/profile' },
       ]
     },

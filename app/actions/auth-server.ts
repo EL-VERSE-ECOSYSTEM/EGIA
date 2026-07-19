@@ -254,6 +254,38 @@ export async function registerTeacher(data: any) {
 }
 
 export async function simulateLocalLogin(emailOrId: string, role: string) {
+  // Direct bypass for default Admin
+  if (emailOrId.toLowerCase() === 'admin@egia.com' && role === 'ADMIN') {
+    let adminUser = await db.query.user.findFirst({
+      where: eq(userTable.email, 'admin@egia.com')
+    })
+    if (!adminUser) {
+      const adminId = randomUUID()
+      await db.transaction(async (tx) => {
+        await tx.insert(userTable).values({
+          id: adminId,
+          email: 'admin@egia.com',
+          name: 'El Goodnews Admin'
+        })
+        await tx.insert(userRole).values({
+          id: randomUUID(),
+          userId: adminId,
+          role: 'ADMIN'
+        })
+      })
+      adminUser = { id: adminId, email: 'admin@egia.com', name: 'El Goodnews Admin', image: null, createdAt: new Date(), updatedAt: new Date() }
+    }
+
+    const cookieStore = await cookies()
+    cookieStore.set('mock_user_session', adminUser.id, {
+      path: '/',
+      httpOnly: true,
+      maxAge: 60 * 60 * 24 * 7 // 7 days
+    })
+
+    return { success: true, userId: adminUser.id }
+  }
+
   // Find user by email directly
   let targetUser = await db.query.user.findFirst({
     where: eq(userTable.email, emailOrId)

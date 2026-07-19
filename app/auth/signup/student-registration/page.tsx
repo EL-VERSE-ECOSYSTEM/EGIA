@@ -146,7 +146,7 @@ export default function StudentRegistrationPage() {
           </div>
           <h2 className="text-3xl font-black text-slate-900">Registration Closed</h2>
           <p className="text-slate-500 font-medium max-w-sm mx-auto mt-6 leading-relaxed">
-            Session registration is strictly open from August 16th to September 27th only.
+            Session registration is strictly open until September 30th only.
           </p>
         </Card>
       ) : isPaid ? (

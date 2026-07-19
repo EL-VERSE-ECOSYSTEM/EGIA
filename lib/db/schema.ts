@@ -499,3 +499,32 @@ export const paymentRelations = relations(payment, ({ one }) => ({
   student: one(student, { fields: [payment.studentId], references: [student.id] }),
   parent: one(parent, { fields: [payment.parentId], references: [parent.id] }),
 }))
+
+export const teacherWallet = pgTable('teacher_wallet', {
+  id: text('id').primaryKey(),
+  teacherId: text('teacherId').notNull().unique(),
+  balance: numeric('balance', { precision: 12, scale: 2 }).default('0.00'),
+  salaryAmount: numeric('salaryAmount', { precision: 12, scale: 2 }).default('150000.00'),
+  salaryStatus: text('salaryStatus').default('pending'), // pending, paid
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const teacherRequest = pgTable('teacher_request', {
+  id: text('id').primaryKey(),
+  teacherId: text('teacherId').notNull(),
+  type: text('type').notNull(), // DATA, AIRTIME
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  details: text('details'), // e.g. "10GB Airtel" or "MTN Airtime"
+  phoneNumber: text('phoneNumber').notNull(),
+  status: text('status').default('pending'), // pending, approved, rejected
+  createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const teacherWalletRelations = relations(teacherWallet, ({ one }) => ({
+  teacher: one(teacher, { fields: [teacherWallet.teacherId], references: [teacher.id] }),
+}))
+
+export const teacherRequestRelations = relations(teacherRequest, ({ one }) => ({
+  teacher: one(teacher, { fields: [teacherRequest.teacherId], references: [teacher.id] }),
+}))

@@ -22,7 +22,7 @@ export default function SignUpPage() {
     {
       role: 'STUDENT_REG',
       title: 'Student Session Registration',
-      desc: 'Complete full registration & pay account activation fee (₦2,100). Active Aug 16 - Sept 27.',
+      desc: 'Complete full registration & pay account activation fee (₦2,100). Active now until Sept 30.',
       icon: ClipboardCheck,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
