@@ -34,28 +34,80 @@ export default async function TeacherOverviewPage() {
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-10">
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-12 text-white shadow-2xl">
-         <div className="absolute top-0 right-0 p-8 opacity-10">
-            <GraduationCap size={300} strokeWidth={1} />
-         </div>
-         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-            <div>
-               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-purple-400 text-xs font-black uppercase tracking-widest mb-6">
-                  <Clock className="w-3.5 h-3.5" /> {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-               </div>
-               <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4 text-pretty">Hello, {teacherProfile?.firstName || 'Educator'}.</h1>
-               <p className="text-slate-400 text-lg font-medium max-w-xl">
-                  Ready to inspire excellence today? You have {data.classes.length} classes and {data.upcomingAssessments.length} active CBTs.
-               </p>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="xl:col-span-2 relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-12 text-white shadow-2xl flex flex-col justify-between">
+           <div className="absolute top-0 right-0 p-8 opacity-10">
+              <GraduationCap size={300} strokeWidth={1} />
+           </div>
+           <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-purple-400 text-xs font-black uppercase tracking-widest mb-6">
+                 <Clock className="w-3.5 h-3.5" /> {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              </div>
+              <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4 text-pretty font-sans">Hello, {teacherProfile?.firstName || 'Educator'}.</h1>
+              <p className="text-slate-400 text-lg font-medium max-w-xl">
+                 Ready to inspire excellence today? You have {data.classes.length} classes and {data.upcomingAssessments.length} active CBTs.
+              </p>
+           </div>
+           <div className="relative z-10 flex gap-4 mt-8">
+              <Link href="/dashboard/teacher/assessments/create">
+                 <Button className="bg-purple-600 hover:bg-purple-700 text-white h-14 px-8 rounded-2xl font-black shadow-xl shadow-purple-600/20">
+                    <Plus className="mr-2" /> CREATE ASSESSMENT
+                 </Button>
+              </Link>
+           </div>
+        </div>
+
+        {/* Dynamic Digital Staff ID Card */}
+        <Card className="border-none shadow-2xl rounded-[2.5rem] bg-gradient-to-br from-purple-600 to-indigo-600 text-white p-8 relative overflow-hidden group">
+          <div className="absolute -bottom-10 -right-10 opacity-10 text-white">
+            <GraduationCap size={200} />
+          </div>
+          <div className="relative z-10 space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="bg-white/20 p-2 rounded-lg">
+                  <GraduationCap className="text-white w-5 h-5" />
+                </div>
+                <span className="font-black text-xs tracking-wider uppercase">EL GOODNEWS ACADEMY</span>
+              </div>
+              <Badge className="bg-white/20 text-white font-black text-[9px] border-none uppercase tracking-widest px-2.5 py-1">STAFF ID</Badge>
             </div>
-            <div className="flex gap-4">
-               <Link href="/dashboard/teacher/assessments/create">
-                  <Button className="bg-purple-600 hover:bg-purple-700 text-white h-14 px-8 rounded-2xl font-black shadow-xl shadow-purple-600/20">
-                     <Plus className="mr-2" /> CREATE ASSESSMENT
-                  </Button>
-               </Link>
+
+            <div className="flex gap-6 items-center pt-2">
+              <div className="w-24 h-24 rounded-full border-4 border-white/20 bg-white/10 flex items-center justify-center font-black text-white text-3xl uppercase tracking-wider overflow-hidden">
+                {teacherProfile?.profileImage ? (
+                  <img src={teacherProfile.profileImage} alt="Staff Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{teacherProfile?.firstName?.[0] || 'T'}</span>
+                )}
+              </div>
+              <div className="space-y-1">
+                <p className="font-black text-2xl tracking-tight leading-none truncate">{teacherProfile?.firstName} {teacherProfile?.lastName}</p>
+                <p className="text-xs font-black text-purple-200 uppercase tracking-widest">{teacherProfile?.type || 'FULL TIME'}</p>
+                <p className="text-[10px] font-bold text-white/70 uppercase">Instructor Portal</p>
+              </div>
             </div>
-         </div>
+
+            <div className="h-[1px] bg-white/15" />
+
+            <div className="grid grid-cols-2 gap-4 pt-1">
+              <div>
+                <p className="text-[9px] font-black uppercase text-white/50 tracking-wider">Staff ID Code</p>
+                <p className="font-black text-sm tracking-wider font-mono">{teacherProfile?.staffCode || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase text-white/50 tracking-wider">Academic Year</p>
+                <p className="font-black text-sm tracking-wider font-mono">2026/2027</p>
+              </div>
+            </div>
+
+            <div className="text-center pt-2">
+              <Button onClick={() => window.print()} size="sm" className="bg-white text-purple-700 hover:bg-purple-50 font-black rounded-xl text-xs h-9 px-4">
+                PRINT DIGITAL STAFF ID
+              </Button>
+            </div>
+          </div>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">

@@ -20,7 +20,7 @@ export default function FeesStructurePage() {
     dueDate: ''
   })
 
-  const classes = ['Basic 5', 'Basic 6', 'JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3']
+  const classes = ['Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3']
   const departments = ['Science', 'Art', 'Commercial']
   const feeTypes = ['Tuition Fees', 'Development Levy', 'Examination Fees', 'Sports Fees', 'PTA Levies', 'Library Fees', 'ICT Fees', 'Uniform Fees']
 

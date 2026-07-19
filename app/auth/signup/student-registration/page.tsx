@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GraduationCap, Loader2, AlertCircle, Laptop, CreditCard, CheckCircle2, User, Plus, X } from 'lucide-react'
 import { registerStudent } from '@/app/actions/auth-server'
-import { initializeKorapayPayment } from '@/app/actions/payments'
+import { initializeKorapayPayment, submitRegistrationManualPayment, getStudentIdByAdmissionNumber } from '@/app/actions/payments'
 import { Badge } from '@/components/ui/badge'
+import { Banknote } from 'lucide-react'
 
 export default function StudentRegistrationPage() {
   const [formData, setFormData] = useState({
@@ -42,6 +43,10 @@ export default function StudentRegistrationPage() {
   const [copied, setCopied] = useState(false)
   const router = useRouter()
 
+  // Payment Method Selection & Manual Transfer Receipt State
+  const [paymentMethod, setPaymentMethod] = useState<'ONLINE' | 'TRANSFER'>('ONLINE')
+  const [transferReceipt, setTransferReceipt] = useState<string | null>(null)
+
   useEffect(() => {
     const now = new Date()
     const deadline = new Date('2026-09-30T23:59:59')
@@ -69,6 +74,16 @@ export default function StudentRegistrationPage() {
     }
   }
 
+  const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        setTransferReceipt(reader.result as string)
+      }
+      reader.readAsDataURL(e.target.files[0])
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -87,47 +102,65 @@ export default function StudentRegistrationPage() {
       return alert('Please type and add at least one subject done.')
     }
 
+    if (paymentMethod === 'TRANSFER' && !transferReceipt) {
+      return alert('Please upload your bank transfer payment receipt photograph.')
+    }
+
     setLoading(true)
 
     try {
-      // 1. Initialize actual Korapay checkout session URL
-      const paymentRes = await initializeKorapayPayment({
-        studentId: 'pending-activation',
-        amount: 2100,
-        feeType: 'ACTIVATION',
-        description: `Activation Fee: ${formData.firstName} ${formData.lastName}`
-      })
+      const payload = {
+        ...formData,
+        department: (formData.class === 'SSS1' || formData.class === 'SSS2' || formData.class === 'SSS3') ? (formData.department || 'SCIENCE') : null,
+        subjectsDone,
+        profileImage: passportImage,
+        facialVerificationVideo: null
+      }
 
-      if (paymentRes && paymentRes.checkoutUrl) {
-        // 2. Insert and create the student record directly in local PostgreSQL database
-        const payload = {
-          ...formData,
-          department: (formData.class === 'SSS1' || formData.class === 'SSS2' || formData.class === 'SSS3') ? (formData.department || 'SCIENCE') : null,
-          subjectsDone,
-          profileImage: passportImage,
-          facialVerificationVideo: null
-        }
+      const result = await registerStudent(payload)
 
-        const result = await registerStudent(payload)
+      if (result.error) {
+        setError(result.error)
+        alert(result.error)
+        setLoading(false)
+        return
+      }
 
-        if (result.error) {
-          setError(result.error)
-          alert(result.error)
-          setLoading(false)
-        } else {
-          setGeneratedAdmissionNumber(result.admissionNumber)
+      setGeneratedAdmissionNumber(result.admissionNumber)
+
+      if (paymentMethod === 'ONLINE') {
+        // 1. Initialize actual Korapay checkout session URL
+        const paymentRes = await initializeKorapayPayment({
+          studentId: 'pending-activation',
+          amount: 2100,
+          feeType: 'ACTIVATION',
+          description: `Activation Fee: ${formData.firstName} ${formData.lastName}`
+        })
+
+        if (paymentRes && paymentRes.checkoutUrl) {
           alert(`SUCCESS! Account registered in database. Generated Admission Number: ${result.admissionNumber}. Redirecting to secure Korapay payment gateway to complete activation (₦2,100)...`)
-
-          // 3. Directly load up the actual Korapay checkout page
           window.location.href = paymentRes.checkoutUrl
+        } else {
+          throw new Error('Payment initialization failed')
         }
       } else {
-        throw new Error('Payment initialization failed')
+        // Retrieve newly created student ID
+        const studentId = await getStudentIdByAdmissionNumber(result.admissionNumber)
+        if (studentId && transferReceipt) {
+          await submitRegistrationManualPayment({
+            studentId,
+            amount: '2100.00',
+            feeType: 'ACTIVATION',
+            receiptUrl: transferReceipt
+          })
+        }
+        alert(`SUCCESS! Registration submitted successfully. Generated Admission Number: ${result.admissionNumber}. Your transfer receipt has been uploaded and is pending administrator verification.`)
+        setIsPaid(true)
       }
     } catch (err: any) {
       console.error(err)
-      setError('Korapay checkout failed to initialize. Please try again.')
-      alert('Korapay checkout failed to initialize. Please try again.')
+      setError('Payment initialization or registration failed. Please try again.')
+      alert('Payment initialization or registration failed. Please try again.')
       setLoading(false)
     }
   }
@@ -375,6 +408,65 @@ export default function StudentRegistrationPage() {
                     </Badge>
                   ))}
                 </div>
+              </div>
+
+              {/* Payment Method Selector for Registration activation fee */}
+              <div className="space-y-4 bg-orange-50/30 p-6 rounded-3xl border border-orange-100/50">
+                <Label className="text-[10px] font-black uppercase text-orange-950 tracking-widest ml-1">Registration Activation Fee (₦2,100)</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('ONLINE')}
+                    className={`h-12 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all ${paymentMethod === 'ONLINE' ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'border-slate-200 bg-white text-slate-700'}`}
+                  >
+                    <CreditCard size={14} /> ONLINE
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('TRANSFER')}
+                    className={`h-12 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all ${paymentMethod === 'TRANSFER' ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'border-slate-200 bg-white text-slate-700'}`}
+                  >
+                    <Banknote size={14} /> BANK TRANSFER
+                  </button>
+                </div>
+
+                {paymentMethod === 'TRANSFER' && (
+                  <div className="space-y-4 pt-3 border-t border-orange-100 animate-in fade-in duration-300">
+                    <div className="p-4 bg-white rounded-2xl border border-orange-100 text-xs text-slate-600 font-semibold space-y-1">
+                      <p className="font-bold text-slate-900">Transfer ₦2,100 to either account below:</p>
+                      <p>• First Bank: <strong className="text-slate-900 font-black">3069520782</strong> (Onoha Happiness)</p>
+                      <p>• GT Bank: <strong className="text-slate-900 font-black">0649893280</strong> (Onoha Happiness)</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Upload Payment Receipt</Label>
+                      {transferReceipt ? (
+                        <div className="relative w-fit">
+                          <img src={transferReceipt} alt="Receipt Preview" className="w-24 h-24 object-cover rounded-xl border border-slate-200" />
+                          <button
+                            type="button"
+                            onClick={() => setTransferReceipt(null)}
+                            className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 text-xs font-bold shadow-sm"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleReceiptUpload}
+                            className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                          />
+                          <Button type="button" variant="outline" className="w-full h-12 rounded-xl font-bold text-xs border-slate-200 text-slate-700">
+                            Upload Receipt Image (JPG/PNG)
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
