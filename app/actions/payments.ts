@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { payment, paymentInstallment, student } from '@/lib/db/schema'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, and, or } from 'drizzle-orm'
 
 export async function submitManualPayment(data: {
   studentId: string
@@ -120,6 +120,45 @@ export async function simulatePaymentSuccess(paymentId: string) {
       updatedAt: new Date()
     })
     .where(eq(payment.id, paymentId))
+    .returning()
+
+  revalidatePath('/dashboard/parent/payments/history')
+  return result[0]
+}
+
+export async function authenticatePaymentByReference(reference: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  // Find the pending payment by transactionReference or ID
+  const record = await db.query.payment.findFirst({
+    where: and(
+      eq(payment.parentId, session.user.id),
+      or(
+        eq(payment.transactionReference, reference),
+        eq(payment.id, reference)
+      )
+    )
+  })
+
+  if (!record) {
+    throw new Error('Payment record with this reference was not found on your account.')
+  }
+
+  if (record.status === 'success') {
+    return record // Already authenticated
+  }
+
+  const receiptCode = `REC-${Date.now()}-${Math.floor(100000 + Math.random() * 900000)}`
+
+  const result = await db.update(payment)
+    .set({
+      status: 'success',
+      paidAt: new Date(),
+      receiptUrl: receiptCode,
+      updatedAt: new Date()
+    })
+    .where(eq(payment.id, record.id))
     .returning()
 
   revalidatePath('/dashboard/parent/payments/history')

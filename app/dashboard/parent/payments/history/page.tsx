@@ -19,13 +19,17 @@ import {
   Printer,
   Sparkles
 } from 'lucide-react'
-import { getParentPaymentHistory, simulatePaymentSuccess } from '@/app/actions/payments'
+import { getParentPaymentHistory, simulatePaymentSuccess, authenticatePaymentByReference } from '@/app/actions/payments'
 
 export default function PaymentHistoryPage() {
   const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [verifyingId, setVerifyingId] = useState<string | null>(null)
+
+  // Instant Reference Authentication State
+  const [instantRef, setInstantRef] = useState('')
+  const [authenticating, setAuthenticating] = useState(false)
 
   // Active Receipt Modal state
   const [activeReceipt, setActiveReceipt] = useState<any | null>(null)
@@ -60,6 +64,23 @@ export default function PaymentHistoryPage() {
       alert('Verification failed. Please contact admin.')
     } finally {
       setVerifyingId(null)
+    }
+  }
+
+  const handleInstantAuthenticate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!instantRef.trim()) return alert('Please enter a reference code')
+
+    setAuthenticating(true)
+    try {
+      const result = await authenticatePaymentByReference(instantRef.trim())
+      alert(`SUCCESS! Payment reference verified. Amount: ₦${parseFloat(result.amount).toLocaleString()}. Receipt No: ${result.receiptUrl}`)
+      setInstantRef('')
+      await loadHistory()
+    } catch (err: any) {
+      alert(err.message || 'Verification failed. Please double check the reference or contact support.')
+    } finally {
+      setAuthenticating(false)
     }
   }
 
@@ -165,6 +186,31 @@ export default function PaymentHistoryPage() {
             <Download className="w-4 h-4 mr-2" /> Export All (PDF)
           </Button>
         </div>
+
+        {/* Instant Reference Authentication Form */}
+        <Card className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-amber-50/50 p-8 border border-amber-100/50">
+          <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
+            <div className="space-y-1">
+              <h3 className="font-black text-amber-950 text-xl">Instant Korapay Pay Link Authenticator</h3>
+              <p className="text-amber-800 text-sm font-medium">Paid via our checkout link? Paste your Transaction Reference or Payment ID below to instantly activate.</p>
+            </div>
+            <form onSubmit={handleInstantAuthenticate} className="flex gap-3 w-full lg:w-auto shrink-0">
+              <Input
+                placeholder="e.g. KOR-1718..."
+                value={instantRef}
+                onChange={(e) => setInstantRef(e.target.value)}
+                className="bg-white border-amber-200 rounded-xl h-12 px-4 text-sm font-bold text-slate-900 w-full lg:w-80"
+              />
+              <Button
+                type="submit"
+                disabled={authenticating}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl h-12 px-6 shrink-0"
+              >
+                {authenticating ? <Loader2 className="animate-spin w-5 h-5" /> : 'AUTHENTICATE'}
+              </Button>
+            </form>
+          </div>
+        </Card>
 
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
