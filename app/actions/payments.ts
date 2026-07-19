@@ -43,7 +43,7 @@ export async function initializeKorapayPayment(data: {
   description?: string
 }) {
   const session = await auth.getSession()
-  if (!session?.user) throw new Error('Unauthorized')
+  const parentId = session?.user?.id || null
 
   const reference = `KOR-${Date.now()}-${Math.random().toString(36).substring(7)}`
 
@@ -51,7 +51,7 @@ export async function initializeKorapayPayment(data: {
   const newPayment = await db.insert(payment).values({
     id: randomUUID(),
     studentId: data.studentId,
-    parentId: session.user.id,
+    parentId: parentId,
     amount: data.amount.toString(),
     feeType: data.feeType,
     paymentMethod: 'CARD',
