@@ -2,10 +2,10 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { payment } from '@/lib/db/schema'
+import { payment, paymentInstallment, student } from '@/lib/db/schema'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
-import { eq } from 'drizzle-orm'
+import { eq, desc } from 'drizzle-orm'
 
 export async function submitManualPayment(data: {
   studentId: string
@@ -62,48 +62,9 @@ export async function initializeKorapayPayment(data: {
     updatedAt: new Date()
   }).returning()
 
-  // 2. Call Korapay live charge initialization API
-  try {
-    const payload = {
-      amount: data.amount,
-      reference,
-      notification_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://el-goodnews.vercel.app'}/api/korapay/webhook`,
-      redirect_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://el-goodnews.vercel.app'}/dashboard/parent/payments/history`,
-      currency: 'NGN',
-      customer: {
-        email: session.user.email || 'parent@elgoodnews.com',
-        name: session.user.name || 'Parent User'
-      },
-      description: data.description || `School Fees Payment for ${data.feeType}`
-    }
-
-    const response = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.KORAPAY_SECRET_KEY || ''}`
-      },
-      body: JSON.stringify(payload)
-    })
-
-    if (response.ok) {
-      const result = await response.json()
-      if (result.status === 'success' && result.data?.checkout_url) {
-        return {
-          checkoutUrl: result.data.checkout_url,
-          reference: reference,
-          paymentId: newPayment[0].id
-        }
-      }
-    }
-    console.warn('Korapay live checkout API returned unsuccessful status, utilizing simulated checkout.')
-  } catch (err) {
-    console.error('Error contacting Korapay Merchant API:', err)
-  }
-
-  // Simulation: Return a mock checkout URL as fallback for test/offline environments
+  // 2. Direct checkout link provided by the merchant
   return {
-    checkoutUrl: `https://checkout.korapay.com/pay/${reference}`,
+    checkoutUrl: 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW',
     reference: reference,
     paymentId: newPayment[0].id
   }
@@ -123,4 +84,44 @@ export async function getPaymentSummary(studentId: string) {
     .reduce((sum, p) => sum + Number(p.amount), 0)
 
   return { totalPaid, pending, paymentCount: payments.length }
+}
+
+export async function getParentPaymentHistory() {
+  const session = await auth.getSession()
+  if (!session?.user) return []
+
+  const list = await db.select()
+    .from(payment)
+    .where(eq(payment.parentId, session.user.id))
+    .orderBy(desc(payment.createdAt))
+
+  const result = []
+  for (const p of list) {
+    const s = await db.query.student.findFirst({
+      where: eq(student.id, p.studentId)
+    })
+    result.push({
+      ...p,
+      childName: s ? `${s.firstName} ${s.lastName}` : 'Enrolled Pupil'
+    })
+  }
+  return result
+}
+
+export async function simulatePaymentSuccess(paymentId: string) {
+  // Generate and save unique receipt code on transaction completion
+  const receiptCode = `REC-${Date.now()}-${Math.floor(100000 + Math.random() * 900000)}`
+
+  const result = await db.update(payment)
+    .set({
+      status: 'success',
+      paidAt: new Date(),
+      receiptUrl: receiptCode,
+      updatedAt: new Date()
+    })
+    .where(eq(payment.id, paymentId))
+    .returning()
+
+  revalidatePath('/dashboard/parent/payments/history')
+  return result[0]
 }
