@@ -5,12 +5,22 @@ import { eq } from 'drizzle-orm'
 import crypto from 'crypto'
 
 export async function POST(req: Request) {
-  const body = await req.json()
+  const rawBody = await req.text()
+  const body = JSON.parse(rawBody)
   const signature = req.headers.get('x-korapay-signature')
+  const secret = process.env.KORAPAY_SECRET_KEY
 
-  // Verify signature (Simplified for this task)
-  if (!signature) {
-    return new Response('Unauthorized', { status: 401 })
+  if (secret && signature) {
+    const hash = crypto
+      .createHmac('sha256', secret)
+      .update(rawBody)
+      .digest('hex')
+
+    if (hash !== signature) {
+      return new Response('Unauthorized: Invalid Signature', { status: 401 })
+    }
+  } else if (!signature) {
+    return new Response('Unauthorized: Missing Signature', { status: 401 })
   }
 
   const { event, data } = body
@@ -21,9 +31,10 @@ export async function POST(req: Request) {
     await db.update(payment)
       .set({
         status: 'success',
+        paidAt: new Date(),
         updatedAt: new Date()
       })
-      .where(eq(payment.reference, reference))
+      .where(eq(payment.transactionReference, reference))
   }
 
   return NextResponse.json({ received: true })

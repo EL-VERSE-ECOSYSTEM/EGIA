@@ -86,6 +86,16 @@ export async function getPendingPayments() {
   })
 }
 
+export async function getAllPaymentsWithStudents() {
+  await checkAdminPermission('read', 'payment')
+  return await db.query.payment.findMany({
+    with: {
+       student: true
+    },
+    orderBy: (p, { desc }) => [desc(p.createdAt)]
+  })
+}
+
 export async function verifyPayment(paymentId: string, status: 'success' | 'failed') {
   await checkAdminPermission('update', 'payment')
 

@@ -33,7 +33,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/dashboard/teacher/assessments/create/pdf') ||
     pathname.startsWith('/dashboard/student/results/report-card') ||
     pathname.startsWith('/dashboard/parent/results/report-card') ||
-    pathname.startsWith('/dashboard/student/games')
+    pathname.startsWith('/dashboard/student/games') ||
+    pathname.startsWith('/dashboard/admin/finance/fees/payments')
   ) && isPlaywright && isLocalHostName
 
   if (pathname.startsWith('/dashboard/teacher/assessments/create/pdf')) {
