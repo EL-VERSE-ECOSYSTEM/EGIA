@@ -45,16 +45,17 @@ export async function middleware(request: NextRequest) {
   const ip = request.ip || request.headers.get('x-forwarded-for') || '127.0.0.1'
   const isAuthRoute = pathname.startsWith('/auth/') || pathname.startsWith('/api/')
   const limit = isAuthRoute ? LIMIT_AUTH_API : LIMIT_GENERAL
+  const windowMs = isAuthRoute ? (5 * 60 * 1000) : WINDOW_MS
 
   const now = Date.now()
   const rateLimitKey = `${ip}:${isAuthRoute ? 'auth-api' : 'general'}`
   const rateLimitInfo = rateLimitMap.get(rateLimitKey)
 
   if (!rateLimitInfo) {
-    rateLimitMap.set(rateLimitKey, { count: 1, resetTime: now + WINDOW_MS })
+    rateLimitMap.set(rateLimitKey, { count: 1, resetTime: now + windowMs })
   } else {
     if (now > rateLimitInfo.resetTime) {
-      rateLimitMap.set(rateLimitKey, { count: 1, resetTime: now + WINDOW_MS })
+      rateLimitMap.set(rateLimitKey, { count: 1, resetTime: now + windowMs })
     } else {
       rateLimitInfo.count += 1
       if (rateLimitInfo.count > limit) {
