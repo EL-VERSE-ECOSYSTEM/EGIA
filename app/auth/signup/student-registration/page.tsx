@@ -51,6 +51,17 @@ export default function StudentRegistrationPage() {
     const now = new Date()
     const deadline = new Date('2026-09-30T23:59:59')
     setIsValidDate(now <= deadline)
+
+    // Check if there is a pending student admission number from successful Korapay payment redirect return
+    if (typeof window !== 'undefined') {
+      const pendingAdmission = localStorage.getItem('pending_student_admission')
+      if (pendingAdmission) {
+        setGeneratedAdmissionNumber(pendingAdmission)
+        setShowSuccessModal(true)
+        setIsPaid(true)
+        localStorage.removeItem('pending_student_admission')
+      }
+    }
   }, [])
 
   const handleAddSubject = () => {
@@ -129,30 +140,13 @@ export default function StudentRegistrationPage() {
       setGeneratedAdmissionNumber(result.admissionNumber)
 
       if (paymentMethod === 'ONLINE') {
-        let resolvedStudentId = 'pending-activation'
-        try {
-          const fetchedId = await getStudentIdByAdmissionNumber(result.admissionNumber)
-          if (fetchedId) {
-            resolvedStudentId = fetchedId
-          }
-        } catch (e) {
-          console.error('Failed to retrieve generated student ID:', e)
+        // Save the generated unique Admission Number in localStorage before redirecting to Korapay
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('pending_student_admission', result.admissionNumber)
         }
 
-        // 1. Initialize actual Korapay checkout session URL
-        const paymentRes = await initializeKorapayPayment({
-          studentId: resolvedStudentId,
-          amount: 2100,
-          feeType: 'ACTIVATION',
-          description: `Activation Fee: ${formData.firstName} ${formData.lastName}`
-        })
-
-        if (paymentRes && paymentRes.checkoutUrl) {
-          alert(`SUCCESS! Account registered in database. Generated Admission Number: ${result.admissionNumber}. Redirecting to secure Korapay payment gateway to complete activation (₦2,100)...`)
-          window.location.href = paymentRes.checkoutUrl
-        } else {
-          throw new Error('Payment initialization failed')
-        }
+        alert(`SUCCESS! Account registered in database. Generated Admission Number: ${result.admissionNumber}. Redirecting to secure Korapay payment gateway to complete activation (₦2,100)...`)
+        window.location.href = 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
       } else {
         // Retrieve newly created student ID
         const studentId = await getStudentIdByAdmissionNumber(result.admissionNumber)
