@@ -83,6 +83,7 @@ export function Sidebar({ role }: SidebarProps) {
       hoverColor: 'hover:bg-white/10',
       links: [
         { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/student/overview' },
+        { label: 'Library', icon: BookOpen, href: '/dashboard/student/library' },
         { label: 'Assessments', icon: GraduationCap, href: '/dashboard/student/assessments/upcoming' },
         { label: 'Results', icon: Award, href: '/dashboard/student/results/current' },
         { label: 'Games & Puzzles', icon: Gamepad2, href: '/dashboard/student/games' },
