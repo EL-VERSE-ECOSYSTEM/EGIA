@@ -36,3 +36,23 @@ If you want to write it to the DOM, pass a string instead: collapsible="true" or
  GET /auth/signin 200 in 77ms (next.js: 5ms, proxy.ts: 5ms, application-code: 67ms)
  GET /auth/signin 200 in 412ms (next.js: 27ms, proxy.ts: 9ms, application-code: 377ms)
  GET /auth/signin 200 in 76ms (next.js: 5ms, proxy.ts: 5ms, application-code: 66ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+ GET /dashboard/teacher/assessments/create/pdf 200 in 1371ms (next.js: 60ms, proxy.ts: 80ms, application-code: 1231ms)
+ GET /auth/signin 200 in 1275ms (next.js: 286ms, proxy.ts: 14ms, application-code: 975ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+ POST /dashboard/teacher/assessments/create/pdf 200 in 46ms (next.js: 8ms, proxy.ts: 17ms, application-code: 20ms)
+  └─ ƒ getTeacherProfile() in 6ms actions/teacher.ts
+ GET / 200 in 345ms (next.js: 12ms, proxy.ts: 5ms, application-code: 328ms)
+ GET /admissions 200 in 101ms (next.js: 13ms, proxy.ts: 5ms, application-code: 82ms)
+ GET /auth/signin 200 in 99ms (next.js: 7ms, proxy.ts: 5ms, application-code: 87ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
+ GET / 200 in 239ms (next.js: 4ms, proxy.ts: 7ms, application-code: 228ms)
+ GET /auth/signin 200 in 106ms (next.js: 16ms, proxy.ts: 20ms, application-code: 70ms)
+[browser] Received `true` for a non-boolean attribute `collapsible`.
+
+If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
+ GET /auth/signin 200 in 67ms (next.js: 4ms, proxy.ts: 4ms, application-code: 59ms)
+ POST /dashboard/teacher/assessments/create/pdf 200 in 3.1s (next.js: 24ms, proxy.ts: 15ms, application-code: 3.0s)
+  └─ ƒ simulateAIParsing("mock-base64") in 3014ms actions/ai-parsing.ts
+ GET /auth/signin 200 in 105ms (next.js: 7ms, proxy.ts: 8ms, application-code: 90ms)
+ GET /auth/signin 200 in 78ms (next.js: 9ms, proxy.ts: 4ms, application-code: 65ms)
