@@ -129,9 +129,19 @@ export default function StudentRegistrationPage() {
       setGeneratedAdmissionNumber(result.admissionNumber)
 
       if (paymentMethod === 'ONLINE') {
+        let resolvedStudentId = 'pending-activation'
+        try {
+          const fetchedId = await getStudentIdByAdmissionNumber(result.admissionNumber)
+          if (fetchedId) {
+            resolvedStudentId = fetchedId
+          }
+        } catch (e) {
+          console.error('Failed to retrieve generated student ID:', e)
+        }
+
         // 1. Initialize actual Korapay checkout session URL
         const paymentRes = await initializeKorapayPayment({
-          studentId: 'pending-activation',
+          studentId: resolvedStudentId,
           amount: 2100,
           feeType: 'ACTIVATION',
           description: `Activation Fee: ${formData.firstName} ${formData.lastName}`
