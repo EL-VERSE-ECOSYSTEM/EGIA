@@ -34,11 +34,16 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/dashboard/student/results/report-card') ||
     pathname.startsWith('/dashboard/parent/results/report-card') ||
     pathname.startsWith('/dashboard/student/games') ||
-    pathname.startsWith('/dashboard/admin/finance/fees/payments')
+    pathname.startsWith('/dashboard/admin/finance/fees/payments') ||
+    pathname.startsWith('/dashboard/student/library')
   ) && isPlaywright && isLocalHostName
 
   if (pathname.startsWith('/dashboard/teacher/assessments/create/pdf')) {
     console.log('MIDDLEWARE BYPASS DIAGNOSTIC: hostname =', request.nextUrl.hostname, 'isPlaywright =', isPlaywright, 'isLocalHostName =', isLocalHostName, 'isPDFBypass =', isPDFBypass)
+  }
+
+  if (isPDFBypass) {
+    return withSecurityHeaders(NextResponse.next())
   }
 
   // Rate Limiting

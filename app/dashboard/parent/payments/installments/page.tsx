@@ -103,9 +103,11 @@ export default async function InstallmentsPage() {
                                 </td>
                                 <td className="p-8 text-right">
                                    {inst.status !== 'paid' && (
-                                     <Button className="h-10 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 font-black text-xs shadow-lg shadow-emerald-100 gap-2">
-                                        PAY NOW <ArrowRight size={14} />
-                                     </Button>
+                                     <a href="https://checkout.korapay.com/pay/BHba4zdsceZDgyW" target="_blank" rel="noopener noreferrer">
+                                       <Button className="h-10 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 font-black text-xs shadow-lg shadow-emerald-100 gap-2">
+                                          PAY NOW <ArrowRight size={14} />
+                                       </Button>
+                                     </a>
                                    )}
                                 </td>
                              </tr>

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { getParentChildren, getParentProfile } from '@/lib/api/queries'
 import { auth } from '@/lib/auth'
+import Link from 'next/link'
 
 export default async function ParentOverviewPage() {
   const session = await auth.getSession()
@@ -43,9 +44,11 @@ export default async function ParentOverviewPage() {
                </p>
             </div>
             <div className="flex gap-4">
-               <Button className="bg-emerald-600 hover:bg-emerald-700 text-white h-14 px-8 rounded-2xl font-black shadow-xl shadow-emerald-600/20">
-                  <Wallet className="mr-2 w-5 h-5" /> MAKE PAYMENT
-               </Button>
+               <Link href="/dashboard/parent/payments/make-payment">
+                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white h-14 px-8 rounded-2xl font-black shadow-xl shadow-emerald-600/20">
+                     <Wallet className="mr-2 w-5 h-5" /> MAKE PAYMENT
+                  </Button>
+               </Link>
             </div>
          </div>
       </div>
@@ -109,7 +112,19 @@ export default async function ParentOverviewPage() {
                      <p className="text-3xl font-black text-emerald-900">₦45,000.00</p>
                      <p className="text-xs font-bold text-emerald-600 mt-2">Due Date: Oct 30, 2024</p>
                   </div>
-                  <Button className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black shadow-lg shadow-emerald-600/10">PAY NOW</Button>
+                  <Link href="/dashboard/parent/payments/make-payment" className="block w-full">
+                     <Button className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black shadow-lg shadow-emerald-600/10">PAY NOW</Button>
+                  </Link>
+                  <div className="text-center pt-1">
+                    <a
+                      href="https://checkout.korapay.com/pay/BHba4zdsceZDgyW"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 underline tracking-widest uppercase block"
+                    >
+                      Or Pay Directly via Korapay Link
+                    </a>
+                  </div>
                </CardContent>
             </Card>
 

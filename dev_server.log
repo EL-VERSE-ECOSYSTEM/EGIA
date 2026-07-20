@@ -5,54 +5,78 @@
 ▲ Next.js 16.2.6 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
-- Environments: .env.local
-✓ Ready in 578ms
+✓ Ready in 571ms
 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
 
-○ Compiling / ...
-Received `true` for a non-boolean attribute `collapsible`.
+⨯ Error: Your project's URL and Key are required to create a Supabase client!
 
-If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
- GET / 200 in 7.0s (next.js: 5.8s, proxy.ts: 185ms, application-code: 975ms)
-MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
-○ Compiling /dashboard/teacher/assessments/create/pdf ...
- GET /auth/signin 200 in 4.1s (next.js: 3.3s, proxy.ts: 10ms, application-code: 770ms)
- GET /dashboard/teacher/assessments/create/pdf 200 in 4.2s (next.js: 3.8s, proxy.ts: 25ms, application-code: 366ms)
-MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
-DATABASE_URL is not set. Database operations will fail.
- POST /dashboard/teacher/assessments/create/pdf 200 in 110ms (next.js: 8ms, proxy.ts: 10ms, application-code: 93ms)
-  └─ ƒ getTeacherProfile() in 6ms actions/teacher.ts
- GET / 200 in 305ms (next.js: 6ms, proxy.ts: 7ms, application-code: 292ms)
- GET /admissions 200 in 905ms (next.js: 669ms, proxy.ts: 7ms, application-code: 229ms)
-MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
- GET /auth/signin 200 in 113ms (next.js: 4ms, proxy.ts: 5ms, application-code: 104ms)
- GET / 200 in 355ms (next.js: 6ms, proxy.ts: 5ms, application-code: 344ms)
- GET /auth/signin 200 in 209ms (next.js: 26ms, proxy.ts: 19ms, application-code: 164ms)
-[browser] Received `true` for a non-boolean attribute `collapsible`.
+Check your Supabase project's API settings to find these values
 
-If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
- POST /dashboard/teacher/assessments/create/pdf 200 in 3.1s (next.js: 8ms, proxy.ts: 19ms, application-code: 3.0s)
-  └─ ƒ simulateAIParsing("mock-base64") in 3009ms actions/ai-parsing.ts
- GET /auth/signin 200 in 77ms (next.js: 5ms, proxy.ts: 5ms, application-code: 67ms)
- GET /auth/signin 200 in 412ms (next.js: 27ms, proxy.ts: 9ms, application-code: 377ms)
- GET /auth/signin 200 in 76ms (next.js: 5ms, proxy.ts: 5ms, application-code: 66ms)
-MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
- GET /dashboard/teacher/assessments/create/pdf 200 in 1371ms (next.js: 60ms, proxy.ts: 80ms, application-code: 1231ms)
- GET /auth/signin 200 in 1275ms (next.js: 286ms, proxy.ts: 14ms, application-code: 975ms)
-MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
- POST /dashboard/teacher/assessments/create/pdf 200 in 46ms (next.js: 8ms, proxy.ts: 17ms, application-code: 20ms)
-  └─ ƒ getTeacherProfile() in 6ms actions/teacher.ts
- GET / 200 in 345ms (next.js: 12ms, proxy.ts: 5ms, application-code: 328ms)
- GET /admissions 200 in 101ms (next.js: 13ms, proxy.ts: 5ms, application-code: 82ms)
- GET /auth/signin 200 in 99ms (next.js: 7ms, proxy.ts: 5ms, application-code: 87ms)
-MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isPDFBypass = true
- GET / 200 in 239ms (next.js: 4ms, proxy.ts: 7ms, application-code: 228ms)
- GET /auth/signin 200 in 106ms (next.js: 16ms, proxy.ts: 20ms, application-code: 70ms)
-[browser] Received `true` for a non-boolean attribute `collapsible`.
+https://supabase.com/dashboard/project/_/settings/api
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at createClient (utils/supabase/middleware.ts:15:38)
+    at middleware (middleware.ts:93:46)
+  13 |   });
+  14 |
+> 15 |   const supabase = createServerClient(
+     |                                      ^
+  16 |     supabaseUrl!,
+  17 |     supabaseKey!,
+  18 |     {
+ GET /dashboard/student/library 404 in 1998ms (next.js: -165152µs, proxy.ts: 1987ms, application-code: 177ms)
+[browser] Uncaught Error: Your project's URL and Key are required to create a Supabase client!
 
-If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
- GET /auth/signin 200 in 67ms (next.js: 4ms, proxy.ts: 4ms, application-code: 59ms)
- POST /dashboard/teacher/assessments/create/pdf 200 in 3.1s (next.js: 24ms, proxy.ts: 15ms, application-code: 3.0s)
-  └─ ƒ simulateAIParsing("mock-base64") in 3014ms actions/ai-parsing.ts
- GET /auth/signin 200 in 105ms (next.js: 7ms, proxy.ts: 8ms, application-code: 90ms)
- GET /auth/signin 200 in 78ms (next.js: 9ms, proxy.ts: 4ms, application-code: 65ms)
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at createClient (utils/supabase/middleware.ts:15:38)
+    at middleware (middleware.ts:93:46)
+  13 |   });
+  14 |
+> 15 |   const supabase = createServerClient(
+     |                                      ^
+  16 |     supabaseUrl!,
+  17 |     supabaseKey!,
+  18 |     {
+○ Compiling /_not-found/page ...
+✓ Compiled in 318ms
+ GET /dashboard/student/library 200 in 2.5s (next.js: 2.0s, proxy.ts: 50ms, application-code: 462ms)
+⨯ Error: Your project's URL and Key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at createClient (utils/supabase/middleware.ts:15:38)
+    at middleware (middleware.ts:97:46)
+  13 |   });
+  14 |
+> 15 |   const supabase = createServerClient(
+     |                                      ^
+  16 |     supabaseUrl!,
+  17 |     supabaseKey!,
+  18 |     {
+ GET /sw.js 404 in 281ms (next.js: -36417µs, proxy.ts: 272ms, application-code: 45ms)
+ GET /dashboard/student/library 200 in 193ms (next.js: 7ms, proxy.ts: 9ms, application-code: 177ms)
+⨯ Error: Your project's URL and Key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at createClient (utils/supabase/middleware.ts:15:38)
+    at middleware (middleware.ts:97:46)
+  13 |   });
+  14 |
+> 15 |   const supabase = createServerClient(
+     |                                      ^
+  16 |     supabaseUrl!,
+  17 |     supabaseKey!,
+  18 |     {
+ GET /sw.js 404 in 143ms (next.js: -31369µs, proxy.ts: 125ms, application-code: 49ms)
