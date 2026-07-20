@@ -80,3 +80,71 @@ https://supabase.com/dashboard/project/_/settings/api
   17 |     supabaseKey!,
   18 |     {
  GET /sw.js 404 in 143ms (next.js: -31369µs, proxy.ts: 125ms, application-code: 49ms)
+⨯ Error: Your project's URL and Key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at createClient (utils/supabase/middleware.ts:15:38)
+    at middleware (middleware.ts:97:46)
+  13 |   });
+  14 |
+> 15 |   const supabase = createServerClient(
+     |                                      ^
+  16 |     supabaseUrl!,
+  17 |     supabaseKey!,
+  18 |     {
+ GET /auth/signup/student-registration 404 in 252ms (next.js: -59006µs, proxy.ts: 249ms, application-code: 62ms)
+[browser] Uncaught Error: Your project's URL and Key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at createClient (utils/supabase/middleware.ts:15:38)
+    at middleware (middleware.ts:97:46)
+  13 |   });
+  14 |
+> 15 |   const supabase = createServerClient(
+     |                                      ^
+  16 |     supabaseUrl!,
+  17 |     supabaseKey!,
+  18 |     {
+⨯ Error: Your project's URL and Key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at createClient (utils/supabase/middleware.ts:15:38)
+    at middleware (middleware.ts:97:46)
+  13 |   });
+  14 |
+> 15 |   const supabase = createServerClient(
+     |                                      ^
+  16 |     supabaseUrl!,
+  17 |     supabaseKey!,
+  18 |     {
+ GET /auth/signup/student-registration 404 in 108ms (next.js: -12105µs, proxy.ts: 106ms, application-code: 14ms)
+[browser] Uncaught Error: Your project's URL and Key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at createClient (utils/supabase/middleware.ts:15:38)
+    at middleware (middleware.ts:97:46)
+  13 |   });
+  14 |
+> 15 |   const supabase = createServerClient(
+     |                                      ^
+  16 |     supabaseUrl!,
+  17 |     supabaseKey!,
+  18 |     {
