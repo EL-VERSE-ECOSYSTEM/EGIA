@@ -48,6 +48,8 @@ export const auth = {
         .where(eq(userRole.userId, session.user.id))
         .limit(1)
 
+      const finalRole = roleRecord[0]?.role || (session.user.user_metadata?.role || null)
+
       return {
         ...session,
         user: {
@@ -55,7 +57,7 @@ export const auth = {
           id: session.user.id,
           email: session.user.email || '',
           name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
-          role: roleRecord[0]?.role || null
+          role: finalRole
         }
       }
     } catch (supabaseErr) {
@@ -100,9 +102,11 @@ export const auth = {
         .where(eq(userRole.userId, user.id))
         .limit(1)
 
+      const finalRole = roleRecord[0]?.role || (user.user_metadata?.role || null)
+
       return {
         ...user,
-        role: roleRecord[0]?.role || null
+        role: finalRole
       }
     } catch (err) {
       return null

@@ -35,25 +35,83 @@ export default async function DashboardRedirect() {
     }
 
     if (role === 'TEACHER') {
-      const profile = await getTeacherProfile(session.user.id)
-      if (!profile) redirect('/setup-role/teacher')
+      let profile = await getTeacherProfile(session.user.id)
+      if (!profile) {
+        try {
+          const { db } = await import('@/lib/db')
+          const { teacher } = await import('@/lib/db/schema')
+          const nameParts = (session.user.name || 'Teacher').split(' ')
+          const firstName = nameParts[0] || 'Teacher'
+          const lastName = nameParts.slice(1).join(' ') || 'User'
+          const staffCode = `EGIA-ST-${Math.floor(100000 + Math.random() * 900000)}`
+
+          await db.insert(teacher).values({
+            id: require('crypto').randomUUID(),
+            userId: session.user.id,
+            firstName,
+            lastName,
+            staffCode,
+          }).onConflictDoNothing()
+          profile = await getTeacherProfile(session.user.id)
+        } catch (err) {
+          console.error("DashboardRedirect: Failed to auto-create teacher profile:", err)
+        }
+      }
       redirect('/dashboard/teacher/overview')
     }
 
     if (role === 'PARENT') {
-      const profile = await getParentProfile(session.user.id)
-      if (!profile) redirect('/setup-role/parent')
+      let profile = await getParentProfile(session.user.id)
+      if (!profile) {
+        try {
+          const { db } = await import('@/lib/db')
+          const { parent } = await import('@/lib/db/schema')
+          const nameParts = (session.user.name || 'Parent').split(' ')
+          const firstName = nameParts[0] || 'Parent'
+          const lastName = nameParts.slice(1).join(' ') || 'User'
+
+          await db.insert(parent).values({
+            id: require('crypto').randomUUID(),
+            userId: session.user.id,
+            firstName,
+            lastName,
+          }).onConflictDoNothing()
+          profile = await getParentProfile(session.user.id)
+        } catch (err) {
+          console.error("DashboardRedirect: Failed to auto-create parent profile:", err)
+        }
+      }
       redirect('/dashboard/parent/overview')
     }
 
     if (role === 'STUDENT') {
-      const profile = await getStudentProfile(session.user.id)
-      if (!profile) redirect('/setup-role/student')
+      let profile = await getStudentProfile(session.user.id)
+      if (!profile) {
+        try {
+          const { db } = await import('@/lib/db')
+          const { student } = await import('@/lib/db/schema')
+          const nameParts = (session.user.name || 'Student').split(' ')
+          const firstName = nameParts[0] || 'Student'
+          const lastName = nameParts.slice(1).join(' ') || 'User'
+          const admissionNumber = `GOD${Math.floor(100000 + Math.random() * 900000)}`
+
+          await db.insert(student).values({
+            id: require('crypto').randomUUID(),
+            userId: session.user.id,
+            firstName,
+            lastName,
+            class: 'JSS1',
+            admissionNumber,
+          }).onConflictDoNothing()
+          profile = await getStudentProfile(session.user.id)
+        } catch (err) {
+          console.error("DashboardRedirect: Failed to auto-create student profile:", err)
+        }
+      }
       redirect('/dashboard/student/overview')
     }
   } catch (error) {
-    console.error(`DashboardRedirect: Profile loading failed for user id ${session.user.id}:`, error)
-    // Fall back to setup-role selection if profiles cannot be resolved or if database is temporarily down
+    console.error(`DashboardRedirect: Profile loading/auto-creation failed for user id ${session.user.id}:`, error)
     redirect('/setup-role')
   }
 

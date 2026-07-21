@@ -528,3 +528,20 @@ export const teacherWalletRelations = relations(teacherWallet, ({ one }) => ({
 export const teacherRequestRelations = relations(teacherRequest, ({ one }) => ({
   teacher: one(teacher, { fields: [teacherRequest.teacherId], references: [teacher.id] }),
 }))
+
+export const libraryBooks = pgTable('library_books', {
+  id: text('id').primaryKey(),
+  isbn: text('isbn').unique(),
+  title: text('title').notNull(),
+  author: text('author'),
+  publisher: text('publisher'),
+  publicationYear: integer('publication_year'),
+  category: text('category'),
+  totalCopies: integer('total_copies').default(1),
+  availableCopies: integer('available_copies').default(1),
+  location: text('location'),
+  content: text('content'),
+  subject: text('subject'),
+  classLevel: text('class_level'),
+  createdAt: timestamp('created_at').defaultNow()
+})

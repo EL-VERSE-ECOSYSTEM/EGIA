@@ -113,10 +113,6 @@ export default function StudentRegistrationPage() {
       return alert('Please type and add at least one subject done.')
     }
 
-    if (paymentMethod === 'TRANSFER' && !transferReceipt) {
-      return alert('Please upload your bank transfer payment receipt photograph.')
-    }
-
     setLoading(true)
 
     try {
@@ -139,28 +135,13 @@ export default function StudentRegistrationPage() {
 
       setGeneratedAdmissionNumber(result.admissionNumber)
 
-      if (paymentMethod === 'ONLINE') {
-        // Save the generated unique Admission Number in localStorage before redirecting to Korapay
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('pending_student_admission', result.admissionNumber)
-        }
-
-        alert(`SUCCESS! Account registered in database. Generated Admission Number: ${result.admissionNumber}. Redirecting to secure Korapay payment gateway to complete activation (₦2,100)...`)
-        window.location.href = 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
-      } else {
-        // Retrieve newly created student ID
-        const studentId = await getStudentIdByAdmissionNumber(result.admissionNumber)
-        if (studentId && transferReceipt) {
-          await submitRegistrationManualPayment({
-            studentId,
-            amount: '2100.00',
-            feeType: 'ACTIVATION',
-            receiptUrl: transferReceipt
-          })
-        }
-        alert(`SUCCESS! Registration submitted successfully. Generated Admission Number: ${result.admissionNumber}. Your transfer receipt has been uploaded and is pending administrator verification.`)
-        setIsPaid(true)
+      // Save the generated unique Admission Number in localStorage before redirecting to Korapay
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pending_student_admission', result.admissionNumber)
       }
+
+      alert(`SUCCESS! Account registered in database. Generated Admission Number: ${result.admissionNumber}. Redirecting to secure Korapay payment gateway to complete activation (₦2,100)...`)
+      window.location.href = 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
     } catch (err: any) {
       console.error(err)
       setError('Payment initialization or registration failed. Please try again.')
@@ -414,63 +395,17 @@ export default function StudentRegistrationPage() {
                 </div>
               </div>
 
-              {/* Payment Method Selector for Registration activation fee */}
-              <div className="space-y-4 bg-orange-50/30 p-6 rounded-3xl border border-orange-100/50">
+              {/* Mandatory Online Payment Info block for Registration activation fee */}
+              <div className="space-y-4 bg-orange-50/50 p-6 rounded-3xl border border-orange-100">
                 <Label className="text-[10px] font-black uppercase text-orange-950 tracking-widest ml-1">Registration Activation Fee (₦2,100)</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('ONLINE')}
-                    className={`h-12 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all ${paymentMethod === 'ONLINE' ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'border-slate-200 bg-white text-slate-700'}`}
-                  >
-                    <CreditCard size={14} /> ONLINE
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('TRANSFER')}
-                    className={`h-12 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all ${paymentMethod === 'TRANSFER' ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'border-slate-200 bg-white text-slate-700'}`}
-                  >
-                    <Banknote size={14} /> BANK TRANSFER
-                  </button>
+                <div className="p-4 bg-white rounded-2xl border border-orange-100 text-xs text-slate-600 font-bold space-y-1">
+                  <p className="text-slate-900 font-black flex items-center gap-1.5">
+                    <CreditCard className="text-orange-600 w-4 h-4" /> SECURE ONLINE PAYMENT ONLY
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    To complete registration and generate your admission details, you must make a payment of ₦2,100 via our secure Korapay payment portal. Manual bank transfers are not accepted for student sign-up.
+                  </p>
                 </div>
-
-                {paymentMethod === 'TRANSFER' && (
-                  <div className="space-y-4 pt-3 border-t border-orange-100 animate-in fade-in duration-300">
-                    <div className="p-4 bg-white rounded-2xl border border-orange-100 text-xs text-slate-600 font-semibold space-y-1">
-                      <p className="font-bold text-slate-900">Transfer ₦2,100 to either account below:</p>
-                      <p>• First Bank: <strong className="text-slate-900 font-black">3069520782</strong> (Onoha Happiness)</p>
-                      <p>• GT Bank: <strong className="text-slate-900 font-black">0649893280</strong> (Onoha Happiness)</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Upload Payment Receipt</Label>
-                      {transferReceipt ? (
-                        <div className="relative w-fit">
-                          <img src={transferReceipt} alt="Receipt Preview" className="w-24 h-24 object-cover rounded-xl border border-slate-200" />
-                          <button
-                            type="button"
-                            onClick={() => setTransferReceipt(null)}
-                            className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 text-xs font-bold shadow-sm"
-                          >
-                            <X size={10} />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleReceiptUpload}
-                            className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
-                          />
-                          <Button type="button" variant="outline" className="w-full h-12 rounded-xl font-bold text-xs border-slate-200 text-slate-700">
-                            Upload Receipt Image (JPG/PNG)
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="space-y-2">
