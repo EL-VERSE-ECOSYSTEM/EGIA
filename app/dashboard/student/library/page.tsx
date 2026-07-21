@@ -221,7 +221,7 @@ export default function StudentLibraryPage() {
   // Stateful interactions
   const [favorites, setFavorites] = useState<string[]>([])
   const [downloadCounters, setDownloadCounters] = useState<Record<string, number>>({})
-  const [activePreview, setActivePreview] = useState<typeof LIBRARY_RESOURCES[0] | null>(null)
+  const [activePreview, setActivePreview] = useState<any | null>(null)
 
   // PDF Viewer simulator controls
   const [zoom, setZoom] = useState(100)
@@ -242,14 +242,32 @@ export default function StudentLibraryPage() {
     'SSS 1', 'SSS 2', 'SSS 3'
   ]
 
+  // Dynamic state loaded directly from SQL Database using searchLibraryBooks
+  const [resources, setResources] = useState<any[]>([])
+  const [dbLoading, setDbLoading] = useState(true)
+
+  React.useEffect(() => {
+    async function loadBooks() {
+      setDbLoading(true)
+      try {
+        const { searchLibraryBooks } = await import('@/app/actions/library')
+        const results = await searchLibraryBooks(searchQuery)
+        setResources(results)
+      } catch (err) {
+        console.error('Failed to load library books from server database:', err)
+      } finally {
+        setDbLoading(false)
+      }
+    }
+    const timer = setTimeout(() => {
+      loadBooks()
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
   // Filter resources
   const filteredResources = useMemo(() => {
-    return LIBRARY_RESOURCES.filter(res => {
-      const matchesSearch =
-        res.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        res.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        res.content.toLowerCase().includes(searchQuery.toLowerCase())
-
+    return resources.filter(res => {
       const matchesCategory = selectedCategory === 'All' || res.category === selectedCategory
       const matchesSubject = selectedSubject === 'All' || res.subject === selectedSubject
 
@@ -258,9 +276,9 @@ export default function StudentLibraryPage() {
         matchesGrade = res.classLevel === selectedGrade
       }
 
-      return matchesSearch && matchesCategory && matchesSubject && matchesGrade
+      return matchesCategory && matchesSubject && matchesGrade
     })
-  }, [searchQuery, selectedCategory, selectedSubject, selectedGrade])
+  }, [resources, selectedCategory, selectedSubject, selectedGrade])
 
   const toggleFavorite = (id: string) => {
     if (favorites.includes(id)) {
@@ -405,7 +423,17 @@ export default function StudentLibraryPage() {
             </Card>
 
             {/* Resources List */}
-            {filteredResources.length === 0 ? (
+            {dbLoading ? (
+              <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white p-20 text-center flex flex-col items-center justify-center">
+                <div className="animate-spin text-orange-600 mb-4">
+                  <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                </div>
+                <p className="text-slate-500 font-bold text-sm">Searching EL GOODNEWS database...</p>
+              </Card>
+            ) : filteredResources.length === 0 ? (
               <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white p-20 text-center">
                 <div className="bg-slate-50 p-6 rounded-full w-fit mx-auto mb-6 text-slate-400 border border-slate-100">
                   <BookOpen size={48} />
