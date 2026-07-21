@@ -23,7 +23,8 @@ import {
   Search,
   Wallet,
   Clock,
-  Gamepad2
+  Gamepad2,
+  Video
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -59,6 +60,7 @@ export function Sidebar({ role }: SidebarProps) {
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/teacher/overview' },
         { label: 'My Classes', icon: School, href: '/dashboard/teacher/my-classes' },
         { label: 'Assessments', icon: GraduationCap, href: '/dashboard/teacher/assessments/create' },
+        { label: 'Video Classes', icon: Video, href: '/dashboard/teacher/video-sessions' },
         { label: 'Lesson Notes', icon: FileText, href: '/dashboard/teacher/lesson-notes' },
         { label: 'Results', icon: Award, href: '/dashboard/teacher/results' },
         { label: 'My Wallet', icon: Wallet, href: '/dashboard/teacher/wallet' },
@@ -84,6 +86,7 @@ export function Sidebar({ role }: SidebarProps) {
       links: [
         { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/student/overview' },
         { label: 'Library', icon: BookOpen, href: '/dashboard/student/library' },
+        { label: 'Video Classes', icon: Video, href: '/dashboard/student/video-sessions' },
         { label: 'Assessments', icon: GraduationCap, href: '/dashboard/student/assessments/upcoming' },
         { label: 'Results', icon: Award, href: '/dashboard/student/results/current' },
         { label: 'Games & Puzzles', icon: Gamepad2, href: '/dashboard/student/games' },
