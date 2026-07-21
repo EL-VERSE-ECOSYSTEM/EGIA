@@ -106,11 +106,11 @@ export default async function LandingPage() {
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-16 text-center">
               <div className="space-y-4">
-                <div className="text-7xl font-black text-amber-500 tracking-tighter">15+</div>
+                <div className="text-7xl font-black text-amber-500 tracking-tighter">4+</div>
                 <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-xs">Years of History</div>
               </div>
               <div className="space-y-4">
-                <div className="text-7xl font-black text-amber-500 tracking-tighter">50+</div>
+                <div className="text-7xl font-black text-amber-500 tracking-tighter">A few</div>
                 <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-xs">Ph.D Educators</div>
               </div>
               <div className="space-y-4">
