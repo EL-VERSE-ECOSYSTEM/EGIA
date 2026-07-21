@@ -8,10 +8,26 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- Clean drop of existing tables to prevent type collisions (ERROR: 42710)
+DROP TABLE IF EXISTS public.video_sessions CASCADE;
+DROP TABLE IF EXISTS public.library_books CASCADE;
+DROP TABLE IF EXISTS public.payment_installment CASCADE;
+DROP TABLE IF EXISTS public.payment CASCADE;
+DROP TABLE IF EXISTS public.fee_structure CASCADE;
+DROP TABLE IF EXISTS public.assessment_result CASCADE;
+DROP TABLE IF EXISTS public.assessment CASCADE;
+DROP TABLE IF EXISTS public.dispute CASCADE;
+DROP TABLE IF EXISTS public.notification CASCADE;
+DROP TABLE IF EXISTS public.student CASCADE;
+DROP TABLE IF EXISTS public.teacher CASCADE;
+DROP TABLE IF EXISTS public.parent CASCADE;
+DROP TABLE IF EXISTS public.user_role CASCADE;
+DROP TABLE IF EXISTS public."user" CASCADE;
+
 -- ---------------------------------------------------------------------
 -- 1. CORE USER & ACCOUNT SECURITY TABLES
 -- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public."user" (
+CREATE TABLE public."user" (
   id text NOT NULL,
   email text NOT NULL UNIQUE,
   name text,
@@ -21,7 +37,7 @@ CREATE TABLE IF NOT EXISTS public."user" (
   CONSTRAINT user_pkey PRIMARY KEY (id)
 );
 
-CREATE TABLE IF NOT EXISTS public.user_role (
+CREATE TABLE public.user_role (
   id text NOT NULL,
   userId text NOT NULL UNIQUE,
   role text NOT NULL, -- ADMIN, TEACHER, PARENT, STUDENT
@@ -33,7 +49,7 @@ CREATE TABLE IF NOT EXISTS public.user_role (
 -- ---------------------------------------------------------------------
 -- 2. ACADEMIC AND SCHOOL PROFILES
 -- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.parent (
+CREATE TABLE public.parent (
   id text NOT NULL,
   userId text NOT NULL UNIQUE,
   firstName text NOT NULL,
@@ -49,7 +65,7 @@ CREATE TABLE IF NOT EXISTS public.parent (
   CONSTRAINT parent_userId_fkey FOREIGN KEY (userId) REFERENCES public."user"(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS public.student (
+CREATE TABLE public.student (
   id text NOT NULL,
   userId text UNIQUE,
   firstName text NOT NULL,
@@ -76,7 +92,7 @@ CREATE TABLE IF NOT EXISTS public.student (
   CONSTRAINT student_parentId_fkey FOREIGN KEY (parentId) REFERENCES public.parent(id) ON DELETE SET NULL
 );
 
-CREATE TABLE IF NOT EXISTS public.teacher (
+CREATE TABLE public.teacher (
   id text NOT NULL,
   userId text NOT NULL UNIQUE,
   staffCode text UNIQUE, -- Unique generated EGIA-ST-XXXXXX login identifier
@@ -103,7 +119,7 @@ CREATE TABLE IF NOT EXISTS public.teacher (
 -- ---------------------------------------------------------------------
 -- 3. SCHOOL FEES, PAYMENTS, AND BILLING (ONLINE KORAPAY & MANUAL)
 -- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.fee_structure (
+CREATE TABLE public.fee_structure (
   id text NOT NULL,
   class text NOT NULL,
   department text,
@@ -118,7 +134,7 @@ CREATE TABLE IF NOT EXISTS public.fee_structure (
   CONSTRAINT fee_structure_class_dept_type_unique UNIQUE (class, department, feeType)
 );
 
-CREATE TABLE IF NOT EXISTS public.payment (
+CREATE TABLE public.payment (
   id text NOT NULL,
   studentId text NOT NULL,
   parentId text,
@@ -139,7 +155,7 @@ CREATE TABLE IF NOT EXISTS public.payment (
   CONSTRAINT payment_studentId_fkey FOREIGN KEY (studentId) REFERENCES public.student(id)
 );
 
-CREATE TABLE IF NOT EXISTS public.payment_installment (
+CREATE TABLE public.payment_installment (
   id text NOT NULL,
   paymentId text NOT NULL,
   amount numeric(12, 2) NOT NULL,
@@ -155,7 +171,7 @@ CREATE TABLE IF NOT EXISTS public.payment_installment (
 -- ---------------------------------------------------------------------
 -- 4. DIGITAL LIBRARY & GOOGLE-LIKE CONTENT SEARCH ENGINE
 -- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.library_books (
+CREATE TABLE public.library_books (
   id text NOT NULL,
   isbn text UNIQUE,
   title text NOT NULL,
@@ -180,7 +196,7 @@ ON public.library_books USING gin(to_tsvector('english', coalesce(title, '') || 
 -- ---------------------------------------------------------------------
 -- 5. CBT ASSESSMENTS & REAL-TIME WEBCAM PROCTOR VIDEOS
 -- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.assessment (
+CREATE TABLE public.assessment (
   id text NOT NULL,
   title text NOT NULL,
   description text,
@@ -197,7 +213,7 @@ CREATE TABLE IF NOT EXISTS public.assessment (
   CONSTRAINT assessment_pkey PRIMARY KEY (id)
 );
 
-CREATE TABLE IF NOT EXISTS public.assessment_result (
+CREATE TABLE public.assessment_result (
   id text NOT NULL,
   assessmentId text NOT NULL,
   studentId text NOT NULL,
@@ -218,7 +234,7 @@ CREATE TABLE IF NOT EXISTS public.assessment_result (
 -- ---------------------------------------------------------------------
 -- 6. LIVE VIDEO CLASSROOMS & STREAMING SESSION RECORDINGS
 -- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.video_sessions (
+CREATE TABLE public.video_sessions (
   id text NOT NULL,
   title text NOT NULL,
   description text,
@@ -238,7 +254,7 @@ CREATE TABLE IF NOT EXISTS public.video_sessions (
 -- ---------------------------------------------------------------------
 -- 7. MESSAGING, SYSTEM AUDITS, AND SUPPORT DISPUTES
 -- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.dispute (
+CREATE TABLE public.dispute (
   id text NOT NULL,
   ticketNumber text NOT NULL UNIQUE,
   title text NOT NULL,
@@ -254,7 +270,7 @@ CREATE TABLE IF NOT EXISTS public.dispute (
   CONSTRAINT dispute_raisedById_fkey FOREIGN KEY (raisedById) REFERENCES public."user"(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS public.notification (
+CREATE TABLE public.notification (
   id text NOT NULL,
   userId text NOT NULL,
   title text NOT NULL,
