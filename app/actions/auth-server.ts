@@ -8,8 +8,6 @@ import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
 export async function registerStudent(data: any) {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
   const {
     firstName,
     middleName,
@@ -41,6 +39,8 @@ export async function registerStudent(data: any) {
 
   if (!isDummySupabase) {
     try {
+      const cookieStore = await cookies()
+      const supabase = createClient(cookieStore)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -102,8 +102,6 @@ export async function registerStudent(data: any) {
 }
 
 export async function registerParent(data: any) {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
   const { firstName, lastName, email, phone, occupation, profileImage, password } = data
 
   // Check if account already exists in database
@@ -121,6 +119,8 @@ export async function registerParent(data: any) {
 
   if (!isDummySupabase) {
     try {
+      const cookieStore = await cookies()
+      const supabase = createClient(cookieStore)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -177,8 +177,6 @@ export async function registerParent(data: any) {
 }
 
 export async function registerTeacher(data: any) {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
   const { firstName, lastName, email, profileImage, password } = data
 
   // Check if account already exists in database
@@ -199,6 +197,8 @@ export async function registerTeacher(data: any) {
 
   if (!isDummySupabase) {
     try {
+      const cookieStore = await cookies()
+      const supabase = createClient(cookieStore)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -339,8 +339,6 @@ export async function simulateLocalLogin(emailOrId: string, role: string) {
 }
 
 export async function activateStudent(data: any) {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
   const { admissionNumber, email, password } = data
 
   const existingStudent = await db.query.student.findFirst({
@@ -365,6 +363,8 @@ export async function activateStudent(data: any) {
 
   if (!isDummySupabase) {
     try {
+      const cookieStore = await cookies()
+      const supabase = createClient(cookieStore)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -422,6 +422,32 @@ export async function loginAdmin(data: any) {
   if (authError) return { error: authError.message }
 
   const userId = authData.user.id
+
+  if (email.toLowerCase() === 'admin@egia.com') {
+    // Ensure admin user role exists in the local database
+    const existingRole = await db.query.userRole.findFirst({
+      where: eq(userRole.userId, userId)
+    })
+    if (!existingRole) {
+      try {
+        await db.transaction(async (tx) => {
+          await tx.insert(userTable).values({
+            id: userId,
+            email: email.toLowerCase(),
+            name: 'El Goodnews Admin'
+          }).onConflictDoNothing()
+
+          await tx.insert(userRole).values({
+            id: randomUUID(),
+            userId: userId,
+            role: 'ADMIN'
+          }).onConflictDoNothing()
+        })
+      } catch (err) {
+        console.error("loginAdmin: Failed to auto-seed local admin row:", err)
+      }
+    }
+  }
 
   const roleData = await db.query.userRole.findFirst({
     where: and(eq(userRole.userId, userId), eq(userRole.role, 'ADMIN'))
