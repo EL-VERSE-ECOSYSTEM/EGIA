@@ -95,6 +95,8 @@ export async function middleware(request: NextRequest) {
   // Refresh session if it exists
   const { data: { user } } = await supabase.auth.getUser()
 
+  const isPDFBypass = pathname.startsWith('/dashboard/teacher/assessments/create/pdf')
+
   if (!user && !isPublicRoute && !pathname.startsWith('/api/') && !isPDFBypass) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/signin'

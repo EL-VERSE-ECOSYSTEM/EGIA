@@ -3,6 +3,9 @@ import { test, expect } from '@playwright/test';
 const BASE_URL = 'http://localhost:3000';
 
 test.describe('EL GOODNEWS - Final Integrated Verification', () => {
+  // Use a standard browser user agent to avoid triggering the automated testing bypass rules,
+  // thereby verifying the actual middleware redirection behavior correctly.
+  test.use({ userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' });
 
   test('Dashboard Redirect Logic', async ({ page }) => {
     await page.goto(`${BASE_URL}/dashboard-redirect`);

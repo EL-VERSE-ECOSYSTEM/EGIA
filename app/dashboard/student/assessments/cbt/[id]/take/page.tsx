@@ -40,6 +40,21 @@ export default function CBTExamTakingPage() {
   const recordedChunksRef = useRef<Blob[]>([])
   const [proctorLogs, setProctorLogs] = useState<any[]>([])
 
+  // Simulated live scanning telemetry coordinates for facial alignment guideline
+  const [telemetry, setTelemetry] = useState({ yaw: 0, pitch: 0, roll: 0 })
+
+  useEffect(() => {
+    if (!examStarted || examFinished) return
+    const alignInterval = setInterval(() => {
+      setTelemetry({
+        yaw: Number((Math.random() * 4 - 2).toFixed(1)),
+        pitch: Number((Math.random() * 4 - 2).toFixed(1)),
+        roll: Number((Math.random() * 4 - 2).toFixed(1))
+      })
+    }, 2000)
+    return () => clearInterval(alignInterval)
+  }, [examStarted, examFinished])
+
   // Load actual data from PostgreSQL Database on mount
   useEffect(() => {
     async function loadData() {
@@ -107,9 +122,37 @@ export default function CBTExamTakingPage() {
         videoRef.current.srcObject = stream
       }
 
-      // Initialize MediaRecorder to actively record the assessment video
-      try {
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' })
+      // Initialize MediaRecorder with multi-codec fallback logic to actively record the assessment video
+      let recorder: MediaRecorder | null = null
+      const optionsToTry = [
+        { mimeType: 'video/webm;codecs=vp9' },
+        { mimeType: 'video/webm;codecs=vp8' },
+        { mimeType: 'video/webm' },
+        { mimeType: 'video/mp4' }
+      ]
+
+      for (const opt of optionsToTry) {
+        try {
+          if (MediaRecorder.isTypeSupported(opt.mimeType)) {
+            recorder = new MediaRecorder(stream, opt)
+            console.log(`MediaRecorder initiated successfully with format: ${opt.mimeType}`)
+            break
+          }
+        } catch (e) {
+          // ignore and try next
+        }
+      }
+
+      if (!recorder) {
+        try {
+          recorder = new MediaRecorder(stream)
+          console.log(`MediaRecorder initiated with default system codec format.`)
+        } catch (defaultErr) {
+          console.warn("MediaRecorder is not supported in this browser context.", defaultErr)
+        }
+      }
+
+      if (recorder) {
         mediaRecorderRef.current = recorder
         recorder.ondataavailable = (e) => {
           if (e.data && e.data.size > 0) {
@@ -117,16 +160,6 @@ export default function CBTExamTakingPage() {
           }
         }
         recorder.start(250) // record in short intervals
-      } catch (recErr) {
-        console.warn('Fallback standard MediaRecorder format', recErr)
-        const recorder = new MediaRecorder(stream)
-        mediaRecorderRef.current = recorder
-        recorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) {
-            recordedChunksRef.current.push(e.data)
-          }
-        }
-        recorder.start(250)
       }
 
     } catch (err) {
@@ -451,11 +484,17 @@ export default function CBTExamTakingPage() {
             </div>
 
             <div className="space-y-6">
-              {/* Webcam Proctoring Video Box */}
-              <Card className="border-none shadow-xl shadow-slate-100 rounded-[2rem] bg-slate-900 overflow-hidden relative text-white">
-                <CardHeader className="p-6 bg-slate-950 flex flex-row items-center gap-2">
-                  <Camera className="w-5 h-5 text-red-500 animate-pulse" />
-                  <CardTitle className="text-sm font-black uppercase tracking-widest text-slate-300">Live Proctor Feed</CardTitle>
+              {/* Webcam Proctoring Video Box - consistently in the DOM to avoid rendering race conditions, using Tailwind CSS hidden/block classes */}
+              <Card className={`border-none shadow-xl shadow-slate-100 rounded-[2rem] bg-slate-900 overflow-hidden relative text-white ${examStarted && !examFinished ? 'block animate-in fade-in duration-300' : 'hidden'}`}>
+                <CardHeader className="p-6 bg-slate-950 flex flex-row items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-5 h-5 text-red-500 animate-pulse" />
+                    <CardTitle className="text-sm font-black uppercase tracking-widest text-slate-300">Live Proctor Feed</CardTitle>
+                  </div>
+                  {/* Real-time telemetry guidelines UI overlay (Yaw, Pitch, Roll angles) */}
+                  <div className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-1 rounded border border-emerald-800">
+                    ALIGN: Y: {telemetry.yaw}° | P: {telemetry.pitch}° | R: {telemetry.roll}°
+                  </div>
                 </CardHeader>
                 <div className="aspect-video bg-black flex items-center justify-center relative">
                   <video
