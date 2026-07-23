@@ -308,3 +308,100 @@ params:
  GET /auth/signup/student-registration 200 in 1103ms (next.js: 994ms, proxy.ts: 5ms, application-code: 103ms)
  GET / 200 in 200ms (next.js: 12ms, proxy.ts: 14ms, application-code: 174ms)
  GET /auth/signin 200 in 93ms (next.js: 7ms, proxy.ts: 5ms, application-code: 81ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ GET /dashboard/teacher/assessments/create/pdf 200 in 1490ms (next.js: 395ms, proxy.ts: 47ms, application-code: 1048ms)
+ GET /auth/signin 200 in 1459ms (next.js: 924ms, proxy.ts: 33ms, application-code: 503ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ POST /dashboard/teacher/assessments/create/pdf 200 in 622ms (next.js: 286ms, proxy.ts: 81ms, application-code: 255ms)
+  └─ ƒ getTeacherProfile() in 72ms actions/teacher.ts
+ GET / 200 in 2.7s (next.js: 121ms, proxy.ts: 62ms, application-code: 2.5s)
+ GET / 200 in 2.4s (next.js: 81ms, proxy.ts: 239ms, application-code: 2.1s)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ GET / 200 in 371ms (next.js: 84ms, proxy.ts: 44ms, application-code: 243ms)
+ GET /admissions 200 in 150ms (next.js: 11ms, proxy.ts: 5ms, application-code: 134ms)
+ GET / 200 in 129ms (next.js: 9ms, proxy.ts: 8ms, application-code: 113ms)
+ GET /auth/signin 200 in 90ms (next.js: 5ms, proxy.ts: 20ms, application-code: 64ms)
+ GET / 200 in 94ms (next.js: 8ms, proxy.ts: 6ms, application-code: 80ms)
+ GET / 200 in 287ms (next.js: 3ms, proxy.ts: 3ms, application-code: 281ms)
+ POST /dashboard/teacher/assessments/create/pdf 200 in 3.3s (next.js: 106ms, proxy.ts: 82ms, application-code: 3.1s)
+  └─ ƒ simulateAIParsing("mock-base64") in 3050ms actions/ai-parsing.ts
+ GET / 200 in 227ms (next.js: 14ms, proxy.ts: 8ms, application-code: 205ms)
+ GET /auth/signin 200 in 46ms (next.js: 5ms, proxy.ts: 9ms, application-code: 32ms)
+[browser] Received `true` for a non-boolean attribute `collapsible`.
+
+If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
+⨯ Error: Failed query: select "id", "userId", "staffCode", "firstName", "lastName", "type", "isClassTeacher", "isPartTime", "assignedClassId", "daysPresent", "handlingClasses", "teachingSubjects", "presentDays", "resumptionTime", "resumptionDate", "bio", "applicationLetterUrl", "cvUrl", "qualification", "specialization", "profileImage", "facialVerificationVideo", "status", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2
+params: ,1
+    at async getTeacherProfile (lib/api/queries.ts:26:10)
+    at async TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:25:26)
+  24 |
+  25 | export async function getTeacherProfile(userId: string) {
+> 26 |   return await db.query.teacher.findFirst({
+     |          ^
+  27 |     where: eq(teacher.userId, userId),
+  28 |   })
+  29 | } {
+  query: 'select "id", "userId", "staffCode", "firstName", "lastName", "type", "isClassTeacher", "isPartTime", "assignedClassId", "daysPresent", "handlingClasses", "teachingSubjects", "presentDays", "resumptionTime", "resumptionDate", "bio", "applicationLetterUrl", "cvUrl", "qualification", "specialization", "profileImage", "facialVerificationVideo", "status", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2',
+  params: [ '', 1 ],
+  digest: '2631019176',
+  [cause]: Error [PostgresError]: (ENOTFOUND) tenant/user postgres.jeanqglasqmecmzenkaz not found
+      at ignore-listed frames {
+    code: 'XX000',
+    severity_local: 'FATAL'
+  }
+}
+ GET /dashboard/teacher 200 in 1292ms (next.js: 12ms, proxy.ts: 4ms, application-code: 1276ms)
+[browser] Uncaught Error: Failed query: select "id", "userId", "staffCode", "firstName", "lastName", "type", "isClassTeacher", "isPartTime", "assignedClassId", "daysPresent", "handlingClasses", "teachingSubjects", "presentDays", "resumptionTime", "resumptionDate", "bio", "applicationLetterUrl", "cvUrl", "qualification", "specialization", "profileImage", "facialVerificationVideo", "status", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2
+params: ,1
+    at PostgresJsPreparedQuery.queryWithCache (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at <anonymous> (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
+    at  getTeacherProfile (lib/api/queries.ts:26:10)
+    at  TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:25:26)
+    at TeacherPage (app/dashboard/teacher/page.tsx:7:5)
+  71 | 				return await query();
+  72 | 			} catch (e) {
+> 73 | 				throw new DrizzleQueryError(queryString, params, e as Error);
+     |       ^
+  74 | 			}
+  75 | 		}
+  76 |
+ GET / 200 in 402ms (next.js: 10ms, proxy.ts: 9ms, application-code: 383ms)
+[browser] Uncaught TypeError: Failed to execute 'measure' on 'Performance': '​TeacherOverviewPage' cannot have a negative time stamp.
+⨯ Error: Failed query: select count(*) from "student"
+params:
+    at async getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at async AdminOverviewPage (app/dashboard/admin/overview/page.tsx:28:21)
+  56 |
+  57 | export async function getAdminDashboardStats() {
+> 58 |   const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
+     |                           ^
+  59 |   const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
+  60 |   const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment)....
+  61 |   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).... {
+  query: 'select count(*) from "student"',
+  params: [],
+  digest: '3574754878',
+  [cause]: Error [PostgresError]: (ENOTFOUND) tenant/user postgres.jeanqglasqmecmzenkaz not found
+      at ignore-listed frames {
+    code: 'XX000',
+    severity_local: 'FATAL'
+  }
+}
+ GET /dashboard/admin 200 in 1025ms (next.js: 49ms, proxy.ts: 4ms, application-code: 972ms)
+[browser] Uncaught Error: Failed query: select count(*) from "student"
+params:
+    at PostgresJsPreparedQuery.queryWithCache (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at <anonymous> (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
+    at  getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at  AdminOverviewPage (app/dashboard/admin/overview/page.tsx:28:21)
+    at AdminPage (app/dashboard/admin/page.tsx:7:5)
+  71 | 				return await query();
+  72 | 			} catch (e) {
+> 73 | 				throw new DrizzleQueryError(queryString, params, e as Error);
+     |       ^
+  74 | 			}
+  75 | 		}
+  76 |
+[browser] Uncaught TypeError: Failed to execute 'measure' on 'Performance': '​AdminOverviewPage' cannot have a negative time stamp.
+ GET /dashboard/teacher/assessments/create 200 in 141ms (next.js: 14ms, proxy.ts: 5ms, application-code: 122ms)
+✓ Compiled in 3.8s
