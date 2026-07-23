@@ -404,3 +404,4 @@ params:
   76 |
 [browser] Uncaught TypeError: Failed to execute 'measure' on 'Performance': '​AdminOverviewPage' cannot have a negative time stamp.
  GET /dashboard/teacher/assessments/create 200 in 141ms (next.js: 14ms, proxy.ts: 5ms, application-code: 122ms)
+✓ Compiled in 3.8s
