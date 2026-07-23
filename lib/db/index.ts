@@ -9,8 +9,14 @@ if (!connectionString) {
 }
 
 // For Supabase connection, we usually use the connection string from env
+let sslOption: any = false;
+if (connectionString?.includes('supabase') || connectionString?.includes('neon') || connectionString?.includes('aws')) {
+  // Support self-signed certificates and allow connections to AWS/Supabase pooler endpoints without throwing SELF_SIGNED_CERT_IN_CHAIN or XX000 errors
+  sslOption = { rejectUnauthorized: false };
+}
+
 const client = postgres(connectionString || "postgresql://localhost:5432/postgres", {
-  ssl: connectionString?.includes('supabase') || connectionString?.includes('neon') || connectionString?.includes('aws') ? 'require' : false,
+  ssl: sslOption,
   max: 15, // Optimize connection pool size for serverless
   idle_timeout: 20,
   connect_timeout: 15,

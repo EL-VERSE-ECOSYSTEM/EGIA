@@ -5,146 +5,306 @@
 ▲ Next.js 16.2.6 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
-✓ Ready in 571ms
+- Environments: .env
+✓ Ready in 562ms
 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
 
-⨯ Error: Your project's URL and Key are required to create a Supabase client!
+○ Compiling / ...
+ HEAD / 200 in 5.5s (next.js: 5.0s, proxy.ts: 177ms, application-code: 373ms)
+Received `true` for a non-boolean attribute `collapsible`.
 
-Check your Supabase project's API settings to find these values
+If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+○ Compiling /dashboard/teacher/assessments/create/pdf ...
+ GET /dashboard-redirect 200 in 3.8s (next.js: 3.3s, proxy.ts: 17ms, application-code: 521ms)
+ GET /dashboard/teacher/assessments/create/pdf 200 in 5.8s (next.js: 4.8s, proxy.ts: 27ms, application-code: 972ms)
+ GET / 200 in 728ms (next.js: 32ms, proxy.ts: 35ms, application-code: 661ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ POST /dashboard/teacher/assessments/create/pdf 200 in 75ms (next.js: 7ms, proxy.ts: 30ms, application-code: 38ms)
+  └─ ƒ getTeacherProfile() in 6ms actions/teacher.ts
+ GET / 200 in 416ms (next.js: 26ms, proxy.ts: 27ms, application-code: 363ms)
+ GET /auth/signin?error=Session%20expired%20or%20query%20failed 200 in 2.4s (next.js: 2.2s, proxy.ts: 32ms, application-code: 249ms)
+ GET / 200 in 252ms (next.js: 12ms, proxy.ts: 4ms, application-code: 236ms)
+ GET / 200 in 254ms (next.js: 21ms, proxy.ts: 6ms, application-code: 227ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ GET /admissions 200 in 752ms (next.js: 567ms, proxy.ts: 4ms, application-code: 182ms)
+ GET / 200 in 204ms (next.js: 13ms, proxy.ts: 4ms, application-code: 186ms)
+ GET /dashboard/student/communication/support 200 in 1300ms (next.js: 1131ms, proxy.ts: 4ms, application-code: 165ms)
+ POST /dashboard/teacher/assessments/create/pdf 200 in 3.1s (next.js: 6ms, proxy.ts: 20ms, application-code: 3.0s)
+  └─ ƒ simulateAIParsing("mock-base64") in 3006ms actions/ai-parsing.ts
+ GET / 200 in 171ms (next.js: 7ms, proxy.ts: 5ms, application-code: 159ms)
+ GET / 200 in 256ms (next.js: 11ms, proxy.ts: 4ms, application-code: 241ms)
+ GET / 200 in 249ms (next.js: 27ms, proxy.ts: 7ms, application-code: 215ms)
+ GET /auth/signin 200 in 79ms (next.js: 11ms, proxy.ts: 5ms, application-code: 63ms)
+[browser] Received `true` for a non-boolean attribute `collapsible`.
 
-https://supabase.com/dashboard/project/_/settings/api
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at createClient (utils/supabase/middleware.ts:15:38)
-    at middleware (middleware.ts:93:46)
-  13 |   });
-  14 |
-> 15 |   const supabase = createServerClient(
-     |                                      ^
-  16 |     supabaseUrl!,
-  17 |     supabaseKey!,
-  18 |     {
- GET /dashboard/student/library 404 in 1998ms (next.js: -165152µs, proxy.ts: 1987ms, application-code: 177ms)
-[browser] Uncaught Error: Your project's URL and Key are required to create a Supabase client!
+If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
+⨯ Error: Failed query: select "id", "userId", "staffCode", "firstName", "lastName", "type", "isClassTeacher", "isPartTime", "assignedClassId", "daysPresent", "handlingClasses", "teachingSubjects", "presentDays", "resumptionTime", "resumptionDate", "bio", "applicationLetterUrl", "cvUrl", "qualification", "specialization", "profileImage", "facialVerificationVideo", "status", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2
+params: ,1
+    at async getTeacherProfile (lib/api/queries.ts:26:10)
+    at async TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:25:26)
+  24 |
+  25 | export async function getTeacherProfile(userId: string) {
+> 26 |   return await db.query.teacher.findFirst({
+     |          ^
+  27 |     where: eq(teacher.userId, userId),
+  28 |   })
+  29 | } {
+  query: 'select "id", "userId", "staffCode", "firstName", "lastName", "type", "isClassTeacher", "isPartTime", "assignedClassId", "daysPresent", "handlingClasses", "teachingSubjects", "presentDays", "resumptionTime", "resumptionDate", "bio", "applicationLetterUrl", "cvUrl", "qualification", "specialization", "profileImage", "facialVerificationVideo", "status", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2',
+  params: [ '', 1 ],
+  digest: '2631019176',
+  [cause]: Error [PostgresError]: (ENOTFOUND) tenant/user postgres.jeanqglasqmecmzenkaz not found
+      at ignore-listed frames {
+    code: 'XX000',
+    severity_local: 'FATAL'
+  }
+}
+ GET /dashboard/teacher 200 in 3.2s (next.js: 1668ms, proxy.ts: 15ms, application-code: 1506ms)
+[browser] Uncaught Error: Failed query: select "id", "userId", "staffCode", "firstName", "lastName", "type", "isClassTeacher", "isPartTime", "assignedClassId", "daysPresent", "handlingClasses", "teachingSubjects", "presentDays", "resumptionTime", "resumptionDate", "bio", "applicationLetterUrl", "cvUrl", "qualification", "specialization", "profileImage", "facialVerificationVideo", "status", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2
+params: ,1
+    at PostgresJsPreparedQuery.queryWithCache (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at <anonymous> (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
+    at  getTeacherProfile (lib/api/queries.ts:26:10)
+    at  TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:25:26)
+    at TeacherPage (app/dashboard/teacher/page.tsx:7:5)
+  71 | 				return await query();
+  72 | 			} catch (e) {
+> 73 | 				throw new DrizzleQueryError(queryString, params, e as Error);
+     |       ^
+  74 | 			}
+  75 | 		}
+  76 |
+ GET / 200 in 288ms (next.js: 11ms, proxy.ts: 6ms, application-code: 271ms)
+○ Compiling /dashboard/admin ...
+⨯ Error: Failed query: select count(*) from "student"
+params:
+    at async getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at async AdminOverviewPage (app/dashboard/admin/overview/page.tsx:28:21)
+  56 |
+  57 | export async function getAdminDashboardStats() {
+> 58 |   const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
+     |                           ^
+  59 |   const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
+  60 |   const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment)....
+  61 |   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).... {
+  query: 'select count(*) from "student"',
+  params: [],
+  digest: '3574754878',
+  [cause]: Error [PostgresError]: (ENOTFOUND) tenant/user postgres.jeanqglasqmecmzenkaz not found
+      at ignore-listed frames {
+    code: 'XX000',
+    severity_local: 'FATAL'
+  }
+}
+ GET /dashboard/admin 200 in 5.0s (next.js: 3.8s, proxy.ts: 4ms, application-code: 1193ms)
+[browser] Uncaught Error: Failed query: select count(*) from "student"
+params:
+    at PostgresJsPreparedQuery.queryWithCache (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at <anonymous> (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
+    at  getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at  AdminOverviewPage (app/dashboard/admin/overview/page.tsx:28:21)
+    at AdminPage (app/dashboard/admin/page.tsx:7:5)
+  71 | 				return await query();
+  72 | 			} catch (e) {
+> 73 | 				throw new DrizzleQueryError(queryString, params, e as Error);
+     |       ^
+  74 | 			}
+  75 | 		}
+  76 |
+ GET /dashboard/teacher/assessments/create 200 in 2.2s (next.js: 1980ms, proxy.ts: 12ms, application-code: 173ms)
+✓ Compiled in 107ms
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ GET /dashboard/teacher/assessments/create/pdf 200 in 1034ms (next.js: 186ms, proxy.ts: 127ms, application-code: 722ms)
+ GET /dashboard-redirect 200 in 941ms (next.js: 602ms, proxy.ts: 6ms, application-code: 333ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ POST /dashboard/teacher/assessments/create/pdf 200 in 303ms (next.js: 146ms, proxy.ts: 73ms, application-code: 84ms)
+  └─ ƒ getTeacherProfile() in 69ms actions/teacher.ts
+ GET /auth/signin?error=Session%20expired%20or%20query%20failed 200 in 312ms (next.js: 121ms, proxy.ts: 71ms, application-code: 120ms)
+ GET / 200 in 197ms (next.js: 13ms, proxy.ts: 9ms, application-code: 175ms)
+ GET / 200 in 729ms (next.js: 85ms, proxy.ts: 8ms, application-code: 636ms)
+ GET / 200 in 249ms (next.js: 5ms, proxy.ts: 4ms, application-code: 240ms)
+ GET / 200 in 218ms (next.js: 15ms, proxy.ts: 13ms, application-code: 191ms)
+ GET /admissions 200 in 140ms (next.js: 13ms, proxy.ts: 4ms, application-code: 123ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ GET / 200 in 88ms (next.js: 10ms, proxy.ts: 8ms, application-code: 70ms)
+ GET /dashboard/student/communication/support 200 in 162ms (next.js: 21ms, proxy.ts: 4ms, application-code: 137ms)
+ GET / 200 in 197ms (next.js: 7ms, proxy.ts: 6ms, application-code: 184ms)
+ POST /dashboard/teacher/assessments/create/pdf 200 in 3.0s (next.js: 7ms, proxy.ts: 7ms, application-code: 3.0s)
+  └─ ƒ simulateAIParsing("mock-base64") in 3011ms actions/ai-parsing.ts
+ GET / 200 in 280ms (next.js: 4ms, proxy.ts: 6ms, application-code: 271ms)
+ GET / 200 in 215ms (next.js: 9ms, proxy.ts: 8ms, application-code: 198ms)
+ GET /auth/signin 200 in 41ms (next.js: 4ms, proxy.ts: 5ms, application-code: 33ms)
+[browser] Received `true` for a non-boolean attribute `collapsible`.
 
-Check your Supabase project's API settings to find these values
+If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
+⨯ Error: Failed query: select "id", "userId", "staffCode", "firstName", "lastName", "type", "isClassTeacher", "isPartTime", "assignedClassId", "daysPresent", "handlingClasses", "teachingSubjects", "presentDays", "resumptionTime", "resumptionDate", "bio", "applicationLetterUrl", "cvUrl", "qualification", "specialization", "profileImage", "facialVerificationVideo", "status", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2
+params: ,1
+    at async getTeacherProfile (lib/api/queries.ts:26:10)
+    at async TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:25:26)
+  24 |
+  25 | export async function getTeacherProfile(userId: string) {
+> 26 |   return await db.query.teacher.findFirst({
+     |          ^
+  27 |     where: eq(teacher.userId, userId),
+  28 |   })
+  29 | } {
+  query: 'select "id", "userId", "staffCode", "firstName", "lastName", "type", "isClassTeacher", "isPartTime", "assignedClassId", "daysPresent", "handlingClasses", "teachingSubjects", "presentDays", "resumptionTime", "resumptionDate", "bio", "applicationLetterUrl", "cvUrl", "qualification", "specialization", "profileImage", "facialVerificationVideo", "status", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2',
+  params: [ '', 1 ],
+  digest: '2631019176',
+  [cause]: Error [PostgresError]: (ENOTFOUND) tenant/user postgres.jeanqglasqmecmzenkaz not found
+      at ignore-listed frames {
+    code: 'XX000',
+    severity_local: 'FATAL'
+  }
+}
+ GET /dashboard/teacher 200 in 1018ms (next.js: 17ms, proxy.ts: 3ms, application-code: 998ms)
+[browser] Uncaught Error: Failed query: select "id", "userId", "staffCode", "firstName", "lastName", "type", "isClassTeacher", "isPartTime", "assignedClassId", "daysPresent", "handlingClasses", "teachingSubjects", "presentDays", "resumptionTime", "resumptionDate", "bio", "applicationLetterUrl", "cvUrl", "qualification", "specialization", "profileImage", "facialVerificationVideo", "status", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2
+params: ,1
+    at PostgresJsPreparedQuery.queryWithCache (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at <anonymous> (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
+    at  getTeacherProfile (lib/api/queries.ts:26:10)
+    at  TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:25:26)
+    at TeacherPage (app/dashboard/teacher/page.tsx:7:5)
+  71 | 				return await query();
+  72 | 			} catch (e) {
+> 73 | 				throw new DrizzleQueryError(queryString, params, e as Error);
+     |       ^
+  74 | 			}
+  75 | 		}
+  76 |
+ GET / 200 in 216ms (next.js: 10ms, proxy.ts: 6ms, application-code: 200ms)
+⨯ Error: Failed query: select count(*) from "student"
+params:
+    at async getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at async AdminOverviewPage (app/dashboard/admin/overview/page.tsx:28:21)
+  56 |
+  57 | export async function getAdminDashboardStats() {
+> 58 |   const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
+     |                           ^
+  59 |   const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
+  60 |   const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment)....
+  61 |   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).... {
+  query: 'select count(*) from "student"',
+  params: [],
+  digest: '3574754878',
+  [cause]: Error [PostgresError]: (ENOTFOUND) tenant/user postgres.jeanqglasqmecmzenkaz not found
+      at ignore-listed frames {
+    code: 'XX000',
+    severity_local: 'FATAL'
+  }
+}
+ GET /dashboard/admin 200 in 1005ms (next.js: 16ms, proxy.ts: 4ms, application-code: 985ms)
+[browser] Uncaught Error: Failed query: select count(*) from "student"
+params:
+    at PostgresJsPreparedQuery.queryWithCache (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at <anonymous> (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
+    at  getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at  AdminOverviewPage (app/dashboard/admin/overview/page.tsx:28:21)
+    at AdminPage (app/dashboard/admin/page.tsx:7:5)
+  71 | 				return await query();
+  72 | 			} catch (e) {
+> 73 | 				throw new DrizzleQueryError(queryString, params, e as Error);
+     |       ^
+  74 | 			}
+  75 | 		}
+  76 |
+ GET /dashboard/teacher/assessments/create 200 in 93ms (next.js: 9ms, proxy.ts: 4ms, application-code: 80ms)
+ GET /auth/signin 200 in 91ms (next.js: 9ms, proxy.ts: 5ms, application-code: 77ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ GET /dashboard/teacher/assessments/create/pdf 200 in 246ms (next.js: 16ms, proxy.ts: 5ms, application-code: 225ms)
+ GET /auth/signin 200 in 172ms (next.js: 15ms, proxy.ts: 9ms, application-code: 148ms)
+ GET / 200 in 131ms (next.js: 16ms, proxy.ts: 16ms, application-code: 99ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ POST /dashboard/teacher/assessments/create/pdf 200 in 189ms (next.js: 15ms, proxy.ts: 6ms, application-code: 168ms)
+  └─ ƒ getTeacherProfile() in 42ms actions/teacher.ts
+ GET / 200 in 530ms (next.js: 129ms, proxy.ts: 36ms, application-code: 366ms)
+ GET / 200 in 585ms (next.js: 12ms, proxy.ts: 10ms, application-code: 562ms)
+ GET / 200 in 226ms (next.js: 12ms, proxy.ts: 8ms, application-code: 206ms)
+ GET /admissions 200 in 158ms (next.js: 6ms, proxy.ts: 5ms, application-code: 148ms)
+ GET / 200 in 118ms (next.js: 14ms, proxy.ts: 11ms, application-code: 92ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ GET /auth/signin 200 in 79ms (next.js: 4ms, proxy.ts: 4ms, application-code: 71ms)
+ GET / 200 in 104ms (next.js: 28ms, proxy.ts: 7ms, application-code: 69ms)
+ GET / 200 in 208ms (next.js: 3ms, proxy.ts: 4ms, application-code: 201ms)
+ GET / 200 in 225ms (next.js: 8ms, proxy.ts: 9ms, application-code: 208ms)
+ GET /auth/signin 200 in 73ms (next.js: 5ms, proxy.ts: 6ms, application-code: 61ms)
+[browser] Received `true` for a non-boolean attribute `collapsible`.
 
-https://supabase.com/dashboard/project/_/settings/api
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at createClient (utils/supabase/middleware.ts:15:38)
-    at middleware (middleware.ts:93:46)
-  13 |   });
-  14 |
-> 15 |   const supabase = createServerClient(
-     |                                      ^
-  16 |     supabaseUrl!,
-  17 |     supabaseKey!,
-  18 |     {
-○ Compiling /_not-found/page ...
-✓ Compiled in 318ms
- GET /dashboard/student/library 200 in 2.5s (next.js: 2.0s, proxy.ts: 50ms, application-code: 462ms)
-⨯ Error: Your project's URL and Key are required to create a Supabase client!
-
-Check your Supabase project's API settings to find these values
-
-https://supabase.com/dashboard/project/_/settings/api
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at createClient (utils/supabase/middleware.ts:15:38)
-    at middleware (middleware.ts:97:46)
-  13 |   });
-  14 |
-> 15 |   const supabase = createServerClient(
-     |                                      ^
-  16 |     supabaseUrl!,
-  17 |     supabaseKey!,
-  18 |     {
- GET /sw.js 404 in 281ms (next.js: -36417µs, proxy.ts: 272ms, application-code: 45ms)
- GET /dashboard/student/library 200 in 193ms (next.js: 7ms, proxy.ts: 9ms, application-code: 177ms)
-⨯ Error: Your project's URL and Key are required to create a Supabase client!
-
-Check your Supabase project's API settings to find these values
-
-https://supabase.com/dashboard/project/_/settings/api
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at createClient (utils/supabase/middleware.ts:15:38)
-    at middleware (middleware.ts:97:46)
-  13 |   });
-  14 |
-> 15 |   const supabase = createServerClient(
-     |                                      ^
-  16 |     supabaseUrl!,
-  17 |     supabaseKey!,
-  18 |     {
- GET /sw.js 404 in 143ms (next.js: -31369µs, proxy.ts: 125ms, application-code: 49ms)
-⨯ Error: Your project's URL and Key are required to create a Supabase client!
-
-Check your Supabase project's API settings to find these values
-
-https://supabase.com/dashboard/project/_/settings/api
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at createClient (utils/supabase/middleware.ts:15:38)
-    at middleware (middleware.ts:97:46)
-  13 |   });
-  14 |
-> 15 |   const supabase = createServerClient(
-     |                                      ^
-  16 |     supabaseUrl!,
-  17 |     supabaseKey!,
-  18 |     {
- GET /auth/signup/student-registration 404 in 252ms (next.js: -59006µs, proxy.ts: 249ms, application-code: 62ms)
-[browser] Uncaught Error: Your project's URL and Key are required to create a Supabase client!
-
-Check your Supabase project's API settings to find these values
-
-https://supabase.com/dashboard/project/_/settings/api
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at createClient (utils/supabase/middleware.ts:15:38)
-    at middleware (middleware.ts:97:46)
-  13 |   });
-  14 |
-> 15 |   const supabase = createServerClient(
-     |                                      ^
-  16 |     supabaseUrl!,
-  17 |     supabaseKey!,
-  18 |     {
-⨯ Error: Your project's URL and Key are required to create a Supabase client!
-
-Check your Supabase project's API settings to find these values
-
-https://supabase.com/dashboard/project/_/settings/api
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at createClient (utils/supabase/middleware.ts:15:38)
-    at middleware (middleware.ts:97:46)
-  13 |   });
-  14 |
-> 15 |   const supabase = createServerClient(
-     |                                      ^
-  16 |     supabaseUrl!,
-  17 |     supabaseKey!,
-  18 |     {
- GET /auth/signup/student-registration 404 in 108ms (next.js: -12105µs, proxy.ts: 106ms, application-code: 14ms)
-[browser] Uncaught Error: Your project's URL and Key are required to create a Supabase client!
-
-Check your Supabase project's API settings to find these values
-
-https://supabase.com/dashboard/project/_/settings/api
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
-    at createClient (utils/supabase/middleware.ts:15:38)
-    at middleware (middleware.ts:97:46)
-  13 |   });
-  14 |
-> 15 |   const supabase = createServerClient(
-     |                                      ^
-  16 |     supabaseUrl!,
-  17 |     supabaseKey!,
-  18 |     {
+If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
+ POST /dashboard/teacher/assessments/create/pdf 200 in 3.0s (next.js: 10ms, proxy.ts: 5ms, application-code: 3.0s)
+  └─ ƒ simulateAIParsing("mock-base64") in 3007ms actions/ai-parsing.ts
+⨯ Error: Failed query: select "id", "userId", "staffCode", "firstName", "lastName", "type", "isClassTeacher", "isPartTime", "assignedClassId", "daysPresent", "handlingClasses", "teachingSubjects", "presentDays", "resumptionTime", "resumptionDate", "bio", "applicationLetterUrl", "cvUrl", "qualification", "specialization", "profileImage", "facialVerificationVideo", "status", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2
+params: ,1
+    at async getTeacherProfile (lib/api/queries.ts:26:10)
+    at async TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:25:26)
+  24 |
+  25 | export async function getTeacherProfile(userId: string) {
+> 26 |   return await db.query.teacher.findFirst({
+     |          ^
+  27 |     where: eq(teacher.userId, userId),
+  28 |   })
+  29 | } {
+  query: 'select "id", "userId", "staffCode", "firstName", "lastName", "type", "isClassTeacher", "isPartTime", "assignedClassId", "daysPresent", "handlingClasses", "teachingSubjects", "presentDays", "resumptionTime", "resumptionDate", "bio", "applicationLetterUrl", "cvUrl", "qualification", "specialization", "profileImage", "facialVerificationVideo", "status", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2',
+  params: [ '', 1 ],
+  digest: '2631019176',
+  [cause]: Error [PostgresError]: (ENOTFOUND) tenant/user postgres.jeanqglasqmecmzenkaz not found
+      at ignore-listed frames {
+    code: 'XX000',
+    severity_local: 'FATAL'
+  }
+}
+ GET /dashboard/teacher 200 in 992ms (next.js: 4ms, proxy.ts: 4ms, application-code: 984ms)
+[browser] Uncaught Error: Failed query: select "id", "userId", "staffCode", "firstName", "lastName", "type", "isClassTeacher", "isPartTime", "assignedClassId", "daysPresent", "handlingClasses", "teachingSubjects", "presentDays", "resumptionTime", "resumptionDate", "bio", "applicationLetterUrl", "cvUrl", "qualification", "specialization", "profileImage", "facialVerificationVideo", "status", "isActive", "createdAt", "updatedAt" from "teacher" "teacher" where "teacher"."userId" = $1 limit $2
+params: ,1
+    at PostgresJsPreparedQuery.queryWithCache (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at <anonymous> (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
+    at  getTeacherProfile (lib/api/queries.ts:26:10)
+    at  TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:25:26)
+    at TeacherPage (app/dashboard/teacher/page.tsx:7:5)
+  71 | 				return await query();
+  72 | 			} catch (e) {
+> 73 | 				throw new DrizzleQueryError(queryString, params, e as Error);
+     |       ^
+  74 | 			}
+  75 | 		}
+  76 |
+ GET / 200 in 218ms (next.js: 8ms, proxy.ts: 5ms, application-code: 205ms)
+⨯ Error: Failed query: select count(*) from "student"
+params:
+    at async getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at async AdminOverviewPage (app/dashboard/admin/overview/page.tsx:28:21)
+  56 |
+  57 | export async function getAdminDashboardStats() {
+> 58 |   const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
+     |                           ^
+  59 |   const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
+  60 |   const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment)....
+  61 |   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).... {
+  query: 'select count(*) from "student"',
+  params: [],
+  digest: '3574754878',
+  [cause]: Error [PostgresError]: (ENOTFOUND) tenant/user postgres.jeanqglasqmecmzenkaz not found
+      at ignore-listed frames {
+    code: 'XX000',
+    severity_local: 'FATAL'
+  }
+}
+ GET /dashboard/admin 200 in 1051ms (next.js: 28ms, proxy.ts: 25ms, application-code: 998ms)
+[browser] Uncaught Error: Failed query: select count(*) from "student"
+params:
+    at PostgresJsPreparedQuery.queryWithCache (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at <anonymous> (node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.21.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
+    at  getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at  AdminOverviewPage (app/dashboard/admin/overview/page.tsx:28:21)
+    at AdminPage (app/dashboard/admin/page.tsx:7:5)
+  71 | 				return await query();
+  72 | 			} catch (e) {
+> 73 | 				throw new DrizzleQueryError(queryString, params, e as Error);
+     |       ^
+  74 | 			}
+  75 | 		}
+  76 |
+ GET /dashboard/teacher/assessments/create 200 in 68ms (next.js: 4ms, proxy.ts: 4ms, application-code: 60ms)
+ GET /auth/signup/student-registration 200 in 1103ms (next.js: 994ms, proxy.ts: 5ms, application-code: 103ms)
+ GET / 200 in 200ms (next.js: 12ms, proxy.ts: 14ms, application-code: 174ms)
+ GET /auth/signin 200 in 93ms (next.js: 7ms, proxy.ts: 5ms, application-code: 81ms)
