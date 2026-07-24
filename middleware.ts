@@ -92,12 +92,19 @@ export async function middleware(request: NextRequest) {
   // Check if it's a public route
   const isPublicRoute = publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route)))
 
+  // Check for mock_user_session (local login) first
+  const mockSessionUserId = request.cookies.get('mock_user_session')?.value
+  const hasMockSession = !!mockSessionUserId
+
   // Refresh session if it exists
   const { data: { user } } = await supabase.auth.getUser()
 
+  // User is authenticated if they have either a Supabase session OR a mock local session
+  const isAuthenticated = !!user || hasMockSession
+
   const isPDFBypass = pathname.startsWith('/dashboard/teacher/assessments/create/pdf')
 
-  if (!user && !isPublicRoute && !pathname.startsWith('/api/') && !isPDFBypass) {
+  if (!isAuthenticated && !isPublicRoute && !pathname.startsWith('/api/') && !isPDFBypass) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/signin'
     return withSecurityHeaders(NextResponse.redirect(url))
@@ -108,13 +115,13 @@ export async function middleware(request: NextRequest) {
   const hasErrorParam = request.nextUrl.searchParams.has('error') || request.nextUrl.searchParams.has('unauthorized')
 
   // If already logged in and hitting signin/signup, go to dashboard
-  if (user && !hasErrorParam && (pathname === '/auth/signin' || pathname === '/auth/signup')) {
+  if (isAuthenticated && !hasErrorParam && (pathname === '/auth/signin' || pathname === '/auth/signup')) {
     return withSecurityHeaders(NextResponse.redirect(new URL('/dashboard-redirect', request.url)))
   }
 
   // Protect role-specific sub-dashboards
-  if (user && pathname.startsWith('/dashboard/')) {
-    const role = (user.user_metadata?.role || '').toUpperCase()
+  if (isAuthenticated && pathname.startsWith('/dashboard/')) {
+    const role = (user?.user_metadata?.role || '').toUpperCase()
 
     if (pathname.startsWith('/dashboard/admin') && role !== 'ADMIN') {
       return withSecurityHeaders(NextResponse.redirect(new URL('/dashboard-redirect', request.url)))

@@ -71,16 +71,20 @@ export default function SignInPage() {
         // Attempt using loginAdmin action which signs in to Supabase & registers local admin role mapping
         const result = await loginAdmin({ email: loginEmail, password })
         if (result.success) {
-          router.refresh()
-          window.location.href = '/dashboard-redirect'
+          setLoading(false)
+          setTimeout(() => {
+            window.location.href = '/dashboard-redirect'
+          }, 100)
           return
         }
 
         // Fallback to offline direct local db admin login if Supabase auth fails / or database connection is offline
         const localRes = await simulateLocalLogin(loginEmail, 'ADMIN')
         if (localRes.success) {
-          router.refresh()
-          window.location.href = '/dashboard-redirect'
+          setLoading(false)
+          setTimeout(() => {
+            window.location.href = '/dashboard-redirect'
+          }, 100)
           return
         }
 
@@ -94,8 +98,10 @@ export default function SignInPage() {
           const { simulateLocalLogin } = await import('@/app/actions/auth-server')
           const bypassRes = await simulateLocalLogin(loginEmail, 'ADMIN')
           if (bypassRes.success) {
-            router.refresh()
-            window.location.href = '/dashboard-redirect'
+            setLoading(false)
+            setTimeout(() => {
+              window.location.href = '/dashboard-redirect'
+            }, 100)
             return
           }
         }
@@ -117,8 +123,10 @@ export default function SignInPage() {
           setLoading(false)
           return
         }
-        router.refresh()
-        window.location.href = '/dashboard-redirect'
+        setLoading(false)
+        setTimeout(() => {
+          window.location.href = '/dashboard-redirect'
+        }, 100)
         return
       } catch (err) {
         console.error("Local login fallback failed:", err)
@@ -140,8 +148,11 @@ export default function SignInPage() {
         const { simulateLocalLogin } = await import('@/app/actions/auth-server')
         const fallbackRes = await simulateLocalLogin(loginEmail, selectedRole)
         if (!fallbackRes.error) {
-          router.refresh()
-          window.location.href = '/dashboard-redirect'
+          setLoading(false)
+          // Add a small delay to ensure the cookie is set before navigation
+          setTimeout(() => {
+            window.location.href = '/dashboard-redirect'
+          }, 100)
           return
         }
 
@@ -182,16 +193,21 @@ export default function SignInPage() {
         }
       }
 
-      router.refresh()
-      window.location.href = '/dashboard-redirect'
+      setLoading(false)
+      // Add a small delay to ensure the session is established before navigation
+      setTimeout(() => {
+        window.location.href = '/dashboard-redirect'
+      }, 100)
     } catch (err) {
       console.warn('Supabase authentication failed, trying local direct database bypass fallback.', err)
       try {
         const { simulateLocalLogin } = await import('@/app/actions/auth-server')
         const fallbackRes = await simulateLocalLogin(loginEmail, selectedRole)
         if (!fallbackRes.error) {
-          router.refresh()
-          window.location.href = '/dashboard-redirect'
+          setLoading(false)
+          setTimeout(() => {
+            window.location.href = '/dashboard-redirect'
+          }, 100)
           return
         }
         setError('Connection failed. Could not verify login details.')
