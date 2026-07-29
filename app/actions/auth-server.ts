@@ -3,7 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
-import { user as userTable, userRole, parent, teacher, student } from '@/lib/db/schema'
+import { user as userTable, userRole, parent, teacher, student, payment } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
@@ -286,23 +286,53 @@ export async function simulateLocalLogin(emailOrId: string, role: string) {
     return { success: true, userId: adminUser.id }
   }
 
-  // Find user by email directly
-  let targetUser = await db.query.user.findFirst({
-    where: eq(userTable.email, emailOrId)
-  })
+  // Support student admission number lookup directly
+  let targetUser = null
 
-  // Support student admission number or staff ID
-  if (!targetUser) {
-    if (role === 'STUDENT') {
-      const s = await db.query.student.findFirst({
-        where: eq(student.admissionNumber, emailOrId)
+  if (role === 'STUDENT') {
+    const s = await db.query.student.findFirst({
+      where: eq(student.admissionNumber, emailOrId.toUpperCase().trim())
+    })
+    if (!s) {
+      return { error: `No student found with admission number '${emailOrId}'` }
+    }
+    if (s.userId) {
+      targetUser = await db.query.user.findFirst({
+        where: eq(userTable.id, s.userId)
       })
-      if (s) {
-        targetUser = await db.query.user.findFirst({
-          where: eq(userTable.id, s.userId)
-        })
-      }
-    } else if (role === 'TEACHER') {
+    }
+    if (!targetUser) {
+      const newUserId = randomUUID()
+      await db.transaction(async (tx) => {
+        await tx.insert(userTable).values({
+          id: newUserId,
+          email: `student.${s.admissionNumber.toLowerCase()}@egia.com`,
+          name: `${s.firstName} ${s.lastName}`,
+          image: s.profileImage || null
+        }).onConflictDoNothing()
+
+        await tx.insert(userRole).values({
+          id: randomUUID(),
+          userId: newUserId,
+          role: 'STUDENT'
+        }).onConflictDoNothing()
+
+        await tx.update(student)
+          .set({ userId: newUserId })
+          .where(eq(student.id, s.id))
+      })
+      targetUser = await db.query.user.findFirst({
+        where: eq(userTable.id, newUserId)
+      })
+    }
+  } else {
+    // Find user by email directly for other roles
+    targetUser = await db.query.user.findFirst({
+      where: eq(userTable.email, emailOrId)
+    })
+
+    // Support staff ID
+    if (!targetUser && role === 'TEACHER') {
       const t = await db.query.teacher.findFirst({
         where: eq(teacher.staffCode, emailOrId)
       })
@@ -456,4 +486,156 @@ export async function loginAdmin(data: any) {
   if (!roleData) return { error: 'Access denied' }
 
   return { success: true }
+}
+
+export async function registerParentTeacher(data: any) {
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    password,
+    childFirstName,
+    childMiddleName,
+    childLastName,
+    childDOB,
+    childClass,
+    profileImage
+  } = data
+
+  // Check if account already exists in database
+  const existingUser = await db.query.user.findFirst({
+    where: eq(userTable.email, email)
+  })
+
+  if (existingUser) {
+    return { error: 'Account already exists. An account with this email is already registered.' }
+  }
+
+  const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
+  let userId = randomUUID()
+
+  if (!isDummySupabase) {
+    try {
+      const cookieStore = await cookies()
+      const supabase = createClient(cookieStore)
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: `${firstName} ${lastName}`,
+            role: 'PARENT'
+          }
+        }
+      })
+
+      if (!authError && authData.user) {
+        userId = authData.user.id
+      }
+    } catch (err) {
+      console.warn('Supabase signUp threw exception, falling back to local DB registration.', err)
+    }
+  }
+
+  try {
+    const parentId = randomUUID()
+    const teacherId = randomUUID()
+    const childStudentId = randomUUID()
+    const childUserId = randomUUID()
+    const admissionNumber = `GOD${Math.floor(100000 + Math.random() * 900000)}`
+    const staffCode = `EGIA-ST-${Math.floor(100000 + Math.random() * 900000)}`
+
+    await db.transaction(async (tx) => {
+      // 1. Insert Parent / Teacher User Row
+      await tx.insert(userTable).values({
+        id: userId,
+        email: email,
+        name: `${firstName} ${lastName}`,
+        image: profileImage || null
+      })
+
+      // 2. Insert User Role Row (Primary role: PARENT)
+      await tx.insert(userRole).values({
+        id: randomUUID(),
+        userId: userId,
+        role: 'PARENT',
+      })
+
+      // 3. Insert Parent Profile Record
+      await tx.insert(parent).values({
+        id: parentId,
+        userId: userId,
+        firstName,
+        lastName,
+        phoneNumber: phone,
+        profileImage: profileImage || null
+      })
+
+      // 4. Insert Teacher Profile Record (since they are a Parent who is a Teacher)
+      await tx.insert(teacher).values({
+        id: teacherId,
+        userId: userId,
+        staffCode,
+        firstName,
+        lastName,
+        profileImage: profileImage || null,
+        status: 'APPROVED', // Pre-approved as they are registered staff
+        isActive: true
+      })
+
+      // 5. Create Child's User Row
+      await tx.insert(userTable).values({
+        id: childUserId,
+        email: `student.${admissionNumber.toLowerCase()}@egia.com`,
+        name: `${childFirstName} ${childLastName}`,
+        image: null
+      })
+
+      // 6. Create Child's User Role Row
+      await tx.insert(userRole).values({
+        id: randomUUID(),
+        userId: childUserId,
+        role: 'STUDENT'
+      })
+
+      // 7. Create Child's Student Record (with default password 'default' inside student table)
+      await tx.insert(student).values({
+        id: childStudentId,
+        userId: childUserId,
+        firstName: childFirstName,
+        middleName: childMiddleName || null,
+        lastName: childLastName,
+        dateOfBirth: childDOB ? childDOB : null,
+        class: childClass,
+        admissionNumber,
+        parentId: parentId,
+        password: 'default',
+        isActive: true
+      })
+
+      // 8. Insert Paid for Registration - ₦2,000 transaction
+      await tx.insert(payment).values({
+        id: randomUUID(),
+        studentId: childStudentId,
+        parentId: parentId,
+        amount: '2000.00',
+        feeType: 'registration',
+        paymentMethod: 'ONLINE',
+        transactionReference: `REG-${Date.now()}`,
+        korapayReference: `KORA-REG-${Date.now()}`,
+        status: 'success',
+        paymentDate: new Date(),
+        paidAt: new Date(),
+        description: 'Paid for Registration - ₦2,000',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+    })
+
+    return { success: true }
+  } catch (dbError: any) {
+    console.error('DB Error in registerParentTeacher:', dbError)
+    return { error: 'Account creation failed in local database. Please contact support.' }
+  }
 }

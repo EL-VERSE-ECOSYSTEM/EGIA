@@ -26,20 +26,24 @@ export default function SignInPage() {
 
     let loginEmail = email
 
-    // Support Student logging in with generated admission number (starts with GOD)
-    if (selectedRole === 'STUDENT' && email.toUpperCase().startsWith('GOD')) {
+    // Handle Student logging in with Admission Number only (completely bypass password check/input on signin)
+    if (selectedRole === 'STUDENT') {
       try {
-        const { getStudentEmailByAdmissionNumber } = await import('@/app/actions/user')
-        const resolvedEmail = await getStudentEmailByAdmissionNumber(email.toUpperCase().trim())
-        if (!resolvedEmail) {
-          setError(`No student found with admission number '${email.toUpperCase()}'`)
+        const { simulateLocalLogin } = await import('@/app/actions/auth-server')
+        const result = await simulateLocalLogin(email.toUpperCase().trim(), 'STUDENT')
+        if (result.error) {
+          setError(result.error)
           setLoading(false)
           return
         }
-        loginEmail = resolvedEmail
+        setLoading(false)
+        setTimeout(() => {
+          window.location.href = '/dashboard-redirect'
+        }, 100)
+        return
       } catch (err) {
-        console.error("Admission number email lookup failed:", err)
-        setError("Database connection error during admission number lookup.")
+        console.error("Student login failed:", err)
+        setError("Database connection error during student login lookup.")
         setLoading(false)
         return
       }
@@ -259,32 +263,34 @@ export default function SignInPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email" className="text-slate-700 font-bold ml-1">
-                {selectedRole === 'STUDENT' ? 'Admission Number or Email' : selectedRole === 'TEACHER' ? 'Staff ID or Email' : 'Email Address'}
+                {selectedRole === 'STUDENT' ? 'Admission Number Only' : selectedRole === 'TEACHER' ? 'Staff ID or Email' : 'Email Address'}
               </Label>
               <Input
                 id="email"
                 type="text"
-                placeholder={selectedRole === 'STUDENT' ? 'GODXXXXXX or email' : selectedRole === 'TEACHER' ? 'EGIA-ST-XXXXXX or email' : 'name@example.com'}
+                placeholder={selectedRole === 'STUDENT' ? 'GODXXXXXX' : selectedRole === 'TEACHER' ? 'EGIA-ST-XXXXXX or email' : 'name@example.com'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="h-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-amber-600 transition-all"
               />
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between ml-1">
-                <Label htmlFor="password" title="password" className="text-slate-700 font-bold">Password</Label>
-                <Link href="/auth/forgot-password" title="forgot-password" className="text-xs font-bold text-amber-600 hover:underline">Forgot password?</Link>
+            {selectedRole !== 'STUDENT' && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between ml-1">
+                  <Label htmlFor="password" title="password" className="text-slate-700 font-bold">Password</Label>
+                  <Link href="/auth/forgot-password" title="forgot-password" className="text-xs font-bold text-amber-600 hover:underline">Forgot password?</Link>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required={selectedRole !== 'STUDENT'}
+                  className="h-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-amber-600 transition-all"
+                />
               </div>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="h-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-amber-600 transition-all"
-              />
-            </div>
+            )}
             <Button
               type="submit"
               disabled={loading}

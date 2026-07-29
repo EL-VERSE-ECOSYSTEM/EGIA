@@ -245,6 +245,19 @@ export async function getUserRole(userId: string) {
   return roleData?.role || null
 }
 
+export async function updateStudentPassword(newPassword: string) {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role !== 'STUDENT') {
+    throw new Error('Unauthorized')
+  }
+
+  await db.update(student)
+    .set({ password: newPassword, updatedAt: new Date() })
+    .where(eq(student.userId, session.user.id))
+
+  return { success: true }
+}
+
 export async function deleteUserAccount() {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')

@@ -73,6 +73,13 @@ export default async function ParentOverviewPage() {
                                 <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{child.class} • {child.admissionNumber}</p>
                              </div>
                           </div>
+
+                          <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl text-[11px] font-bold text-slate-700 space-y-1.5">
+                             <p><span className="text-slate-400 uppercase text-[9px] font-black tracking-wider block">Birth Certificate Name</span> <span className="font-black text-slate-900 text-sm">{child.firstName} {child.middleName || ''} {child.lastName}</span></p>
+                             <p><span className="text-slate-400 uppercase text-[9px] font-black tracking-wider block">Date of Birth</span> <span className="font-black text-slate-800">{child.dateOfBirth ? new Date(child.dateOfBirth).toLocaleDateString(undefined, { dateStyle: 'long' }) : 'N/A'}</span></p>
+                             <p><span className="text-slate-400 uppercase text-[9px] font-black tracking-wider block">Parent Contact Info</span> <span className="font-semibold text-slate-600">Email: {session?.user?.email || 'N/A'} | Phone: {parentProfile?.phoneNumber || 'N/A'}</span></p>
+                          </div>
+
                           <div className="grid grid-cols-2 gap-4">
                              <div className="p-4 rounded-2xl bg-slate-50 text-center">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Average</p>

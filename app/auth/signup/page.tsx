@@ -20,32 +20,21 @@ export default function SignUpPage() {
       link: '/auth/signup/parent'
     },
     {
-      role: 'STUDENT_REG',
-      title: 'Student Session Registration',
-      desc: 'Complete full registration & pay account activation fee (₦2,100). Active now until Sept 30.',
-      icon: ClipboardCheck,
+      role: 'PARENT_TEACHER',
+      title: 'Parent who is a Teacher Registration',
+      desc: 'Onboard as a Parent who is also an educator/staff member of EL GOODNEWS ACADEMY.',
+      icon: Briefcase,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
       borderColor: 'border-orange-100',
       btnBg: 'bg-orange-600 hover:bg-orange-700',
-      link: '/auth/signup/student-registration'
-    },
-    {
-      role: 'STUDENT_ACT',
-      title: 'Student Portal Activation',
-      desc: 'Already registered? Activate your portal access with your admission number.',
-      icon: Laptop,
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-50',
-      borderColor: 'border-amber-100',
-      btnBg: 'bg-amber-600 hover:bg-amber-700',
-      link: '/auth/signup/student'
+      link: '/auth/signup/parent-teacher'
     },
     {
       role: 'TEACHER',
       title: 'Staff Registration',
       desc: 'Register as an instructor using your staff verification code.',
-      icon: Briefcase,
+      icon: ClipboardCheck,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
       borderColor: 'border-purple-100',
