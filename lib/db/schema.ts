@@ -183,6 +183,7 @@ export const assessment = pgTable('assessment', {
   duration: integer('duration').notNull(),
   type: text('type').notNull(),
   status: text('status').default('draft'),
+  accessCode: text('accesscode'),
   passingScore: integer('passingScore').default(40),
   totalPoints: integer('totalPoints').default(100),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),

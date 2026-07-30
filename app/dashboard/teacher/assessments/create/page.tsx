@@ -44,56 +44,39 @@ export default function CreateAssessmentPage() {
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-purple-900">Create New Assessment</h1>
-        <p className="text-slate-500">Choose your preferred method to build a CBT exam</p>
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Create New Assessment</h1>
+        <p className="text-slate-500 font-medium">Add assessments for Weekend Assignments, Assessments, and CBT Exams.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="hover:border-purple-500 transition-colors cursor-pointer" onClick={() => router.push('/dashboard/teacher/assessments/create/pdf')}>
-          <CardHeader>
-            <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center mb-2">
-              <FileText className="text-purple-600" />
+      <div className="p-4 mb-8 bg-amber-50 border border-amber-100 rounded-2xl text-xs font-semibold text-slate-700">
+        ⚠️ CRITICAL REGULATORY RULE: Assessments, Weekend Assignments, and CBT Exams can ONLY be created using the official CSV Import template (which must contain the answers) or by typing out each question and answer manually.
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <Card className="border-none shadow-xl rounded-[2rem] bg-white hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" onClick={() => router.push('/dashboard/teacher/assessments/create/csv')}>
+          <CardHeader className="p-8 pb-4">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center mb-4">
+              <FileSpreadsheet className="text-emerald-600 w-7 h-7" />
             </div>
-            <CardTitle>PDF to CBT</CardTitle>
-            <CardDescription>Upload an exam paper and let AI extract questions automatically.</CardDescription>
+            <CardTitle className="text-xl font-black text-slate-900">CSV Template Import</CardTitle>
+            <CardDescription className="text-slate-500 font-medium mt-1 leading-relaxed text-xs">
+              Upload questions along with their options and correct answers in our standard CSV format.
+            </CardDescription>
           </CardHeader>
         </Card>
 
-        <Card className="hover:border-emerald-500 transition-colors cursor-pointer" onClick={() => router.push('/dashboard/teacher/assessments/create/csv')}>
-          <CardHeader>
-            <div className="w-12 h-12 rounded-lg bg-emerald-100 flex items-center justify-center mb-2">
-              <FileSpreadsheet className="text-emerald-600" />
+        <Card className="border-none shadow-xl rounded-[2rem] bg-white hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" onClick={() => router.push('/dashboard/teacher/assessments/create/text')}>
+          <CardHeader className="p-8 pb-4">
+            <div className="w-14 h-14 rounded-2xl bg-orange-100 flex items-center justify-center mb-4">
+              <Edit className="text-orange-600 w-7 h-7" />
             </div>
-            <CardTitle>CSV Import</CardTitle>
-            <CardDescription>Import questions from a structured Excel or CSV file.</CardDescription>
-          </CardHeader>
-        </Card>
-
-        <Card className="hover:border-orange-500 transition-colors cursor-pointer" onClick={() => router.push('/dashboard/teacher/assessments/create/ai')}>
-          <CardHeader>
-            <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center mb-2">
-              <Zap className="text-orange-600" />
-            </div>
-            <CardTitle>AI Generator</CardTitle>
-            <CardDescription>Generate fresh questions based on a topic or curriculum.</CardDescription>
+            <CardTitle className="text-xl font-black text-slate-900">Manual Entry / Typing</CardTitle>
+            <CardDescription className="text-slate-500 font-medium mt-1 leading-relaxed text-xs">
+              Type out your questions and correct answers manually using our high-fidelity rich editor.
+            </CardDescription>
           </CardHeader>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Manual Setup</CardTitle>
-          <CardDescription>Start from a blank template or existing drafts.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex gap-4">
-          <Button variant="outline" onClick={() => router.push('/dashboard/teacher/assessments/create/text')}>
-            <Edit className="w-4 h-4 mr-2" /> Manual Entry
-          </Button>
-          <Button variant="outline" onClick={() => router.push('/dashboard/teacher/assessments/create/template')}>
-            <Layout className="w-4 h-4 mr-2" /> Use Template
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   )
 }
