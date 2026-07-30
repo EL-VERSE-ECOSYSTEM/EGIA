@@ -85,6 +85,7 @@ CREATE TABLE public.student (
   facialVerificationVideo text, -- Biometric webcam media verification
   subjectsDone jsonb, -- Array of enrolled academic subjects
   isActive boolean DEFAULT true,
+  password text DEFAULT 'default',
   createdAt timestamp with time zone NOT NULL DEFAULT now(),
   updatedAt timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT student_pkey PRIMARY KEY (id),
