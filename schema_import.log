@@ -1,0 +1,48 @@
+CREATE EXTENSION
+CREATE EXTENSION
+psql:schema_complete.sql:12: NOTICE:  table "video_sessions" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:13: NOTICE:  table "library_books" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:14: NOTICE:  table "payment_installment" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:15: NOTICE:  table "payment" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:16: NOTICE:  table "fee_structure" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:17: NOTICE:  table "assessment_result" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:18: NOTICE:  table "assessment" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:19: NOTICE:  table "dispute" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:20: NOTICE:  table "notification" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:21: NOTICE:  table "student" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:22: NOTICE:  table "teacher" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:23: NOTICE:  table "parent" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:24: NOTICE:  table "user_role" does not exist, skipping
+DROP TABLE
+psql:schema_complete.sql:25: NOTICE:  table "user" does not exist, skipping
+DROP TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
