@@ -625,18 +625,52 @@ CREATE TABLE IF NOT EXISTS public.learning_materials (
 );
 
 CREATE TABLE IF NOT EXISTS public.library_books (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  id character varying NOT NULL,
   isbn character varying UNIQUE,
   title character varying NOT NULL,
+  subtitle character varying,
+  authors jsonb,
   author character varying,
   publisher character varying,
   publication_year integer,
+  edition character varying,
+  volume character varying,
+  language character varying DEFAULT 'English',
+  pages integer,
   category character varying,
+  sub_category character varying,
+  description text,
   total_copies integer DEFAULT 1,
   available_copies integer DEFAULT 1,
+  cover_image_url character varying,
+  file_url character varying,
   location character varying,
+  content text,
+  subject character varying,
+  class_level character varying,
+  keywords jsonb,
+  is_digital boolean DEFAULT false,
+  rating numeric,
+  rating_count integer DEFAULT 0,
+  borrowed_count integer DEFAULT 0,
+  deleted_at timestamp without time zone,
   created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT library_books_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS public.book_import_logs (
+  id character varying NOT NULL,
+  filename character varying NOT NULL,
+  total_records integer DEFAULT 0,
+  inserted integer DEFAULT 0,
+  updated integer DEFAULT 0,
+  skipped integer DEFAULT 0,
+  failed integer DEFAULT 0,
+  errors jsonb,
+  status character varying DEFAULT 'PENDING',
+  completed_at timestamp without time zone,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT book_import_logs_pkey PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS public.book_borrowings (
