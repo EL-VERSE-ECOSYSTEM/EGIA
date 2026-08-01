@@ -23,7 +23,7 @@ function withSecurityHeaders(res: NextResponse) {
   return res
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   const userAgent = request.headers.get('user-agent') || ''
