@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
-import { Bell, Search, User, Download, X, Smartphone, CheckCircle } from 'lucide-react'
+import { Bell, Search, User, Download, X, Smartphone, CheckCircle, Menu } from 'lucide-react'
 
 export default function DashboardLayout({
   children,
@@ -16,6 +16,9 @@ export default function DashboardLayout({
   const [showInstallBtn, setShowInstallBtn] = useState(false)
   const [showIOSInstructions, setShowIOSInstructions] = useState(false)
   const [installedSuccess, setInstalledSuccess] = useState(false)
+
+  // Mobile sidebar drawer state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   useEffect(() => {
     // Check standalone state (already installed)
@@ -80,19 +83,38 @@ export default function DashboardLayout({
   }[activeRole]
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC]">
-      <Sidebar role={activeRole} />
+    <div className="flex min-h-screen bg-[#F8FAFC] relative">
+      {/* Mobile Sidebar backdrop overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm animate-in fade-in duration-300"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Responsive Sidebar */}
+      <Sidebar role={activeRole} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-20 border-b border-slate-200 bg-white/50 backdrop-blur-md px-8 flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Dashboard / <span className="text-slate-900">{activeRole}</span></h1>
+        <header className="h-20 border-b border-slate-200 bg-white/50 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            {/* Hamburger Button for Mobile Drawer Toggle */}
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
+              aria-label="Open Navigation"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <h1 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Dashboard / <span className="text-slate-900">{activeRole}</span></h1>
           </div>
+
           <div className="flex items-center gap-6">
             <button className="relative p-2.5 rounded-xl bg-white border border-slate-100 text-slate-500 hover:bg-slate-50 transition-colors shadow-sm">
               <Bell className="w-5 h-5" />
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-600 rounded-full border-2 border-white"></span>
             </button>
-            <div className="h-10 w-[1px] bg-slate-200 mx-2"></div>
+            <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden sm:block"></div>
             <div className="flex items-center gap-3 pl-2">
               <div className="text-right hidden md:block">
                 <p className="text-xs font-black text-slate-900">EL GOODNEWS</p>
@@ -104,6 +126,7 @@ export default function DashboardLayout({
             </div>
           </div>
         </header>
+
         <main className="flex-1 overflow-y-auto bg-slate-50/50 relative">
           {children}
 
