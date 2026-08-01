@@ -39,3 +39,39 @@ params:
     port: 5432
   }
 }
+⨯ Error: Failed query: select "id", "userid", "staffcode", "firstname", "lastname", "type", "isclassteacher", "isparttime", "assignedclassid", "dayspresent", "handlingclasses", "teachingsubjects", "presentdays", "resumptiontime", "resumptiondate", "bio", "applicationletterurl", "cvurl", "qualification", "specialization", "profileimage", "facialverificationvideo", "status", "isactive", "createdat", "updatedat" from "teacher" "teacher" where "teacher"."userid" = $1 limit $2
+params: ,1
+    at bY.queryWithCache (.next/server/chunks/ssr/lib_db_index_ts_1if565v._.js:28:38430)
+    at async (.next/server/chunks/ssr/lib_db_index_ts_1if565v._.js:28:40993)
+    at async h (.next/server/chunks/ssr/[root-of-the-server]__1_km05f._.js:1:8916)
+    at async r (.next/server/chunks/ssr/[root-of-the-server]__0o7yji5._.js:1:13509) {
+  query: 'select "id", "userid", "staffcode", "firstname", "lastname", "type", "isclassteacher", "isparttime", "assignedclassid", "dayspresent", "handlingclasses", "teachingsubjects", "presentdays", "resumptiontime", "resumptiondate", "bio", "applicationletterurl", "cvurl", "qualification", "specialization", "profileimage", "facialverificationvideo", "status", "isactive", "createdat", "updatedat" from "teacher" "teacher" where "teacher"."userid" = $1 limit $2',
+  params: [ '', 1 ],
+  digest: '1149284508',
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:5432
+      at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:5432) {
+    errno: -111,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 5432
+  }
+}
+⨯ Error: Failed query: select count(*) from "student"
+params:
+    at bY.queryWithCache (.next/server/chunks/ssr/lib_db_index_ts_1if565v._.js:28:38430)
+    at async (.next/server/chunks/ssr/lib_db_index_ts_1if565v._.js:28:40993)
+    at async l (.next/server/chunks/ssr/[root-of-the-server]__1_km05f._.js:1:9314)
+    at async w (.next/server/chunks/ssr/[root-of-the-server]__1_km05f._.js:1:14276) {
+  query: 'select count(*) from "student"',
+  params: [],
+  digest: '1305007920',
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:5432
+      at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:5432) {
+    errno: -111,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 5432
+  }
+}

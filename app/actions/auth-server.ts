@@ -444,6 +444,119 @@ export async function loginAdmin(data: any) {
   const supabase = createClient(cookieStore)
   const { email, password } = data
 
+  const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
+  const adminPass = process.env.ADMIN_PASSWORD || 'GOODNEWS20@'
+
+  // Specific requirement: Ensure Admin can log in using admin@egia.com and password GOODNEWS20@
+  if (email.toLowerCase() === 'admin@egia.com' && password === adminPass) {
+    if (isDummySupabase) {
+      let adminUser = await db.query.user.findFirst({
+        where: eq(userTable.email, 'admin@egia.com')
+      })
+      const adminId = adminUser?.id || randomUUID()
+      if (!adminUser) {
+        try {
+          await db.transaction(async (tx) => {
+            await tx.insert(userTable).values({
+              id: adminId,
+              email: 'admin@egia.com',
+              name: 'El Goodnews Admin'
+            }).onConflictDoNothing()
+
+            await tx.insert(userRole).values({
+              id: randomUUID(),
+              userId: adminId,
+              role: 'ADMIN'
+            }).onConflictDoNothing()
+          })
+        } catch (err) {
+          console.error("loginAdmin: Failed to auto-seed local admin row:", err)
+        }
+      }
+      cookieStore.set('mock_user_session', adminId, {
+        path: '/',
+        httpOnly: true,
+        maxAge: 60 * 60 * 24 * 7 // 7 days
+      })
+      return { success: true }
+    } else {
+      // Sync/Create/Update Admin user in Supabase securely on-the-fly
+      try {
+        const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const supabaseServiceKey = process.env.SUPABASE_SECRET_KEY
+
+        if (supabaseUrl && supabaseServiceKey) {
+          const adminClient = createSupabaseAdminClient(supabaseUrl, supabaseServiceKey, {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false
+            }
+          })
+
+          const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers()
+          if (!listError && users) {
+            const found = users.find(u => u.email?.toLowerCase() === 'admin@egia.com')
+            if (!found) {
+              const { data: createdUser, error: createError } = await adminClient.auth.admin.createUser({
+                email: 'admin@egia.com',
+                password: adminPass,
+                email_confirm: true,
+                user_metadata: {
+                  full_name: 'El Goodnews Admin',
+                  role: 'ADMIN'
+                }
+              })
+              if (!createError && createdUser.user) {
+                await db.transaction(async (tx) => {
+                  await tx.insert(userTable).values({
+                    id: createdUser.user.id,
+                    email: 'admin@egia.com',
+                    name: 'El Goodnews Admin'
+                  }).onConflictDoNothing()
+
+                  await tx.insert(userRole).values({
+                    id: randomUUID(),
+                    userId: createdUser.user.id,
+                    role: 'ADMIN'
+                  }).onConflictDoNothing()
+                })
+              }
+            } else {
+              await adminClient.auth.admin.updateUserById(found.id, {
+                password: adminPass,
+                user_metadata: {
+                  role: 'ADMIN'
+                }
+              })
+
+              const existingRole = await db.query.userRole.findFirst({
+                where: eq(userRole.userId, found.id)
+              })
+              if (!existingRole) {
+                await db.transaction(async (tx) => {
+                  await tx.insert(userTable).values({
+                    id: found.id,
+                    email: 'admin@egia.com',
+                    name: 'El Goodnews Admin'
+                  }).onConflictDoNothing()
+
+                  await tx.insert(userRole).values({
+                    id: randomUUID(),
+                    userId: found.id,
+                    role: 'ADMIN'
+                  }).onConflictDoNothing()
+                })
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to seed/sync admin user in Supabase:", err)
+      }
+    }
+  }
+
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email,
     password
