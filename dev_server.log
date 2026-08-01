@@ -181,3 +181,121 @@ params:
 }
  POST /dashboard/parent/library/available 200 in 541ms (next.js: 11ms, proxy.ts: 9ms, application-code: 521ms)
   └─ ƒ searchLibraryBooks("mathematics") in 508ms actions/library.ts
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ GET /dashboard/teacher/assessments/create/pdf 200 in 3.2s (next.js: 493ms, proxy.ts: 454ms, application-code: 2.3s)
+ GET /auth/signin 200 in 2.7s (next.js: 2.4s, proxy.ts: 16ms, application-code: 338ms)
+ GET / 200 in 273ms (next.js: 97ms, proxy.ts: 29ms, application-code: 148ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ POST /dashboard/teacher/assessments/create/pdf 200 in 737ms (next.js: 174ms, proxy.ts: 76ms, application-code: 487ms)
+  └─ ƒ getTeacherProfile() in 124ms actions/teacher.ts
+ GET / 200 in 827ms (next.js: 167ms, proxy.ts: 152ms, application-code: 508ms)
+ GET / 200 in 840ms (next.js: 147ms, proxy.ts: 149ms, application-code: 544ms)
+ GET / 200 in 284ms (next.js: 8ms, proxy.ts: 7ms, application-code: 269ms)
+ GET /auth/signin 200 in 280ms (next.js: 131ms, proxy.ts: 51ms, application-code: 98ms)
+ GET /admissions 200 in 229ms (next.js: 35ms, proxy.ts: 6ms, application-code: 189ms)
+MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
+ GET / 200 in 90ms (next.js: 18ms, proxy.ts: 6ms, application-code: 66ms)
+ GET /auth/signin 200 in 73ms (next.js: 3ms, proxy.ts: 4ms, application-code: 66ms)
+ GET / 200 in 76ms (next.js: 11ms, proxy.ts: 7ms, application-code: 59ms)
+ GET / 200 in 258ms (next.js: 3ms, proxy.ts: 3ms, application-code: 252ms)
+ GET / 200 in 250ms (next.js: 7ms, proxy.ts: 7ms, application-code: 236ms)
+ GET /auth/signin 200 in 47ms (next.js: 6ms, proxy.ts: 5ms, application-code: 36ms)
+[browser] Received `true` for a non-boolean attribute `collapsible`.
+
+If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
+ POST /dashboard/teacher/assessments/create/pdf 200 in 3.1s (next.js: 10ms, proxy.ts: 11ms, application-code: 3.0s)
+  └─ ƒ simulateAIParsing("mock-base64") in 3010ms actions/ai-parsing.ts
+⨯ Error: Failed query: select "id", "userid", "staffcode", "firstname", "lastname", "type", "isclassteacher", "isparttime", "assignedclassid", "dayspresent", "handlingclasses", "teachingsubjects", "presentdays", "resumptiontime", "resumptiondate", "bio", "applicationletterurl", "cvurl", "qualification", "specialization", "profileimage", "facialverificationvideo", "status", "isactive", "createdat", "updatedat" from "teacher" "teacher" where "teacher"."userid" = $1 limit $2
+params: ,1
+    at async getTeacherProfile (lib/api/queries.ts:26:10)
+    at async TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:25:26)
+  24 |
+  25 | export async function getTeacherProfile(userId: string) {
+> 26 |   return await db.query.teacher.findFirst({
+     |          ^
+  27 |     where: eq(teacher.userId, userId),
+  28 |   })
+  29 | } {
+  query: 'select "id", "userid", "staffcode", "firstname", "lastname", "type", "isclassteacher", "isparttime", "assignedclassid", "dayspresent", "handlingclasses", "teachingsubjects", "presentdays", "resumptiontime", "resumptiondate", "bio", "applicationletterurl", "cvurl", "qualification", "specialization", "profileimage", "facialverificationvideo", "status", "isactive", "createdat", "updatedat" from "teacher" "teacher" where "teacher"."userid" = $1 limit $2',
+  params: [ '', 1 ],
+  digest: '3265648232',
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:5432
+      at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:5432) {
+    errno: -111,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 5432
+  }
+}
+ GET /dashboard/teacher 200 in 271ms (next.js: 71ms, proxy.ts: 4ms, application-code: 196ms)
+[browser] Uncaught Error: Failed query: select "id", "userid", "staffcode", "firstname", "lastname", "type", "isclassteacher", "isparttime", "assignedclassid", "dayspresent", "handlingclasses", "teachingsubjects", "presentdays", "resumptiontime", "resumptiondate", "bio", "applicationletterurl", "cvurl", "qualification", "specialization", "profileimage", "facialverificationvideo", "status", "isactive", "createdat", "updatedat" from "teacher" "teacher" where "teacher"."userid" = $1 limit $2
+params: ,1
+    at  getTeacherProfile (lib/api/queries.ts:26:10)
+    at  TeacherOverviewPage (app/dashboard/teacher/overview/page.tsx:25:26)
+    at TeacherPage (app/dashboard/teacher/page.tsx:7:5)
+  24 |
+  25 | export async function getTeacherProfile(userId: string) {
+> 26 |   return await db.query.teacher.findFirst({
+     |          ^
+  27 |     where: eq(teacher.userId, userId),
+  28 |   })
+  29 | }
+ GET / 200 in 195ms (next.js: 8ms, proxy.ts: 6ms, application-code: 180ms)
+[browser] Uncaught TypeError: Failed to execute 'measure' on 'Performance': '​TeacherOverviewPage' cannot have a negative time stamp.
+⨯ Error: Failed query: select count(*) from "student"
+params:
+    at async getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at async AdminOverviewPage (app/dashboard/admin/overview/page.tsx:28:21)
+  56 |
+  57 | export async function getAdminDashboardStats() {
+> 58 |   const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
+     |                           ^
+  59 |   const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
+  60 |   const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment)....
+  61 |   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).... {
+  query: 'select count(*) from "student"',
+  params: [],
+  digest: '2616996324',
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:5432
+      at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:5432) {
+    errno: -111,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 5432
+  }
+}
+ GET /dashboard/admin 200 in 315ms (next.js: 47ms, proxy.ts: 5ms, application-code: 263ms)
+[browser] Uncaught TypeError: Failed to execute 'measure' on 'Performance': '​AdminOverviewPage' cannot have a negative time stamp.
+[browser] Uncaught Error: Failed query: select count(*) from "student"
+params:
+    at  getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at  AdminOverviewPage (app/dashboard/admin/overview/page.tsx:28:21)
+    at AdminPage (app/dashboard/admin/page.tsx:7:5)
+  56 |
+  57 | export async function getAdminDashboardStats() {
+> 58 |   const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
+     |                           ^
+  59 |   const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
+  60 |   const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment)....
+  61 |   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment)....
+[browser] Uncaught Error: Switched to client rendering because the server rendering errored:
+
+Failed query: select count(*) from "student"
+params:
+    at  getAdminDashboardStats (lib/api/queries.ts:58:27)
+    at  AdminOverviewPage (app/dashboard/admin/overview/page.tsx:28:21)
+  56 |
+  57 | export async function getAdminDashboardStats() {
+> 58 |   const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
+     |                           ^
+  59 |   const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
+  60 |   const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment)....
+  61 |   const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment)....
+ GET /dashboard/teacher/assessments/create 200 in 98ms (next.js: 20ms, proxy.ts: 3ms, application-code: 75ms)
+ GET / 200 in 353ms (next.js: 8ms, proxy.ts: 5ms, application-code: 340ms)
+ GET / 200 in 374ms (next.js: 12ms, proxy.ts: 6ms, application-code: 356ms)
+[browser] Received `true` for a non-boolean attribute `collapsible`.
+
+If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.

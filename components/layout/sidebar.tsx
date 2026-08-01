@@ -24,15 +24,23 @@ import {
   Wallet,
   Clock,
   Gamepad2,
-  Video
+  Video,
+  X,
+  BookMarked,
+  BarChart3,
+  MonitorPlay,
+  FolderOpen,
+  HelpCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface SidebarProps {
   role: 'admin' | 'teacher' | 'parent' | 'student'
+  isOpen?: boolean
+  onClose?: () => void
 }
 
-export function Sidebar({ role }: SidebarProps) {
+export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
 
   const configMap = {
@@ -42,13 +50,17 @@ export function Sidebar({ role }: SidebarProps) {
       hoverColor: 'hover:bg-white/10',
       links: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/admin/overview' },
-        { label: 'Students', icon: Users, href: '/dashboard/admin/users/students/list' },
-        { label: 'Teachers', icon: User, href: '/dashboard/admin/users/teachers/list' },
-        { label: 'Academics', icon: BookOpen, href: '/dashboard/admin/academics' },
+        { label: 'Students List', icon: Users, href: '/dashboard/admin/users/students/list' },
+        { label: 'Teachers List', icon: User, href: '/dashboard/admin/users/teachers/list' },
+        { label: 'Academics Control', icon: BookOpen, href: '/dashboard/admin/academics' },
+        { label: 'Library Catalog', icon: BookMarked, href: '/dashboard/admin/library/books' },
+        { label: 'Assessments Log', icon: GraduationCap, href: '/dashboard/admin/assessments' },
+        { label: 'Disciplinary Records', icon: ShieldAlert, href: '/dashboard/admin/disciplinary' },
         { label: 'Pending Fees', icon: Clock, href: '/dashboard/admin/finance/fees/pending' },
-        { label: 'Finance', icon: CreditCard, href: '/dashboard/admin/finance/fees/structure' },
+        { label: 'Fees Structure', icon: CreditCard, href: '/dashboard/admin/finance/fees/structure' },
         { label: 'Teacher Utility & Payroll', icon: Wallet, href: '/dashboard/admin/finance/teacher-requests' },
-        { label: 'Communication', icon: MessageSquare, href: '/dashboard/admin/communication' },
+        { label: 'Communication Hub', icon: MessageSquare, href: '/dashboard/admin/communication' },
+        { label: 'Analytical Reports', icon: BarChart3, href: '/dashboard/admin/reports' },
         { label: 'Settings', icon: Settings, href: '/dashboard/admin/settings' },
       ]
     },
@@ -59,12 +71,17 @@ export function Sidebar({ role }: SidebarProps) {
       links: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/teacher/overview' },
         { label: 'My Classes', icon: School, href: '/dashboard/teacher/my-classes' },
-        { label: 'Assessments', icon: GraduationCap, href: '/dashboard/teacher/assessments/create' },
-        { label: 'Video Classes', icon: Video, href: '/dashboard/teacher/video-sessions' },
-        { label: 'Lesson Notes', icon: FileText, href: '/dashboard/teacher/lesson-notes' },
-        { label: 'Results', icon: Award, href: '/dashboard/teacher/results' },
+        { label: 'Assessments Desk', icon: GraduationCap, href: '/dashboard/teacher/assessments/create' },
+        { label: 'Attendance Registry', icon: Calendar, href: '/dashboard/teacher/attendance/mark' },
+        { label: 'CBT Proctor Control', icon: MonitorPlay, href: '/dashboard/teacher/cbt/monitor' },
+        { label: 'Learning Materials', icon: FolderOpen, href: '/dashboard/teacher/materials/upload' },
+        { label: 'Video Lecture Rooms', icon: Video, href: '/dashboard/teacher/video-sessions' },
+        { label: 'Lesson Notes Catalog', icon: FileText, href: '/dashboard/teacher/lesson-notes' },
+        { label: 'Results & Compilation', icon: Award, href: '/dashboard/teacher/results' },
+        { label: 'Analytics Panel', icon: BarChart3, href: '/dashboard/teacher/analytics/student-growth' },
+        { label: 'Communication Desk', icon: MessageSquare, href: '/dashboard/teacher/communication/messages' },
         { label: 'My Wallet', icon: Wallet, href: '/dashboard/teacher/wallet' },
-        { label: 'Profile', icon: User, href: '/dashboard/teacher/profile' },
+        { label: 'Profile Settings', icon: User, href: '/dashboard/teacher/profile' },
       ]
     },
     parent: {
@@ -73,9 +90,13 @@ export function Sidebar({ role }: SidebarProps) {
       hoverColor: 'hover:bg-white/10',
       links: [
         { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/parent/overview' },
-        { label: 'My Children', icon: Users, href: '/dashboard/parent/children/list' },
-        { label: 'Payments', icon: CreditCard, href: '/dashboard/parent/payments/history' },
-        { label: 'Communication', icon: MessageSquare, href: '/dashboard/parent/communication' },
+        { label: 'My Children Profile', icon: Users, href: '/dashboard/parent/children/list' },
+        { label: 'Payments History', icon: CreditCard, href: '/dashboard/parent/payments/history' },
+        { label: 'Library Catalog', icon: BookOpen, href: '/dashboard/parent/library/available' },
+        { label: 'Report Cards Desk', icon: FileText, href: '/dashboard/parent/results/report-card' },
+        { label: 'School Calendar', icon: Calendar, href: '/dashboard/parent/calendar' },
+        { label: 'Communication Hub', icon: MessageSquare, href: '/dashboard/parent/communication' },
+        { label: 'Help & Support Desk', icon: HelpCircle, href: '/dashboard/parent/help/contact-support' },
         { label: 'Settings', icon: Settings, href: '/dashboard/parent/settings/profile' },
       ]
     },
@@ -84,14 +105,19 @@ export function Sidebar({ role }: SidebarProps) {
       activeColor: 'bg-orange-600 text-white',
       hoverColor: 'hover:bg-white/10',
       links: [
-        { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/student/overview' },
-        { label: 'Library', icon: BookOpen, href: '/dashboard/student/library' },
-        { label: 'Video Classes', icon: Video, href: '/dashboard/student/video-sessions' },
-        { label: 'Assessments', icon: GraduationCap, href: '/dashboard/student/assessments/upcoming' },
-        { label: 'Results', icon: Award, href: '/dashboard/student/results/current' },
-        { label: 'Games & Puzzles', icon: Gamepad2, href: '/dashboard/student/games' },
-        { label: 'Timetable', icon: Calendar, href: '/dashboard/student/timetable' },
-        { label: 'Profile', icon: User, href: '/dashboard/student/profile' },
+        { label: 'Dashboard Overview', icon: LayoutDashboard, href: '/dashboard/student/overview' },
+        { label: 'Digital Library Desk', icon: BookOpen, href: '/dashboard/student/library' },
+        { label: 'Video Lecture Rooms', icon: Video, href: '/dashboard/student/video-sessions' },
+        { label: 'E-Books & Materials', icon: FolderOpen, href: '/dashboard/student/materials/e-books' },
+        { label: 'CBT Assessments', icon: GraduationCap, href: '/dashboard/student/assessments/upcoming' },
+        { label: 'Attendance Card', icon: Calendar, href: '/dashboard/student/attendance/calendar' },
+        { label: 'Study Planner Desk', icon: Clock, href: '/dashboard/student/study-planner/goals' },
+        { label: 'Leaderboard Rankings', icon: BarChart3, href: '/dashboard/student/leaderboard/class' },
+        { label: 'Results Sheet', icon: Award, href: '/dashboard/student/results/current' },
+        { label: 'Communication Hub', icon: MessageSquare, href: '/dashboard/student/communication/messages' },
+        { label: 'Educational Games', icon: Gamepad2, href: '/dashboard/student/games' },
+        { label: 'Class Timetable', icon: Calendar, href: '/dashboard/student/timetable' },
+        { label: 'Profile Settings', icon: User, href: '/dashboard/student/profile' },
       ]
     }
   }
@@ -105,16 +131,36 @@ export function Sidebar({ role }: SidebarProps) {
   }
 
   return (
-    <aside className={cn("w-72 flex flex-col h-screen text-slate-400 border-r border-white/5 shadow-2xl z-50 transition-all duration-500", config.color)}>
+    <aside
+      className={cn(
+        "w-72 flex flex-col h-screen text-slate-400 border-r border-white/5 shadow-2xl z-50 transition-all duration-300 overflow-y-auto shrink-0",
+        config.color,
+        "fixed lg:static top-0 left-0",
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}
+    >
       <div className="p-8">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shadow-lg shadow-amber-600/20">
-            <GraduationCap className="text-white w-7 h-7" />
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shadow-lg shadow-amber-600/20">
+              <GraduationCap className="text-white w-7 h-7" />
+            </div>
+            <div className="leading-tight">
+              <h2 className="font-black text-white text-base tracking-tighter uppercase">EL GOODNEWS</h2>
+              <p className="text-[10px] text-amber-500 font-black uppercase tracking-[0.2em]">ACADEMY</p>
+            </div>
           </div>
-          <div className="leading-tight">
-            <h2 className="font-black text-white text-base tracking-tighter uppercase">EL GOODNEWS</h2>
-            <p className="text-[10px] text-amber-500 font-black uppercase tracking-[0.2em]">ACADEMY</p>
-          </div>
+
+          {/* Close button for Mobile Sidebar Drawer */}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="lg:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all"
+              aria-label="Close Navigation"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         <nav className="space-y-1.5">
@@ -124,14 +170,15 @@ export function Sidebar({ role }: SidebarProps) {
               <Link
                 key={link.label}
                 href={link.href}
+                onClick={onClose}
                 className={cn(
-                  "flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-black transition-all duration-300 group",
+                  "flex items-center gap-4 px-5 py-3.5 rounded-2xl text-xs font-black transition-all duration-300 group",
                   isActive
                     ? config.activeColor + " shadow-xl shadow-amber-600/10"
                     : "text-slate-500 hover:text-white " + config.hoverColor
                 )}
               >
-                <link.icon className={cn("w-5 h-5", isActive ? "text-white" : "group-hover:text-white transition-colors")} />
+                <link.icon className={cn("w-4 h-4", isActive ? "text-white" : "group-hover:text-white transition-colors")} />
                 {link.label}
               </Link>
             )
