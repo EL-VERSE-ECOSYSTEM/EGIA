@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         // Check for duplicate by ISBN
         let existingId = null
         if (isbn) {
-          const res = await db.execute(sql`SELECT id FROM books WHERE isbn = ${isbn} LIMIT 1;`)
+          const res = await db.execute(sql`SELECT id FROM library_books WHERE isbn = ${isbn} LIMIT 1;`)
           if (res.length > 0) {
             existingId = res[0].id
           }
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
             // Update existing book
             if (mode === 'import') {
               await db.execute(sql`
-                UPDATE books SET
+                UPDATE library_books SET
                   title = ${title},
                   subtitle = ${subtitle},
                   authors = ${authors},
@@ -142,11 +142,10 @@ export async function POST(request: NextRequest) {
                   description = ${description},
                   total_copies = ${total_copies},
                   available_copies = ${total_copies},
-                  physical_location = ${physical_location},
+                  location = ${physical_location},
                   class_level = ${class_level},
                   keywords = ${keywords},
-                  is_digital = ${is_digital},
-                  updated_at = now()
+                  is_digital = ${is_digital}
                 WHERE id = ${existingId};
               `)
             }
@@ -158,8 +157,8 @@ export async function POST(request: NextRequest) {
         // Create new book entry
         if (mode === 'import') {
           await db.execute(sql`
-            INSERT INTO books (
-              id, isbn, title, subtitle, authors, publisher, publication_year, edition, volume, language, pages, category, sub_category, description, total_copies, available_copies, physical_location, class_level, keywords, is_digital
+            INSERT INTO library_books (
+              id, isbn, title, subtitle, authors, publisher, publication_year, edition, volume, language, pages, category, sub_category, description, total_copies, available_copies, location, class_level, keywords, is_digital
             ) VALUES (
               ${randomUUID()}, ${isbn}, ${title}, ${subtitle}, ${authors}, ${publisher}, ${publication_year}, ${edition}, ${volume}, ${language}, ${pages}, ${category}, ${sub_category}, ${description}, ${total_copies}, ${total_copies}, ${physical_location}, ${class_level}, ${keywords}, ${is_digital}
             );

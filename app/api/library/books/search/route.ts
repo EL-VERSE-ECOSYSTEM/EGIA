@@ -57,17 +57,17 @@ export async function GET(request: NextRequest) {
     const booksQuery = `
       SELECT id, isbn, title, subtitle, authors, publisher, publication_year as "publicationYear",
              edition, volume, language, pages, category, sub_category as "subCategory", description,
-             cover_image_url as "coverImageUrl", file_url as "fileUrl", physical_location as "physicalLocation",
+             cover_image_url as "coverImageUrl", file_url as "fileUrl", location as "physicalLocation",
              total_copies as "totalCopies", available_copies as "availableCopies", borrowed_count as "borrowedCount",
-             rating, rating_count as "ratingCount", status, is_digital as "isDigital", class_level as "classLevel"
-      FROM books
+             rating, rating_count as "ratingCount", is_digital as "isDigital", class_level as "classLevel"
+      FROM library_books
       ${whereClause}
       ${orderClause}
       LIMIT ${limit} OFFSET ${offset};
     `
 
     const countQuery = `
-      SELECT count(*)::integer as total FROM books ${whereClause};
+      SELECT count(*)::integer as total FROM library_books ${whereClause};
     `
 
     const books = await db.execute(sql.raw(booksQuery).bind(params))
@@ -76,10 +76,14 @@ export async function GET(request: NextRequest) {
 
     // 3. Log search query to database for analytics
     if (query) {
-      await db.execute(sql`
-        INSERT INTO search_logs (id, query, results_count)
-        VALUES (${randomUUID()}, ${query}, ${total});
-      `)
+      try {
+        await db.execute(sql`
+          INSERT INTO search_logs (id, query, results_count)
+          VALUES (${randomUUID()}, ${query}, ${total});
+        `)
+      } catch (err) {
+        // Safe fallback if search_logs table is not present
+      }
     }
 
     return NextResponse.json({

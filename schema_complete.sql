@@ -176,18 +176,49 @@ CREATE TABLE public.library_books (
   id text NOT NULL,
   isbn text UNIQUE,
   title text NOT NULL,
+  subtitle text,
+  authors jsonb,
   author text,
   publisher text,
   publication_year integer,
+  edition text,
+  volume text,
+  language text DEFAULT 'English',
+  pages integer,
   category text, -- Textbooks, Past Questions, Class Notes, Video Tutorials, Study Guides
+  sub_category text,
+  description text,
   total_copies integer DEFAULT 1,
   available_copies integer DEFAULT 1,
+  cover_image_url text,
+  file_url text,
   location text,
   content text, -- Google-like exact searchable lesson textbook chapter context body
   subject text, -- Mathematics, Chemistry, English Language, Physics, etc.
   class_level text, -- Primary 3 - SSS 3
+  keywords jsonb,
+  is_digital boolean DEFAULT false,
+  rating numeric,
+  rating_count integer DEFAULT 0,
+  borrowed_count integer DEFAULT 0,
+  deleted_at timestamp with time zone,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT library_books_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE public.book_import_logs (
+  id text NOT NULL,
+  filename text NOT NULL,
+  total_records integer DEFAULT 0,
+  inserted integer DEFAULT 0,
+  updated integer DEFAULT 0,
+  skipped integer DEFAULT 0,
+  failed integer DEFAULT 0,
+  errors jsonb,
+  status text DEFAULT 'PENDING',
+  completed_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT book_import_logs_pkey PRIMARY KEY (id)
 );
 
 -- Create index to supercharge exact-phrase queries and keyword scans
