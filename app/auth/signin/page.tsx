@@ -68,10 +68,27 @@ export default function SignInPage() {
       }
     }
 
+    const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
+
     // Check if logging in as Admin using 'loginAdmin' or secure fallback/bypass
     if (selectedRole === 'ADMIN') {
       try {
-        const { loginAdmin, simulateLocalLogin } = await import('@/app/actions/auth-server')
+        if (isDummySupabase) {
+          const { simulateLocalLogin } = await import('@/app/actions/auth-server')
+          const localRes = await simulateLocalLogin(loginEmail, 'ADMIN')
+          if (localRes.success) {
+            setLoading(false)
+            setTimeout(() => {
+              window.location.href = '/dashboard-redirect'
+            }, 100)
+            return
+          }
+          setError(localRes.error || 'Admin login verification failed.')
+          setLoading(false)
+          return
+        }
+
+        const { loginAdmin } = await import('@/app/actions/auth-server')
         // Attempt using loginAdmin action which signs in to Supabase & registers local admin role mapping
         const result = await loginAdmin({ email: loginEmail, password })
         if (result.success) {
@@ -82,33 +99,11 @@ export default function SignInPage() {
           return
         }
 
-        // Fallback to offline direct local db admin login if Supabase auth fails / or database connection is offline
-        const localRes = await simulateLocalLogin(loginEmail, 'ADMIN')
-        if (localRes.success) {
-          setLoading(false)
-          setTimeout(() => {
-            window.location.href = '/dashboard-redirect'
-          }, 100)
-          return
-        }
-
-        setError(result.error || localRes.error || 'Admin login verification failed.')
+        setError(result.error || 'Admin login verification failed.')
         setLoading(false)
         return
       } catch (adminErr: any) {
         console.error("Admin login process failed:", adminErr)
-        // Ensure standard mock bypass for the default Admin email
-        if (loginEmail.toLowerCase() === 'admin@egia.com') {
-          const { simulateLocalLogin } = await import('@/app/actions/auth-server')
-          const bypassRes = await simulateLocalLogin(loginEmail, 'ADMIN')
-          if (bypassRes.success) {
-            setLoading(false)
-            setTimeout(() => {
-              window.location.href = '/dashboard-redirect'
-            }, 100)
-            return
-          }
-        }
         setError("Admin authentication error.")
         setLoading(false)
         return
@@ -116,8 +111,6 @@ export default function SignInPage() {
     }
 
     // 1. If Supabase is dummy or unconfigured, bypass to database direct login
-    const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
-
     if (isDummySupabase) {
       try {
         const { simulateLocalLogin } = await import('@/app/actions/auth-server')
@@ -148,18 +141,6 @@ export default function SignInPage() {
       })
 
       if (signInError) {
-        // Safe fallback: try local DB login directly in case Supabase is temporarily unreachable
-        const { simulateLocalLogin } = await import('@/app/actions/auth-server')
-        const fallbackRes = await simulateLocalLogin(loginEmail, selectedRole)
-        if (!fallbackRes.error) {
-          setLoading(false)
-          // Add a small delay to ensure the cookie is set before navigation
-          setTimeout(() => {
-            window.location.href = '/dashboard-redirect'
-          }, 100)
-          return
-        }
-
         setError(signInError.message)
         setLoading(false)
         return
@@ -203,21 +184,8 @@ export default function SignInPage() {
         window.location.href = '/dashboard-redirect'
       }, 100)
     } catch (err) {
-      console.warn('Supabase authentication failed, trying local direct database bypass fallback.', err)
-      try {
-        const { simulateLocalLogin } = await import('@/app/actions/auth-server')
-        const fallbackRes = await simulateLocalLogin(loginEmail, selectedRole)
-        if (!fallbackRes.error) {
-          setLoading(false)
-          setTimeout(() => {
-            window.location.href = '/dashboard-redirect'
-          }, 100)
-          return
-        }
-        setError('Connection failed. Could not verify login details.')
-      } catch (innerErr) {
-        setError('Connection error occurred.')
-      }
+      console.warn('Supabase authentication failed.', err)
+      setError('Connection error occurred.')
       setLoading(false)
     }
   }
