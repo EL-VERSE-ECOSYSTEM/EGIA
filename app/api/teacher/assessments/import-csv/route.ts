@@ -22,13 +22,14 @@ export async function POST(req: Request) {
     }
 
     const text = await file.text()
-    const data = parseCSV(text)
+    const data = parseCSV(text) as any[]
 
     if (!validateQuestionCSV(data)) {
       return NextResponse.json({ error: 'Invalid CSV format' }, { status: 400 })
     }
 
-    const questionsToInsert = data.map((row, index) => {
+    const questionsToInsert = data.map((row: any, index: number) => {
+
       const marks = parseInt(row.marks, 10)
       if (isNaN(marks) || marks <= 0) {
         throw new Error(`Invalid marks value at row ${index + 1}. Marks must be a positive integer.`)
@@ -39,11 +40,11 @@ export async function POST(req: Request) {
         assessmentId,
         questionText: row.questionText,
         questionType: row.questionType,
-        marks,
+        points: marks,
         options: row.options ? JSON.parse(row.options) : null,
         correctAnswer: row.correctAnswer,
         explanation: row.explanation,
-        sequenceNumber: index + 1,
+        order: index + 1,
       }
     })
 

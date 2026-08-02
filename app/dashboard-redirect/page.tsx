@@ -7,7 +7,7 @@ import { cookies } from 'next/headers'
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardRedirect() {
-  let session = null
+  let session: any = null
   try {
     session = await auth.getSession()
   } catch (error) {

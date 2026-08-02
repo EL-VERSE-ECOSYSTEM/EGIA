@@ -42,7 +42,7 @@ export default function StudentPromotionPage() {
 
     setIsPromoting(true)
     try {
-      await processBulkPromotion(selectedStudents, targetClass)
+      await processBulkPromotion({ studentIds: selectedStudents, targetClass })
       alert('Students promoted successfully!')
       setSelectedStudents([])
       // Refresh list

@@ -139,7 +139,7 @@ export async function createAcademicSession(name: string, startDate: Date, endDa
     startDate,
     endDate,
     isCurrent: true,
-  }).returning()
+  } as any).returning()
 }
 
 export async function createTerm(sessionId: string, name: string, startDate: Date, endDate: Date) {
@@ -151,7 +151,7 @@ export async function createTerm(sessionId: string, name: string, startDate: Dat
     startDate,
     endDate,
     isCurrent: true,
-  }).returning()
+  } as any).returning()
 }
 
 export async function getAllStudents() {
@@ -179,7 +179,7 @@ export async function promoteStudents(studentIds: string[], targetClass: string,
   await checkAdminPermission('publish', 'student')
 
   return await db.transaction(async (tx) => {
-    const results = []
+    const results: any[] = []
     for (const id of studentIds) {
       const studentData = await tx.query.student.findFirst({
         where: eq(student.id, id)
@@ -247,7 +247,7 @@ export async function createInstallmentPlan(paymentId: string, totalAmount: numb
   await checkAdminPermission('create', 'payment')
 
   const installmentAmount = (totalAmount / numberOfInstallments).toFixed(2)
-  const installments = []
+  const installments: any[] = []
   const intervalDays = Math.floor(90 / numberOfInstallments)
 
   for (let i = 1; i <= numberOfInstallments; i++) {
@@ -264,7 +264,7 @@ export async function createInstallmentPlan(paymentId: string, totalAmount: numb
     })
   }
 
-  const results = await db.insert(paymentInstallment).values(installments).returning()
+  const results = await db.insert(paymentInstallment).values(installments as any).returning()
   revalidatePath('/dashboard/parent/payments')
   return results
 }
@@ -284,7 +284,7 @@ export async function createTeacher(data: any) {
     applicationLetterUrl: data.applicationLetterUrl,
     cvUrl: data.cvUrl,
     status: 'APPROVED'
-  }).returning()
+  } as any).returning()
 }
 
 export async function getAllClasses() {

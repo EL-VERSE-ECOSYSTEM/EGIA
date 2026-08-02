@@ -163,7 +163,7 @@ export async function getParentPaymentHistory() {
     .where(eq(payment.parentId, parentProfile ? parentProfile.id : session.user.id))
     .orderBy(desc(payment.createdAt))
 
-  const result = []
+  const result: any[] = []
   for (const p of list) {
     const s = await db.query.student.findFirst({
       where: eq(student.id, p.studentId)

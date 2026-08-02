@@ -55,16 +55,27 @@ export async function createSupportTicket(data: {
   category: string
   priority: string
   description: string
-  userId: string
+  userId?: string
 }) {
   const ticketNumber = `SUP-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+
+  // If userId not provided, attempt to resolve from session
+  if (!data.userId) {
+    try {
+      const { auth } = await import('@/lib/auth')
+      const session = await auth.getSession()
+      if (session?.user) data.userId = session.user.id
+    } catch (e) {
+      // ignore
+    }
+  }
 
   const newTicket = await db.insert(supportTicket).values({
     id: crypto.randomUUID(),
     ticketNumber,
     ...data,
     status: 'OPEN',
-  }).returning()
+  } as any).returning()
 
   revalidatePath('/dashboard/communication/support')
   return newTicket[0]

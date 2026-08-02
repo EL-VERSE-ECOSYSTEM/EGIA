@@ -34,7 +34,7 @@ export async function registerStudent(data: any) {
   const admissionNumber = `GOD${Math.floor(100000 + Math.random() * 900000)}`
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
-  let userId = randomUUID()
+  let userId: any = randomUUID()
   let supabaseSignedUp = false
 
   if (!isDummySupabase) {
@@ -114,7 +114,7 @@ export async function registerParent(data: any) {
   }
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
-  let userId = randomUUID()
+  let userId: any = randomUUID()
   let supabaseSignedUp = false
 
   if (!isDummySupabase) {
@@ -192,7 +192,7 @@ export async function registerTeacher(data: any) {
   const staffCode = `EGIA-ST-${Math.floor(100000 + Math.random() * 900000)}`
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
-  let userId = randomUUID()
+  let userId: any = randomUUID()
   let supabaseSignedUp = false
 
   if (!isDummySupabase) {
@@ -287,7 +287,7 @@ export async function simulateLocalLogin(emailOrId: string, role: string) {
   }
 
   // Support student admission number lookup directly
-  let targetUser = null
+  let targetUser: any = null
 
   if (role === 'STUDENT') {
     const s = await db.query.student.findFirst({
@@ -389,7 +389,7 @@ export async function activateStudent(data: any) {
   }
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
-  let userId = randomUUID()
+  let userId: any = randomUUID()
 
   if (!isDummySupabase) {
     try {
@@ -626,7 +626,7 @@ export async function registerParentTeacher(data: any) {
   }
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
-  let userId = randomUUID()
+  let userId: any = randomUUID()
 
   if (!isDummySupabase) {
     try {

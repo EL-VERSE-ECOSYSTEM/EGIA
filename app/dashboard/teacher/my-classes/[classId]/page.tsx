@@ -7,7 +7,7 @@ import { getStudentsInClass } from '@/app/actions/teacher'
 import Link from 'next/link'
 
 export default async function TeacherClassDetailsPage({ params }: { params: { classId: string } }) {
-  let students = []
+   let students: any[] = []
   try {
     students = await getStudentsInClass(params.classId)
   } catch (e) {

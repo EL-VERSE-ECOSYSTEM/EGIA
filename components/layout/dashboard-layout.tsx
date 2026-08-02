@@ -6,10 +6,16 @@ import { Bell, Search, User, Download, X, Smartphone, CheckCircle, Menu } from '
 
 export default function DashboardLayout({
   children,
-  role = 'admin'
+  role = 'admin',
+  userEmail,
+  navItems,
+  ...rest
 }: {
   children: React.ReactNode
   role?: 'admin' | 'teacher' | 'parent' | 'student'
+  userEmail?: string
+  navItems?: any[]
+  [key: string]: any
 }) {
   const activeRole = role || 'admin'
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)

@@ -11,7 +11,7 @@ function parseCSV(content: string): any[] {
 
   // Parse headers
   const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
-  const records = []
+  const records: any[] = []
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim()

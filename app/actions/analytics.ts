@@ -45,7 +45,7 @@ export async function getClassAnalytics(className: string) {
 
   if (studentIds.length > 0) {
     const results = await db.select({
-      avg: avg(assessmentResult.percentage)
+      avg: avg(assessmentResult.score)
     })
     .from(assessmentResult)
     .where(inArray(assessmentResult.studentId, studentIds))
@@ -83,7 +83,7 @@ export async function getTeacherAnalytics(teacherId: string) {
 
   if (assessmentIds.length > 0) {
     const results = await db.select({
-      avg: avg(assessmentResult.percentage)
+      avg: avg(assessmentResult.score)
     })
     .from(assessmentResult)
     .where(inArray(assessmentResult.assessmentId, assessmentIds))
@@ -119,8 +119,8 @@ export async function generatePerformanceReport() {
     const totalResults = classResults.length
 
     if (totalResults > 0) {
-      const avgScore = classResults.reduce((sum, r) => sum + Number(r.percentage || 0), 0) / totalResults
-      const pass = classResults.filter(r => Number(r.percentage || 0) >= 50).length
+      const avgScore = classResults.reduce((sum, r) => sum + Number((r as any).score || 0), 0) / totalResults
+      const pass = classResults.filter(r => Number((r as any).score || 0) >= 50).length
       const fail = totalResults - pass
 
       performanceByClass[className] = {

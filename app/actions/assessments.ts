@@ -28,7 +28,8 @@ export async function submitCBT(assessmentId: string, studentId: string, answers
   if (!assessmentData) throw new Error('Assessment not found')
 
   let totalScore = 0
-  const studentAnswers = []
+  const studentAnswers: any[] = []
+  let correctCount = 0
 
   for (const q of assessmentData.questions) {
     const studentAns = answers.find(a => a.questionId === q.id)
@@ -37,7 +38,7 @@ export async function submitCBT(assessmentId: string, studentId: string, answers
     let isCorrect = false
     let score = 0
 
-    if (q.questionType === 'MCQ_SINGLE' || q.questionType === 'TRUE_FALSE') {
+      if (q.questionType === 'MCQ_SINGLE' || q.questionType === 'TRUE_FALSE') {
       isCorrect = submittedAnswer === q.correctAnswer
     } else if (q.questionType === 'MCQ_MULTIPLE') {
       const correctOptions = q.correctAnswer?.split(',').map(s => s.trim()).sort() || []
@@ -51,8 +52,12 @@ export async function submitCBT(assessmentId: string, studentId: string, answers
       isCorrect = submittedAnswer?.trim().toLowerCase() === q.correctAnswer?.trim().toLowerCase()
     }
 
-    score = isCorrect ? q.marks : 0
-    if (isCorrect) totalScore += score
+    // schema uses `points` for question weight
+    score = isCorrect ? (q.points || 0) : 0
+    if (isCorrect) {
+      totalScore += score
+      correctCount += 1
+    }
 
     studentAnswers.push({
       id: crypto.randomUUID(),
@@ -64,21 +69,27 @@ export async function submitCBT(assessmentId: string, studentId: string, answers
     })
   }
 
-  const percentage = (totalScore / assessmentData.totalMarks) * 100
+  // schema uses `totalPoints` on assessment
+  const percentage = (totalScore / (assessmentData.totalPoints || 1)) * 100
   const grade = calculateGrade(percentage)
 
   await db.insert(assessmentResult).values({
     id: resultId,
     assessmentId,
     studentId,
-    totalScore,
-    percentage: Number(percentage.toFixed(2)),
-    grade,
+    score: Number(percentage.toFixed(2)),
+    totalQuestions: assessmentData.questions.length,
+    correctAnswers: correctCount,
+    timeSpent: 0,
     status: 'completed',
-    gradedAt: new Date(),
-  })
+    gradedBy: null,
+    assessmentVideo: null,
+    warningCount: 0,
+    proctorLogs: null,
+    createdAt: new Date(),
+  } as any)
 
-  await db.insert(studentAnswer).values(studentAnswers)
+  await db.insert(studentAnswer).values(studentAnswers as any)
 
   revalidatePath('/dashboard/student/results')
   return { resultId, totalScore, percentage, grade }
@@ -102,7 +113,7 @@ export async function saveProctoredAssessmentResult(data: {
     id: resultId,
     assessmentId: data.assessmentId,
     studentId: data.studentId,
-    score: String(data.score),
+    score: data.score,
     totalQuestions: data.totalQuestions,
     correctAnswers: data.correctAnswers,
     timeSpent: data.timeSpent,
@@ -111,7 +122,7 @@ export async function saveProctoredAssessmentResult(data: {
     warningCount: data.warningCount,
     proctorLogs: data.proctorLogs || null,
     createdAt: new Date()
-  })
+  } as any)
 
   return { success: true, resultId }
 }
@@ -130,7 +141,7 @@ export async function getAssessmentWithQuestions(id: string) {
     where: eq(assessment.id, id),
     with: {
       questions: {
-        orderBy: (assessmentQuestion, { asc }) => [asc(assessmentQuestion.sequenceNumber)]
+        orderBy: (assessmentQuestion, { asc }) => [asc(assessmentQuestion.order)]
       },
       subject: true
     }
@@ -154,7 +165,7 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
       status: 'published',
       passingScore: assessmentData.passingScore || 40,
       totalPoints: questions.reduce((sum, q) => sum + (q.points || 1), 0),
-    })
+    } as any)
 
     // 2. Insert Questions
     const questionInserts = questions.map((q, idx) => ({
@@ -170,7 +181,7 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
     }))
 
     if (questionInserts.length > 0) {
-      await tx.insert(assessmentQuestion).values(questionInserts)
+      await tx.insert(assessmentQuestion).values(questionInserts as any)
     }
 
     return { assessmentId }
@@ -200,7 +211,7 @@ export async function getLoggedInStudentAndQuestions(assessmentId: string) {
       id: q.id,
       text: q.questionText,
       options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : ['A', 'B', 'C', 'D'],
-      answer: q.correctAnswer
+      answer: q.correctAnswer || ''
     }))
   }
 

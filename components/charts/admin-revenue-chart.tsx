@@ -48,7 +48,7 @@ export function AdminRevenueChart() {
           }}
           itemStyle={{ color: '#F59E0B', fontWeight: 900 }}
           labelStyle={{ color: '#0F172A', fontWeight: 900, marginBottom: '4px' }}
-          formatter={(value: number) => [`₦${value.toLocaleString()}`, 'Revenue']}
+          formatter={(value: any) => [`₦${Number(value || 0).toLocaleString()}`, 'Revenue']}
         />
         <Bar dataKey="value" radius={[10, 10, 10, 10]} barSize={40}>
           {revenueData.map((entry, index) => (
