@@ -181,7 +181,7 @@ export async function createDataAirtimeRequest(data: {
 export async function getAdminTeacherRequests() {
   // Query requests with teacher profile names
   const list = await db.select().from(teacherRequest).orderBy(desc(teacherRequest.createdAt))
-  const result = []
+  const result: Array<any> = []
   for (const item of list) {
     const t = await db.query.teacher.findFirst({
       where: eq(teacher.id, item.teacherId)
@@ -196,7 +196,7 @@ export async function getAdminTeacherRequests() {
 
 export async function getAllTeachersWithWallets() {
   const list = await db.select().from(teacher)
-  const result = []
+  const result: Array<any> = []
   for (const t of list) {
     let wallet = await db.query.teacherWallet.findFirst({
       where: eq(teacherWallet.teacherId, t.id)

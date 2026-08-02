@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { payment, paymentInstallment, student, feeStructure } from '@/lib/db/schema'
+import { payment, paymentInstallment, student, feeStructure, parent as parentTable } from '@/lib/db/schema'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { eq, desc, and, or } from 'drizzle-orm'
@@ -116,7 +116,7 @@ export async function getParentPaymentHistory() {
 
   // Ensure there is at least one Parent profile
   const parentProfile = await db.query.parent.findFirst({
-    where: eq(parent.userId, session.user.id)
+    where: eq(parentTable.userId, session.user.id)
   })
 
   if (parentProfile) {

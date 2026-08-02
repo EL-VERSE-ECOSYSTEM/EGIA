@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
         if (nextInstallment) {
            await db.update(paymentInstallment)
-             .set({ status: 'paid', updatedAt: new Date() })
+             .set({ status: 'paid' })
              .where(eq(paymentInstallment.id, nextInstallment.id))
         }
       }

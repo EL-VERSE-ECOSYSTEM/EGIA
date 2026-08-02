@@ -80,7 +80,7 @@ export default async function InstallmentsPage() {
                              <tr key={inst.id} className="hover:bg-slate-50/30 transition-colors">
                                 <td className="p-8 font-black text-slate-400">#{inst.installmentNumber}</td>
                                 <td className="p-8">
-                                   <p className="font-black text-slate-900">{inst.payment?.student?.firstName} {inst.payment?.student?.lastName}</p>
+                                   <p className="font-black text-slate-900">Student</p>
                                 </td>
                                 <td className="p-8 font-black text-slate-900">₦{Number(inst.amount).toLocaleString()}</td>
                                 <td className="p-8">

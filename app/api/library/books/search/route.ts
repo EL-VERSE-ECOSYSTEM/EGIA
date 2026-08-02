@@ -70,9 +70,9 @@ export async function GET(request: NextRequest) {
       SELECT count(*)::integer as total FROM library_books ${whereClause};
     `
 
-    const books = await db.execute(sql.raw(booksQuery).bind(params))
-    const counts = await db.execute(sql.raw(countQuery).bind(params))
-    const total = counts[0]?.total || 0
+    const books = await db.execute(sql.raw(booksQuery))
+    const counts = await db.execute(sql.raw(countQuery))
+    const total = Number(counts[0]?.total || 0)
 
     // 3. Log search query to database for analytics
     if (query) {

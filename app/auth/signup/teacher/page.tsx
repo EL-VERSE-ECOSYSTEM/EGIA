@@ -93,7 +93,7 @@ export default function TeacherSignUpPage() {
         alert(result.error)
         setLoading(false)
       } else {
-        setGeneratedStaffId(result.staffCode)
+        setGeneratedStaffId(result.staffCode || null)
         setShowSuccessModal(true)
         alert(`SUCCESS! Staff Registered! Your dynamically generated Staff ID is: ${result.staffCode}. Please write this down to log in.`)
         setLoading(false)

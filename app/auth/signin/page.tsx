@@ -18,6 +18,7 @@ export default function SignInPage() {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
+  const requiresPassword = selectedRole !== 'STUDENT'
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,6 +26,7 @@ export default function SignInPage() {
     setError(null)
 
     let loginEmail = email
+    const requiresPassword = selectedRole !== 'STUDENT'
 
     // Handle Student logging in with Admission Number only (completely bypass password check/input on signin)
     if (selectedRole === 'STUDENT') {
@@ -243,7 +245,7 @@ export default function SignInPage() {
                 className="h-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-amber-600 transition-all"
               />
             </div>
-            {selectedRole !== 'STUDENT' && (
+            {requiresPassword && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between ml-1">
                   <Label htmlFor="password" title="password" className="text-slate-700 font-bold">Password</Label>
@@ -254,7 +256,7 @@ export default function SignInPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required={selectedRole !== 'STUDENT'}
+                  required={requiresPassword}
                   className="h-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-amber-600 transition-all"
                 />
               </div>

@@ -303,10 +303,11 @@ export async function simulateLocalLogin(emailOrId: string, role: string) {
     }
     if (!targetUser) {
       const newUserId = randomUUID()
+      const normalizedAdmissionNumber = s.admissionNumber?.toLowerCase() || ''
       await db.transaction(async (tx) => {
         await tx.insert(userTable).values({
           id: newUserId,
-          email: `student.${s.admissionNumber.toLowerCase()}@egia.com`,
+          email: `student.${normalizedAdmissionNumber}@egia.com`,
           name: `${s.firstName} ${s.lastName}`,
           image: s.profileImage || null
         }).onConflictDoNothing()

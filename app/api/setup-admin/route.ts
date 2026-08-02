@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { userRole } from '@/lib/db/schema'
 import { auth } from '@/lib/auth'
-import { headers } from 'next/headers'
+import { randomUUID } from 'crypto'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,11 +14,12 @@ export async function POST(request: NextRequest) {
 
     // Create admin role for user
     await db.insert(userRole).values({
+      id: randomUUID(),
       userId: session.user.id,
-      role: 'admin',
+      role: 'ADMIN',
     }).onConflictDoUpdate({
       target: userRole.userId,
-      set: { role: 'admin' },
+      set: { role: 'ADMIN' },
     })
 
     return NextResponse.json({ success: true })

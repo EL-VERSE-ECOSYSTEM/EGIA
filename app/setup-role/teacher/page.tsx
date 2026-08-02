@@ -27,8 +27,7 @@ export default function TeacherSetupPage() {
         firstName: formData.firstName,
         lastName: formData.lastName,
         staffCode: formData.staffCode,
-        qualification: formData.qualification,
-        specialization: formData.specialization,
+        type: 'SUBJECT',
       })
 
       router.push('/dashboard/teacher/overview')

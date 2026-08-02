@@ -56,7 +56,7 @@ export default function ParentSignUpPage() {
       if (studentData) {
         setFoundWard({
           name: studentData.name,
-          admissionNumber: studentData.admissionNumber
+          admissionNumber: studentData.admissionNumber || ''
         })
         setWardClass(studentData.class || 'Primary 3')
       } else {

@@ -13,8 +13,8 @@ export default async function AdminDashboard() {
     redirect('/sign-in')
   }
 
-  const role = await getUserRole()
-  if (role !== 'admin') {
+  const role = await getUserRole(session.user.id)
+  if (role !== 'ADMIN') {
     redirect('/')
   }
 

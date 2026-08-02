@@ -307,7 +307,7 @@ export default function StudentLibraryPage() {
     setTimeout(() => {
       const text = homeworkInput.toLowerCase()
       // Look up in simple keyword dictionary
-      let matchedKey = null
+      let matchedKey: string | null = null
       for (const key of Object.keys(AI_HOMEWORK_KNOWLEDGEBASE)) {
         if (text.includes(key)) {
           matchedKey = key

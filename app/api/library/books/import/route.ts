@@ -111,11 +111,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Check for duplicate by ISBN
-        let existingId = null
+        let existingId: string | null = null
         if (isbn) {
           const res = await db.execute(sql`SELECT id FROM library_books WHERE isbn = ${isbn} LIMIT 1;`)
-          if (res.length > 0) {
-            existingId = res[0].id
+          const rows = Array.isArray(res) ? res : []
+          if (rows.length > 0) {
+            existingId = (rows[0] as { id?: string | null }).id || null
           }
         }
 

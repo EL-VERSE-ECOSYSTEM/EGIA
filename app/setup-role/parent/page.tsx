@@ -27,7 +27,6 @@ export default function ParentSetupPage() {
       await createParentProfile({
         firstName: formData.firstName,
         lastName: formData.lastName,
-        relationship: formData.relationship as 'father' | 'mother' | 'guardian' | 'other',
         wardAdmissionNumber: formData.wardAdmissionNumber,
         phoneNumber: formData.phoneNumber,
       })
