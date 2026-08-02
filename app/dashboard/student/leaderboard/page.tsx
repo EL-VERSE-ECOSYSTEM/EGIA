@@ -37,18 +37,8 @@ export default async function LeaderboardPage() {
       streak: 5 - (idx % 3)
     }))
   } catch (err) {
-    console.warn("Using fallback top 20 leaderboard data due to offline/unseeded DB state:", err)
-    leaderboardData = Array.from({ length: 20 }, (_, idx) => ({
-      id: `std-${idx}`,
-      firstName: ['Chidi', 'Fatima', 'Oluwaseun', 'Amina', 'Emeka', 'Blessing', 'David', 'Zainab', 'Yusuf', 'Joy'][idx % 10],
-      lastName: ['Okon', 'Bello', 'Adeboye', 'Ndu', 'Ibrahim', 'Eze', 'Musa', 'Sanni', 'George', 'Abubakar'][idx % 10],
-      class: idx % 2 === 0 ? 'Primary 3' : 'JSS 1',
-      admissionNumber: `GOD1029${10 + idx}`,
-      avgScore: (98.5 - idx * 1.5).toFixed(2),
-      rank: idx + 1,
-      totalPoints: 2450 - idx * 85,
-      streak: 5 - (idx % 3)
-    }))
+    console.warn('Leaderboard query failed:', err)
+    leaderboardData = []
   }
 
   // Get medals for top 3
@@ -100,56 +90,62 @@ export default async function LeaderboardPage() {
 
             <Card className="border-none shadow-2xl rounded-[2.5rem] bg-white overflow-hidden">
               <CardContent className="p-0">
-                <div className="divide-y divide-slate-50">
-                  {leaderboardData.map((item) => (
-                    <div key={item.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors group">
-                      <div className="flex items-center gap-6">
-                        <div className="w-10 flex items-center justify-center shrink-0">
-                          {getMedalIcon(item.rank)}
+                {leaderboardData.length > 0 ? (
+                  <div className="divide-y divide-slate-50">
+                    {leaderboardData.map((item) => (
+                      <div key={item.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors group">
+                        <div className="flex items-center gap-6">
+                          <div className="w-10 flex items-center justify-center shrink-0">
+                            {getMedalIcon(item.rank)}
+                          </div>
+                          <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center font-black text-xl text-indigo-600 shadow-inner shrink-0 uppercase overflow-hidden">
+                            {item.avatar ? (
+                              <img src={item.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                              <span>{item.firstName[0]}{item.lastName[0]}</span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-black text-slate-900 text-lg leading-tight group-hover:text-indigo-900 transition-colors">
+                              {item.firstName} {item.lastName}
+                            </p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                              {item.class} • {item.admissionNumber}
+                            </p>
+                          </div>
                         </div>
-                        <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center font-black text-xl text-indigo-600 shadow-inner shrink-0 uppercase overflow-hidden">
-                          {item.avatar ? (
-                            <img src={item.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                          ) : (
-                            <span>{item.firstName[0]}{item.lastName[0]}</span>
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-black text-slate-900 text-lg leading-tight group-hover:text-indigo-900 transition-colors">
-                            {item.firstName} {item.lastName}
-                          </p>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                            {item.class} • {item.admissionNumber}
-                          </p>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-8 text-right shrink-0">
-                        <div>
-                          <p className="font-black text-indigo-600 text-xl leading-none font-mono">
-                            {item.totalPoints.toLocaleString()}
-                          </p>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                            Academy Pts
-                          </p>
-                        </div>
-                        <div>
-                          <Badge className="bg-orange-100 text-orange-800 border-none font-black text-xs px-3 py-1 flex items-center gap-1 rounded-lg">
-                            <Flame className="w-3.5 h-3.5 text-orange-600" /> {item.streak}
-                          </Badge>
-                        </div>
-                        <div>
-                          <p className="font-black text-emerald-600 text-lg font-mono">
-                            {item.avgScore}%
-                          </p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase">
-                            Avg Score
-                          </p>
+                        <div className="flex items-center gap-8 text-right shrink-0">
+                          <div>
+                            <p className="font-black text-indigo-600 text-xl leading-none font-mono">
+                              {item.totalPoints.toLocaleString()}
+                            </p>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                              Academy Pts
+                            </p>
+                          </div>
+                          <div>
+                            <Badge className="bg-orange-100 text-orange-800 border-none font-black text-xs px-3 py-1 flex items-center gap-1 rounded-lg">
+                              <Flame className="w-3.5 h-3.5 text-orange-600" /> {item.streak}
+                            </Badge>
+                          </div>
+                          <div>
+                            <p className="font-black text-emerald-600 text-lg font-mono">
+                              {item.avgScore}%
+                            </p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">
+                              Avg Score
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-12 text-center text-slate-500 font-black">
+                    No leaderboard information is currently available. Please check back once students have completed assessments.
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

@@ -12,6 +12,7 @@ import Link from 'next/link'
 export default function StudentListPage() {
   const [students, setStudents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Search, sorting & multi-filter states
   const [searchQuery, setSearchQuery] = useState('')
@@ -28,14 +29,9 @@ export default function StudentListPage() {
         const data = await getAllStudents()
         setStudents(data || [])
       } catch (err) {
-        console.warn('Could not load student directory from DB, using fallback data.', err)
-        setStudents([
-          { id: '1', firstName: 'Amina', lastName: 'Bello', gender: 'FEMALE', class: 'Primary 3', department: null, admissionNumber: 'GOD100293', subjectsDone: ['Mathematics', 'English Language', 'Social Studies'] },
-          { id: '2', firstName: 'Chinedu', lastName: 'Okafor', gender: 'MALE', class: 'JSS1', department: null, admissionNumber: 'GOD200382', subjectsDone: ['Mathematics', 'English Language', 'Integrated Science', 'Intro Tech'] },
-          { id: '3', firstName: 'Fatima', lastName: 'Abubakar', gender: 'FEMALE', class: 'SSS2', department: 'SCIENCE', admissionNumber: 'GOD392847', subjectsDone: ['Physics', 'Chemistry', 'Biology', 'Further Mathematics', 'English Language'] },
-          { id: '4', firstName: 'John', lastName: 'Audu', gender: 'MALE', class: 'SSS1', department: 'ARTS', admissionNumber: 'GOD582940', subjectsDone: ['Government', 'Literature', 'English Language'] },
-          { id: '5', firstName: 'Sarah', lastName: 'Idris', gender: 'FEMALE', class: 'SSS3', department: 'COMMERCIAL', admissionNumber: 'GOD401928', subjectsDone: ['Accounting', 'Commerce', 'Economics', 'Mathematics'] }
-        ])
+        console.warn('Could not load student directory from DB.', err)
+        setError('Unable to load student directory from database. Please try again later.')
+        setStudents([])
       } finally {
         setLoading(false)
       }
@@ -165,6 +161,11 @@ export default function StudentListPage() {
              <CardTitle className="text-xl font-black text-slate-900">Student Profiles Listing</CardTitle>
              <Badge className="bg-slate-100 text-slate-900 h-10 px-6 rounded-xl font-black text-xs uppercase tracking-widest">{sortedStudents.length} VISIBLE</Badge>
           </CardHeader>
+          {error && (
+            <div className="p-8 bg-red-50 border border-red-100 text-red-600 font-bold text-sm">
+              {error}
+            </div>
+          )}
           <CardContent className="p-0">
              <div className="overflow-x-auto">
                 <table className="w-full text-left">

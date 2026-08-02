@@ -183,7 +183,7 @@ export default function SignInPage() {
               <Input
                 id="email"
                 type="text"
-                placeholder={selectedRole === 'STUDENT' ? 'GODXXXXXX' : selectedRole === 'TEACHER' ? 'EGIA-ST-XXXXXX or email' : 'name@example.com'}
+                placeholder={selectedRole === 'STUDENT' ? 'EGIA-S-XXXXXX or EGIA-P-XXXXXX' : selectedRole === 'TEACHER' ? 'EGIA-ST-XXXXXX or email' : 'name@example.com'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

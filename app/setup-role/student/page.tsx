@@ -90,7 +90,7 @@ export default function StudentSetupPage() {
 
             <div className="p-4 bg-orange-500/10 rounded-xl border border-orange-500/20">
                <p className="text-xs text-orange-200 leading-relaxed">
-                 Note: Your Admission Number (GODXXXXX) will be automatically generated upon completion of this setup.
+                 Note: Your Admission Number (EGIA-S-XXXXXX or EGIA-P-XXXXXX) will be automatically generated upon completion of this setup.
                </p>
             </div>
 

@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { getParentProfile, getStudentProfile, getTeacherProfile } from '@/app/actions/user'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
+import { generateAdmissionNumber } from '@/lib/id'
 
 export const dynamic = 'force-dynamic'
 
@@ -93,7 +94,7 @@ export default async function DashboardRedirect() {
           const nameParts = (session.user.name || 'Student').split(' ')
           const firstName = nameParts[0] || 'Student'
           const lastName = nameParts.slice(1).join(' ') || 'User'
-          const admissionNumber = `GOD${Math.floor(100000 + Math.random() * 900000)}`
+          const admissionNumber = generateAdmissionNumber('JSS1')
 
           await db.insert(student).values({
             id: require('crypto').randomUUID(),

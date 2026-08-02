@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'crypto'
 import { cookies } from 'next/headers'
 import { createClient } from '@/utils/supabase/server'
+import { generateAdmissionNumber } from '@/lib/id'
 
 export async function getStudentEmailByAdmissionNumber(admissionNumber: string) {
   const studentProfile = await db.query.student.findFirst({
@@ -176,7 +177,7 @@ export async function createStudentProfile(data: {
       role: 'STUDENT',
     })
 
-    const admissionNumber = `GOD${Math.floor(10000 + Math.random() * 90000)}`
+    const admissionNumber = generateAdmissionNumber(data.class)
 
     await tx.insert(student).values({
       id: randomUUID(),

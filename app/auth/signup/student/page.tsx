@@ -73,7 +73,7 @@ export default function StudentSignUpPage() {
               <Label htmlFor="admissionNumber" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Admission Number</Label>
               <Input
                 id="admissionNumber"
-                placeholder="GODXXXXX"
+                placeholder="EGIA-S-XXXXXX or EGIA-P-XXXXXX"
                 value={formData.admissionNumber}
                 onChange={e => setFormData({...formData, admissionNumber: e.target.value.toUpperCase()})}
                 required

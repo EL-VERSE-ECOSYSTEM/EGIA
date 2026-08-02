@@ -58,9 +58,9 @@ export default function ParentSetupPage() {
                 value={formData.wardAdmissionNumber}
                 onChange={(e) => setFormData({ ...formData, wardAdmissionNumber: e.target.value.toUpperCase() })}
                 className="border-slate-700 bg-slate-800 text-white h-12 focus:border-emerald-500 border-2"
-                placeholder="GODXXXXX"
+                placeholder="EGIA-S-XXXXXX or EGIA-P-XXXXXX"
               />
-              <p className="text-[10px] text-emerald-200/50">Example: GOD00001</p>
+              <p className="text-[10px] text-emerald-200/50">Example: EGIA-S-123456 or EGIA-P-123456</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

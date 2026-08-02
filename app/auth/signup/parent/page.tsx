@@ -261,7 +261,7 @@ export default function ParentSignUpPage() {
                   <Label className="text-[9px] font-black text-slate-400 uppercase">Admission Number</Label>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="GOD102930"
+                      placeholder="EGIA-S-XXXXXX or EGIA-P-XXXXXX"
                       value={wardAdmissionNumber}
                       onChange={e => setWardAdmissionNumber(e.target.value)}
                       className="h-11 rounded-xl border-slate-200 bg-white text-xs font-bold uppercase"

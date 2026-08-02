@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { user as userTable, userRole, parent, teacher, student, payment } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
+import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
 
 export async function registerStudent(data: any) {
   const {
@@ -30,8 +31,8 @@ export async function registerStudent(data: any) {
     return { error: 'Account already exists. An account with this email is already registered.' }
   }
 
-  // Generate unique 6-digit admission number
-  const admissionNumber = `GOD${Math.floor(100000 + Math.random() * 900000)}`
+  // Generate unique 6-digit admission or pupil number
+  const admissionNumber = generateAdmissionNumber(studentClass)
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
   let userId: any = randomUUID()
@@ -190,7 +191,7 @@ export async function registerTeacher(data: any) {
   }
 
   // Generate dynamic unique 6-digit Staff ID
-  const staffCode = `EGIA-ST-${Math.floor(100000 + Math.random() * 900000)}`
+  const staffCode = generateStaffId()
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
   let userId: any = randomUUID()
@@ -361,21 +362,79 @@ export async function loginStudent(data: any) {
     where: eq(student.admissionNumber, admissionNumber)
   })
 
-  if (!existingStudent || !existingStudent.userId) {
+  if (!existingStudent) {
     return { error: 'Admission number not found. Please contact the school administration.' }
   }
 
-  const userRecord = await db.query.user.findFirst({
-    where: eq(userTable.id, existingStudent.userId)
-  })
+  let resolvedEmail: string | null = null
+  let resolvedUserId: string | null = existingStudent.userId || null
+  let userRecord: any = null
 
-  if (!userRecord || !userRecord.email) {
+  if (resolvedUserId) {
+    userRecord = await db.query.user.findFirst({
+      where: eq(userTable.id, resolvedUserId)
+    })
+    resolvedEmail = userRecord?.email || null
+  }
+
+  if (!resolvedEmail && process.env.SUPABASE_SECRET_KEY) {
+    try {
+      const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseServiceKey = process.env.SUPABASE_SECRET_KEY
+
+      if (supabaseUrl && supabaseServiceKey) {
+        const adminClient = createSupabaseAdminClient(supabaseUrl, supabaseServiceKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        })
+
+        const { data: usersData, error: listError } = await adminClient.auth.admin.listUsers()
+        if (!listError && usersData?.users) {
+          const found = usersData.users.find((u: any) => {
+            return u.user_metadata?.admission_number?.toString().toUpperCase().trim() === admissionNumber
+          })
+
+          if (found && found.email) {
+            resolvedEmail = found.email
+            resolvedUserId = found.id
+
+            await db.transaction(async (tx) => {
+              const existingLocalUser = await tx.query.user.findFirst({
+                where: eq(userTable.email, resolvedEmail)
+              })
+
+              if (!existingLocalUser) {
+                await tx.insert(userTable).values({
+                  id: resolvedUserId,
+                  email: resolvedEmail,
+                  name: `${existingStudent.firstName} ${existingStudent.lastName}`
+                })
+              }
+
+              if (!existingStudent.userId) {
+                await tx.update(student)
+                  .set({ userId: resolvedUserId })
+                  .where(eq(student.id, existingStudent.id))
+              }
+            })
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Could not resolve Supabase admission mapping during student login.', err)
+    }
+  }
+
+  if (!resolvedEmail) {
     return { error: 'Student portal account is not yet configured. Please contact support.' }
   }
 
   const loginPassword = existingStudent.password || 'default'
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: userRecord.email,
+    email: resolvedEmail,
     password: loginPassword
   })
 
@@ -388,7 +447,7 @@ export async function loginStudent(data: any) {
   }
 
   const roleData = await db.query.userRole.findFirst({
-    where: and(eq(userRole.userId, userRecord.id), eq(userRole.role, 'STUDENT'))
+    where: and(eq(userRole.userId, resolvedUserId || existingStudent.userId), eq(userRole.role, 'STUDENT'))
   })
 
   if (!roleData) {
@@ -582,8 +641,8 @@ export async function registerParentTeacher(data: any) {
     const teacherId = randomUUID()
     const childStudentId = randomUUID()
     const childUserId = randomUUID()
-    const admissionNumber = `GOD${Math.floor(100000 + Math.random() * 900000)}`
-    const staffCode = `EGIA-ST-${Math.floor(100000 + Math.random() * 900000)}`
+    const admissionNumber = generateAdmissionNumber(childClass)
+    const staffCode = generateStaffId()
 
     await db.transaction(async (tx) => {
       // 1. Insert Parent / Teacher User Row

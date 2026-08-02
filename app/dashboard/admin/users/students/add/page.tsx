@@ -95,7 +95,7 @@ export default function AddStudentPage() {
                       required
                       value={formData.admissionNumber}
                       onChange={(e) => setFormData({...formData, admissionNumber: e.target.value.toUpperCase()})}
-                      placeholder="GODXXXXX"
+                      placeholder="EGIA-S-XXXXXX or EGIA-P-XXXXXX"
                       className="h-14 rounded-2xl bg-slate-50 border-none font-black tracking-widest focus:bg-white focus:ring-amber-600"
                     />
                   </div>

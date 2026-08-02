@@ -9,7 +9,7 @@ export default function ParentChildrenPage() {
     {
       id: '1',
       name: 'Chisom Amara',
-      admissionNumber: 'GOD12345',
+      admissionNumber: 'EGIA-S-123456',
       class: 'JSS1A',
       avgGrade: 'B+',
       avgScore: 78,
@@ -21,7 +21,7 @@ export default function ParentChildrenPage() {
     {
       id: '2',
       name: 'Adanna Amara',
-      admissionNumber: 'GOD12346',
+      admissionNumber: 'EGIA-S-123457',
       class: 'JSS2B',
       avgGrade: 'A-',
       avgScore: 85,
