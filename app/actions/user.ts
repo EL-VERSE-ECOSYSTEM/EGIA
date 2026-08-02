@@ -220,19 +220,34 @@ export async function createTeacherProfile(data: {
   return { success: true }
 }
 
-export async function getParentProfile(userId: string) {
+export async function getParentProfile(userId?: string) {
+  if (!userId) {
+    const session = await auth.getSession()
+    if (!session?.user) return null
+    userId = session.user.id
+  }
   return await db.query.parent.findFirst({
     where: eq(parent.userId, userId)
   })
 }
 
-export async function getStudentProfile(userId: string) {
+export async function getStudentProfile(userId?: string) {
+  if (!userId) {
+    const session = await auth.getSession()
+    if (!session?.user) return null
+    userId = session.user.id
+  }
   return await db.query.student.findFirst({
     where: eq(student.userId, userId)
   })
 }
 
-export async function getTeacherProfile(userId: string) {
+export async function getTeacherProfile(userId?: string) {
+  if (!userId) {
+    const session = await auth.getSession()
+    if (!session?.user) return null
+    userId = session.user.id
+  }
   return await db.query.teacher.findFirst({
     where: eq(teacher.userId, userId)
   })

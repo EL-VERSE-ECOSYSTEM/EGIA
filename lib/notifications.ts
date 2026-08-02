@@ -45,12 +45,13 @@ export async function sendDeviceNotification(
     return
   }
 
-  const defaultOptions: NotificationOptions = {
+  const defaultOptions = {
     icon: '/logo.svg',
     badge: '/logo.svg',
+    // vibrate is not present on all NotificationOptions typings; keep for runtime but cast to any
     vibrate: [200, 100, 200],
     ...options,
-  }
+  } as any
 
   // Check if a service worker is registered and ready (best practice for PWA notifications)
   if ('serviceWorker' in navigator) {

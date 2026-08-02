@@ -49,7 +49,8 @@ export class PDFToCBTConverter {
   }
 
   private async extractPDFContent(buffer: Buffer) {
-    const data = await pdf(buffer);
+    // pdf-parse may be a CommonJS callable; cast to any to be resilient to typing differences
+    const data = await (pdf as any)(buffer);
     return {
       text: data.text,
       pageCount: data.numpages,

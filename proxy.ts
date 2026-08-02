@@ -40,7 +40,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Rate Limiting
-  const ip = request.ip || request.headers.get('x-forwarded-for') || '127.0.0.1'
+  const ip = (request as any).ip || request.headers.get('x-forwarded-for') || '127.0.0.1'
   const isAuthRoute = pathname.startsWith('/auth/') || pathname.startsWith('/api/')
   const limit = isAuthRoute ? LIMIT_AUTH_API : LIMIT_GENERAL
   const windowMs = isAuthRoute ? (5 * 60 * 1000) : WINDOW_MS
