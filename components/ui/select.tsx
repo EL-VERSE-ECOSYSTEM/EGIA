@@ -1,12 +1,12 @@
 "use client"
 
 import * as React from "react"
-import * as SelectPrimitive from "@base-ui/react/select"
+import { Select as SelectPrimitive } from "@base-ui/react/select"
 
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
-const Select: any = (SelectPrimitive as any).Root
+const Select: any = SelectPrimitive.Root
 
 function SelectGroup({ className, ...props }: any) {
   return (
