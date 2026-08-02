@@ -266,6 +266,14 @@ export async function updateStudentPassword(newPassword: string) {
     throw new Error('Unauthorized')
   }
 
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+
+  if (updateError) {
+    throw new Error(updateError.message)
+  }
+
   await db.update(student)
     .set({ password: newPassword, updatedAt: new Date() })
     .where(eq(student.userId, session.user.id))
@@ -287,16 +295,12 @@ export async function deleteUserAccount() {
     console.warn("deleteUserAccount: DB records cleanup failed or was simulated:", dbErr)
   }
 
-  // Clear simulated mock session cookie if present
   try {
     const cookieStore = await cookies()
-    cookieStore.delete('mock_user_session')
-
-    // Complete Supabase sign out
     const supabase = createClient(cookieStore)
     await supabase.auth.signOut()
   } catch (authErr) {
-    console.warn("deleteUserAccount: Auth session cleanup failed or was simulated:", authErr)
+    console.warn('deleteUserAccount: Auth session cleanup failed:', authErr)
   }
 
   return { success: true }

@@ -13,8 +13,7 @@ import { activateStudent } from '@/app/actions/auth-server'
 export default function StudentSignUpPage() {
   const [formData, setFormData] = useState({
     admissionNumber: '',
-    email: '',
-    password: ''
+    email: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -94,15 +93,8 @@ export default function StudentSignUpPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" title="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Set Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={e => setFormData({...formData, password: e.target.value})}
-                required
-                className="h-12 rounded-xl border-slate-200 focus:ring-orange-600"
-              />
+              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Portal Password</Label>
+              <p className="text-sm text-slate-500">Your initial portal access will use your admission number only. You can set a custom password later in your dashboard.</p>
             </div>
             <Button
               type="submit"

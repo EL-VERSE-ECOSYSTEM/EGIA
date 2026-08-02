@@ -90,7 +90,8 @@ export async function registerStudent(data: any) {
         dateOfResumption: dateOfResumption ? dateOfResumption : null,
         subjectsDone: subjectsDone || null,
         profileImage: profileImage || null,
-        facialVerificationVideo: data.facialVerificationVideo || null
+        facialVerificationVideo: data.facialVerificationVideo || null,
+        password: password || 'default'
       })
     })
 
@@ -253,134 +254,17 @@ export async function registerTeacher(data: any) {
   }
 }
 
-export async function simulateLocalLogin(emailOrId: string, role: string) {
-  // Direct bypass for default Admin
-  if (emailOrId.toLowerCase() === 'admin@egia.com' && role === 'ADMIN') {
-    let adminUser = await db.query.user.findFirst({
-      where: eq(userTable.email, 'admin@egia.com')
-    })
-    if (!adminUser) {
-      const adminId = randomUUID()
-      await db.transaction(async (tx) => {
-        await tx.insert(userTable).values({
-          id: adminId,
-          email: 'admin@egia.com',
-          name: 'El Goodnews Admin'
-        })
-        await tx.insert(userRole).values({
-          id: randomUUID(),
-          userId: adminId,
-          role: 'ADMIN'
-        })
-      })
-      adminUser = { id: adminId, email: 'admin@egia.com', name: 'El Goodnews Admin', image: null, createdAt: new Date(), updatedAt: new Date() }
-    }
-
-    const cookieStore = await cookies()
-    cookieStore.set('mock_user_session', adminUser.id, {
-      path: '/',
-      httpOnly: true,
-      maxAge: 60 * 60 * 24 * 7 // 7 days
-    })
-
-    return { success: true, userId: adminUser.id }
-  }
-
-  // Support student admission number lookup directly
-  let targetUser: any = null
-
-  if (role === 'STUDENT') {
-    const s = await db.query.student.findFirst({
-      where: eq(student.admissionNumber, emailOrId.toUpperCase().trim())
-    })
-    if (!s) {
-      return { error: `No student found with admission number '${emailOrId}'` }
-    }
-    if (s.userId) {
-      targetUser = await db.query.user.findFirst({
-        where: eq(userTable.id, s.userId)
-      })
-    }
-    if (!targetUser) {
-      const newUserId = randomUUID()
-      const normalizedAdmissionNumber = s.admissionNumber?.toLowerCase() || ''
-      await db.transaction(async (tx) => {
-        await tx.insert(userTable).values({
-          id: newUserId,
-          email: `student.${normalizedAdmissionNumber}@egia.com`,
-          name: `${s.firstName} ${s.lastName}`,
-          image: s.profileImage || null
-        }).onConflictDoNothing()
-
-        await tx.insert(userRole).values({
-          id: randomUUID(),
-          userId: newUserId,
-          role: 'STUDENT'
-        }).onConflictDoNothing()
-
-        await tx.update(student)
-          .set({ userId: newUserId })
-          .where(eq(student.id, s.id))
-      })
-      targetUser = await db.query.user.findFirst({
-        where: eq(userTable.id, newUserId)
-      })
-    }
-  } else {
-    // Find user by email directly for other roles
-    targetUser = await db.query.user.findFirst({
-      where: eq(userTable.email, emailOrId)
-    })
-
-    // Support staff ID
-    if (!targetUser && role === 'TEACHER') {
-      const t = await db.query.teacher.findFirst({
-        where: eq(teacher.staffCode, emailOrId)
-      })
-      if (t) {
-        targetUser = await db.query.user.findFirst({
-          where: eq(userTable.id, t.userId)
-        })
-      }
-    }
-  }
-
-  if (!targetUser) {
-    return { error: `Account with details '${emailOrId}' not found.` }
-  }
-
-  // Check role
-  const roleRecord = await db.query.userRole.findFirst({
-    where: and(eq(userRole.userId, targetUser.id), eq(userRole.role, role))
-  })
-
-  if (!roleRecord) {
-    return { error: `Unauthorized: You do not have the registered role of '${role}' on this account.` }
-  }
-
-  // Set mock session cookie
-  const cookieStore = await cookies()
-  cookieStore.set('mock_user_session', targetUser.id, {
-    path: '/',
-    httpOnly: true,
-    maxAge: 60 * 60 * 24 * 7 // 7 days
-  })
-
-  return { success: true, userId: targetUser.id }
-}
-
 export async function activateStudent(data: any) {
   const { admissionNumber, email, password } = data
 
   const existingStudent = await db.query.student.findFirst({
-    where: eq(student.admissionNumber, admissionNumber)
+    where: eq(student.admissionNumber, admissionNumber.toUpperCase().trim())
   })
 
   if (!existingStudent) {
     return { error: 'Admission number not found. Please contact admin.' }
   }
 
-  // Check if account already exists in database
   const existingUser = await db.query.user.findFirst({
     where: eq(userTable.email, email)
   })
@@ -390,7 +274,8 @@ export async function activateStudent(data: any) {
   }
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
-  let userId: any = randomUUID()
+  const defaultStudentPassword = 'default'
+  let userId: any = existingStudent.userId || randomUUID()
 
   if (!isDummySupabase) {
     try {
@@ -398,17 +283,27 @@ export async function activateStudent(data: any) {
       const supabase = createClient(cookieStore)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
-        password,
+        password: defaultStudentPassword,
         options: {
           data: {
             full_name: `${existingStudent.firstName} ${existingStudent.lastName}`,
             role: 'STUDENT',
-            admission_number: admissionNumber
+            admission_number: admissionNumber.toUpperCase().trim()
           }
         }
       })
+
       if (!authError && authData.user) {
         userId = authData.user.id
+      } else if (authError) {
+        console.warn('Supabase student signUp returned an error:', authError.message)
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password: defaultStudentPassword
+        })
+        if (!signInError && signInData.user) {
+          userId = signInData.user.id
+        }
       }
     } catch (err) {
       console.warn('Supabase signUp threw exception, falling back to local DB registration.', err)
@@ -417,27 +312,91 @@ export async function activateStudent(data: any) {
 
   try {
     await db.transaction(async (tx) => {
-      await tx.insert(userTable).values({
-        id: userId,
-        email: email,
-        name: `${existingStudent.firstName} ${existingStudent.lastName}`,
+      const existingLocalUser = await tx.query.user.findFirst({
+        where: eq(userTable.email, email)
       })
 
-      await tx.insert(userRole).values({
-        id: randomUUID(),
-        userId: userId,
-        role: 'STUDENT',
+      if (!existingLocalUser) {
+        await tx.insert(userTable).values({
+          id: userId,
+          email: email,
+          name: `${existingStudent.firstName} ${existingStudent.lastName}`,
+        })
+      }
+
+      const existingRole = await tx.query.userRole.findFirst({
+        where: and(eq(userRole.userId, userId), eq(userRole.role, 'STUDENT'))
       })
+
+      if (!existingRole) {
+        await tx.insert(userRole).values({
+          id: randomUUID(),
+          userId: userId,
+          role: 'STUDENT',
+        })
+      }
 
       await tx.update(student)
-        .set({ userId: userId })
+        .set({ userId: userId, password: password || 'default' })
         .where(eq(student.id, existingStudent.id))
     })
 
     return { success: true }
   } catch (dbError: any) {
+    console.error('Activation DB link failed:', dbError)
     return { error: 'Activation DB link failed' }
   }
+}
+
+export async function loginStudent(data: any) {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  const admissionNumber = (data.admissionNumber || '').toString().toUpperCase().trim()
+
+  if (!admissionNumber) {
+    return { error: 'Please provide a valid admission number.' }
+  }
+
+  const existingStudent = await db.query.student.findFirst({
+    where: eq(student.admissionNumber, admissionNumber)
+  })
+
+  if (!existingStudent || !existingStudent.userId) {
+    return { error: 'Admission number not found. Please contact the school administration.' }
+  }
+
+  const userRecord = await db.query.user.findFirst({
+    where: eq(userTable.id, existingStudent.userId)
+  })
+
+  if (!userRecord || !userRecord.email) {
+    return { error: 'Student portal account is not yet configured. Please contact support.' }
+  }
+
+  const loginPassword = existingStudent.password || 'default'
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email: userRecord.email,
+    password: loginPassword
+  })
+
+  if (authError) {
+    return { error: authError.message }
+  }
+
+  if (!authData.user) {
+    return { error: 'Student sign-in failed. Please try again.' }
+  }
+
+  const roleData = await db.query.userRole.findFirst({
+    where: and(eq(userRole.userId, userRecord.id), eq(userRole.role, 'STUDENT'))
+  })
+
+  if (!roleData) {
+    await supabase.auth.signOut()
+    return { error: 'Access denied. Your account is not configured as a student.' }
+  }
+
+  return { success: true }
 }
 
 export async function loginAdmin(data: any) {
@@ -445,116 +404,82 @@ export async function loginAdmin(data: any) {
   const supabase = createClient(cookieStore)
   const { email, password } = data
 
-  const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
   const adminPass = process.env.ADMIN_PASSWORD || 'GOODNEWS20@'
 
   // Specific requirement: Ensure Admin can log in using admin@egia.com and password GOODNEWS20@
   if (email.toLowerCase() === 'admin@egia.com' && password === adminPass) {
-    if (isDummySupabase) {
-      let adminUser = await db.query.user.findFirst({
-        where: eq(userTable.email, 'admin@egia.com')
-      })
-      const adminId = adminUser?.id || randomUUID()
-      if (!adminUser) {
-        try {
-          await db.transaction(async (tx) => {
-            await tx.insert(userTable).values({
-              id: adminId,
+    try {
+      const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseServiceKey = process.env.SUPABASE_SECRET_KEY
+
+      if (supabaseUrl && supabaseServiceKey) {
+        const adminClient = createSupabaseAdminClient(supabaseUrl, supabaseServiceKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        })
+
+        const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers()
+        if (!listError && users) {
+          const found = users.find(u => u.email?.toLowerCase() === 'admin@egia.com')
+          if (!found) {
+            const { data: createdUser, error: createError } = await adminClient.auth.admin.createUser({
               email: 'admin@egia.com',
-              name: 'El Goodnews Admin'
-            }).onConflictDoNothing()
+              password: adminPass,
+              email_confirm: true,
+              user_metadata: {
+                full_name: 'El Goodnews Admin',
+                role: 'ADMIN'
+              }
+            })
+            if (!createError && createdUser.user) {
+              await db.transaction(async (tx) => {
+                await tx.insert(userTable).values({
+                  id: createdUser.user.id,
+                  email: 'admin@egia.com',
+                  name: 'El Goodnews Admin'
+                }).onConflictDoNothing()
 
-            await tx.insert(userRole).values({
-              id: randomUUID(),
-              userId: adminId,
-              role: 'ADMIN'
-            }).onConflictDoNothing()
-          })
-        } catch (err) {
-          console.error("loginAdmin: Failed to auto-seed local admin row:", err)
-        }
-      }
-      cookieStore.set('mock_user_session', adminId, {
-        path: '/',
-        httpOnly: true,
-        maxAge: 60 * 60 * 24 * 7 // 7 days
-      })
-      return { success: true }
-    } else {
-      // Sync/Create/Update Admin user in Supabase securely on-the-fly
-      try {
-        const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-        const supabaseServiceKey = process.env.SUPABASE_SECRET_KEY
-
-        if (supabaseUrl && supabaseServiceKey) {
-          const adminClient = createSupabaseAdminClient(supabaseUrl, supabaseServiceKey, {
-            auth: {
-              autoRefreshToken: false,
-              persistSession: false
+                await tx.insert(userRole).values({
+                  id: randomUUID(),
+                  userId: createdUser.user.id,
+                  role: 'ADMIN'
+                }).onConflictDoNothing()
+              })
             }
-          })
-
-          const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers()
-          if (!listError && users) {
-            const found = users.find(u => u.email?.toLowerCase() === 'admin@egia.com')
-            if (!found) {
-              const { data: createdUser, error: createError } = await adminClient.auth.admin.createUser({
-                email: 'admin@egia.com',
-                password: adminPass,
-                email_confirm: true,
-                user_metadata: {
-                  full_name: 'El Goodnews Admin',
-                  role: 'ADMIN'
-                }
-              })
-              if (!createError && createdUser.user) {
-                await db.transaction(async (tx) => {
-                  await tx.insert(userTable).values({
-                    id: createdUser.user.id,
-                    email: 'admin@egia.com',
-                    name: 'El Goodnews Admin'
-                  }).onConflictDoNothing()
-
-                  await tx.insert(userRole).values({
-                    id: randomUUID(),
-                    userId: createdUser.user.id,
-                    role: 'ADMIN'
-                  }).onConflictDoNothing()
-                })
+          } else {
+            await adminClient.auth.admin.updateUserById(found.id, {
+              password: adminPass,
+              user_metadata: {
+                role: 'ADMIN'
               }
-            } else {
-              await adminClient.auth.admin.updateUserById(found.id, {
-                password: adminPass,
-                user_metadata: {
+            })
+
+            const existingRole = await db.query.userRole.findFirst({
+              where: eq(userRole.userId, found.id)
+            })
+            if (!existingRole) {
+              await db.transaction(async (tx) => {
+                await tx.insert(userTable).values({
+                  id: found.id,
+                  email: 'admin@egia.com',
+                  name: 'El Goodnews Admin'
+                }).onConflictDoNothing()
+
+                await tx.insert(userRole).values({
+                  id: randomUUID(),
+                  userId: found.id,
                   role: 'ADMIN'
-                }
+                }).onConflictDoNothing()
               })
-
-              const existingRole = await db.query.userRole.findFirst({
-                where: eq(userRole.userId, found.id)
-              })
-              if (!existingRole) {
-                await db.transaction(async (tx) => {
-                  await tx.insert(userTable).values({
-                    id: found.id,
-                    email: 'admin@egia.com',
-                    name: 'El Goodnews Admin'
-                  }).onConflictDoNothing()
-
-                  await tx.insert(userRole).values({
-                    id: randomUUID(),
-                    userId: found.id,
-                    role: 'ADMIN'
-                  }).onConflictDoNothing()
-                })
-              }
             }
           }
         }
-      } catch (err) {
-        console.error("Failed to seed/sync admin user in Supabase:", err)
       }
+    } catch (err) {
+      console.error('Failed to seed/sync admin user in Supabase:', err)
     }
   }
 

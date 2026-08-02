@@ -92,15 +92,9 @@ export async function proxy(request: NextRequest) {
   // Check if it's a public route
   const isPublicRoute = publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route)))
 
-  // Check for mock_user_session (local login) first
-  const mockSessionUserId = request.cookies.get('mock_user_session')?.value
-  const hasMockSession = !!mockSessionUserId
-
   // Refresh session if it exists
   const { data: { user } } = await supabase.auth.getUser()
-
-  // User is authenticated if they have either a Supabase session OR a mock local session
-  const isAuthenticated = !!user || hasMockSession
+  const isAuthenticated = !!user
 
   const isPDFBypass = pathname.startsWith('/dashboard/teacher/assessments/create/pdf')
 

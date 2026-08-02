@@ -25,33 +25,29 @@ export default function SignInPage() {
     setLoading(true)
     setError(null)
 
-    let loginEmail = email
-    const requiresPassword = selectedRole !== 'STUDENT'
+    let loginEmail = email.trim()
 
-    // Handle Student logging in with Admission Number only (completely bypass password check/input on signin)
     if (selectedRole === 'STUDENT') {
       try {
-        const { simulateLocalLogin } = await import('@/app/actions/auth-server')
-        const result = await simulateLocalLogin(email.toUpperCase().trim(), 'STUDENT')
+        const { loginStudent } = await import('@/app/actions/auth-server')
+        const result = await loginStudent({ admissionNumber: email.toUpperCase().trim() })
         if (result.error) {
           setError(result.error)
           setLoading(false)
           return
         }
+
         setLoading(false)
-        setTimeout(() => {
-          window.location.href = '/dashboard-redirect'
-        }, 100)
+        window.location.href = '/dashboard-redirect'
         return
       } catch (err) {
-        console.error("Student login failed:", err)
-        setError("Database connection error during student login lookup.")
+        console.error('Student login failed:', err)
+        setError('Student admission number login failed. Please contact support.')
         setLoading(false)
         return
       }
     }
 
-    // Support Staff logging in with generated Staff ID (starts with EGIA-ST)
     if (selectedRole === 'TEACHER' && email.toUpperCase().startsWith('EGIA-ST')) {
       try {
         const { getStaffEmailByStaffId } = await import('@/app/actions/user')
@@ -63,41 +59,20 @@ export default function SignInPage() {
         }
         loginEmail = resolvedEmail
       } catch (err) {
-        console.error("Staff ID email lookup failed:", err)
-        setError("Database connection error during Staff ID lookup.")
+        console.error('Staff ID email lookup failed:', err)
+        setError('Database connection error during Staff ID lookup.')
         setLoading(false)
         return
       }
     }
 
-    const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
-
-    // Check if logging in as Admin using 'loginAdmin' or secure fallback/bypass
     if (selectedRole === 'ADMIN') {
       try {
-        if (isDummySupabase) {
-          const { simulateLocalLogin } = await import('@/app/actions/auth-server')
-          const localRes = await simulateLocalLogin(loginEmail, 'ADMIN')
-          if (localRes.success) {
-            setLoading(false)
-            setTimeout(() => {
-              window.location.href = '/dashboard-redirect'
-            }, 100)
-            return
-          }
-          setError(localRes.error || 'Admin login verification failed.')
-          setLoading(false)
-          return
-        }
-
         const { loginAdmin } = await import('@/app/actions/auth-server')
-        // Attempt using loginAdmin action which signs in to Supabase & registers local admin role mapping
         const result = await loginAdmin({ email: loginEmail, password })
         if (result.success) {
           setLoading(false)
-          setTimeout(() => {
-            window.location.href = '/dashboard-redirect'
-          }, 100)
+          window.location.href = '/dashboard-redirect'
           return
         }
 
@@ -105,37 +80,13 @@ export default function SignInPage() {
         setLoading(false)
         return
       } catch (adminErr: any) {
-        console.error("Admin login process failed:", adminErr)
-        setError("Admin authentication error.")
+        console.error('Admin login process failed:', adminErr)
+        setError('Admin authentication error.')
         setLoading(false)
         return
       }
     }
 
-    // 1. If Supabase is dummy or unconfigured, bypass to database direct login
-    if (isDummySupabase) {
-      try {
-        const { simulateLocalLogin } = await import('@/app/actions/auth-server')
-        const result = await simulateLocalLogin(loginEmail, selectedRole)
-        if (result.error) {
-          setError(result.error)
-          setLoading(false)
-          return
-        }
-        setLoading(false)
-        setTimeout(() => {
-          window.location.href = '/dashboard-redirect'
-        }, 100)
-        return
-      } catch (err) {
-        console.error("Local login fallback failed:", err)
-        setError("Local offline login failed. Please contact admin.")
-        setLoading(false)
-        return
-      }
-    }
-
-    // 2. Standard Live Supabase Authentication with local DB role verification
     try {
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: loginEmail,
@@ -149,27 +100,24 @@ export default function SignInPage() {
       }
 
       if (!signInData?.user) {
-        setError("Sign-in failed. Please try again.")
+        setError('Sign-in failed. Please try again.')
         setLoading(false)
         return
       }
 
-      // Securely verify that this user has the selected role
       try {
         const { getUserRole } = await import('@/app/actions/user')
         const actualRole = (await getUserRole(signInData.user.id))?.toUpperCase()
         const selectedRoleUpper = selectedRole.toUpperCase()
 
         if (actualRole !== selectedRoleUpper) {
-          // Sign out immediately to clear any browser session state
           await supabase.auth.signOut()
           setError(`Unauthorized: You do not have the registered role of '${selectedRole}' on this account.`)
           setLoading(false)
           return
         }
       } catch (dbError) {
-        console.error("Role verification failed:", dbError)
-        // Fallback to metadata check
+        console.error('Role verification failed:', dbError)
         const metadataRole = (signInData.user.user_metadata?.role || '').toUpperCase()
         const selectedRoleUpper = selectedRole.toUpperCase()
         if (metadataRole !== selectedRoleUpper) {
@@ -181,10 +129,7 @@ export default function SignInPage() {
       }
 
       setLoading(false)
-      // Add a small delay to ensure the session is established before navigation
-      setTimeout(() => {
-        window.location.href = '/dashboard-redirect'
-      }, 100)
+      window.location.href = '/dashboard-redirect'
     } catch (err) {
       console.warn('Supabase authentication failed.', err)
       setError('Connection error occurred.')
