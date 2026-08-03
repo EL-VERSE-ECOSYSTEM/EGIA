@@ -29,7 +29,53 @@ async function requireLinkedChild(parentId: string, studentId: string) {
 function checkoutUrl(reference: string) {
   const url = new URL(KORAPAY_CHECKOUT_LINK)
   url.searchParams.set('reference', reference)
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  if (siteUrl) {
+    url.searchParams.set('redirect_url', `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`)
+  }
   return url.toString()
+}
+
+/**
+ * Called after Korapay returns the customer to the portal. The redirect itself
+ * is untrusted, so the server verifies reference, status and amount with
+ * Korapay before changing the local ledger or granting registration access.
+ */
+export async function verifyKorapayPayment(reference: string) {
+  const normalizedReference = reference.trim()
+  if (!normalizedReference) throw new Error('A payment reference is required.')
+  const record = await db.query.payment.findFirst({ where: eq(payment.transactionReference, normalizedReference) })
+  if (!record) throw new Error('This payment reference was not found.')
+  if (record.status === 'success') return { status: 'success' as const, paymentId: record.id }
+
+  const secret = process.env.KORAPAY_SECRET_KEY
+  if (!secret) throw new Error('Korapay verification is not configured. Please contact support.')
+  const response = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(normalizedReference)}`, {
+    headers: { Authorization: `Bearer ${secret}`, Accept: 'application/json' },
+    cache: 'no-store',
+  })
+  if (!response.ok) throw new Error('Korapay could not verify this payment yet. Please try again shortly.')
+  const gateway = await response.json() as { data?: { reference?: string; status?: string; amount?: string | number; amount_paid?: string | number } }
+  const charge = gateway.data
+  if (!charge || charge.reference !== normalizedReference) throw new Error('Korapay returned an invalid payment response.')
+
+  const gatewayStatus = String(charge.status || '').toLowerCase()
+  if (gatewayStatus === 'success' && Number(charge.amount) === Number(record.amount)) {
+    await db.transaction(async (tx) => {
+      await tx.update(payment).set({ status: 'success', paidAt: new Date(), paymentDate: new Date(), updatedAt: new Date() }).where(eq(payment.id, record.id))
+      if (record.feeType === 'registration') {
+        await tx.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: new Date() }).where(eq(student.id, record.studentId))
+      }
+    })
+    revalidatePath('/dashboard/parent/payments/history')
+    revalidatePath('/dashboard/student/payments/history')
+    return { status: 'success' as const, paymentId: record.id }
+  }
+  if (gatewayStatus === 'failed') {
+    await db.update(payment).set({ status: 'failed', updatedAt: new Date() }).where(eq(payment.id, record.id))
+    return { status: 'failed' as const, paymentId: record.id }
+  }
+  return { status: 'pending' as const, paymentId: record.id }
 }
 
 export async function submitManualPayment(data: { studentId: string; amount: string; feeType: string; receiptUrl: string }) {

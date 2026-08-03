@@ -9,6 +9,14 @@ import { GraduationCap, Users, Laptop, Briefcase, ArrowRight, ClipboardCheck } f
 export default function SignUpPage() {
   const options = [
     {
+      role: 'STUDENT_SESSION',
+      title: 'Student/Pupil Session Registration',
+      desc: 'Register for the academic session and continue to the ₦2,000 Korapay checkout.',
+      icon: Laptop,
+      color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-100', btnBg: 'bg-blue-600 hover:bg-blue-700',
+      link: '/auth/signup/student-registration'
+    },
+    {
       role: 'PARENT',
       title: 'Parent Registration',
       desc: "Monitor your child's progress, track attendance, and pay fees.",

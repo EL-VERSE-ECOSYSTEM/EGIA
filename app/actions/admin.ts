@@ -93,7 +93,11 @@ export async function createStudent(data: any) {
         paymentMethod: 'KORAPAY', transactionReference: reference, status: 'pending',
         description: 'Parent registration — awaiting Korapay confirmation.',
       })
-      checkoutUrl = `${process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'}?reference=${encodeURIComponent(reference)}`
+      const checkout = new URL(process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW')
+      checkout.searchParams.set('reference', reference)
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+      if (siteUrl) checkout.searchParams.set('redirect_url', `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`)
+      checkoutUrl = checkout.toString()
     }
 
     revalidatePath('/dashboard/admin/users/students/list')
