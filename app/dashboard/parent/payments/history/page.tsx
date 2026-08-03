@@ -19,7 +19,7 @@ import {
   Printer,
   Sparkles
 } from 'lucide-react'
-import { getParentPaymentHistory, simulatePaymentSuccess, authenticatePaymentByReference } from '@/app/actions/payments'
+import { getParentPaymentHistory } from '@/app/actions/payments'
 
 export default function PaymentHistoryPage() {
   const [payments, setPayments] = useState<any[]>([])
@@ -39,11 +39,8 @@ export default function PaymentHistoryPage() {
       const list = await getParentPaymentHistory()
       setPayments(list || [])
     } catch (err) {
-      console.warn('Could not load real database payment history. Using fallback list.', err)
-      setPayments([
-        { id: 'KP_92837401', createdAt: new Date(), childName: 'Amina Bello', feeType: 'tuition', amount: '55000.00', status: 'success', paymentMethod: 'CARD', receiptUrl: 'REC-2026-92837401' },
-        { id: 'KP_92837402', createdAt: new Date(Date.now() - 86400000), childName: 'Amina Bello', feeType: 'development', amount: '12000.00', status: 'pending', paymentMethod: 'TRANSFER' }
-      ])
+      console.error('Could not load payment history.', err)
+      setPayments([])
     } finally {
       setLoading(false)
     }
@@ -53,36 +50,6 @@ export default function PaymentHistoryPage() {
     loadHistory()
   }, [])
 
-  const handleVerifyPayment = async (paymentId: string) => {
-    setVerifyingId(paymentId)
-    try {
-      const result = await simulatePaymentSuccess(paymentId)
-      alert(`Payment reference verified successfully! Amount Paid: ₦${parseFloat(result.amount).toLocaleString()}. Receipt generated: ${result.receiptUrl}`)
-      await loadHistory()
-    } catch (err) {
-      console.error(err)
-      alert('Verification failed. Please contact admin.')
-    } finally {
-      setVerifyingId(null)
-    }
-  }
-
-  const handleInstantAuthenticate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!instantRef.trim()) return alert('Please enter a reference code')
-
-    setAuthenticating(true)
-    try {
-      const result = await authenticatePaymentByReference(instantRef.trim())
-      alert(`SUCCESS! Payment reference verified. Amount: ₦${parseFloat(result.amount).toLocaleString()}. Receipt No: ${result.receiptUrl}`)
-      setInstantRef('')
-      await loadHistory()
-    } catch (err: any) {
-      alert(err.message || 'Verification failed. Please double check the reference or contact support.')
-    } finally {
-      setAuthenticating(false)
-    }
-  }
 
   const getStatusBadge = (status: string) => {
     const s = (status || 'pending').toLowerCase()
@@ -187,30 +154,6 @@ export default function PaymentHistoryPage() {
           </Button>
         </div>
 
-        {/* Instant Reference Authentication Form */}
-        <Card className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-amber-50/50 p-8 border border-amber-100/50">
-          <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
-            <div className="space-y-1">
-              <h3 className="font-black text-amber-950 text-xl">Instant Korapay Pay Link Authenticator</h3>
-              <p className="text-amber-800 text-sm font-medium">Paid via our checkout link? Paste your Transaction Reference or Payment ID below to instantly activate.</p>
-            </div>
-            <form onSubmit={handleInstantAuthenticate} className="flex gap-3 w-full lg:w-auto shrink-0">
-              <Input
-                placeholder="e.g. KOR-1718..."
-                value={instantRef}
-                onChange={(e) => setInstantRef(e.target.value)}
-                className="bg-white border-amber-200 rounded-xl h-12 px-4 text-sm font-bold text-slate-900 w-full lg:w-80"
-              />
-              <Button
-                type="submit"
-                disabled={authenticating}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl h-12 px-6 shrink-0"
-              >
-                {authenticating ? <Loader2 className="animate-spin w-5 h-5" /> : 'AUTHENTICATE'}
-              </Button>
-            </form>
-          </div>
-        </Card>
 
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
@@ -275,13 +218,7 @@ export default function PaymentHistoryPage() {
                       </td>
                       <td className="p-6 text-right">
                         {p.status?.toLowerCase() === 'pending' ? (
-                          <Button
-                            onClick={() => handleVerifyPayment(p.id)}
-                            disabled={verifyingId === p.id}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 px-4 rounded-lg shadow-sm"
-                          >
-                            {verifyingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Verify Status'}
-                          </Button>
+                          <span className="text-xs font-bold text-amber-700">Awaiting gateway/admin confirmation</span>
                         ) : (
                           <Button
                             onClick={() => setActiveReceipt(p)}

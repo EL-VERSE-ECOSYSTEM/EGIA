@@ -2,8 +2,8 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { student, parent, userRole, teacher, user as userTable, notification } from '@/lib/db/schema'
-import { eq, and, desc } from 'drizzle-orm'
+import { student, parent, userRole, teacher, user as userTable, notification, payment } from '@/lib/db/schema'
+import { eq, and, desc, count, isNull } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'crypto'
 import { cookies } from 'next/headers'
@@ -42,8 +42,11 @@ export async function linkChild(admissionNumber: string) {
 
   if (!parentProfile) throw new Error('Parent profile not found')
 
+  const linkedCount = await db.select({ value: count() }).from(student).where(eq(student.parentId, parentProfile.id))
+  if ((linkedCount[0]?.value || 0) >= 5) throw new Error('A parent account can be linked to a maximum of 5 children.')
+
   const child = await db.query.student.findFirst({
-    where: eq(student.admissionNumber, admissionNumber)
+    where: eq(student.admissionNumber, admissionNumber.trim().toUpperCase())
   })
 
   if (!child) throw new Error('Student with this admission number not found')
@@ -53,6 +56,10 @@ export async function linkChild(admissionNumber: string) {
   await db.update(student)
     .set({ parentId: parentProfile.id })
     .where(eq(student.id, child.id))
+  // Administrative admissions are provisioned without a fee. Once a parent links the
+  // child, make that existing ledger entry visible in both account histories.
+  await db.update(payment).set({ parentId: parentProfile.id, updatedAt: new Date() })
+    .where(and(eq(payment.studentId, child.id), isNull(payment.parentId)))
 
   revalidatePath('/dashboard/parent/children/list')
   return { success: true, name: `${child.firstName} ${child.lastName}` }
@@ -130,6 +137,8 @@ export async function createParentProfile(data: {
   if (!session?.user) throw new Error('Unauthorized')
 
   return await db.transaction(async (tx) => {
+    const existingParent = await tx.query.parent.findFirst({ where: eq(parent.userId, session.user.id) })
+    if (existingParent) throw new Error('A parent profile already exists for this account.')
     const parentId = randomUUID()
 
     await tx.insert(userRole).values({
@@ -147,8 +156,10 @@ export async function createParentProfile(data: {
     })
 
     if (data.wardAdmissionNumber) {
+      const linkedCount = await tx.select({ value: count() }).from(student).where(eq(student.parentId, parentId))
+      if ((linkedCount[0]?.value || 0) >= 5) throw new Error('A parent account can be linked to a maximum of 5 children.')
       const child = await tx.query.student.findFirst({
-        where: eq(student.admissionNumber, data.wardAdmissionNumber)
+        where: eq(student.admissionNumber, data.wardAdmissionNumber.trim().toUpperCase())
       })
 
       if (child && !child.parentId) {

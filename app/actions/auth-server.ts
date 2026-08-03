@@ -104,7 +104,7 @@ export async function registerStudent(data: any) {
 }
 
 export async function registerParent(data: any) {
-  const { firstName, lastName, email, phone, occupation, profileImage, password } = data
+  const { firstName, lastName, email, phone, occupation, profileImage, password, wardAdmissionNumber } = data
 
   // Check if account already exists in database
   const existingUser = await db.query.user.findFirst({
@@ -113,6 +113,9 @@ export async function registerParent(data: any) {
 
   if (existingUser) {
     return { error: 'Account already exists. An account with this email is already registered.' }
+  }
+  if (wardAdmissionNumber && !process.env.KORAPAY_CHECKOUT_URL) {
+    return { error: 'Korapay checkout is not configured. Please contact the school.' }
   }
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
@@ -145,7 +148,8 @@ export async function registerParent(data: any) {
   }
 
   try {
-    await db.transaction(async (tx) => {
+    const registration = await db.transaction(async (tx) => {
+      const parentId = randomUUID()
       await tx.insert(userTable).values({
         id: userId,
         email: email,
@@ -160,7 +164,7 @@ export async function registerParent(data: any) {
       })
 
       await tx.insert(parent).values({
-        id: randomUUID(),
+        id: parentId,
         userId: userId,
         firstName,
         lastName,
@@ -169,9 +173,30 @@ export async function registerParent(data: any) {
         profileImage: profileImage || null,
         facialVerificationVideo: data.facialVerificationVideo || null
       })
+
+      if (!wardAdmissionNumber) return null
+      const ward = await tx.query.student.findFirst({
+        where: eq(student.admissionNumber, wardAdmissionNumber.trim().toUpperCase())
+      })
+      if (!ward) throw new Error('The selected child was not found.')
+      if (ward.parentId) throw new Error('This child is already linked to a parent account.')
+
+      const reference = `EGIA-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
+      await tx.update(student).set({ parentId }).where(eq(student.id, ward.id))
+      const createdPayment = (await tx.insert(payment).values({
+        id: randomUUID(), studentId: ward.id, parentId, amount: '2000.00', feeType: 'registration',
+        paymentMethod: 'KORAPAY', transactionReference: reference, status: 'pending',
+        description: `Parent registration for ${ward.firstName} ${ward.lastName}`,
+      }).returning())[0]
+      return { reference, paymentId: createdPayment.id }
     })
 
-    return { success: true }
+    if (!registration) return { success: true }
+    const configuredUrl = process.env.KORAPAY_CHECKOUT_URL
+    if (!configuredUrl) return { error: 'Korapay checkout is not configured. Please contact the school.' }
+    const url = new URL(configuredUrl)
+    url.searchParams.set('reference', registration.reference)
+    return { success: true, checkoutUrl: url.toString(), paymentId: registration.paymentId }
   } catch (dbError: any) {
     console.error('DB Error:', dbError)
     return { error: 'Account creation failed in local database. Please contact support.' }
@@ -398,18 +423,20 @@ export async function loginStudent(data: any) {
           })
 
           if (found && found.email) {
-            resolvedEmail = found.email
-            resolvedUserId = found.id
+            const mappedEmail = found.email
+            const mappedUserId = found.id
+            resolvedEmail = mappedEmail
+            resolvedUserId = mappedUserId
 
             await db.transaction(async (tx) => {
               const existingLocalUser = await tx.query.user.findFirst({
-                where: eq(userTable.email, resolvedEmail)
+                where: eq(userTable.email, mappedEmail)
               })
 
               if (!existingLocalUser) {
                 await tx.insert(userTable).values({
-                  id: resolvedUserId,
-                  email: resolvedEmail,
+                  id: mappedUserId,
+                  email: mappedEmail,
                   name: `${existingStudent.firstName} ${existingStudent.lastName}`
                 })
               }
@@ -428,8 +455,36 @@ export async function loginStudent(data: any) {
     }
   }
 
+  // Admissions imported by the school may not yet have an Auth identity. Provision a
+  // non-mailbox portal identity on the first admission-number login; the learner can
+  // replace the initial password from Settings after entering the portal.
+  if (!resolvedEmail && process.env.SUPABASE_SECRET_KEY && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    try {
+      const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+      const adminClient = createSupabaseAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+      const portalEmail = `student.${admissionNumber.toLowerCase()}@portal.egia.local`
+      const { data, error } = await adminClient.auth.admin.createUser({
+        email: portalEmail, password: 'default', email_confirm: true,
+        user_metadata: { full_name: `${existingStudent.firstName} ${existingStudent.lastName}`, role: 'STUDENT', admission_number: admissionNumber },
+      })
+      if (!error && data.user) {
+        resolvedEmail = portalEmail
+        resolvedUserId = data.user.id
+        await db.transaction(async (tx) => {
+          await tx.insert(userTable).values({ id: data.user!.id, email: portalEmail, name: `${existingStudent.firstName} ${existingStudent.lastName}` }).onConflictDoNothing()
+          await tx.insert(userRole).values({ id: randomUUID(), userId: data.user!.id, role: 'STUDENT' }).onConflictDoNothing()
+          await tx.update(student).set({ userId: data.user!.id, password: 'default', updatedAt: new Date() }).where(eq(student.id, existingStudent.id))
+        })
+      }
+    } catch (err) {
+      console.warn('Could not provision an admission-only student portal account.', err)
+    }
+  }
+
   if (!resolvedEmail) {
-    return { error: 'Student portal account is not yet configured. Please contact support.' }
+    return { error: 'Student admission exists, but portal provisioning is unavailable. Please contact support.' }
   }
 
   const loginPassword = existingStudent.password || 'default'
@@ -447,7 +502,7 @@ export async function loginStudent(data: any) {
   }
 
   const roleData = await db.query.userRole.findFirst({
-    where: and(eq(userRole.userId, resolvedUserId || existingStudent.userId), eq(userRole.role, 'STUDENT'))
+    where: and(eq(userRole.userId, authData.user.id), eq(userRole.role, 'STUDENT'))
   })
 
   if (!roleData) {

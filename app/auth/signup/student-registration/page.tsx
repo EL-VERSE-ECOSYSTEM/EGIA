@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GraduationCap, Loader2, AlertCircle, Laptop, CreditCard, CheckCircle2, User, Plus, X } from 'lucide-react'
 import { registerStudent } from '@/app/actions/auth-server'
-import { initializeKorapayPayment, submitRegistrationManualPayment, getStudentIdByAdmissionNumber } from '@/app/actions/payments'
+import { initializeStudentRegistrationPayment, getStudentIdByAdmissionNumber } from '@/app/actions/payments'
 import { Badge } from '@/components/ui/badge'
 import { Banknote } from 'lucide-react'
 
@@ -143,13 +143,11 @@ export default function StudentRegistrationPage() {
 
       setGeneratedAdmissionNumber(result.admissionNumber)
 
-      // Save the generated unique Admission Number in localStorage before redirecting to Korapay
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('pending_student_admission', result.admissionNumber)
-      }
-
-      alert(`SUCCESS! Account registered in database. Generated Admission Number: ${result.admissionNumber}. Redirecting to secure Korapay payment gateway to complete activation (₦2,100)...`)
-      window.location.href = 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
+      const studentId = await getStudentIdByAdmissionNumber(result.admissionNumber)
+      if (!studentId) throw new Error('Registration record could not be loaded for payment.')
+      const payment = await initializeStudentRegistrationPayment(studentId)
+      alert(`Your admission number is ${result.admissionNumber}. Continue to Korapay to pay the ₦2,000 registration fee.`)
+      window.location.assign(payment.checkoutUrl)
     } catch (err: any) {
       console.warn('Unexpected registration redirect handling failed:', err)
       setError('An unexpected error occurred during registration. Please refresh and try again.')

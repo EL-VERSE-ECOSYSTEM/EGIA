@@ -102,6 +102,10 @@ export default function ParentSignUpPage() {
         alert(result.error)
         setLoading(false)
       } else {
+        if (result.checkoutUrl) {
+          window.location.assign(result.checkoutUrl)
+          return
+        }
         alert('Parent account registered successfully! Proceeding to Sign In.')
         router.push('/auth/signin')
       }

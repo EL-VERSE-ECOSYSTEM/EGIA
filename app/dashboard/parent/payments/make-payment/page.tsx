@@ -13,7 +13,7 @@ import {
   Upload, Loader2
 } from 'lucide-react'
 import { getLinkedChildren } from '@/app/actions/user'
-import { submitManualPayment, initializeKorapayPayment, getFeeStructuresForClass } from '@/app/actions/payments'
+import { initializeKorapayPayment, getFeeStructuresForClass } from '@/app/actions/payments'
 import { useRouter } from 'next/navigation'
 
 export default function MakePaymentPage() {
@@ -62,24 +62,12 @@ export default function MakePaymentPage() {
 
     setIsUploading(true)
     try {
-      if (method === 'MANUAL') {
-        if (!receipt) return alert('Please upload receipt')
-        await submitManualPayment({
-          studentId: childId,
-          amount,
-          feeType,
-          receiptUrl: 'mock-receipt-url'
-        })
-        alert('Manual payment submitted for verification')
-        router.push('/dashboard/parent/payments/history')
-      } else {
-        const result = await initializeKorapayPayment({
-          studentId: childId,
-          amount: parseFloat(amount),
-          feeType,
-        })
-        window.location.href = result.checkoutUrl
-      }
+      const result = await initializeKorapayPayment({
+        studentId: childId,
+        amount: parseFloat(amount),
+        feeType,
+      })
+      window.location.assign(result.checkoutUrl)
     } catch (err) {
       console.error(err)
       alert('Payment failed to initialize')
@@ -166,65 +154,9 @@ export default function MakePaymentPage() {
                   {method === 'KORAPAY' && <CheckCircle2 className="ml-auto text-emerald-600 w-6 h-6" />}
                 </div>
 
-                <div
-                  onClick={() => setMethod('MANUAL')}
-                  className={`p-8 rounded-[2rem] border-4 transition-all cursor-pointer flex items-center gap-6 ${method === 'MANUAL' ? 'border-emerald-600 bg-emerald-50' : 'border-slate-100 bg-white hover:border-emerald-200'}`}
-                >
-                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${method === 'MANUAL' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                    <Banknote size={32} />
-                  </div>
-                  <div>
-                    <p className="font-black text-slate-900">Direct Transfer</p>
-                    <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Upload Receipt</p>
-                  </div>
-                  {method === 'MANUAL' && <CheckCircle2 className="ml-auto text-emerald-600 w-6 h-6" />}
-                </div>
               </div>
             </div>
 
-            {method === 'MANUAL' && (
-              <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white animate-in slide-in-from-bottom-4 duration-500">
-                <CardHeader className="p-10">
-                  <CardTitle className="text-xl font-black">Transfer Instructions</CardTitle>
-                </CardHeader>
-                <CardContent className="px-10 pb-12 space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Option 1: First Bank</p>
-                       <p className="text-lg font-black text-slate-900">3069520782</p>
-                       <p className="text-sm font-bold text-slate-500">Onoha Happiness</p>
-                    </div>
-                    <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Option 2: GT Bank</p>
-                       <p className="text-lg font-black text-slate-900">0649893280</p>
-                       <p className="text-sm font-bold text-slate-500">Onoha Happiness</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Upload Transfer Receipt</Label>
-                    <div className="border-4 border-dashed border-slate-100 rounded-[2rem] p-12 text-center space-y-4 hover:bg-slate-50 transition-colors relative">
-                       <input
-                        type="file"
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        onChange={(e) => setReceipt(e.target.files?.[0] || null)}
-                       />
-                       <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
-                          <Upload size={32} />
-                       </div>
-                       {receipt ? (
-                         <p className="font-black text-emerald-600">{receipt.name}</p>
-                       ) : (
-                         <div>
-                            <p className="font-black text-slate-900 text-lg">Click to select or drag and drop</p>
-                            <p className="text-sm font-medium text-slate-400">PDF, JPG, PNG (Max 5MB)</p>
-                         </div>
-                       )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           <div className="space-y-8">

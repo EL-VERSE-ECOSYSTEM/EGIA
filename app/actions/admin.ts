@@ -3,11 +3,11 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { user as userTable, student, teacher, parent as parentTable, userRole, academicSession, term, class_, payment, promotionHistory, paymentInstallment, feeStructure } from '@/lib/db/schema'
-import { eq, sql, and } from 'drizzle-orm'
+import { eq, sql, and, count } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
 import { randomUUID } from 'crypto'
-import { generateAdmissionNumber } from '@/lib/id'
+import { generateAdmissionNumber, isValidAdmissionNumber } from '@/lib/id'
 
 async function getUserId() {
   const session = await auth.getSession()
@@ -47,7 +47,10 @@ export async function createStudent(data: any) {
   }
 
   return await db.transaction(async (tx) => {
-    const admissionNumber = data.admissionNumber || generateAdmissionNumber(data.class)
+    const admissionNumber = data.admissionNumber?.trim().toUpperCase() || generateAdmissionNumber(data.class)
+    if (!isValidAdmissionNumber(admissionNumber, data.class)) {
+      throw new Error('Admission number must match the learner level: EGIA-P-###### for Primary 3–5/6 or EGIA-S-###### for JSS1–SSS3.')
+    }
     const studentId = randomUUID()
 
     let parentId = data.parentId
@@ -56,9 +59,12 @@ export async function createStudent(data: any) {
         where: eq(parentTable.userId, session.user.id)
       })
       if (parentProfile) parentId = parentProfile.id
+      if (!parentId) throw new Error('Parent profile not found')
+      const linkedCount = await tx.select({ value: count() }).from(student).where(eq(student.parentId, parentId))
+      if ((linkedCount[0]?.value || 0) >= 5) throw new Error('A parent account can be linked to a maximum of 5 children.')
     }
 
-    const newStudent = await tx.insert(student).values({
+    const newStudent = (await tx.insert(student).values({
       id: studentId,
       firstName: data.firstName,
       lastName: data.lastName,
@@ -69,11 +75,20 @@ export async function createStudent(data: any) {
       isActive: true,
       termId: data.termId,
       sessionId: data.sessionId
-    }).returning()
+    }).returning())[0]
+
+    if (actorRole === 'ADMIN') {
+      await tx.insert(payment).values({
+        id: randomUUID(), studentId, parentId: parentId || null, amount: '0.00', feeType: 'registration',
+        paymentMethod: 'ADMIN', transactionReference: `ADMIN-ADMISSION-${studentId}`,
+        status: 'success', paymentDate: new Date(), paidAt: new Date(),
+        description: 'Admission provisioned by school administration — registration fee waived.',
+      })
+    }
 
     revalidatePath('/dashboard/admin/users/students/list')
     revalidatePath('/dashboard/parent/children/list')
-    return newStudent[0]
+    return newStudent
   })
 }
 
