@@ -313,6 +313,43 @@ export const conversation = pgTable('conversation', {
   updatedAt: timestamp('updatedAt').defaultNow(),
 })
 
+// ===== STUDY VIDEO LIBRARY =====
+export const studyVideo = pgTable('study_video', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  subject: text('subject').notNull(),
+  className: text('class_name').notNull(),
+  videoUrl: text('video_url').notNull(),
+  durationMinutes: integer('duration_minutes'),
+  teacherId: text('teacher_id').notNull(),
+  isPublished: boolean('is_published').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [foreignKey({ columns: [t.teacherId], foreignColumns: [teacher.id] }).onDelete('cascade')])
+
+export const studyVideoQuestion = pgTable('study_video_question', {
+  id: text('id').primaryKey(),
+  videoId: text('video_id').notNull(),
+  studentId: text('student_id').notNull(),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.videoId], foreignColumns: [studyVideo.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }).onDelete('cascade'),
+])
+
+export const studyVideoReply = pgTable('study_video_reply', {
+  id: text('id').primaryKey(),
+  questionId: text('question_id').notNull(),
+  teacherId: text('teacher_id').notNull(),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.questionId], foreignColumns: [studyVideoQuestion.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.teacherId], foreignColumns: [teacher.id] }).onDelete('cascade'),
+])
+
 export const conversationParticipant = pgTable('conversation_participant', {
   id: text('id').primaryKey(),
   conversationId: text('conversationId').notNull(),
