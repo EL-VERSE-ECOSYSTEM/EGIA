@@ -31,6 +31,7 @@ export default function StudentRegistrationPage() {
   // Subjects Done tag list
   const [subjectsDone, setSubjectsDone] = useState<string[]>([])
   const [availableSubjects, setAvailableSubjects] = useState<{ id: string; name: string }[]>([])
+  const [manualSubject, setManualSubject] = useState('')
 
   // Passport photo state
   const [passportImage, setProfileImage] = useState<string | null>(null)
@@ -58,6 +59,13 @@ export default function StudentRegistrationPage() {
   const handleAddSubject = (name: string) => {
     if (!name || subjectsDone.includes(name)) return
     setSubjectsDone([...subjectsDone, name])
+  }
+
+  const addManualSubject = () => {
+    const name = manualSubject.trim()
+    if (!name || subjectsDone.some(item => item.toLowerCase() === name.toLowerCase())) return
+    setSubjectsDone([...subjectsDone, name])
+    setManualSubject('')
   }
 
   const handleRemoveSubject = (sub: string) => {
@@ -371,6 +379,8 @@ export default function StudentRegistrationPage() {
                     <option value="" disabled>{availableSubjects.length ? 'Choose a subject to add' : 'No subjects configured yet'}</option>
                     {availableSubjects.filter(item => !subjectsDone.includes(item.name)).map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
                   </select>
+                  <Input aria-label="Enter another subject" value={manualSubject} onChange={e => setManualSubject(e.target.value)} placeholder="Enter manually" className="h-11 rounded-xl border-slate-200 bg-white font-bold" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addManualSubject() } }} />
+                  <Button type="button" onClick={addManualSubject} className="bg-orange-600 hover:bg-orange-700 h-11 px-4 rounded-xl font-bold"><Plus size={16} /> Add</Button>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-3">
                   {subjectsDone.map(sub => (

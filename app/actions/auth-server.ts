@@ -40,11 +40,8 @@ export async function registerStudent(data: any) {
   const admissionNumber = generateAdmissionNumber(studentClass)
 
   const selectedSubjects = Array.isArray(subjectsDone) ? subjectsDone.map((item: unknown) => String(item).trim()).filter(Boolean) : []
-  const availableSubjects = await db.query.subject.findMany()
   if (!selectedSubjects.length) return { error: 'Select at least one subject.' }
-  if (!availableSubjects.length) return { error: 'Subjects have not been configured by the school yet.' }
-  const availableNames = new Set(availableSubjects.map(item => item.name.trim().toLowerCase()))
-  if (selectedSubjects.some(item => !availableNames.has(item.toLowerCase()))) return { error: 'One or more selected subjects are no longer available.' }
+  if (selectedSubjects.some(item => item.length > 100)) return { error: 'Subject names must be 100 characters or fewer.' }
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
   let userId: any = randomUUID()

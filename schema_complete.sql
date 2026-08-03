@@ -119,6 +119,37 @@ CREATE TABLE public.teacher (
 );
 
 -- ---------------------------------------------------------------------
+-- 2B. SUBJECT CATALOGUE AND TEACHER SUBJECT ASSIGNMENTS
+-- ---------------------------------------------------------------------
+CREATE TABLE public.subject (
+  id text NOT NULL,
+  name text NOT NULL,
+  code text UNIQUE,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT subject_pkey PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX subject_name_lower_unique ON public.subject (lower(trim(name)));
+
+CREATE TABLE public.teacher_on_subject (
+  id text NOT NULL,
+  teacher_id text NOT NULL,
+  subject_id text NOT NULL,
+  class_id text NOT NULL,
+  CONSTRAINT teacher_on_subject_pkey PRIMARY KEY (id),
+  CONSTRAINT teacher_on_subject_teacher_fkey FOREIGN KEY (teacher_id) REFERENCES public.teacher(id) ON DELETE CASCADE,
+  CONSTRAINT teacher_on_subject_subject_fkey FOREIGN KEY (subject_id) REFERENCES public.subject(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX teacher_subject_class_unique ON public.teacher_on_subject (teacher_id, subject_id, class_id);
+
+INSERT INTO public.subject (id, name, code) VALUES
+  (gen_random_uuid()::text, 'Mathematics', 'MATH'),
+  (gen_random_uuid()::text, 'English Language', 'ENG'),
+  (gen_random_uuid()::text, 'Basic Science', 'BSC')
+ON CONFLICT DO NOTHING;
+
+-- ---------------------------------------------------------------------
 -- 3. SCHOOL FEES, PAYMENTS, AND BILLING (ONLINE KORAPAY & MANUAL)
 -- ---------------------------------------------------------------------
 CREATE TABLE public.fee_structure (
