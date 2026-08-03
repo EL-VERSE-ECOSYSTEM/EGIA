@@ -288,6 +288,11 @@ export async function registerTeacher(data: any) {
         staffCode,
         firstName,
         lastName,
+        type: data.type || 'FULL_TIME',
+        isPartTime: data.type === 'PART_TIME',
+        handlingClasses: Array.isArray(data.handlingClasses) ? data.handlingClasses : [],
+        teachingSubjects: Array.isArray(data.teachingSubjects) ? data.teachingSubjects : [],
+        presentDays: Array.isArray(data.presentDays) ? data.presentDays : [],
         profileImage: profileImage || null,
         facialVerificationVideo: data.facialVerificationVideo || null
       })

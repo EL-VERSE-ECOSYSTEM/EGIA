@@ -53,26 +53,20 @@ export async function getStudentsInClass(classId: string) {
   })
   if (!classData) throw new Error('Class not found')
 
-  // Restrict visibility for part-time teachers according to handled classes
-  if (teacherProfile && teacherProfile.isPartTime) {
-    const allowedClasses = (teacherProfile.handlingClasses as string[]) || []
-    if (!allowedClasses.includes(classData.name)) {
-      return []
-    }
-  }
+  if (!teacherProfile) throw new Error('Teacher profile not found')
+  const handledClasses = Array.isArray(teacherProfile.handlingClasses) ? teacherProfile.handlingClasses as string[] : []
+  const isAssignedClassTeacher = teacherProfile.isClassTeacher === true && teacherProfile.assignedClassId === classData.id
+  // A class roster is only visible to its assigned class teacher or a teacher
+  // explicitly assigned to that class. Never expose another teacher's class.
+  if (!isAssignedClassTeacher && !handledClasses.includes(classData.name)) return []
 
   // Return students sorted by class and then alphabetically by last name, first name
-  return db.query.student.findMany({
-    where: eq(student.class, classData.name),
+  const normalizeClass = (value: string) => value.replace(/\s+/g, '').toUpperCase()
+  const roster = await db.query.student.findMany({
     orderBy: (student, { asc }) => [asc(student.lastName), asc(student.firstName)],
-    with: {
-      parent: {
-        with: {
-          user: true
-        }
-      }
-    }
+    with: { parent: { with: { user: true } } }
   })
+  return roster.filter(item => normalizeClass(item.class) === normalizeClass(classData.name))
 }
 
 // ===== TEACHER WALLET & REQUEST ACTIONS =====
@@ -179,8 +173,8 @@ export async function getAllTeachersWithWallets() {
       const wResults = await db.insert(teacherWallet).values({
         id: randomUUID(),
         teacherId: t.id,
-        balance: '150000.00',
-        salaryAmount: '150000.00',
+        balance: '0.00',
+        salaryAmount: '0.00',
         salaryStatus: 'pending',
       }).returning()
       wallet = wResults[0]
@@ -258,15 +252,38 @@ export async function updateTeacherSubjects(subjects: string[]) {
 }
 
 export async function getStudentsBySubject(subjectName: string) {
-  const studentsList = await db.query.student.findMany()
-  // Filter students whose 'subjectsDone' list contains this subject name
-  return studentsList.filter(s => {
-    const subjects = (s.subjectsDone as string[]) || []
-    return subjects.map(x => x.toLowerCase()).includes(subjectName.toLowerCase())
-  })
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role !== 'TEACHER') throw new Error('Unauthorized')
+  const teacherProfile = await db.query.teacher.findFirst({ where: eq(teacher.userId, session.user.id) })
+  if (!teacherProfile) throw new Error('Teacher profile not found')
+  const subjects = Array.isArray(teacherProfile.teachingSubjects) ? teacherProfile.teachingSubjects as string[] : []
+  if (!subjects.some(item => item.toLowerCase() === subjectName.trim().toLowerCase())) return []
+
+  const normalizeClass = (value: string) => value.replace(/\s+/g, '').toUpperCase()
+  const allowedClasses = new Set<string>((Array.isArray(teacherProfile.handlingClasses) ? teacherProfile.handlingClasses as string[] : []).map(normalizeClass))
+  if (teacherProfile.isClassTeacher && teacherProfile.assignedClassId) {
+    const assignedClass = await db.query.class_.findFirst({ where: eq(class_.id, teacherProfile.assignedClassId) })
+    if (assignedClass) allowedClasses.add(normalizeClass(assignedClass.name))
+  }
+  if (!allowedClasses.size) return []
+  const studentsList = await db.query.student.findMany({ orderBy: (s, { asc }) => [asc(s.class), asc(s.lastName), asc(s.firstName)] })
+  return studentsList.filter(s => allowedClasses.has(normalizeClass(s.class)) && Array.isArray(s.subjectsDone) && (s.subjectsDone as string[]).some(item => item.toLowerCase() === subjectName.trim().toLowerCase()))
 }
 
 export async function getStudentFullProfile(studentId: string) {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role !== 'TEACHER') throw new Error('Unauthorized')
+  const profile = await db.query.teacher.findFirst({ where: eq(teacher.userId, session.user.id) })
+  const learner = await db.query.student.findFirst({ where: eq(student.id, studentId) })
+  if (!profile || !learner) return null
+  const normalizeClass = (value: string) => value.replace(/\s+/g, '').toUpperCase()
+  const allowedClasses = (Array.isArray(profile.handlingClasses) ? profile.handlingClasses as string[] : []).map(normalizeClass)
+  let canView = allowedClasses.includes(normalizeClass(learner.class))
+  if (!canView && profile.isClassTeacher && profile.assignedClassId) {
+    const assigned = await db.query.class_.findFirst({ where: eq(class_.id, profile.assignedClassId) })
+    canView = assigned ? normalizeClass(assigned.name) === normalizeClass(learner.class) : false
+  }
+  if (!canView) throw new Error('You are not assigned to this learner’s class.')
   return db.query.student.findFirst({
     where: eq(student.id, studentId),
     with: {
