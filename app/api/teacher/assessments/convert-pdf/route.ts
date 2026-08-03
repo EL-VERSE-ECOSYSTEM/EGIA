@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { headers } from 'next/headers'
 import { PDFToCBTConverter } from '@/lib/pdf-to-cbt/converter'
 
 export async function POST(req: Request) {
   const session = await auth.getSession()
-  if (!session?.user) {
+  if (!session?.user || session.user.role !== 'TEACHER') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json({ error: 'PDF conversion is not configured.' }, { status: 503 })
+    }
     const formData = await req.formData()
     const file = formData.get('pdf') as File
 

@@ -6,13 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Upload, FileText, CheckCircle, AlertCircle, Table, ArrowRight, Database } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function CSVImportPage() {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const assessmentId = searchParams.get('assessmentId')
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -21,12 +23,15 @@ export default function CSVImportPage() {
   }
 
   const handleUpload = async () => {
-    if (!file) return
+    if (!file || !assessmentId) {
+      setMessage('Error: create or select an assessment before importing questions.')
+      return
+    }
 
     setUploading(true)
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('assessmentId', 'dummy-id')
+    formData.append('assessmentId', assessmentId)
 
     try {
       const response = await fetch('/api/teacher/assessments/import-csv', {
@@ -100,7 +105,7 @@ export default function CSVImportPage() {
 
               <Button
                 className="w-full h-16 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl rounded-2xl shadow-xl shadow-emerald-200 transition-all hover:-translate-y-1"
-                disabled={!file || uploading}
+                disabled={!file || !assessmentId || uploading}
                 onClick={handleUpload}
               >
                 {uploading ? 'Processing Data...' : 'Begin Bulk Import'}

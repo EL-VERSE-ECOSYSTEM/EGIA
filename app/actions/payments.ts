@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache'
 import { eq, desc, and } from 'drizzle-orm'
 
 const REGISTRATION_FEE = 2000
+const KORAPAY_CHECKOUT_LINK = 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
 
 async function requireParent() {
   const session = await auth.getSession()
@@ -26,9 +27,7 @@ async function requireLinkedChild(parentId: string, studentId: string) {
 }
 
 function checkoutUrl(reference: string) {
-  const configuredUrl = process.env.KORAPAY_CHECKOUT_URL
-  if (!configuredUrl) throw new Error('Korapay checkout is not configured. Set KORAPAY_CHECKOUT_URL before accepting payments.')
-  const url = new URL(configuredUrl)
+  const url = new URL(KORAPAY_CHECKOUT_LINK)
   url.searchParams.set('reference', reference)
   return url.toString()
 }
@@ -36,7 +35,7 @@ function checkoutUrl(reference: string) {
 export async function submitManualPayment(data: { studentId: string; amount: string; feeType: string; receiptUrl: string }) {
   const { profile } = await requireParent()
   await requireLinkedChild(profile.id, data.studentId)
-  if (!data.receiptUrl || data.receiptUrl.startsWith('mock-')) throw new Error('Upload the receipt to approved storage before submitting it.')
+  if (!data.receiptUrl || !/^https:\/\//.test(data.receiptUrl)) throw new Error('Upload the receipt to approved storage before submitting it.')
   return (await db.insert(payment).values({
     id: randomUUID(), studentId: data.studentId, parentId: profile.id, amount: data.amount,
     feeType: data.feeType, paymentMethod: 'TRANSFER', transactionReference: `MAN-${randomUUID()}`,

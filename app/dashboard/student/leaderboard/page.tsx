@@ -33,8 +33,7 @@ export default async function LeaderboardPage() {
     leaderboardData = list.map((item, idx) => ({
       ...item,
       rank: idx + 1,
-      totalPoints: Math.floor(parseFloat(item.avgScore) * 10 + (20 - idx) * 15), // Custom points weight
-      streak: 5 - (idx % 3)
+      totalPoints: Math.round(parseFloat(item.avgScore))
     }))
   } catch (err) {
     console.warn('Leaderboard query failed:', err)
@@ -59,21 +58,17 @@ export default async function LeaderboardPage() {
           </div>
           <div className="relative z-10 space-y-4">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-amber-400 text-xs font-black uppercase tracking-widest">
-              <Sparkles className="w-3.5 h-3.5" /> Weekend Challenges
+              <Sparkles className="w-3.5 h-3.5" /> Assessment rankings
             </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">Weekend 2 Hours Battle</h1>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">Academy Leaderboard</h1>
             <p className="text-slate-300 text-lg font-medium max-w-xl">
-              Complete interactive mini-games, logic challenges, and weekend CBT run-throughs to earn points and climb the academy rankings!
+              Rankings are calculated from completed CBT assessment results.
             </p>
           </div>
           <div className="relative z-10 shrink-0">
             <Card className="bg-white/10 border-white/15 text-white p-6 rounded-3xl">
-              <p className="text-xs font-black text-amber-400 uppercase tracking-widest">Next Live Battle</p>
-              <p className="text-2xl font-black mt-1">Saturday, 2:00 PM</p>
-              <p className="text-xs text-slate-300 font-medium mt-1">Active for exactly 2 hours • ₦5,000 cash prizes</p>
-              <Button size="sm" className="w-full mt-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs h-10">
-                SET REMINDER <Zap className="w-3.5 h-3.5 ml-1.5" />
-              </Button>
+              <p className="text-xs font-black text-amber-400 uppercase tracking-widest">Weekend competition</p>
+              <p className="text-lg font-black mt-1">Published competitions appear here.</p>
             </Card>
           </div>
         </div>
@@ -118,16 +113,11 @@ export default async function LeaderboardPage() {
                         <div className="flex items-center gap-8 text-right shrink-0">
                           <div>
                             <p className="font-black text-indigo-600 text-xl leading-none font-mono">
-                              {item.totalPoints.toLocaleString()}
+                              {item.totalPoints}%
                             </p>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                              Academy Pts
+                              Average score
                             </p>
-                          </div>
-                          <div>
-                            <Badge className="bg-orange-100 text-orange-800 border-none font-black text-xs px-3 py-1 flex items-center gap-1 rounded-lg">
-                              <Flame className="w-3.5 h-3.5 text-orange-600" /> {item.streak}
-                            </Badge>
                           </div>
                           <div>
                             <p className="font-black text-emerald-600 text-lg font-mono">
@@ -152,72 +142,18 @@ export default async function LeaderboardPage() {
 
           {/* Side Panels */}
           <div className="space-y-8">
-            {/* Weekend Challenges */}
             <Card className="border-none shadow-xl rounded-[2.5rem] bg-white overflow-hidden">
               <CardHeader className="p-8 pb-4">
                 <CardTitle className="text-xl font-black flex items-center gap-2 text-slate-900">
-                  <Zap className="text-amber-500 w-5 h-5" /> Weekend Quests
+                  <Zap className="text-amber-500 w-5 h-5" /> Competition updates
                 </CardTitle>
-                <CardDescription className="text-slate-400 font-bold">Earn instant streak points</CardDescription>
+                <CardDescription className="text-slate-400 font-bold">No unpublished or sample challenges are displayed.</CardDescription>
               </CardHeader>
               <CardContent className="p-8 pt-0 space-y-6">
-                {[
-                  { title: "Arithmetic Speed Run", desc: "Solve 20 arithmetic equations under 60 seconds.", points: "+150 pts", active: true },
-                  { title: "Vocabulary Scramble", desc: "Unscramble academic terminologies and spell words.", points: "+120 pts", active: true },
-                  { title: "Science Logic Maze", desc: "Navigate chemistry and physics structures.", points: "+200 pts", active: false }
-                ].map((q, i) => (
-                  <div key={i} className="p-5 rounded-2xl bg-slate-50 border border-slate-100 flex justify-between items-start gap-4">
-                    <div>
-                      <p className="font-black text-slate-900 text-sm leading-tight">{q.title}</p>
-                      <p className="text-xs text-slate-500 mt-1 font-medium leading-relaxed">{q.desc}</p>
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="text-[10px] font-black text-indigo-600 font-mono tracking-widest uppercase">{q.points}</span>
-                        <span className="text-slate-300">•</span>
-                        <span className={`text-[9px] font-black uppercase tracking-wider ${q.active ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          {q.active ? 'Active Now' : 'Unlocked Sat'}
-                        </span>
-                      </div>
-                    </div>
-                    {q.active && (
-                      <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-8 rounded-lg text-xs px-3">
-                        PLAY
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                <p className="p-5 rounded-2xl bg-slate-50 border border-slate-100 text-sm text-slate-500 font-medium">There are no published weekend competitions at this time.</p>
               </CardContent>
             </Card>
 
-            {/* Streak & Rank Summary */}
-            <Card className="border-none shadow-xl rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-indigo-800 text-white p-8 relative overflow-hidden">
-              <div className="absolute -bottom-10 -right-10 opacity-10 text-white">
-                <Trophy size={180} />
-              </div>
-              <div className="relative z-10 space-y-6">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-black uppercase tracking-wider text-indigo-200">Your Current Rank</span>
-                  <Badge className="bg-white/20 text-white border-none font-black text-[9px] uppercase px-2.5 py-1">WEEKLY</Badge>
-                </div>
-
-                <div className="flex gap-4 items-baseline">
-                  <span className="text-5xl font-black tracking-tighter">#4</span>
-                  <span className="text-sm font-bold text-indigo-200">out of 342 pupils</span>
-                </div>
-
-                <div className="h-[1px] bg-white/15" />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Next Reward Tier</p>
-                    <p className="font-black text-sm text-white mt-1">#3 Gold Badge</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Streak Points</p>
-                    <p className="font-black text-sm text-white mt-1">2,140 Pts</p>
-                  </div>
-                </div>
-              </div>
-            </Card>
           </div>
         </div>
       </div>

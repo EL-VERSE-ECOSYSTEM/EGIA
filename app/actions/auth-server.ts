@@ -114,9 +114,6 @@ export async function registerParent(data: any) {
   if (existingUser) {
     return { error: 'Account already exists. An account with this email is already registered.' }
   }
-  if (wardAdmissionNumber && !process.env.KORAPAY_CHECKOUT_URL) {
-    return { error: 'Korapay checkout is not configured. Please contact the school.' }
-  }
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
   let userId: any = randomUUID()
@@ -192,9 +189,7 @@ export async function registerParent(data: any) {
     })
 
     if (!registration) return { success: true }
-    const configuredUrl = process.env.KORAPAY_CHECKOUT_URL
-    if (!configuredUrl) return { error: 'Korapay checkout is not configured. Please contact the school.' }
-    const url = new URL(configuredUrl)
+    const url = new URL('https://checkout.korapay.com/pay/BHba4zdsceZDgyW')
     url.searchParams.set('reference', registration.reference)
     return { success: true, checkoutUrl: url.toString(), paymentId: registration.paymentId }
   } catch (dbError: any) {

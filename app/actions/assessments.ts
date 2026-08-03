@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { assessment, assessmentQuestion, assessmentResult, studentAnswer, student } from '@/lib/db/schema'
+import { assessment, assessmentQuestion, assessmentResult, studentAnswer, student, teacher, term } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
@@ -16,6 +16,10 @@ function calculateGrade(percentage: number) {
 }
 
 export async function submitCBT(assessmentId: string, studentId: string, answers: { questionId: string, answer: any }[]) {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role !== 'STUDENT') throw new Error('Unauthorized')
+  const currentStudent = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
+  if (!currentStudent || currentStudent.id !== studentId) throw new Error('You can only submit your own assessment.')
   const resultId = crypto.randomUUID()
 
   const assessmentData = await db.query.assessment.findFirst({
@@ -149,6 +153,13 @@ export async function getAssessmentWithQuestions(id: string) {
 }
 
 export async function saveAssessmentWithQuestions(assessmentData: any, questions: any[]) {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role !== 'TEACHER') throw new Error('Unauthorized')
+  const teacherProfile = await db.query.teacher.findFirst({ where: eq(teacher.userId, session.user.id) })
+  if (!teacherProfile) throw new Error('Teacher profile not found')
+  const currentTerm = await db.query.term.findFirst({ where: eq(term.isCurrent, true) })
+  if (!currentTerm) throw new Error('No current academic term is configured')
+  if (!questions.length) throw new Error('Add at least one question before publishing an assessment')
   const assessmentId = crypto.randomUUID()
 
   return await db.transaction(async (tx) => {
@@ -158,8 +169,8 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
       title: assessmentData.title,
       description: assessmentData.description,
       subjectId: assessmentData.subjectId,
-      termId: assessmentData.termId,
-      createdBy: assessmentData.teacherId,
+      termId: currentTerm.id,
+      createdBy: teacherProfile.id,
       duration: assessmentData.duration,
       type: assessmentData.type || 'EXAM',
       status: 'published',

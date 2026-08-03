@@ -11,15 +11,18 @@ import {
   Upload, FileText, Loader2, CheckCircle,
   Trash2, Edit3, Shield, Search, Zap
 } from 'lucide-react'
-import { simulateAIParsing, SimulatedQuestion } from '@/app/actions/ai-parsing'
 import { saveAssessmentWithQuestions } from '@/app/actions/assessments'
 import { getTeacherProfile } from '@/app/actions/teacher'
 import { useRouter } from 'next/navigation'
 
+type ConvertedQuestion = {
+  id: string; type: string; question: string; options?: string[]; answer: string | string[]; explanation?: string; confidence: number; points?: number
+}
+
 export default function AIConversionPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [questions, setQuestions] = useState<SimulatedQuestion[]>([])
+  const [questions, setQuestions] = useState<ConvertedQuestion[]>([])
   const [teacher, setTeacher] = useState<any>(null)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -31,20 +34,24 @@ export default function AIConversionPage() {
   useEffect(() => {
     getTeacherProfile()
       .then(setTeacher)
-      .catch(err => {
-        console.warn('Could not load teacher profile from DB', err)
-        setTeacher({ id: 'fallback-teacher-id', subjects: [] })
-      })
+      .catch(err => console.error('Could not load teacher profile from DB', err))
   }, [])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setLoading(true)
       try {
-        const result = await simulateAIParsing('mock-base64')
-        setQuestions(result)
-      } catch (err) {
+        const formData = new FormData()
+        formData.append('pdf', e.target.files[0])
+        const response = await fetch('/api/teacher/assessments/convert-pdf', { method: 'POST', body: formData })
+        const result = await response.json()
+        if (!response.ok || !result.success) throw new Error(result.error || 'PDF conversion failed')
+        setQuestions((result.questions || []).map((question: any) => ({
+          ...question, question: question.text, answer: question.correctAnswer,
+        })))
+      } catch (err: any) {
         console.error(err)
+        alert(err.message || 'PDF conversion failed')
       } finally {
         setLoading(false)
       }
@@ -59,8 +66,6 @@ export default function AIConversionPage() {
         title,
         duration: parseInt(duration),
         subjectId,
-        teacherId: teacher.id,
-        termId: 'current-term-id', // Simulation
         type: 'EXAM'
       }, questions)
       router.push('/dashboard/teacher/assessments')
