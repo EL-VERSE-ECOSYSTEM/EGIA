@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { payment } from '@/lib/db/schema'
+import { payment, student } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 function validSignature(data: unknown, signature: string | null) {
@@ -33,6 +33,9 @@ export async function POST(req: Request) {
     }
     await db.update(payment).set({ status: 'success', paidAt: new Date(), paymentDate: new Date(), updatedAt: new Date() })
       .where(eq(payment.id, record.id))
+    if (record.feeType === 'registration') {
+      await db.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: new Date() }).where(eq(student.id, record.studentId))
+    }
   } else if (event === 'charge.failed' || event === 'transfer.failed') {
     await db.update(payment).set({ status: 'failed', updatedAt: new Date() }).where(eq(payment.id, record.id))
   }

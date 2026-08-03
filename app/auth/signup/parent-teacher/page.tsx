@@ -73,8 +73,12 @@ export default function ParentTeacherSignUpPage() {
         alert(result.error)
         setLoading(false)
       } else {
-        alert('Parent & Teacher profile registered successfully with ₦2,000 Registration Fee payment logged! Redirecting to Sign In.')
-        router.push('/auth/signin')
+        if (result.checkoutUrl) {
+          window.location.assign(result.checkoutUrl)
+          return
+        }
+        setError('Registration was created, but checkout could not be started. Please contact support.')
+        setLoading(false)
       }
     } catch (err: any) {
       setError('Account failed to create')

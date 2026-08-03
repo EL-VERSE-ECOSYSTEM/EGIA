@@ -5,10 +5,10 @@ import { db } from '@/lib/db'
 import { payment, student, feeStructure, parent as parentTable } from '@/lib/db/schema'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
-import { eq, desc, and } from 'drizzle-orm'
+import { eq, desc, and, or, isNull } from 'drizzle-orm'
 
 const REGISTRATION_FEE = 2000
-const KORAPAY_CHECKOUT_LINK = 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
+const KORAPAY_CHECKOUT_LINK = process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
 
 async function requireParent() {
   const session = await auth.getSession()
@@ -46,10 +46,22 @@ export async function submitManualPayment(data: { studentId: string; amount: str
 export async function initializeKorapayPayment(data: { studentId: string; amount: number; feeType: string; description?: string }) {
   const { profile } = await requireParent()
   const child = await requireLinkedChild(profile.id, data.studentId)
-  if (!Number.isFinite(data.amount) || data.amount <= 0) throw new Error('A valid payment amount is required.')
+  // Never trust an amount submitted by the browser. The current fee structure is
+  // the source of truth, preventing a parent from changing the amount in DevTools.
+  const configuredFee = await db.query.feeStructure.findFirst({
+    where: and(
+      eq(feeStructure.class, child.class),
+      eq(feeStructure.feeType, data.feeType),
+      eq(feeStructure.isActive, true),
+      or(eq(feeStructure.department, child.department || ''), isNull(feeStructure.department)),
+    ),
+  })
+  if (!configuredFee) throw new Error('This fee is not available for the selected learner.')
+  const amount = Number(configuredFee.amount)
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error('The configured fee amount is invalid.')
   const reference = `EGIA-${Date.now()}-${randomUUID().slice(0, 8)}`
   const record = (await db.insert(payment).values({
-    id: randomUUID(), studentId: child.id, parentId: profile.id, amount: data.amount.toFixed(2),
+    id: randomUUID(), studentId: child.id, parentId: profile.id, amount: amount.toFixed(2),
     feeType: data.feeType, paymentMethod: 'KORAPAY', transactionReference: reference,
     status: 'pending', description: data.description || `Payment for ${data.feeType}`,
   }).returning())[0]
@@ -66,6 +78,7 @@ export async function initializeStudentRegistrationPayment(studentId: string) {
     paymentMethod: 'KORAPAY', transactionReference: reference, status: 'pending',
     description: `Session registration for ${child.firstName} ${child.lastName}`,
   }).returning())[0]
+  await db.update(student).set({ registrationStatus: 'PENDING_PAYMENT', updatedAt: new Date() }).where(eq(student.id, studentId))
   return { checkoutUrl: checkoutUrl(reference), reference, paymentId: record.id }
 }
 
@@ -101,5 +114,11 @@ export async function getStudentIdByAdmissionNumber(admissionNumber: string) {
 }
 
 export async function getFeeStructuresForClass(className: string, department?: string) {
-  return db.query.feeStructure.findMany({ where: and(eq(feeStructure.class, className), eq(feeStructure.isActive, true)) })
+  return db.query.feeStructure.findMany({
+    where: and(
+      eq(feeStructure.class, className),
+      eq(feeStructure.isActive, true),
+      or(eq(feeStructure.department, department || ''), isNull(feeStructure.department)),
+    ),
+  })
 }

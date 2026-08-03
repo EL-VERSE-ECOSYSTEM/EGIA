@@ -44,6 +44,21 @@ alter table public.teacher add constraint teacher_staff_code_format check (
   staffcode is null or staffcode ~ '^EGIA-ST-[0-9]{6}$'
 );
 
+-- Registration source is explicit: imported/admin admissions remain free, while
+-- self-service registrations are held until a verified Korapay webhook succeeds.
+alter table public.student add column if not exists registrationstatus text not null default 'WAIVED';
+alter table public.student drop constraint if exists student_registration_status_valid;
+alter table public.student add constraint student_registration_status_valid check (registrationstatus in ('WAIVED', 'PENDING_PAYMENT', 'ACTIVE'));
+
+-- Existing records are school-created/imported unless a pending registration
+-- payment already exists. This is safe to run repeatedly.
+update public.student s
+set registrationstatus = case when exists (
+  select 1 from public.payment p
+  where p.studentid = s.id and p.feetype = 'registration' and lower(coalesce(p.status, '')) = 'pending'
+) then 'PENDING_PAYMENT' else 'WAIVED' end
+where registrationstatus is null or registrationstatus = 'WAIVED';
+
 create or replace function public.enforce_parent_ward_limit()
 returns trigger language plpgsql as $$
 begin

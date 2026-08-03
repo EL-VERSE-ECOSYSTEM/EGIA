@@ -77,6 +77,7 @@ export async function createStudent(data: any) {
       sessionId: data.sessionId
     }).returning())[0]
 
+    let checkoutUrl: string | undefined
     if (actorRole === 'ADMIN') {
       await tx.insert(payment).values({
         id: randomUUID(), studentId, parentId: parentId || null, amount: '0.00', feeType: 'registration',
@@ -84,11 +85,20 @@ export async function createStudent(data: any) {
         status: 'success', paymentDate: new Date(), paidAt: new Date(),
         description: 'Admission provisioned by school administration — registration fee waived.',
       })
+    } else {
+      const reference = `EGIA-PARENT-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
+      await tx.update(student).set({ registrationStatus: 'PENDING_PAYMENT' }).where(eq(student.id, studentId))
+      await tx.insert(payment).values({
+        id: randomUUID(), studentId, parentId: parentId || null, amount: '2000.00', feeType: 'registration',
+        paymentMethod: 'KORAPAY', transactionReference: reference, status: 'pending',
+        description: 'Parent registration — awaiting Korapay confirmation.',
+      })
+      checkoutUrl = `${process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'}?reference=${encodeURIComponent(reference)}`
     }
 
     revalidatePath('/dashboard/admin/users/students/list')
     revalidatePath('/dashboard/parent/children/list')
-    return newStudent
+    return { ...newStudent, checkoutUrl }
   })
 }
 
@@ -124,6 +134,9 @@ export async function verifyPayment(paymentId: string, status: 'success' | 'fail
     .where(eq(payment.id, paymentId))
     .returning()
 
+  if (result[0]?.feeType === 'registration' && status === 'success') {
+    await db.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: new Date() }).where(eq(student.id, result[0].studentId))
+  }
   revalidatePath('/dashboard/admin/finance/fees/pending')
   return result[0]
 }

@@ -37,7 +37,6 @@ export default function StudentRegistrationPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
-  const [isPaid, setIsPaid] = useState(false)
   const [isValidDate, setIsValidDate] = useState(false)
   const [generatedAdmissionNumber, setGeneratedAdmissionNumber] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -52,16 +51,6 @@ export default function StudentRegistrationPage() {
     const deadline = new Date('2026-09-30T23:59:59')
     setIsValidDate(now <= deadline)
 
-    // Check if there is a pending student admission number from successful Korapay payment redirect return
-    if (typeof window !== 'undefined') {
-      const pendingAdmission = localStorage.getItem('pending_student_admission')
-      if (pendingAdmission) {
-        setGeneratedAdmissionNumber(pendingAdmission)
-        setShowSuccessModal(true)
-        setIsPaid(true)
-        localStorage.removeItem('pending_student_admission')
-      }
-    }
   }, [])
 
   const handleAddSubject = () => {
@@ -174,7 +163,7 @@ export default function StudentRegistrationPage() {
             Session registration is strictly open until September 30th only.
           </p>
         </Card>
-      ) : isPaid ? (
+      ) : showSuccessModal ? (
         <Card className="max-w-md w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white text-center p-12">
           <div className="h-2 bg-emerald-600 w-full absolute top-0 left-0" />
           <div className="mx-auto bg-emerald-50 p-6 rounded-full w-fit mb-6">
@@ -205,7 +194,7 @@ export default function StudentRegistrationPage() {
             </div>
             <CardTitle className="text-3xl font-black text-slate-900">Session Registration</CardTitle>
             <CardDescription className="text-slate-500 font-bold mt-2 leading-relaxed">
-              Complete full registration & pay activation fee (₦2,100)
+              Complete full registration & pay the ₦2,000 activation fee
             </CardDescription>
           </CardHeader>
           <CardContent className="px-10 pb-12">

@@ -85,6 +85,7 @@ CREATE TABLE public.student (
   facialVerificationVideo text, -- Biometric webcam media verification
   subjectsDone jsonb, -- Array of enrolled academic subjects
   isActive boolean DEFAULT true,
+  registrationStatus text NOT NULL DEFAULT 'WAIVED' CHECK (registrationStatus IN ('WAIVED', 'PENDING_PAYMENT', 'ACTIVE')),
   password text DEFAULT 'default',
   createdAt timestamp with time zone NOT NULL DEFAULT now(),
   updatedAt timestamp with time zone NOT NULL DEFAULT now(),

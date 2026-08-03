@@ -56,6 +56,9 @@ export const student = pgTable('student', {
   facialVerificationVideo: text('facialverificationvideo'),
   subjectsDone: jsonb('subjectsdone'),
   isActive: boolean('isactive').default(true),
+  // Imported/admin-created admissions are waived; self-service admissions are
+  // enabled only after the signed gateway webhook records their payment.
+  registrationStatus: text('registrationstatus').notNull().default('WAIVED'),
   password: text('password').default('default'),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),

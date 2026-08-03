@@ -27,7 +27,11 @@ export default function ParentEnrollStudentPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      await createStudent(formData)
+      const result: any = await createStudent(formData)
+      if (result.checkoutUrl) {
+        window.location.assign(result.checkoutUrl)
+        return
+      }
       setSuccess(true)
       setTimeout(() => router.push('/dashboard/parent/children/list'), 3000)
     } catch (error: any) {

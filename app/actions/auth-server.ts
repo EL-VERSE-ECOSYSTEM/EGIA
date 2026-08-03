@@ -92,6 +92,7 @@ export async function registerStudent(data: any) {
         subjectsDone: subjectsDone || null,
         profileImage: profileImage || null,
         facialVerificationVideo: data.facialVerificationVideo || null,
+        registrationStatus: 'PENDING_PAYMENT',
         password: password || 'default'
       })
     })
@@ -286,6 +287,10 @@ export async function activateStudent(data: any) {
     return { error: 'Admission number not found. Please contact admin.' }
   }
 
+  if (existingStudent.registrationStatus === 'PENDING_PAYMENT') {
+    return { error: 'Your registration payment is still awaiting confirmation. Please complete the ₦2,000 Korapay checkout or contact support.' }
+  }
+
   const existingUser = await db.query.user.findFirst({
     where: eq(userTable.email, email)
   })
@@ -384,6 +389,10 @@ export async function loginStudent(data: any) {
 
   if (!existingStudent) {
     return { error: 'Admission number not found. Please contact the school administration.' }
+  }
+
+  if (existingStudent.registrationStatus === 'PENDING_PAYMENT') {
+    return { error: 'Your ₦2,000 registration payment is awaiting Korapay confirmation. Please complete checkout or contact support.' }
   }
 
   let resolvedEmail: string | null = null
@@ -690,9 +699,9 @@ export async function registerParentTeacher(data: any) {
     const parentId = randomUUID()
     const teacherId = randomUUID()
     const childStudentId = randomUUID()
-    const childUserId = randomUUID()
     const admissionNumber = generateAdmissionNumber(childClass)
     const staffCode = generateStaffId()
+    const registrationReference = `REG-${Date.now()}-${randomUUID().slice(0, 8)}`
 
     await db.transaction(async (tx) => {
       // 1. Insert Parent / Teacher User Row
@@ -732,25 +741,10 @@ export async function registerParentTeacher(data: any) {
         isActive: true
       })
 
-      // 5. Create Child's User Row
-      await tx.insert(userTable).values({
-        id: childUserId,
-        email: `student.${admissionNumber.toLowerCase()}@egia.com`,
-        name: `${childFirstName} ${childLastName}`,
-        image: null
-      })
-
-      // 6. Create Child's User Role Row
-      await tx.insert(userRole).values({
-        id: randomUUID(),
-        userId: childUserId,
-        role: 'STUDENT'
-      })
-
-      // 7. Create Child's Student Record (with default password 'default' inside student table)
+      // Child authentication is provisioned on their first admission-number login,
+      // so no unusable local-only identity is created here.
       await tx.insert(student).values({
         id: childStudentId,
-        userId: childUserId,
         firstName: childFirstName,
         middleName: childMiddleName || null,
         lastName: childLastName,
@@ -759,29 +753,29 @@ export async function registerParentTeacher(data: any) {
         admissionNumber,
         parentId: parentId,
         password: 'default',
-        isActive: true
+        isActive: true,
+        registrationStatus: 'PENDING_PAYMENT'
       })
 
-      // 8. Insert Paid for Registration - ₦2,000 transaction
+      // The record stays pending until Korapay's signed webhook confirms it.
       await tx.insert(payment).values({
         id: randomUUID(),
         studentId: childStudentId,
         parentId: parentId,
         amount: '2000.00',
         feeType: 'registration',
-        paymentMethod: 'ONLINE',
-        transactionReference: `REG-${Date.now()}`,
-        korapayReference: `KORA-REG-${Date.now()}`,
-        status: 'success',
-        paymentDate: new Date(),
-        paidAt: new Date(),
-        description: 'Paid for Registration - ₦2,000',
+        paymentMethod: 'KORAPAY',
+        transactionReference: registrationReference,
+        status: 'pending',
+        description: 'Parent registration — awaiting Korapay confirmation',
         createdAt: new Date(),
         updatedAt: new Date()
       })
     })
 
-    return { success: true }
+    const checkout = new URL(process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW')
+    checkout.searchParams.set('reference', registrationReference)
+    return { success: true, checkoutUrl: checkout.toString() }
   } catch (dbError: any) {
     console.error('DB Error in registerParentTeacher:', dbError)
     return { error: 'Account creation failed in local database. Please contact support.' }
