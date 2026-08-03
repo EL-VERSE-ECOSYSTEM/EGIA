@@ -141,3 +141,16 @@ export GROQ_API_KEY="your-groq-api-key-here"
 - **Korapay Integration**: Seamless school fees and levy payments.
 - **Parent-Student Binding**: Real-time monitoring of child performance.
 - **Messaging & Disputes**: Integrated communication and ticketing system.
+
+## Production payment configuration
+
+Configure the following variables in Vercel (and in a local `.env.local` file):
+
+```text
+NEXT_PUBLIC_SITE_URL=https://goodnews-app-mu.vercel.app
+KORAPAY_CHECKOUT_LINK=https://checkout.korapay.com/pay/BHba4zdsceZDgyW
+KORAPAY_PUBLIC_KEY=pk_live_...
+KORAPAY_SECRET_KEY=sk_live_...
+```
+
+Set Korapay's checkout redirect URL to `https://goodnews-app-mu.vercel.app/payment/return`. The application verifies the returned payment reference with Korapay on the server before activating an account or marking a ledger entry successful.
