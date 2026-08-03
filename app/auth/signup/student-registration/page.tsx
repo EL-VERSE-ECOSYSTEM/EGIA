@@ -12,6 +12,7 @@ import { registerStudent } from '@/app/actions/auth-server'
 import { initializeStudentRegistrationPayment, getStudentIdByAdmissionNumber } from '@/app/actions/payments'
 import { Badge } from '@/components/ui/badge'
 import { Banknote } from 'lucide-react'
+import { getRegistrationSubjects } from '@/app/actions/auth-server'
 
 export default function StudentRegistrationPage() {
   const [formData, setFormData] = useState({
@@ -28,8 +29,8 @@ export default function StudentRegistrationPage() {
   })
 
   // Subjects Done tag list
-  const [subjectInput, setSubjectInput] = useState('')
   const [subjectsDone, setSubjectsDone] = useState<string[]>([])
+  const [availableSubjects, setAvailableSubjects] = useState<{ id: string; name: string }[]>([])
 
   // Passport photo state
   const [passportImage, setProfileImage] = useState<string | null>(null)
@@ -50,14 +51,13 @@ export default function StudentRegistrationPage() {
     const now = new Date()
     const deadline = new Date('2026-09-30T23:59:59')
     setIsValidDate(now <= deadline)
+    getRegistrationSubjects().then(setAvailableSubjects).catch(() => setAvailableSubjects([]))
 
   }, [])
 
-  const handleAddSubject = () => {
-    if (!subjectInput.trim()) return
-    if (subjectsDone.includes(subjectInput.trim())) return
-    setSubjectsDone([...subjectsDone, subjectInput.trim()])
-    setSubjectInput('')
+  const handleAddSubject = (name: string) => {
+    if (!name || subjectsDone.includes(name)) return
+    setSubjectsDone([...subjectsDone, name])
   }
 
   const handleRemoveSubject = (sub: string) => {
@@ -365,17 +365,12 @@ export default function StudentRegistrationPage() {
 
               {/* Dynamic tag input list for subjects done */}
               <div className="space-y-2 bg-slate-50 p-5 rounded-3xl border border-slate-100">
-                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Type In All Subjects Done One by One</Label>
+                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Select subjects</Label>
                 <div className="flex gap-2">
-                  <Input
-                    placeholder="e.g. Mathematics"
-                    value={subjectInput}
-                    onChange={e => setSubjectInput(e.target.value)}
-                    className="h-11 rounded-xl border-slate-200 bg-white font-bold"
-                  />
-                  <Button type="button" onClick={handleAddSubject} className="bg-orange-600 hover:bg-orange-700 h-11 px-4 rounded-xl font-bold">
-                    <Plus size={16} /> Add
-                  </Button>
+                  <select aria-label="Available subjects" defaultValue="" onChange={e => { handleAddSubject(e.target.value); e.currentTarget.value = '' }} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 font-bold">
+                    <option value="" disabled>{availableSubjects.length ? 'Choose a subject to add' : 'No subjects configured yet'}</option>
+                    {availableSubjects.filter(item => !subjectsDone.includes(item.name)).map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
+                  </select>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-3">
                   {subjectsDone.map(sub => (
@@ -391,13 +386,13 @@ export default function StudentRegistrationPage() {
 
               {/* Mandatory Online Payment Info block for Registration activation fee */}
               <div className="space-y-4 bg-orange-50/50 p-6 rounded-3xl border border-orange-100">
-                <Label className="text-[10px] font-black uppercase text-orange-950 tracking-widest ml-1">Registration Activation Fee (₦2,100)</Label>
+                <Label className="text-[10px] font-black uppercase text-orange-950 tracking-widest ml-1">Registration Activation Fee (₦2,000)</Label>
                 <div className="p-4 bg-white rounded-2xl border border-orange-100 text-xs text-slate-600 font-bold space-y-1">
                   <p className="text-slate-900 font-black flex items-center gap-1.5">
                     <CreditCard className="text-orange-600 w-4 h-4" /> SECURE ONLINE PAYMENT ONLY
                   </p>
                   <p className="text-[11px] text-slate-500 font-medium">
-                    To complete registration and generate your admission details, you must make a payment of ₦2,100 via our secure Korapay payment portal. Manual bank transfers are not accepted for student sign-up.
+                    To complete registration and generate your admission details, you must make a payment of ₦2,000 via our secure Korapay payment portal. Manual bank transfers are not accepted for student sign-up.
                   </p>
                 </div>
               </div>

@@ -3,10 +3,15 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
-import { user as userTable, userRole, parent, teacher, student, payment } from '@/lib/db/schema'
+import { user as userTable, userRole, parent, teacher, student, payment, subject } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
+
+/** Public catalogue used by session registration; names are persisted in student.subjectsdone. */
+export async function getRegistrationSubjects() {
+  return db.query.subject.findMany({ orderBy: (subject, { asc }) => [asc(subject.name)] })
+}
 
 export async function registerStudent(data: any) {
   const {
@@ -33,6 +38,13 @@ export async function registerStudent(data: any) {
 
   // Generate unique 6-digit admission or pupil number
   const admissionNumber = generateAdmissionNumber(studentClass)
+
+  const selectedSubjects = Array.isArray(subjectsDone) ? subjectsDone.map((item: unknown) => String(item).trim()).filter(Boolean) : []
+  const availableSubjects = await db.query.subject.findMany()
+  if (!selectedSubjects.length) return { error: 'Select at least one subject.' }
+  if (!availableSubjects.length) return { error: 'Subjects have not been configured by the school yet.' }
+  const availableNames = new Set(availableSubjects.map(item => item.name.trim().toLowerCase()))
+  if (selectedSubjects.some(item => !availableNames.has(item.toLowerCase()))) return { error: 'One or more selected subjects are no longer available.' }
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
   let userId: any = randomUUID()
@@ -93,7 +105,7 @@ export async function registerStudent(data: any) {
         admissionNumber,
         dateOfBirth: dateOfBirth ? dateOfBirth : null,
         dateOfResumption: dateOfResumption ? dateOfResumption : null,
-        subjectsDone: subjectsDone || null,
+        subjectsDone: selectedSubjects,
         profileImage: profileImage || null,
         facialVerificationVideo: data.facialVerificationVideo || null,
         registrationStatus: 'PENDING_PAYMENT',
