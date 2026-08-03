@@ -146,6 +146,10 @@ export const subject = pgTable('subject', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   code: text('code').unique(),
+  isActive: boolean('is_active').notNull().default(true),
+  isCustom: boolean('is_custom').notNull().default(false),
+  educationLevels: text('education_levels').array(),
+  departments: text('departments').array(),
 })
 
 export const teacherOnSubject = pgTable('teacher_on_subject', {

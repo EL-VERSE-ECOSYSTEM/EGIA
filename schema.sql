@@ -123,7 +123,8 @@ create table public."student" (
 -- Academics ------------------------------------------------------------------
 create table public."subject" (
   "id" text primary key, "name" text not null, "code" text unique, "is_active" boolean not null default true,
-  "is_custom" boolean not null default false, "created_at" timestamptz not null default now(),
+  "is_custom" boolean not null default false, "education_levels" text[] not null default '{}',
+  "departments" text[] not null default '{}', "created_at" timestamptz not null default now(),
   "updated_at" timestamptz not null default now()
 );
 create unique index subject_name_lower_unique on public."subject" (lower(trim("name")));
@@ -415,10 +416,36 @@ grant execute on function public.find_or_create_subject(text, boolean) to servic
 grant execute on function public.set_student_session_subjects(text, text, text[], text[]) to service_role;
 grant execute on function public.set_teacher_subjects(text, text, text[], text[]) to service_role;
 
-insert into public."subject" ("id", "name", "code") values
-  (gen_random_uuid()::text, 'Mathematics', 'MATH'),
-  (gen_random_uuid()::text, 'English Language', 'ENG'),
-  (gen_random_uuid()::text, 'Basic Science', 'BSC');
+-- Canonical catalogue consumed by student registration, teacher assignment and
+-- the library subject filter.  A subject appears once, with all applicable
+-- school levels/departments recorded on the same searchable record.
+insert into public."subject" ("id", "name", "code", "education_levels", "departments") values
+  (gen_random_uuid()::text, 'Mathematics', 'MATH', array['PRIMARY','JUNIOR','SENIOR'], array['GENERAL','SCIENCE','COMMERCIAL']),
+  (gen_random_uuid()::text, 'English', 'ENG', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Use of English', 'USE-ENG', array['SENIOR'], array['GENERAL','SCIENCE','ARTS','COMMERCIAL']),
+  (gen_random_uuid()::text, 'History', 'HIST', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Security and Citizenship Education', 'SCE', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'French', 'FRENCH', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Intermediate Science', 'INT-SCI', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Verbal Reasoning', 'VERBAL', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Quantitative Reasoning', 'QUANT', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Digital Technology', 'DIGI', array['PRIMARY','JUNIOR','SENIOR'], array['GENERAL','SCIENCE','ARTS','COMMERCIAL']),
+  (gen_random_uuid()::text, 'Cultural and Creative Arts', 'CCA', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Yoruba', 'YORUBA', array['PRIMARY','JUNIOR','SENIOR'], array['GENERAL','ARTS']),
+  (gen_random_uuid()::text, 'Prevocational Studies', 'PVS', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Business Studies', 'BUS', array['JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Biology', 'BIO', array['SENIOR'], array['GENERAL','SCIENCE']),
+  (gen_random_uuid()::text, 'Citizenship and Heritage Studies', 'CHS', array['SENIOR'], array['GENERAL','SCIENCE','ARTS','COMMERCIAL']),
+  (gen_random_uuid()::text, 'Physics', 'PHY', array['SENIOR'], array['SCIENCE']),
+  (gen_random_uuid()::text, 'Chemistry', 'CHEM', array['SENIOR'], array['SCIENCE']),
+  (gen_random_uuid()::text, 'Agricultural Science', 'AGRIC', array['SENIOR'], array['SCIENCE']),
+  (gen_random_uuid()::text, 'Further Mathematics', 'FMATH', array['SENIOR'], array['SCIENCE','COMMERCIAL']),
+  (gen_random_uuid()::text, 'Geography', 'GEO', array['SENIOR'], array['SCIENCE']),
+  (gen_random_uuid()::text, 'Government', 'GOV', array['SENIOR'], array['ARTS','COMMERCIAL']),
+  (gen_random_uuid()::text, 'Literature in English', 'LIT', array['SENIOR'], array['ARTS']),
+  (gen_random_uuid()::text, 'Christian Religious Studies', 'CRS', array['SENIOR'], array['ARTS']),
+  (gen_random_uuid()::text, 'Commerce', 'COMM', array['SENIOR'], array['COMMERCIAL']),
+  (gen_random_uuid()::text, 'Financial Accounting', 'ACC', array['SENIOR'], array['COMMERCIAL']);
 
 -- Supplemental school operations schema (legacy/plural API) -----------------
 -- These tables preserve the full operations model supplied by the school.
@@ -803,6 +830,11 @@ select p.id, s.admission_number, s.first_name || ' ' || s.last_name as student_n
 from public.payments p join public.students s on s.id = p.student_id
 left join public.fee_structures fs on fs.id = p.fee_structure_id
 where s.deleted_at is null and p.deleted_at is null;
+/*
+The duplicate legacy export below is retained as a reference only.  All of its
+objects are already created above; executing it would recreate tables/views and
+make this clean-install script fail.
+
 -- =====================================================
 -- EL GOODNEWS INT'L ACADEMY - Canonical Supabase Schema
 -- Clean install script - Drops everything and recreates
@@ -1925,3 +1957,4 @@ insert into public.book_categories (id, name, search_boost) values
 select '✅ All tables created successfully!' as status;
 select count(*) as total_tables from information_schema.tables where table_schema = 'public';
 select count(*) as total_subjects from public.subjects;
+*/

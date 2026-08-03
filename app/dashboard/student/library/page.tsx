@@ -234,7 +234,7 @@ export default function StudentLibraryPage() {
 
   // Unique lists for filtering
   const categories = ['All', 'Textbooks', 'Past Questions', 'Class Notes', 'Video Tutorials', 'Study Guides']
-  const subjects = ['All', 'Mathematics', 'English Language', 'Physics', 'Chemistry', 'Biology', 'Civic Education', 'Computer Studies']
+  const [subjects, setSubjects] = useState<string[]>(['All'])
   const grades = [
     'All',
     'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
@@ -245,6 +245,20 @@ export default function StudentLibraryPage() {
   // Dynamic state loaded directly from SQL Database using searchLibraryBooks
   const [resources, setResources] = useState<any[]>([])
   const [dbLoading, setDbLoading] = useState(true)
+
+  // Keep the library filter in sync with the active Supabase subject catalogue.
+  React.useEffect(() => {
+    async function loadSubjects() {
+      try {
+        const { getLibrarySubjects } = await import('@/app/actions/library')
+        const rows = await getLibrarySubjects()
+        setSubjects(['All', ...rows.map(item => item.name)])
+      } catch (err) {
+        console.error('Failed to load library subjects from server database:', err)
+      }
+    }
+    loadSubjects()
+  }, [])
 
   React.useEffect(() => {
     async function loadBooks() {

@@ -1,7 +1,8 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { libraryBooks } from '@/lib/db/schema'
+import { libraryBooks, subject } from '@/lib/db/schema'
+import { asc, eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
 const SEED_BOOKS = [
@@ -150,6 +151,14 @@ const SEED_BOOKS = [
     content: `Discovery Guide. Unit 1: Living and Non-Living things. Interactive field assignments: observing backyard insects and naming plant leaves...`
   }
 ]
+
+/** The library uses the same active Supabase subject catalogue as registration. */
+export async function getLibrarySubjects() {
+  return db.select({ id: subject.id, name: subject.name })
+    .from(subject)
+    .where(eq(subject.isActive, true))
+    .orderBy(asc(subject.name))
+}
 
 export async function searchLibraryBooks(query: string = '') {
   try {
