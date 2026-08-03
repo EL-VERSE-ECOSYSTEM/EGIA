@@ -211,23 +211,19 @@ export async function getLoggedInStudentAndQuestions(assessmentId: string) {
 
   const dbAssessment = await getAssessmentWithQuestions(assessmentId)
 
-  let questionsList = [
-    { id: 'q1', text: 'Which year did Nigeria gain independence?', options: ['1957', '1960', '1963', '1970'], answer: '1960' },
-    { id: 'q2', text: 'What is the capital city of Nigeria?', options: ['Lagos', 'Calabar', 'Abuja', 'Enugu'], answer: 'Abuja' },
-    { id: 'q3', text: 'How many geopolitical zones are in Nigeria?', options: ['4', '5', '6', '7'], answer: '6' }
-  ]
-
-  if (dbAssessment && dbAssessment.questions && dbAssessment.questions.length > 0) {
-    questionsList = dbAssessment.questions.map(q => ({
-      id: q.id,
-      text: q.questionText,
-      options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : ['A', 'B', 'C', 'D'],
-      answer: q.correctAnswer || ''
-    }))
+  if (!studentProfile) throw new Error('Student profile not found.')
+  if (!dbAssessment || dbAssessment.status !== 'published' || !dbAssessment.questions?.length) {
+    throw new Error('This assessment is unavailable or has no published questions.')
   }
+  const questionsList = dbAssessment.questions.map(q => ({
+    id: q.id,
+    text: q.questionText,
+    options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [],
+    answer: q.correctAnswer || ''
+  }))
 
   return {
-    studentId: studentProfile?.id || session.user.id,
+    studentId: studentProfile.id,
     questions: questionsList,
     title: dbAssessment?.title || 'Weekend Assessment'
   }

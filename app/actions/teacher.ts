@@ -92,8 +92,8 @@ export async function getTeacherWallet() {
     const results = await db.insert(teacherWallet).values({
       id: randomUUID(),
       teacherId: teacherProfile.id,
-      balance: '150000.00', // Initialize with 150k as default mock balance
-      salaryAmount: '150000.00',
+      balance: '0.00',
+      salaryAmount: '0.00',
       salaryStatus: 'pending',
     }).returning()
     wallet = results[0]

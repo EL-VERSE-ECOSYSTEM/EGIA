@@ -38,6 +38,8 @@ export async function registerStudent(data: any) {
   let userId: any = randomUUID()
   let supabaseSignedUp = false
 
+  if (isDummySupabase) return { error: 'Supabase authentication is not configured. Registration is unavailable until it is configured.' }
+
   if (!isDummySupabase) {
     try {
       const cookieStore = await cookies()
@@ -59,9 +61,11 @@ export async function registerStudent(data: any) {
         supabaseSignedUp = true
       }
     } catch (err) {
-      console.warn('Supabase signUp threw exception, falling back to local DB registration.', err)
+      console.error('Supabase student signup failed.', err)
     }
   }
+
+  if (!supabaseSignedUp) return { error: 'Could not create the Supabase account. Please try again.' }
 
   try {
     await db.transaction(async (tx) => {
@@ -120,6 +124,8 @@ export async function registerParent(data: any) {
   let userId: any = randomUUID()
   let supabaseSignedUp = false
 
+  if (isDummySupabase) return { error: 'Supabase authentication is not configured. Registration is unavailable until it is configured.' }
+
   if (!isDummySupabase) {
     try {
       const cookieStore = await cookies()
@@ -141,9 +147,11 @@ export async function registerParent(data: any) {
         supabaseSignedUp = true
       }
     } catch (err) {
-      console.warn('Supabase signUp threw exception, falling back to local DB registration.', err)
+      console.error('Supabase parent signup failed.', err)
     }
   }
+
+  if (!supabaseSignedUp) return { error: 'Could not create the Supabase account. Please try again.' }
 
   try {
     const registration = await db.transaction(async (tx) => {
@@ -218,6 +226,8 @@ export async function registerTeacher(data: any) {
   let userId: any = randomUUID()
   let supabaseSignedUp = false
 
+  if (isDummySupabase) return { error: 'Supabase authentication is not configured. Registration is unavailable until it is configured.' }
+
   if (!isDummySupabase) {
     try {
       const cookieStore = await cookies()
@@ -239,9 +249,11 @@ export async function registerTeacher(data: any) {
         supabaseSignedUp = true
       }
     } catch (err) {
-      console.warn('Supabase signUp threw exception, falling back to local DB registration.', err)
+      console.error('Supabase teacher signup failed.', err)
     }
   }
+
+  if (!supabaseSignedUp) return { error: 'Could not create the Supabase account. Please try again.' }
 
   try {
     await db.transaction(async (tx) => {
@@ -302,6 +314,9 @@ export async function activateStudent(data: any) {
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
   const defaultStudentPassword = 'default'
   let userId: any = existingStudent.userId || randomUUID()
+  let supabaseProvisioned = false
+
+  if (isDummySupabase) return { error: 'Supabase authentication is not configured. Student activation is unavailable.' }
 
   if (!isDummySupabase) {
     try {
@@ -321,6 +336,7 @@ export async function activateStudent(data: any) {
 
       if (!authError && authData.user) {
         userId = authData.user.id
+        supabaseProvisioned = true
       } else if (authError) {
         console.warn('Supabase student signUp returned an error:', authError.message)
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -329,12 +345,15 @@ export async function activateStudent(data: any) {
         })
         if (!signInError && signInData.user) {
           userId = signInData.user.id
+          supabaseProvisioned = true
         }
       }
     } catch (err) {
-      console.warn('Supabase signUp threw exception, falling back to local DB registration.', err)
+      console.error('Supabase student activation failed.', err)
     }
   }
+
+  if (!supabaseProvisioned) return { error: 'Could not create or verify the Supabase student account.' }
 
   try {
     await db.transaction(async (tx) => {
@@ -671,6 +690,9 @@ export async function registerParentTeacher(data: any) {
 
   const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
   let userId: any = randomUUID()
+  let supabaseSignedUp = false
+
+  if (isDummySupabase) return { error: 'Supabase authentication is not configured. Registration is unavailable until it is configured.' }
 
   if (!isDummySupabase) {
     try {
@@ -689,11 +711,14 @@ export async function registerParentTeacher(data: any) {
 
       if (!authError && authData.user) {
         userId = authData.user.id
+        supabaseSignedUp = true
       }
     } catch (err) {
-      console.warn('Supabase signUp threw exception, falling back to local DB registration.', err)
+      console.error('Supabase parent-teacher signup failed.', err)
     }
   }
+
+  if (!supabaseSignedUp) return { error: 'Could not create the Supabase account. Please try again.' }
 
   try {
     const parentId = randomUUID()
