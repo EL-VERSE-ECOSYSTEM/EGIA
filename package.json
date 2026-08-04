@@ -32,13 +32,12 @@
     "drizzle-orm": "^0.45.2",
     "effect": "3.22.0",
     "lucide-react": "^1.17.0",
-    "next": "16.2.11",
+    "next": "16.3.0",
     "pdf-parse": "^2.4.5",
     "pg": "^8.21.0",
     "postgres": "^3.4.9",
     "react": "^19",
     "react-dom": "^19",
-    "react-router-dom": "^7.17.0",
     "recharts": "^3.8.1",
     "sharp": "0.35.0",
     "tailwind-merge": "^3.3.1",
@@ -54,7 +53,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "postcss": "8.5.22",
+    "postcss": "8.5.25",
     "tailwindcss": "^4.2.0",
     "typescript": "5.7.3"
   },
@@ -63,7 +62,7 @@
     "better-auth": "1.6.25",
     "@better-auth/passkey": "1.6.25",
     "next": {
-      "postcss": "8.5.22",
+      "postcss": "8.5.25",
       "sharp": "0.35.0"
     }
   }
