@@ -154,3 +154,18 @@ KORAPAY_SECRET_KEY=sk_live_...
 ```
 
 Set Korapay's checkout redirect URL to `https://goodnews-app-mu.vercel.app/payment/return`. The application verifies the returned payment reference with Korapay on the server before activating an account or marking a ledger entry successful.
+# EGIA
+
+## Supabase configuration
+
+The app uses Supabase Auth and Supabase Postgres. Copy `.env.example` to `.env.local`, then set `DATABASE_URL` to the Supabase **Session pooler** URI from Dashboard → Connect. Do not use a local PostgreSQL URL in a deployed environment.
+
+Apply the SQL files in `supabase/migrations/` to the connected Supabase project, in filename order. The access migration grants the server-only service role its required Data API permissions while leaving browser access limited to the public subject catalogue.
+
+Run the non-persistent connection test after configuration:
+
+```bash
+npm run verify:supabase
+```
+
+It verifies Auth, reads the database, and performs a transaction-scoped temporary-table write that is dropped automatically.

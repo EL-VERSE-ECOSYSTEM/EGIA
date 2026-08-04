@@ -6,10 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "verify:supabase": "node scripts/verify-supabase.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
+    "@dwmkerr/terminal-ai": "^0.14.0",
     "@google/generative-ai": "^0.24.1",
     "@radix-ui/react-alert-dialog": "^1.1.16",
     "@radix-ui/react-checkbox": "^1.3.4",
@@ -18,6 +20,7 @@
     "@radix-ui/react-radio-group": "^1.4.0",
     "@radix-ui/react-slot": "^1.2.5",
     "@radix-ui/react-tabs": "^1.1.14",
+    "@supabase/server": "^1.4.1",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
     "@types/uuid": "^10.0.0",
