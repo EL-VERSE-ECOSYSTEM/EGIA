@@ -169,3 +169,28 @@ npm run verify:supabase
 ```
 
 It verifies Auth, reads the database, and performs a transaction-scoped temporary-table write that is dropped automatically.
+# EL GOODNEWS INT'L ACADEMY
+
+## Realtime setup
+
+The application uses Supabase Auth cookies for SSR and Postgres Changes for
+live assessments, results, payments, messages, notifications, library stock and
+attendance. Add these Vercel environment variables before deploying:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=             # server-only; never prefix with NEXT_PUBLIC_
+SUPABASE_WEBHOOK_SECRET=               # required by /api/webhooks/supabase
+NEXT_PUBLIC_APP_URL=
+```
+
+Apply `supabase/migrations/202608080001_enable_realtime.sql` through the
+Supabase SQL editor or the Supabase CLI. The migration is idempotent and skips
+tables that are not present in the production schema. Realtime still observes
+RLS, so ensure each role has a matching `SELECT` policy before expecting an
+event in the browser.
+
+Client features are available through `useRealtimeSubscription` and
+`useRealtimeQuery`; the root `RealtimeProvider` supplies React Query, toasts,
+and the live connection badge.

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Bell, Search, User, Download, X, Smartphone, CheckCircle, Menu } from 'lucide-react'
+import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSync'
 
 export default function DashboardLayout({
   children,
@@ -90,6 +91,7 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] relative">
+      <DashboardRealtimeSync role={activeRole} />
       {/* Mobile Sidebar backdrop overlay */}
       {isSidebarOpen && (
         <div

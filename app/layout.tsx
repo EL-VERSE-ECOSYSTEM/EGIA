@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata } from 'next'
 import './globals.css'
+import { RealtimeProvider } from '@/components/realtime/RealtimeProvider'
 
 export const metadata: Metadata = {
   title: "EL GOODNEWS INT'L ACADEMY - Empowering Excellence",
@@ -27,9 +28,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased flex flex-col min-h-screen">
-        <div className="flex-1">
-          {children}
-        </div>
+        <RealtimeProvider>
+          <div className="flex-1">
+            {children}
+          </div>
+        </RealtimeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
         {/* Simple inline PWA registration block */}
         <script
