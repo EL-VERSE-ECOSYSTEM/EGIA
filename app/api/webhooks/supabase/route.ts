@@ -1,39 +1,92 @@
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { notificationTemplates } from "@/lib/notifications/templates";
-import { notifyParentProfile, notifyStudentAndParent } from "@/lib/notifications/triggers";
+import { processWebhook } from "@/lib/webhook/handlers";
+import { logger } from "@/lib/webhook/logger";
+import { supabaseAdmin } from "@/lib/webhook/handlers/shared";
+import type { WebhookPayload } from "@/types/webhook.types";
 
-const webhookEvent = z.object({
-  type: z.string().min(1),
-  table: z.string().min(1),
+const schema = z.object({
+  type: z.enum(["INSERT", "UPDATE", "DELETE"]),
+  table: z.enum(["payments", "results", "attendance_records"]),
+  schema: z.string().optional(),
   record: z.record(z.string(), z.unknown()).optional(),
   old_record: z.record(z.string(), z.unknown()).optional(),
+  timestamp: z.string().optional(),
 });
 
-/**
- * Receives Supabase Database Webhooks. Configure SUPABASE_WEBHOOK_SECRET in
- * Vercel and set the same value in the webhook's `x-webhook-secret` header.
- */
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+function validSecret(received: string | null, expected: string) {
+  if (!received) return false;
+  const left = Buffer.from(received);
+  const right = Buffer.from(expected);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function eventKey(payload: WebhookPayload) {
+  const id = typeof payload.record?.id === "string" ? payload.record.id : typeof payload.old_record?.id === "string" ? payload.old_record.id : "no-record-id";
+  // A status transition is represented by the final relevant state, so retried DB webhooks remain idempotent.
+  const state = typeof payload.record?.status === "string" ? payload.record.status : String(payload.record?.is_graded ?? "");
+  return `${payload.table}:${id}:${state}`;
+}
+
 export async function POST(request: NextRequest) {
-  const expected = process.env.SUPABASE_WEBHOOK_SECRET;
-  if (!expected || request.headers.get("x-webhook-secret") !== expected) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const requestId = crypto.randomUUID();
+  const expected = process.env.SUPABASE_WEBHOOK_SECRET?.trim();
+  if (!expected) {
+    logger.error("Webhook secret is not configured", undefined, { requestId });
+    return NextResponse.json({ error: "Server configuration error", requestId }, { status: 500 });
+  }
+  if (!validSecret(request.headers.get("x-webhook-secret")?.trim() ?? null, expected)) {
+    logger.warn("Webhook authentication failed", { requestId });
+    return NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 });
   }
 
-  const parsed = webhookEvent.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Invalid webhook payload" }, { status: 400 });
+  const raw = await request.text();
+  if (raw.length > 1_000_000) return NextResponse.json({ error: "Payload too large", requestId }, { status: 413 });
+  let json: unknown;
+  try { json = JSON.parse(raw); } catch { return NextResponse.json({ error: "Invalid JSON payload", requestId }, { status: 400 }); }
+  const parsed = schema.safeParse(json);
+  if (!parsed.success) {
+    logger.warn("Webhook payload validation failed", { requestId, issues: parsed.error.issues.map((issue) => issue.path.join(".")) });
+    return NextResponse.json({ error: "Invalid payload structure", requestId }, { status: 400 });
+  }
 
-  const record = parsed.data.record as Record<string, unknown> | undefined;
-  // Database column casing follows the existing production schema.
-  if (record && parsed.data.type === "INSERT" && parsed.data.table === "assessment_result" && typeof record.studentId === "string") {
-    await notifyStudentAndParent(record.studentId, notificationTemplates.assessmentResult("A student", "Assessment", "Published", Number(record.score || 0)));
+  const payload = parsed.data;
+  const key = eventKey(payload);
+  const supabase = supabaseAdmin();
+  const { data: known, error: readError } = await supabase.from("webhook_events").select("status").eq("event_key", key).maybeSingle();
+  if (readError) {
+    logger.error("Webhook idempotency lookup failed", readError, { requestId });
+    return NextResponse.json({ error: "Temporary processing error", requestId }, { status: 500 });
   }
-  if (record && ["INSERT", "UPDATE"].includes(parsed.data.type) && parsed.data.table === "attendance" && typeof record.studentId === "string" && String(record.status).toLowerCase() === "absent") {
-    await notifyStudentAndParent(record.studentId, notificationTemplates.attendanceAbsent("A student", String(record.date || "today"), "Class"));
+  if (known?.status === "processed") return NextResponse.json({ success: true, duplicate: true, requestId });
+
+  const { error: claimError } = await supabase.from("webhook_events").upsert({ event_key: key, table_name: payload.table, event_type: payload.type, record_id: typeof payload.record?.id === "string" ? payload.record.id : null, status: "processing", payload }, { onConflict: "event_key" });
+  if (claimError) {
+    logger.error("Webhook idempotency claim failed", claimError, { requestId });
+    return NextResponse.json({ error: "Temporary processing error", requestId }, { status: 500 });
   }
-  if (record && ["INSERT", "UPDATE"].includes(parsed.data.type) && parsed.data.table === "payment" && typeof record.parentid === "string" && ["success", "completed"].includes(String(record.status).toLowerCase())) {
-    await notifyParentProfile(record.parentid, notificationTemplates.paymentConfirmed("your child", Number(record.amount || 0), String(record.transactionreference || record.id || "N/A")));
+
+  try {
+    await processWebhook(payload, key);
+    const now = new Date().toISOString();
+    const { error: completionError } = await supabase.from("webhook_events").update({ status: "processed", error_message: null, processed_at: now, updated_at: now }).eq("event_key", key);
+    if (completionError) throw completionError;
+    logger.info("Webhook processed", { requestId, table: payload.table, type: payload.type });
+    return NextResponse.json({ success: true, requestId, processed: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    await supabase.from("webhook_events").update({ status: "failed", error_message: message, updated_at: new Date().toISOString() }).eq("event_key", key);
+    logger.error("Webhook processing failed", error, { requestId, table: payload.table, type: payload.type });
+    // A non-2xx response is vital: Supabase Database Webhooks then retries delivery.
+    return NextResponse.json({ error: "Processing failed", requestId }, { status: 500 });
   }
-  console.info("Supabase webhook received", { type: parsed.data.type, table: parsed.data.table });
-  return NextResponse.json({ received: true });
+}
+
+export async function GET() {
+  return NextResponse.json({ status: "healthy", service: "FCM webhook processor", timestamp: new Date().toISOString() });
 }

@@ -24,7 +24,12 @@ export async function requestNotificationPermission() {
   const client = await messaging();
   if (!client || Notification.permission === "denied") return null;
   if (Notification.permission !== "granted" && await Notification.requestPermission() !== "granted") return null;
-  return getToken(client, { vapidKey: process.env.NEXT_PUBLIC_FCM_VAPID_KEY });
+  const vapidKey = process.env.NEXT_PUBLIC_FCM_VAPID_KEY;
+  if (!vapidKey) {
+    console.error("NEXT_PUBLIC_FCM_VAPID_KEY is not configured");
+    return null;
+  }
+  return getToken(client, { vapidKey });
 }
 
 export async function listenForForegroundMessages(callback: (payload: MessagePayload) => void): Promise<Unsubscribe | undefined> {
