@@ -14,12 +14,13 @@ export const auth = {
       return null
     }
 
-    const roleRecord = await db.select()
+    const metadataRole = session.user.user_metadata?.role || null
+    const roleRecord = metadataRole ? null : await db.select()
       .from(userRole)
       .where(eq(userRole.userId, session.user.id))
       .limit(1)
 
-    const finalRole = roleRecord[0]?.role || (session.user.user_metadata?.role || null)
+    const finalRole = metadataRole || roleRecord?.[0]?.role || null
 
     return {
       ...session,
@@ -41,12 +42,13 @@ export const auth = {
       return null
     }
 
-    const roleRecord = await db.select()
+    const metadataRole = user.user_metadata?.role || null
+    const roleRecord = metadataRole ? null : await db.select()
       .from(userRole)
       .where(eq(userRole.userId, user.id))
       .limit(1)
 
-    const finalRole = roleRecord[0]?.role || (user.user_metadata?.role || null)
+    const finalRole = metadataRole || roleRecord?.[0]?.role || null
 
     return {
       ...user,
