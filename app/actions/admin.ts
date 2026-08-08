@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
 import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, isValidAdmissionNumber } from '@/lib/id'
+import { studentEnrollmentSchema } from '@/lib/validators/student.schema'
 
 async function getUserId() {
   const session = await auth.getSession()
@@ -37,6 +38,9 @@ async function checkAdminPermission(action: any, resource: any) {
 }
 
 export async function createStudent(data: any) {
+  const validated = studentEnrollmentSchema.safeParse(data)
+  if (!validated.success) throw new Error(validated.error.issues[0]?.message || 'Invalid student enrollment data')
+  data = validated.data
   const session = await auth.getSession()
   if (!session) throw new Error('Unauthorized')
 

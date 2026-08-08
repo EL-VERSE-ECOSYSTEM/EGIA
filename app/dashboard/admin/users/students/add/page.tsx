@@ -1,43 +1,34 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { createStudent } from '@/app/actions/admin'
-import { UserPlus, ShieldCheck, Calendar, School } from 'lucide-react'
+import { studentEnrollmentSchema, type StudentEnrollmentData } from '@/lib/validators/student.schema'
+import { ShieldCheck, Loader2 } from 'lucide-react'
 
 export default function AddStudentPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: 'Password123!',
-    admissionNumber: '',
-    class: '',
-    gender: 'MALE',
-    academicSession: '2026/2027',
-    term: 'First Term'
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<StudentEnrollmentData>({
+    resolver: zodResolver(studentEnrollmentSchema),
+    defaultValues: { email: '', admissionNumber: '', gender: 'MALE', academicSession: '2026/2027', term: 'First Term' },
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  const onSubmit = async (formData: StudentEnrollmentData) => {
     try {
       await createStudent(formData)
-      alert('Student profile created and enrolled successfully!')
+      toast.success('Student profile created and enrolled successfully!')
       router.push('/dashboard/admin/users/students/list')
     } catch (error: any) {
       console.error(error)
-      alert(error.message || 'Failed to create student.')
-    } finally {
-      setLoading(false)
+      toast.error(error.message || 'Failed to create student.')
     }
   }
 
@@ -56,25 +47,23 @@ export default function AddStudentPage() {
               <CardDescription>Primary details for the new student.</CardDescription>
             </CardHeader>
             <CardContent className="p-10">
-              <form onSubmit={handleSubmit} id="enroll-form" className="space-y-8">
+              <form onSubmit={handleSubmit(onSubmit)} id="enroll-form" className="space-y-8" noValidate>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">First Name</Label>
                     <Input
-                      required
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                      {...register('firstName')}
                       className="h-14 rounded-2xl bg-slate-50 border-none focus:bg-white focus:ring-amber-600"
                     />
+                    {errors.firstName && <p className="text-xs font-bold text-red-600">{errors.firstName.message}</p>}
                   </div>
                   <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Last Name</Label>
                     <Input
-                      required
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                      {...register('lastName')}
                       className="h-14 rounded-2xl bg-slate-50 border-none focus:bg-white focus:ring-amber-600"
                     />
+                    {errors.lastName && <p className="text-xs font-bold text-red-600">{errors.lastName.message}</p>}
                   </div>
                 </div>
 
@@ -83,52 +72,32 @@ export default function AddStudentPage() {
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Guardian Email (Optional)</Label>
                     <Input
                       type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      {...register('email')}
                       placeholder="parent@example.com"
                       className="h-14 rounded-2xl bg-slate-50 border-none focus:bg-white focus:ring-amber-600"
                     />
+                    {errors.email && <p className="text-xs font-bold text-red-600">{errors.email.message}</p>}
                   </div>
                   <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Admission Number</Label>
                     <Input
-                      required
-                      value={formData.admissionNumber}
-                      onChange={(e) => setFormData({...formData, admissionNumber: e.target.value.toUpperCase()})}
+                      {...register('admissionNumber')}
                       placeholder="EGIA-S-XXXXXX or EGIA-P-XXXXXX"
                       className="h-14 rounded-2xl bg-slate-50 border-none font-black tracking-widest focus:bg-white focus:ring-amber-600"
                     />
+                    {errors.admissionNumber && <p className="text-xs font-bold text-red-600">{errors.admissionNumber.message}</p>}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Gender</Label>
-                    <Select defaultValue="MALE" onValueChange={(v) => setFormData({...formData, gender: v})}>
-                      <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none font-black">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                         <SelectItem value="MALE">Male</SelectItem>
-                         <SelectItem value="FEMALE">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <select {...register('gender')} className="h-14 w-full rounded-2xl bg-slate-50 px-3 font-black"><option value="MALE">Male</option><option value="FEMALE">Female</option></select>
                   </div>
                   <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Target Level</Label>
-                    <Select onValueChange={(v) => setFormData({...formData, class: v})}>
-                      <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none font-black">
-                        <SelectValue placeholder="Select Class" />
-                      </SelectTrigger>
-                      <SelectContent>
-                         <SelectItem value="Basic 5">Basic 5</SelectItem><SelectItem value="Basic 6">Basic 6</SelectItem><SelectItem value="JSS1">JSS 1</SelectItem>
-                         <SelectItem value="JSS2">JSS 2</SelectItem>
-                         <SelectItem value="JSS3">JSS 3</SelectItem>
-                         <SelectItem value="SSS1">SSS 1</SelectItem>
-                         <SelectItem value="SSS2">SSS 2</SelectItem>
-                         <SelectItem value="SSS3">SSS 3</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <select {...register('class')} defaultValue="" className="h-14 w-full rounded-2xl bg-slate-50 px-3 font-black"><option value="" disabled>Select Class</option><option value="Basic 5">Basic 5</option><option value="Basic 6">Basic 6</option><option value="JSS1">JSS 1</option><option value="JSS2">JSS 2</option><option value="JSS3">JSS 3</option><option value="SSS1">SSS 1</option><option value="SSS2">SSS 2</option><option value="SSS3">SSS 3</option></select>
+                    {errors.class && <p className="text-xs font-bold text-red-600">{errors.class.message}</p>}
                   </div>
                 </div>
               </form>
@@ -143,28 +112,11 @@ export default function AddStudentPage() {
               <CardContent className="p-8 pt-0 space-y-6">
                  <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Session</Label>
-                    <Select defaultValue="2026/2027">
-                       <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none font-bold">
-                          <SelectValue />
-                       </SelectTrigger>
-                       <SelectContent>
-                          <SelectItem value="2026/2027">2026/2027</SelectItem>
-                          <SelectItem value="2025/2026">2025/2026</SelectItem>
-                       </SelectContent>
-                    </Select>
+                    <select {...register('academicSession')} className="h-12 w-full rounded-xl bg-slate-50 px-3 font-bold"><option value="2026/2027">2026/2027</option><option value="2025/2026">2025/2026</option></select>
                  </div>
                  <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Term</Label>
-                    <Select defaultValue="First Term">
-                       <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none font-bold">
-                          <SelectValue />
-                       </SelectTrigger>
-                       <SelectContent>
-                          <SelectItem value="First Term">First Term</SelectItem>
-                          <SelectItem value="Second Term">Second Term</SelectItem>
-                          <SelectItem value="Third Term">Third Term</SelectItem>
-                       </SelectContent>
-                    </Select>
+                    <select {...register('term')} className="h-12 w-full rounded-xl bg-slate-50 px-3 font-bold"><option value="First Term">First Term</option><option value="Second Term">Second Term</option><option value="Third Term">Third Term</option></select>
                  </div>
               </CardContent>
             </Card>
@@ -180,10 +132,10 @@ export default function AddStudentPage() {
                      <Button
                         type="submit"
                         form="enroll-form"
-                        disabled={loading}
+                        disabled={isSubmitting}
                         className="w-full h-16 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-black text-lg shadow-xl shadow-amber-900/20"
                      >
-                        {loading ? <Loader2 className="animate-spin mr-2" /> : 'CONFIRM ENROLLMENT'}
+                        {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : 'CONFIRM ENROLLMENT'}
                      </Button>
                   </div>
                </div>
@@ -194,5 +146,3 @@ export default function AddStudentPage() {
     </DashboardLayout>
   )
 }
-
-import { Loader2 as Loader } from 'lucide-react'
