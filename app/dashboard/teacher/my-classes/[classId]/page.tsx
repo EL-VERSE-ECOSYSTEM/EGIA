@@ -6,10 +6,11 @@ import { GraduationCap, Calendar, ChevronRight } from 'lucide-react'
 import { getStudentsInClass } from '@/app/actions/teacher'
 import Link from 'next/link'
 
-export default async function TeacherClassDetailsPage({ params }: { params: { classId: string } }) {
+export default async function TeacherClassDetailsPage({ params }: { params: Promise<{ classId: string }> }) {
+   const { classId } = await params
    let students: any[] = []
   try {
-    students = await getStudentsInClass(params.classId)
+    students = await getStudentsInClass(classId)
   } catch (e) {
     console.error(e)
   }

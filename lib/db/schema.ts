@@ -36,7 +36,7 @@ export const reportCardTable = pgTable('report_card', {
 })
 
 export const userFcmToken = pgTable('user_fcm_tokens', {
-  id: text('id').primaryKey(), userId: text('user_id').notNull(), token: text('token').notNull(),
+  id: text('id').primaryKey(), userId: text('user_id').notNull(), token: text('token').notNull().unique(),
   deviceName: text('device_name'), deviceType: text('device_type').default('web'), browser: text('browser'), os: text('os'),
   isActive: boolean('is_active').notNull().default(true), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'), unique().on(t.userId, t.token)])

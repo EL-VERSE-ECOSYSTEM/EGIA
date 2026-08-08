@@ -194,3 +194,22 @@ event in the browser.
 Client features are available through `useRealtimeSubscription` and
 `useRealtimeQuery`; the root `RealtimeProvider` supplies React Query, toasts,
 and the live connection badge.
+
+## FCM device notifications and database webhooks
+
+Set the following deployment-only variables. Never commit a Firebase service
+account or the webhook secret.
+
+```text
+FIREBASE_SERVICE_ACCOUNT_JSON=          # complete service-account JSON, one line
+NEXT_PUBLIC_FCM_VAPID_KEY=              # Firebase Console → Cloud Messaging → Web Push
+SUPABASE_WEBHOOK_SECRET=                # long random value shared with Supabase
+```
+
+Apply the FCM migrations in `supabase/migrations/` in filename order. Configure
+Supabase Database Webhooks for `payments`, `results`, and `attendance_records`
+to POST to `/api/webhooks/supabase` with the `x-webhook-secret` header. The
+processor records idempotency state in `webhook_events`; transient failures
+return HTTP 500 so Supabase retries safely. Browser tokens are unique per
+device profile and are reassigned on sign-in to prevent notifications leaking
+between users of a shared device.

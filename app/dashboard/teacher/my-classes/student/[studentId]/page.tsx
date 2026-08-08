@@ -4,8 +4,9 @@ import { Badge } from '@/components/ui/badge'
 import { getStudentFullProfile } from '@/app/actions/teacher'
 import { Mail, Phone, AlertCircle } from 'lucide-react'
 
-export default async function StudentProfilePage({ params }: { params: { studentId: string } }) {
-  const student = await getStudentFullProfile(params.studentId)
+export default async function StudentProfilePage({ params }: { params: Promise<{ studentId: string }> }) {
+  const { studentId } = await params
+  const student = await getStudentFullProfile(studentId)
 
   if (!student) {
     return (

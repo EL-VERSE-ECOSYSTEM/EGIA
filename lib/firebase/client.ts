@@ -20,6 +20,11 @@ async function messaging() {
   return getMessaging(firebaseApp);
 }
 
+async function messagingServiceWorker() {
+  if (!("serviceWorker" in navigator)) return undefined;
+  return navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/" });
+}
+
 export async function requestNotificationPermission() {
   const client = await messaging();
   if (!client || Notification.permission === "denied") return null;
@@ -29,7 +34,8 @@ export async function requestNotificationPermission() {
     console.error("NEXT_PUBLIC_FCM_VAPID_KEY is not configured");
     return null;
   }
-  return getToken(client, { vapidKey });
+  const serviceWorkerRegistration = await messagingServiceWorker();
+  return getToken(client, { vapidKey, serviceWorkerRegistration });
 }
 
 export async function listenForForegroundMessages(callback: (payload: MessagePayload) => void): Promise<Unsubscribe | undefined> {

@@ -18,10 +18,15 @@ export function useFCM() {
 
   const requestPermission = useCallback(async () => {
     if (!supported || !user) return null;
-    const value = await requestNotificationPermission();
-    setPermission(Notification.permission);
-    if (value) { await saveToken(value); setToken(value); }
-    return value;
+    try {
+      const value = await requestNotificationPermission();
+      setPermission(Notification.permission);
+      if (value) { await saveToken(value); setToken(value); }
+      return value;
+    } catch (error) {
+      console.error("Unable to enable push notifications", error);
+      return null;
+    }
   }, [saveToken, supported, user]);
 
   const removeToken = useCallback(async () => {
@@ -36,6 +41,8 @@ export function useFCM() {
     void listenForForegroundMessages((payload) => toast(payload.notification?.title || "New notification", { description: payload.notification?.body })).then((fn) => { unsubscribe = fn; });
     return () => unsubscribe?.();
   }, []);
+  // Once permission has already been granted, refresh the registration after
+  // sign-in so a token rotation is recovered without showing another prompt.
   useEffect(() => { if (user && permission === "granted") void requestPermission(); }, [user, permission, requestPermission]);
   return { token, permission, isSupported: supported, requestPermission, removeToken };
 }
