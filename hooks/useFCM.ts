@@ -1,0 +1,41 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { listenForForegroundMessages, requestNotificationPermission } from "@/lib/firebase/client";
+import { useAuth } from "@/hooks/useAuth";
+
+export function useFCM() {
+  const { user } = useAuth();
+  const [token, setToken] = useState<string | null>(null);
+  const [permission, setPermission] = useState<NotificationPermission>("default");
+  const supported = typeof window !== "undefined" && "Notification" in window && "serviceWorker" in navigator;
+
+  const saveToken = useCallback(async (value: string) => {
+    const response = await fetch("/api/fcm/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: value, deviceType: "web", browser: navigator.userAgent, deviceName: navigator.platform }) });
+    if (!response.ok) throw new Error("Could not register this device for notifications");
+  }, []);
+
+  const requestPermission = useCallback(async () => {
+    if (!supported || !user) return null;
+    const value = await requestNotificationPermission();
+    setPermission(Notification.permission);
+    if (value) { await saveToken(value); setToken(value); }
+    return value;
+  }, [saveToken, supported, user]);
+
+  const removeToken = useCallback(async () => {
+    if (!token) return;
+    await fetch("/api/fcm/unregister", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) });
+    setToken(null);
+  }, [token]);
+
+  useEffect(() => { if (supported) setPermission(Notification.permission); }, [supported]);
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    void listenForForegroundMessages((payload) => toast(payload.notification?.title || "New notification", { description: payload.notification?.body })).then((fn) => { unsubscribe = fn; });
+    return () => unsubscribe?.();
+  }, []);
+  useEffect(() => { if (user && permission === "granted") void requestPermission(); }, [user, permission, requestPermission]);
+  return { token, permission, isSupported: supported, requestPermission, removeToken };
+}

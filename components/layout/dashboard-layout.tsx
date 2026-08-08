@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Bell, Search, User, Download, X, Smartphone, CheckCircle, Menu } from 'lucide-react'
 import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSync'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { PermissionRequest } from '@/components/notifications/PermissionRequest'
 
 export default function DashboardLayout({
   children,
@@ -118,10 +120,7 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-6">
-            <button className="relative p-2.5 rounded-xl bg-white border border-slate-100 text-slate-500 hover:bg-slate-50 transition-colors shadow-sm">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-600 rounded-full border-2 border-white"></span>
-            </button>
+            <NotificationBell />
             <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden sm:block"></div>
             <div className="flex items-center gap-3 pl-2">
               <div className="text-right hidden md:block">
@@ -136,6 +135,7 @@ export default function DashboardLayout({
         </header>
 
         <main className="flex-1 overflow-y-auto bg-slate-50/50 relative">
+          <PermissionRequest />
           {children}
 
           {/* Floating interactive PWA Download / Install App Prompt Widget */}

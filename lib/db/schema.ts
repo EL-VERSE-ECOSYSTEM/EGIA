@@ -35,6 +35,17 @@ export const reportCardTable = pgTable('report_card', {
   createdAt: timestamp('createdAt').defaultNow()
 })
 
+export const userFcmToken = pgTable('user_fcm_tokens', {
+  id: text('id').primaryKey(), userId: text('user_id').notNull(), token: text('token').notNull(),
+  deviceName: text('device_name'), deviceType: text('device_type').default('web'), browser: text('browser'), os: text('os'),
+  isActive: boolean('is_active').notNull().default(true), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'), unique().on(t.userId, t.token)])
+
+export const notificationHistory = pgTable('notification_history', {
+  id: text('id').primaryKey(), userId: text('user_id'), title: text('title').notNull(), body: text('body').notNull(), type: text('type').notNull(),
+  data: jsonb('data'), sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(), delivered: boolean('delivered').notNull().default(false), readAt: timestamp('read_at', { withTimezone: true }), link: text('link'), metadata: jsonb('metadata'),
+}, (t) => [foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('set null')])
+
 // ===== SCHOOL CORE TABLES =====
 export const student = pgTable('student', {
   id: text('id').primaryKey(),
