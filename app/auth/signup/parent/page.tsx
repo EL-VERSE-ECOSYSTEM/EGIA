@@ -136,7 +136,7 @@ export default function ParentSignUpPage() {
             Monitor your child's progress and stay updated
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-10 pb-12">
+        <CardContent className="px-4 sm:px-10 pb-12">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-black rounded-2xl flex items-center gap-3">
@@ -183,7 +183,7 @@ export default function ParentSignUpPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">First Name</Label>
                 <Input
@@ -208,7 +208,7 @@ export default function ParentSignUpPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Email Address</Label>
                 <Input
@@ -250,7 +250,7 @@ export default function ParentSignUpPage() {
             {/* Ward Search by Class */}
             <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
               <p className="text-xs font-black uppercase text-slate-400 tracking-widest">Search & Link Ward (Student/Pupil)</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-[9px] font-black text-slate-400 uppercase">Filter by Class</Label>
                   <select
@@ -290,7 +290,7 @@ export default function ParentSignUpPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="password" title="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Password</Label>
                 <Input

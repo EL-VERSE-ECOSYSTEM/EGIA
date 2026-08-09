@@ -162,7 +162,7 @@ export default function StudentRegistrationPage() {
       </div>
 
       {!isValidDate ? (
-        <Card className="max-w-md w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white text-center p-12">
+        <Card className="max-w-md w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white text-center p-6 sm:p-12">
           <div className="mx-auto bg-red-50 p-6 rounded-full w-fit mb-6">
             <AlertCircle className="w-16 h-16 text-red-600" />
           </div>
@@ -172,7 +172,7 @@ export default function StudentRegistrationPage() {
           </p>
         </Card>
       ) : showSuccessModal ? (
-        <Card className="max-w-md w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white text-center p-12">
+        <Card className="max-w-md w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white text-center p-6 sm:p-12">
           <div className="h-2 bg-emerald-600 w-full absolute top-0 left-0" />
           <div className="mx-auto bg-emerald-50 p-6 rounded-full w-fit mb-6">
             <CheckCircle2 className="w-16 h-16 text-emerald-600" />
@@ -205,7 +205,7 @@ export default function StudentRegistrationPage() {
               Complete full registration & pay the ₦2,000 activation fee
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-10 pb-12">
+          <CardContent className="px-4 sm:px-10 pb-12">
             <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
                 <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-black rounded-2xl flex items-center gap-3">
@@ -257,7 +257,7 @@ export default function StudentRegistrationPage() {
                  ⚠️ CRITICAL: Enter student's first, middle, and last names exactly as printed on their Birth Certificate.
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="firstName" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">First Name</Label>
                   <Input
@@ -292,7 +292,7 @@ export default function StudentRegistrationPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="dateOfBirth" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Date of Birth</Label>
                   <Input
@@ -317,7 +317,7 @@ export default function StudentRegistrationPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="class" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Admission Class</Label>
                   <select

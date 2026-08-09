@@ -1,6 +1,9 @@
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
+import { setDefaultResultOrder } from 'node:dns'
 import * as schema from './schema'
+
+setDefaultResultOrder('ipv4first')
 
 const connectionString = process.env.DATABASE_URL
 
@@ -24,7 +27,7 @@ if (connectionString?.includes('supabase') || connectionString?.includes('neon')
 
 const client = postgres(connectionString, {
   ssl: sslOption,
-  max: 15, // Optimize connection pool size for serverless
+  max: Number(process.env.DATABASE_POOL_SIZE || 5),
   idle_timeout: 20,
   connect_timeout: 15,
 })

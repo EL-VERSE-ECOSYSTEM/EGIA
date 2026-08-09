@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { subscribeToTable, unsubscribeFromTable, type RealtimeEvent } from "@/lib/supabase/client";
 import type { RealtimeTable } from "@/types/database.types";
+import { toast } from "sonner";
 
 export function useRealtimeSubscription<T extends Record<string, unknown> = Record<string, unknown>>(
   table: RealtimeTable | string | undefined,
@@ -19,6 +20,11 @@ export function useRealtimeSubscription<T extends Record<string, unknown> = Reco
       event: options.event ?? "*",
       filter: options.filter,
       callback: (event) => callbackRef.current?.(event),
+      statusCallback: (status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          toast.error("Live data connection interrupted", { description: `${table} updates will retry automatically.` });
+        }
+      },
     });
     return () => { void unsubscribeFromTable(channel); };
   }, [table, options.event, options.filter, options.enabled, onChange]);

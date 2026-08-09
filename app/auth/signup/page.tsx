@@ -61,13 +61,13 @@ export default function SignUpPage() {
       </div>
 
       <div className="max-w-4xl w-full text-center mb-12">
-        <h1 className="text-5xl font-black text-slate-900 tracking-tighter">Create Your Account</h1>
+        <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tighter">Create Your Account</h1>
         <p className="text-slate-500 text-lg font-medium mt-2">
           Select your registration path to get started with the academy portal
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-7xl w-full px-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 max-w-7xl w-full px-4">
         {options.map((opt) => {
           const Icon = opt.icon
           return (

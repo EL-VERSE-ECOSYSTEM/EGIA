@@ -1,12 +1,113 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { getSiteUrl, getSupabaseSecretKey, getSupabaseUrl, isSupabaseConfigured } from '@/utils/supabase/config'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { user as userTable, userRole, parent, teacher, student, payment, subject } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
+import { createClient as createSupabaseAdminClient, type User as SupabaseUser } from '@supabase/supabase-js'
+import { withCircuitBreaker } from '@/lib/resilience'
+
+type AuthRole = 'STUDENT' | 'TEACHER' | 'PARENT' | 'ADMIN'
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase()
+}
+
+function authAdminClient() {
+  const secretKey = getSupabaseSecretKey()
+  if (!secretKey) return null
+
+  return createSupabaseAdminClient(getSupabaseUrl(), secretKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+}
+
+function isDuplicateSignup(user: SupabaseUser | null, error?: { message?: string } | null) {
+  const message = error?.message?.toLowerCase() || ''
+  return (
+    message.includes('already registered') ||
+    message.includes('already exists') ||
+    (Array.isArray(user?.identities) && user.identities.length === 0)
+  )
+}
+
+async function provisionAuthUser(params: {
+  email: string
+  password: string
+  role: AuthRole
+  fullName: string
+  metadata?: Record<string, unknown>
+}) {
+  if (!isSupabaseConfigured()) {
+    return { error: 'Supabase authentication is not configured. Registration is unavailable until it is configured.' }
+  }
+
+  const email = normalizeEmail(params.email)
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  const metadata = {
+    ...params.metadata,
+    full_name: params.fullName,
+    role: params.role,
+  }
+
+  let signUpResult
+  try {
+    signUpResult = await withCircuitBreaker('supabase-auth', () =>
+      supabase.auth.signUp({
+        email,
+        password: params.password,
+        options: {
+          data: metadata,
+          emailRedirectTo: `${getSiteUrl()}/auth/callback`,
+        },
+      }),
+    )
+  } catch (error: any) {
+    return { error: error?.message || 'Supabase authentication is temporarily unavailable.' }
+  }
+
+  if (!signUpResult.error && signUpResult.data.user && !isDuplicateSignup(signUpResult.data.user)) {
+    return { userId: signUpResult.data.user.id, email, created: true }
+  }
+
+  if (!isDuplicateSignup(signUpResult.data.user, signUpResult.error)) {
+    return { error: signUpResult.error?.message || 'Could not create the Supabase account. Please try again.' }
+  }
+
+  let signInResult
+  try {
+    signInResult = await withCircuitBreaker('supabase-auth', () =>
+      supabase.auth.signInWithPassword({ email, password: params.password }),
+    )
+  } catch (error: any) {
+    return { error: error?.message || 'Supabase authentication is temporarily unavailable.' }
+  }
+
+  if (signInResult.error || !signInResult.data.user) {
+    return {
+      error:
+        'An account already exists in Supabase Auth, but this password could not verify it. Use the existing account password or contact support.',
+    }
+  }
+
+  await supabase.auth.updateUser({ data: { ...signInResult.data.user.user_metadata, ...metadata } })
+  return { userId: signInResult.data.user.id, email, created: false }
+}
+
+async function deleteAuthUserIfCreated(userId: string | null, created: boolean) {
+  if (!userId || !created) return
+
+  try {
+    await authAdminClient()?.auth.admin.deleteUser(userId)
+  } catch (error) {
+    console.warn('Could not clean up Supabase Auth user after local DB failure.', error)
+  }
+}
 
 /** Public catalogue used by session registration; names are persisted in student.subjectsdone. */
 export async function getRegistrationSubjects() {
@@ -26,10 +127,11 @@ export async function registerStudent(data: any) {
     profileImage,
     password
   } = data
+  const emailAddress = normalizeEmail(email)
 
   // Check if account already exists in database
   const existingUser = await db.query.user.findFirst({
-    where: eq(userTable.email, email)
+    where: eq(userTable.email, emailAddress)
   })
 
   if (existingUser) {
@@ -43,44 +145,22 @@ export async function registerStudent(data: any) {
   if (!selectedSubjects.length) return { error: 'Select at least one subject.' }
   if (selectedSubjects.some(item => item.length > 100)) return { error: 'Subject names must be 100 characters or fewer.' }
 
-  const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
-  let userId: any = randomUUID()
-  let supabaseSignedUp = false
+  const authUser = await provisionAuthUser({
+    email: emailAddress,
+    password,
+    role: 'STUDENT',
+    fullName: `${firstName} ${lastName}`,
+    metadata: { admission_number: admissionNumber },
+  })
+  if (authUser.error || !authUser.userId) return { error: authUser.error || 'Could not create the Supabase account. Please try again.' }
 
-  if (isDummySupabase) return { error: 'Supabase authentication is not configured. Registration is unavailable until it is configured.' }
-
-  if (!isDummySupabase) {
-    try {
-      const cookieStore = await cookies()
-      const supabase = createClient(cookieStore)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: `${firstName} ${lastName}`,
-            role: 'STUDENT',
-            admission_number: admissionNumber
-          }
-        }
-      })
-
-      if (!authError && authData.user) {
-        userId = authData.user.id
-        supabaseSignedUp = true
-      }
-    } catch (err) {
-      console.error('Supabase student signup failed.', err)
-    }
-  }
-
-  if (!supabaseSignedUp) return { error: 'Could not create the Supabase account. Please try again.' }
+  const userId = authUser.userId
 
   try {
     await db.transaction(async (tx) => {
       await tx.insert(userTable).values({
         id: userId,
-        email: email,
+        email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null
       })
@@ -113,61 +193,40 @@ export async function registerStudent(data: any) {
     return { success: true, admissionNumber }
   } catch (dbError: any) {
     console.error('DB Error:', dbError)
+    await deleteAuthUserIfCreated(userId, authUser.created === true)
     return { error: 'Account creation failed in local database. Please contact support.' }
   }
 }
 
 export async function registerParent(data: any) {
   const { firstName, lastName, email, phone, occupation, profileImage, password, wardAdmissionNumber } = data
+  const emailAddress = normalizeEmail(email)
 
   // Check if account already exists in database
   const existingUser = await db.query.user.findFirst({
-    where: eq(userTable.email, email)
+    where: eq(userTable.email, emailAddress)
   })
 
   if (existingUser) {
     return { error: 'Account already exists. An account with this email is already registered.' }
   }
 
-  const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
-  let userId: any = randomUUID()
-  let supabaseSignedUp = false
+  const authUser = await provisionAuthUser({
+    email: emailAddress,
+    password,
+    role: 'PARENT',
+    fullName: `${firstName} ${lastName}`,
+  })
+  if (authUser.error || !authUser.userId) return { error: authUser.error || 'Could not create the Supabase account. Please try again.' }
 
-  if (isDummySupabase) return { error: 'Supabase authentication is not configured. Registration is unavailable until it is configured.' }
-
-  if (!isDummySupabase) {
-    try {
-      const cookieStore = await cookies()
-      const supabase = createClient(cookieStore)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: `${firstName} ${lastName}`,
-            role: 'PARENT'
-          },
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`
-        }
-      })
-
-      if (!authError && authData.user) {
-        userId = authData.user.id
-        supabaseSignedUp = true
-      }
-    } catch (err) {
-      console.error('Supabase parent signup failed.', err)
-    }
-  }
-
-  if (!supabaseSignedUp) return { error: 'Could not create the Supabase account. Please try again.' }
+  const userId = authUser.userId
 
   try {
     const registration = await db.transaction(async (tx) => {
       const parentId = randomUUID()
       await tx.insert(userTable).values({
         id: userId,
-        email: email,
+        email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null
       })
@@ -212,16 +271,18 @@ export async function registerParent(data: any) {
     return { success: true, checkoutUrl: url.toString(), paymentId: registration.paymentId }
   } catch (dbError: any) {
     console.error('DB Error:', dbError)
+    await deleteAuthUserIfCreated(userId, authUser.created === true)
     return { error: 'Account creation failed in local database. Please contact support.' }
   }
 }
 
 export async function registerTeacher(data: any) {
   const { firstName, lastName, email, profileImage, password } = data
+  const emailAddress = normalizeEmail(email)
 
   // Check if account already exists in database
   const existingUser = await db.query.user.findFirst({
-    where: eq(userTable.email, email)
+    where: eq(userTable.email, emailAddress)
   })
 
   if (existingUser) {
@@ -231,44 +292,22 @@ export async function registerTeacher(data: any) {
   // Generate dynamic unique 6-digit Staff ID
   const staffCode = generateStaffId()
 
-  const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
-  let userId: any = randomUUID()
-  let supabaseSignedUp = false
+  const authUser = await provisionAuthUser({
+    email: emailAddress,
+    password,
+    role: 'TEACHER',
+    fullName: `${firstName} ${lastName}`,
+    metadata: { staff_code: staffCode },
+  })
+  if (authUser.error || !authUser.userId) return { error: authUser.error || 'Could not create the Supabase account. Please try again.' }
 
-  if (isDummySupabase) return { error: 'Supabase authentication is not configured. Registration is unavailable until it is configured.' }
-
-  if (!isDummySupabase) {
-    try {
-      const cookieStore = await cookies()
-      const supabase = createClient(cookieStore)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: `${firstName} ${lastName}`,
-            role: 'TEACHER',
-            staff_code: staffCode
-          }
-        }
-      })
-
-      if (!authError && authData.user) {
-        userId = authData.user.id
-        supabaseSignedUp = true
-      }
-    } catch (err) {
-      console.error('Supabase teacher signup failed.', err)
-    }
-  }
-
-  if (!supabaseSignedUp) return { error: 'Could not create the Supabase account. Please try again.' }
+  const userId = authUser.userId
 
   try {
     await db.transaction(async (tx) => {
       await tx.insert(userTable).values({
         id: userId,
-        email: email,
+        email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null
       })
@@ -298,12 +337,14 @@ export async function registerTeacher(data: any) {
     return { success: true, staffCode }
   } catch (dbError: any) {
     console.error('DB Error:', dbError)
+    await deleteAuthUserIfCreated(userId, authUser.created === true)
     return { error: 'Account creation failed in local database. Please contact support.' }
   }
 }
 
 export async function activateStudent(data: any) {
   const { admissionNumber, email, password } = data
+  const emailAddress = normalizeEmail(email)
 
   const existingStudent = await db.query.student.findFirst({
     where: eq(student.admissionNumber, admissionNumber.toUpperCase().trim())
@@ -318,67 +359,39 @@ export async function activateStudent(data: any) {
   }
 
   const existingUser = await db.query.user.findFirst({
-    where: eq(userTable.email, email)
+    where: eq(userTable.email, emailAddress)
   })
 
   if (existingUser) {
     return { error: 'Account already exists. An account with this email is already registered.' }
   }
 
-  const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
   const defaultStudentPassword = 'default'
-  let userId: any = existingStudent.userId || randomUUID()
-  let supabaseProvisioned = false
-
-  if (isDummySupabase) return { error: 'Supabase authentication is not configured. Student activation is unavailable.' }
-
-  if (!isDummySupabase) {
-    try {
-      const cookieStore = await cookies()
-      const supabase = createClient(cookieStore)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password: defaultStudentPassword,
-        options: {
-          data: {
-            full_name: `${existingStudent.firstName} ${existingStudent.lastName}`,
-            role: 'STUDENT',
-            admission_number: admissionNumber.toUpperCase().trim()
-          }
-        }
-      })
-
-      if (!authError && authData.user) {
-        userId = authData.user.id
-        supabaseProvisioned = true
-      } else if (authError) {
-        console.warn('Supabase student signUp returned an error:', authError.message)
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password: defaultStudentPassword
-        })
-        if (!signInError && signInData.user) {
-          userId = signInData.user.id
-          supabaseProvisioned = true
-        }
-      }
-    } catch (err) {
-      console.error('Supabase student activation failed.', err)
-    }
+  const authUser = await provisionAuthUser({
+    email: emailAddress,
+    password: defaultStudentPassword,
+    role: 'STUDENT',
+    fullName: `${existingStudent.firstName} ${existingStudent.lastName}`,
+    metadata: { admission_number: admissionNumber.toUpperCase().trim() },
+  })
+  if (authUser.error || !authUser.userId) return { error: authUser.error || 'Could not create or verify the Supabase student account.' }
+  if (existingStudent.userId && existingStudent.userId !== authUser.userId) {
+    await deleteAuthUserIfCreated(authUser.userId, authUser.created === true)
+    return { error: 'This admission number is already linked to another portal account.' }
   }
 
-  if (!supabaseProvisioned) return { error: 'Could not create or verify the Supabase student account.' }
+  const userId = authUser.userId
 
   try {
     await db.transaction(async (tx) => {
       const existingLocalUser = await tx.query.user.findFirst({
-        where: eq(userTable.email, email)
+        where: eq(userTable.email, emailAddress)
       })
 
       if (!existingLocalUser) {
         await tx.insert(userTable).values({
           id: userId,
-          email: email,
+          email: emailAddress,
           name: `${existingStudent.firstName} ${existingStudent.lastName}`,
         })
       }
@@ -403,6 +416,7 @@ export async function activateStudent(data: any) {
     return { success: true }
   } catch (dbError: any) {
     console.error('Activation DB link failed:', dbError)
+    await deleteAuthUserIfCreated(userId, authUser.created === true)
     return { error: 'Activation DB link failed' }
   }
 }
@@ -439,20 +453,11 @@ export async function loginStudent(data: any) {
     resolvedEmail = userRecord?.email || null
   }
 
-  if (!resolvedEmail && process.env.SUPABASE_SECRET_KEY) {
+  if (!resolvedEmail && getSupabaseSecretKey()) {
     try {
-      const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const supabaseServiceKey = process.env.SUPABASE_SECRET_KEY
+      const adminClient = authAdminClient()
 
-      if (supabaseUrl && supabaseServiceKey) {
-        const adminClient = createSupabaseAdminClient(supabaseUrl, supabaseServiceKey, {
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false
-          }
-        })
-
+      if (adminClient) {
         const { data: usersData, error: listError } = await adminClient.auth.admin.listUsers()
         if (!listError && usersData?.users) {
           const found = usersData.users.find((u: any) => {
@@ -478,6 +483,12 @@ export async function loginStudent(data: any) {
                 })
               }
 
+              await tx.insert(userRole).values({
+                id: randomUUID(),
+                userId: mappedUserId,
+                role: 'STUDENT',
+              }).onConflictDoNothing()
+
               if (!existingStudent.userId) {
                 await tx.update(student)
                   .set({ userId: resolvedUserId })
@@ -495,12 +506,10 @@ export async function loginStudent(data: any) {
   // Admissions imported by the school may not yet have an Auth identity. Provision a
   // non-mailbox portal identity on the first admission-number login; the learner can
   // replace the initial password from Settings after entering the portal.
-  if (!resolvedEmail && process.env.SUPABASE_SECRET_KEY && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  if (!resolvedEmail && getSupabaseSecretKey()) {
     try {
-      const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
-      const adminClient = createSupabaseAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      })
+      const adminClient = authAdminClient()
+      if (!adminClient) throw new Error('Supabase admin credentials are missing.')
       const portalEmail = `student.${admissionNumber.toLowerCase()}@portal.egia.local`
       const { data, error } = await adminClient.auth.admin.createUser({
         email: portalEmail, password: 'default', email_confirm: true,
@@ -541,8 +550,9 @@ export async function loginStudent(data: any) {
   const roleData = await db.query.userRole.findFirst({
     where: and(eq(userRole.userId, authData.user.id), eq(userRole.role, 'STUDENT'))
   })
+  const metadataRole = authData.user.user_metadata?.role?.toUpperCase()
 
-  if (!roleData) {
+  if (!roleData && metadataRole !== 'STUDENT') {
     await supabase.auth.signOut()
     return { error: 'Access denied. Your account is not configured as a student.' }
   }
@@ -556,7 +566,7 @@ export async function loginAdmin(data: any) {
   const { email, password } = data
 
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email,
+    email: normalizeEmail(email),
     password
   })
 
@@ -571,7 +581,10 @@ export async function loginAdmin(data: any) {
     where: and(eq(userRole.userId, userId), eq(userRole.role, 'ADMIN'))
   })
 
-  if (!roleData) return { error: 'Access denied' }
+  if (!roleData) {
+    await supabase.auth.signOut()
+    return { error: 'Access denied' }
+  }
 
   return { success: true }
 }
@@ -590,47 +603,26 @@ export async function registerParentTeacher(data: any) {
     childClass,
     profileImage
   } = data
+  const emailAddress = normalizeEmail(email)
 
   // Check if account already exists in database
   const existingUser = await db.query.user.findFirst({
-    where: eq(userTable.email, email)
+    where: eq(userTable.email, emailAddress)
   })
 
   if (existingUser) {
     return { error: 'Account already exists. An account with this email is already registered.' }
   }
 
-  const isDummySupabase = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')
-  let userId: any = randomUUID()
-  let supabaseSignedUp = false
+  const authUser = await provisionAuthUser({
+    email: emailAddress,
+    password,
+    role: 'PARENT',
+    fullName: `${firstName} ${lastName}`,
+  })
+  if (authUser.error || !authUser.userId) return { error: authUser.error || 'Could not create the Supabase account. Please try again.' }
 
-  if (isDummySupabase) return { error: 'Supabase authentication is not configured. Registration is unavailable until it is configured.' }
-
-  if (!isDummySupabase) {
-    try {
-      const cookieStore = await cookies()
-      const supabase = createClient(cookieStore)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: `${firstName} ${lastName}`,
-            role: 'PARENT'
-          }
-        }
-      })
-
-      if (!authError && authData.user) {
-        userId = authData.user.id
-        supabaseSignedUp = true
-      }
-    } catch (err) {
-      console.error('Supabase parent-teacher signup failed.', err)
-    }
-  }
-
-  if (!supabaseSignedUp) return { error: 'Could not create the Supabase account. Please try again.' }
+  const userId = authUser.userId
 
   try {
     const parentId = randomUUID()
@@ -644,7 +636,7 @@ export async function registerParentTeacher(data: any) {
       // 1. Insert Parent / Teacher User Row
       await tx.insert(userTable).values({
         id: userId,
-        email: email,
+        email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null
       })
@@ -717,6 +709,7 @@ export async function registerParentTeacher(data: any) {
     return { success: true, checkoutUrl: checkout.toString() }
   } catch (dbError: any) {
     console.error('DB Error in registerParentTeacher:', dbError)
+    await deleteAuthUserIfCreated(userId, authUser.created === true)
     return { error: 'Account creation failed in local database. Please contact support.' }
   }
 }

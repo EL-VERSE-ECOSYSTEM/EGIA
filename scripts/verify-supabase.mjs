@@ -1,4 +1,7 @@
 import postgres from 'postgres'
+import { setDefaultResultOrder } from 'node:dns'
+
+setDefaultResultOrder('ipv4first')
 
 function loadLocalEnvironment() {
   for (const file of ['.env', '.env.local']) {
@@ -28,6 +31,11 @@ async function main() {
   }
   if (['localhost', '127.0.0.1', '::1'].includes(databaseUrl.hostname)) {
     throw new Error('DATABASE_URL still points to a local database. Use the Supabase Session pooler URI from Dashboard → Connect.')
+  }
+  if (/^db\.[a-z0-9-]+\.supabase\.co$/i.test(databaseUrl.hostname)) {
+    throw new Error(
+      'DATABASE_URL points to the direct Supabase database host, which commonly requires IPv6. Use the Supabase Session pooler URI from Dashboard → Connect → Connection pooling for load-balanced IPv4-compatible app traffic.',
+    )
   }
 
   const authResponse = await fetch(new URL('/auth/v1/settings', supabaseUrl), {

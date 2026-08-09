@@ -1,0 +1,56 @@
+const isProduction = process.env.NODE_ENV === "production";
+
+export function getSupabaseUrl() {
+  const value = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!value) throw new Error("NEXT_PUBLIC_SUPABASE_URL is required.");
+  return value;
+}
+
+export function getSupabasePublishableKey() {
+  const value =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!value) {
+    throw new Error(
+      "A Supabase browser key is required. Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+    );
+  }
+
+  return value;
+}
+
+export function getSupabaseSecretKey() {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || null;
+}
+
+export function getSiteUrl() {
+  return (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+}
+
+export function isSupabaseConfigured() {
+  try {
+    getSupabaseUrl();
+    getSupabasePublishableKey();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+type SupabaseCookieOptions = {
+  path?: string;
+  sameSite?: "lax" | "strict" | "none" | boolean;
+  secure?: boolean;
+  [key: string]: unknown;
+};
+
+export function normalizeSupabaseCookieOptions(options: SupabaseCookieOptions = {}) {
+  return {
+    ...options,
+    path: options.path ?? "/",
+    sameSite: options.sameSite ?? "lax",
+    secure: options.secure ?? isProduction,
+  };
+}

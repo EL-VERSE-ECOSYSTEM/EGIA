@@ -61,7 +61,7 @@ export default function StudentSignUpPage() {
             Enter your admission number to portal access
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-10 pb-12">
+        <CardContent className="px-4 sm:px-10 pb-12">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-black rounded-2xl flex items-center gap-3">

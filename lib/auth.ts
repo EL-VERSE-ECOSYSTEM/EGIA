@@ -8,16 +8,21 @@ export const auth = {
   getSession: async () => {
     const cookieStore = await cookies()
     const supabase = createClient(cookieStore)
-    const { data: { session }, error } = await supabase.auth.getSession()
+    const { data: { user }, error } = await supabase.auth.getUser()
 
-    if (error || !session) {
+    if (error || !user) {
       return null
     }
 
-    const metadataRole = session.user.user_metadata?.role || null
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      return null
+    }
+
+    const metadataRole = user.user_metadata?.role || null
     const roleRecord = metadataRole ? null : await db.select()
       .from(userRole)
-      .where(eq(userRole.userId, session.user.id))
+      .where(eq(userRole.userId, user.id))
       .limit(1)
 
     const finalRole = metadataRole || roleRecord?.[0]?.role || null
@@ -25,10 +30,10 @@ export const auth = {
     return {
       ...session,
       user: {
-        ...session.user,
-        id: session.user.id,
-        email: session.user.email || '',
-        name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+        ...user,
+        id: user.id,
+        email: user.email || '',
+        name: user.user_metadata?.full_name || user.user_metadata?.name || '',
         role: finalRole
       }
     }

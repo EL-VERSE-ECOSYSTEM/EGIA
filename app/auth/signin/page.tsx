@@ -25,7 +25,7 @@ export default function SignInPage() {
     setLoading(true)
     setError(null)
 
-    let loginEmail = email.trim()
+    let loginEmail = email.trim().toLowerCase()
 
     if (selectedRole === 'STUDENT') {
       try {
@@ -107,7 +107,9 @@ export default function SignInPage() {
 
       try {
         const { getUserRole } = await import('@/app/actions/user')
-        const actualRole = (await getUserRole(signInData.user.id))?.toUpperCase()
+        const databaseRole = (await getUserRole(signInData.user.id))?.toUpperCase()
+        const metadataRole = (signInData.user.user_metadata?.role || '').toUpperCase()
+        const actualRole = databaseRole || metadataRole
         const selectedRoleUpper = selectedRole.toUpperCase()
 
         if (actualRole !== selectedRoleUpper) {

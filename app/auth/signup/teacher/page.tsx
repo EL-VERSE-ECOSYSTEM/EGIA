@@ -125,7 +125,7 @@ export default function TeacherSignUpPage() {
             Join our team of excellence as a Full-time or Part-time Teacher
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-10 pb-12">
+        <CardContent className="px-4 sm:px-10 pb-12">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-black rounded-2xl flex items-center gap-3">
@@ -172,7 +172,7 @@ export default function TeacherSignUpPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">First Name</Label>
                 <Input
@@ -222,7 +222,7 @@ export default function TeacherSignUpPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="type" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Employment Type</Label>
                 <select
@@ -252,7 +252,7 @@ export default function TeacherSignUpPage() {
             {/* Classes handling selection */}
             <div className="space-y-3">
               <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Classes Currently Handling</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {classesList.map(cls => (
                   <button
                     key={cls}
