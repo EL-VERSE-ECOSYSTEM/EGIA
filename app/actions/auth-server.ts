@@ -35,6 +35,21 @@ function isDuplicateSignup(user: SupabaseUser | null, error?: { message?: string
   )
 }
 
+async function findAuthUserByEmail(adminClient: ReturnType<typeof authAdminClient>, email: string) {
+  if (!adminClient) return null
+
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 })
+    if (error) throw error
+
+    const found = data.users.find((user) => user.email?.toLowerCase() === email)
+    if (found) return found
+    if (data.users.length < 1000) return null
+  }
+
+  return null
+}
+
 async function provisionAuthUser(params: {
   email: string
   password: string
@@ -53,6 +68,48 @@ async function provisionAuthUser(params: {
     ...params.metadata,
     full_name: params.fullName,
     role: params.role,
+  }
+
+  const adminClient = authAdminClient()
+  if (adminClient) {
+    try {
+      const createResult = await withCircuitBreaker('supabase-auth-admin', () =>
+        adminClient.auth.admin.createUser({
+          email,
+          password: params.password,
+          email_confirm: true,
+          user_metadata: metadata,
+        }),
+      )
+
+      if (!createResult.error && createResult.data.user) {
+        return { userId: createResult.data.user.id, email, created: true }
+      }
+
+      if (!isDuplicateSignup(null, createResult.error)) {
+        return { error: createResult.error?.message || 'Could not create the Supabase account. Please try again.' }
+      }
+
+      const existingUser = await withCircuitBreaker('supabase-auth-admin', () => findAuthUserByEmail(adminClient, email))
+      if (!existingUser) {
+        return { error: 'A Supabase Auth account already exists, but it could not be loaded for profile linking.' }
+      }
+
+      const updateResult = await withCircuitBreaker('supabase-auth-admin', () =>
+        adminClient.auth.admin.updateUserById(existingUser.id, {
+          password: params.password,
+          user_metadata: { ...existingUser.user_metadata, ...metadata },
+        }),
+      )
+
+      if (updateResult.error) {
+        return { error: updateResult.error.message }
+      }
+
+      return { userId: existingUser.id, email, created: false }
+    } catch (error: any) {
+      return { error: error?.message || 'Supabase authentication is temporarily unavailable.' }
+    }
   }
 
   let signUpResult
@@ -555,6 +612,65 @@ export async function loginStudent(data: any) {
   if (!roleData && metadataRole !== 'STUDENT') {
     await supabase.auth.signOut()
     return { error: 'Access denied. Your account is not configured as a student.' }
+  }
+
+  return { success: true }
+}
+
+export async function loginRole(data: {
+  identifier: string
+  password: string
+  role: Exclude<AuthRole, 'STUDENT'>
+}) {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  const selectedRole = data.role?.toUpperCase() as Exclude<AuthRole, 'STUDENT'>
+  const identifier = (data.identifier || '').trim()
+
+  if (!identifier || !data.password) {
+    return { error: 'Email or staff ID and password are required.' }
+  }
+
+  if (!['ADMIN', 'TEACHER', 'PARENT'].includes(selectedRole)) {
+    return { error: 'Unsupported login role.' }
+  }
+
+  let email = normalizeEmail(identifier)
+
+  if (selectedRole === 'TEACHER' && identifier.toUpperCase().startsWith('EGIA-ST')) {
+    const teacherProfile = await db.query.teacher.findFirst({
+      where: eq(teacher.staffCode, identifier.toUpperCase()),
+      with: { user: true },
+    })
+
+    if (!teacherProfile?.user?.email) {
+      return { error: `No staff found with Staff ID '${identifier.toUpperCase()}'.` }
+    }
+
+    email = normalizeEmail(teacherProfile.user.email)
+  }
+
+  let signInResult
+  try {
+    signInResult = await withCircuitBreaker('supabase-auth', () =>
+      supabase.auth.signInWithPassword({ email, password: data.password }),
+    )
+  } catch (error: any) {
+    return { error: error?.message || 'Supabase authentication is temporarily unavailable.' }
+  }
+
+  if (signInResult.error) return { error: signInResult.error.message }
+  if (!signInResult.data.user) return { error: 'Sign-in failed. Please try again.' }
+
+  const userId = signInResult.data.user.id
+  const metadataRole = signInResult.data.user.user_metadata?.role?.toUpperCase()
+  const roleData = await db.query.userRole.findFirst({
+    where: and(eq(userRole.userId, userId), eq(userRole.role, selectedRole)),
+  })
+
+  if (!roleData && metadataRole !== selectedRole) {
+    await supabase.auth.signOut()
+    return { error: `Unauthorized: You do not have the registered role of '${selectedRole}' on this account.` }
   }
 
   return { success: true }

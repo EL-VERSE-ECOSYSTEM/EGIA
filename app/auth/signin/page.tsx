@@ -1,14 +1,13 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GraduationCap, Loader2, AlertCircle } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
+import { loginRole, loginStudent } from '@/app/actions/auth-server'
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
@@ -16,8 +15,6 @@ export default function SignInPage() {
   const [selectedRole, setSelectedRole] = useState<'STUDENT' | 'TEACHER' | 'PARENT' | 'ADMIN'>('PARENT')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
-  const supabase = createClient()
   const requiresPassword = selectedRole !== 'STUDENT'
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -25,11 +22,8 @@ export default function SignInPage() {
     setLoading(true)
     setError(null)
 
-    let loginEmail = email.trim().toLowerCase()
-
     if (selectedRole === 'STUDENT') {
       try {
-        const { loginStudent } = await import('@/app/actions/auth-server')
         const result = await loginStudent({ admissionNumber: email.toUpperCase().trim() })
         if (result.error) {
           setError(result.error)
@@ -48,86 +42,17 @@ export default function SignInPage() {
       }
     }
 
-    if (selectedRole === 'TEACHER' && email.toUpperCase().startsWith('EGIA-ST')) {
-      try {
-        const { getStaffEmailByStaffId } = await import('@/app/actions/user')
-        const resolvedEmail = await getStaffEmailByStaffId(email.toUpperCase().trim())
-        if (!resolvedEmail) {
-          setError(`No staff found with Staff ID '${email.toUpperCase()}'`)
-          setLoading(false)
-          return
-        }
-        loginEmail = resolvedEmail
-      } catch (err) {
-        console.error('Staff ID email lookup failed:', err)
-        setError('Database connection error during Staff ID lookup.')
-        setLoading(false)
-        return
-      }
-    }
-
-    if (selectedRole === 'ADMIN') {
-      try {
-        const { loginAdmin } = await import('@/app/actions/auth-server')
-        const result = await loginAdmin({ email: loginEmail, password })
-        if (result.success) {
-          setLoading(false)
-          window.location.href = '/dashboard-redirect'
-          return
-        }
-
-        setError(result.error || 'Admin login verification failed.')
-        setLoading(false)
-        return
-      } catch (adminErr: any) {
-        console.error('Admin login process failed:', adminErr)
-        setError('Admin authentication error.')
-        setLoading(false)
-        return
-      }
-    }
-
     try {
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
+      const result = await loginRole({
+        identifier: email,
         password,
+        role: selectedRole,
       })
 
-      if (signInError) {
-        setError(signInError.message)
+      if (result.error) {
+        setError(result.error)
         setLoading(false)
         return
-      }
-
-      if (!signInData?.user) {
-        setError('Sign-in failed. Please try again.')
-        setLoading(false)
-        return
-      }
-
-      try {
-        const { getUserRole } = await import('@/app/actions/user')
-        const databaseRole = (await getUserRole(signInData.user.id))?.toUpperCase()
-        const metadataRole = (signInData.user.user_metadata?.role || '').toUpperCase()
-        const actualRole = databaseRole || metadataRole
-        const selectedRoleUpper = selectedRole.toUpperCase()
-
-        if (actualRole !== selectedRoleUpper) {
-          await supabase.auth.signOut()
-          setError(`Unauthorized: You do not have the registered role of '${selectedRole}' on this account.`)
-          setLoading(false)
-          return
-        }
-      } catch (dbError) {
-        console.error('Role verification failed:', dbError)
-        const metadataRole = (signInData.user.user_metadata?.role || '').toUpperCase()
-        const selectedRoleUpper = selectedRole.toUpperCase()
-        if (metadataRole !== selectedRoleUpper) {
-          await supabase.auth.signOut()
-          setError(`Unauthorized: You do not have the registered role of '${selectedRole}' on this account.`)
-          setLoading(false)
-          return
-        }
       }
 
       setLoading(false)

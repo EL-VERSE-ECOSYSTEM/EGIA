@@ -23,6 +23,17 @@ function withSecurityHeaders(res: NextResponse) {
   return res
 }
 
+function copyCookies(from: NextResponse, to: NextResponse) {
+  from.cookies.getAll().forEach((cookie) => {
+    to.cookies.set(cookie)
+  })
+  return to
+}
+
+function redirectWithSessionCookies(url: URL, sessionResponse: NextResponse) {
+  return withSecurityHeaders(copyCookies(sessionResponse, NextResponse.redirect(url)))
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
@@ -101,7 +112,7 @@ export async function proxy(request: NextRequest) {
   if (!isAuthenticated && !isPublicRoute && !pathname.startsWith('/api/') && !isPDFBypass) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/signin'
-    return withSecurityHeaders(NextResponse.redirect(url))
+    return redirectWithSessionCookies(url, response)
   }
 
   // To prevent infinite redirect loop (ERR_TOO_MANY_REDIRECTS) when dashboard loading has errors,
@@ -110,7 +121,7 @@ export async function proxy(request: NextRequest) {
 
   // If already logged in and hitting signin/signup, go to dashboard
   if (isAuthenticated && !hasErrorParam && (pathname === '/auth/signin' || pathname === '/auth/signup')) {
-    return withSecurityHeaders(NextResponse.redirect(new URL('/dashboard-redirect', request.url)))
+    return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
   }
 
   // Protect role-specific sub-dashboards
@@ -118,16 +129,16 @@ export async function proxy(request: NextRequest) {
     const role = (user?.user_metadata?.role || '').toUpperCase()
 
     if (pathname.startsWith('/dashboard/admin') && role !== 'ADMIN') {
-      return withSecurityHeaders(NextResponse.redirect(new URL('/dashboard-redirect', request.url)))
+      return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
     }
     if (pathname.startsWith('/dashboard/teacher') && role !== 'TEACHER') {
-      return withSecurityHeaders(NextResponse.redirect(new URL('/dashboard-redirect', request.url)))
+      return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
     }
     if (pathname.startsWith('/dashboard/parent') && role !== 'PARENT') {
-      return withSecurityHeaders(NextResponse.redirect(new URL('/dashboard-redirect', request.url)))
+      return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
     }
     if (pathname.startsWith('/dashboard/student') && role !== 'STUDENT') {
-      return withSecurityHeaders(NextResponse.redirect(new URL('/dashboard-redirect', request.url)))
+      return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
     }
   }
 

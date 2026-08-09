@@ -24,7 +24,11 @@ async function main() {
 
   const supabaseUrl = new URL(required('NEXT_PUBLIC_SUPABASE_URL'))
   const publishableKey = required('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY')
-  const databaseUrl = new URL(required('DATABASE_URL'))
+  const databaseUrl = new URL(
+    process.env.SUPABASE_DATABASE_POOLER_URL ||
+    process.env.POSTGRES_URL ||
+    required('DATABASE_URL'),
+  )
 
   if (!supabaseUrl.hostname.endsWith('.supabase.co')) {
     throw new Error('NEXT_PUBLIC_SUPABASE_URL must point to a hosted Supabase project.')
@@ -34,7 +38,7 @@ async function main() {
   }
   if (/^db\.[a-z0-9-]+\.supabase\.co$/i.test(databaseUrl.hostname)) {
     throw new Error(
-      'DATABASE_URL points to the direct Supabase database host, which commonly requires IPv6. Use the Supabase Session pooler URI from Dashboard → Connect → Connection pooling for load-balanced IPv4-compatible app traffic.',
+      'The configured database URL points to the direct Supabase database host, which commonly requires IPv6. Set SUPABASE_DATABASE_POOLER_URL to the Supabase Session pooler URI from Dashboard → Connect → Connection pooling.',
     )
   }
 

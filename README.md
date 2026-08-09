@@ -158,7 +158,7 @@ Set Korapay's checkout redirect URL to `https://goodnews-app-mu.vercel.app/payme
 
 ## Supabase configuration
 
-The app uses Supabase Auth and Supabase Postgres. Copy `.env.example` to `.env.local`, then set `DATABASE_URL` to the Supabase **Session pooler** URI from Dashboard → Connect. Do not use a local PostgreSQL URL in a deployed environment.
+The app uses Supabase Auth and Supabase Postgres. Copy `.env.example` to `.env.local`, then set `SUPABASE_DATABASE_POOLER_URL` to the Supabase **Session pooler** URI from Dashboard → Connect → Connection pooling. `DATABASE_URL` remains supported as a fallback, but production must not use the direct `db.<project>.supabase.co` database host.
 
 Apply the SQL files in `supabase/migrations/` to the connected Supabase project, in filename order. The access migration grants the server-only service role its required Data API permissions while leaving browser access limited to the public subject catalogue.
 
@@ -181,6 +181,7 @@ attendance. Add these Vercel environment variables before deploying:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=             # server-only; never prefix with NEXT_PUBLIC_
+SUPABASE_DATABASE_POOLER_URL=          # Supabase Session pooler URI, sslmode=require
 SUPABASE_WEBHOOK_SECRET=               # required by /api/webhooks/supabase
 NEXT_PUBLIC_APP_URL=
 ```
