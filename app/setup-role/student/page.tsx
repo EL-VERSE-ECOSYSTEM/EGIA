@@ -19,6 +19,12 @@ export default function StudentSetupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!formData.class) {
+      alert('Please select your allocated class to complete setup.')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -73,7 +79,7 @@ export default function StudentSetupPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-bold text-orange-100">Class Allocation</label>
-              <Select required value={formData.class} onValueChange={(value) => setFormData({ ...formData, class: value })}>
+              <Select value={formData.class} onValueChange={(value) => setFormData({ ...formData, class: value })}>
                 <SelectTrigger className="border-slate-700 bg-slate-800 text-white h-12">
                   <SelectValue placeholder="Select your class" />
                 </SelectTrigger>

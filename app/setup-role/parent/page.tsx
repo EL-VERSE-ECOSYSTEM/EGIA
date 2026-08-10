@@ -21,6 +21,12 @@ export default function ParentSetupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!formData.relationship) {
+      alert('Please select your relationship (Father, Mother, Guardian, or Other) to complete setup.')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -88,7 +94,7 @@ export default function ParentSetupPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-bold text-emerald-100">Relationship</label>
-              <Select required value={formData.relationship} onValueChange={(value) => setFormData({ ...formData, relationship: value })}>
+              <Select value={formData.relationship} onValueChange={(value) => setFormData({ ...formData, relationship: value })}>
                 <SelectTrigger className="border-slate-700 bg-slate-800 text-white h-12">
                   <SelectValue placeholder="Select relationship" />
                 </SelectTrigger>
