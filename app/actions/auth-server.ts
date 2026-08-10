@@ -478,10 +478,25 @@ export async function activateStudent(data: any) {
   }
 }
 
+export async function checkStudentPasswordRequirement(admissionNumber: string) {
+  const cleanNumber = (admissionNumber || '').toString().toUpperCase().trim()
+  if (!cleanNumber) return { requiresPassword: false }
+
+  const existingStudent = await db.query.student.findFirst({
+    where: eq(student.admissionNumber, cleanNumber)
+  })
+
+  if (!existingStudent) return { requiresPassword: false }
+
+  const hasCustomPassword = existingStudent.password && existingStudent.password !== 'default'
+  return { requiresPassword: !!hasCustomPassword }
+}
+
 export async function loginStudent(data: any) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
   const admissionNumber = (data.admissionNumber || '').toString().toUpperCase().trim()
+  const userPassword = data.password
 
   if (!admissionNumber) {
     return { error: 'Please provide a valid admission number.' }
@@ -497,6 +512,11 @@ export async function loginStudent(data: any) {
 
   if (existingStudent.registrationStatus === 'PENDING_PAYMENT') {
     return { error: 'Your ₦2,000 registration payment is awaiting Korapay confirmation. Please complete checkout or contact support.' }
+  }
+
+  const hasCustomPassword = existingStudent.password && existingStudent.password !== 'default'
+  if (hasCustomPassword && !userPassword) {
+    return { error: 'Password is required for this account.' }
   }
 
   let resolvedEmail: string | null = null
@@ -590,7 +610,7 @@ export async function loginStudent(data: any) {
     return { error: 'Student admission exists, but portal provisioning is unavailable. Please contact support.' }
   }
 
-  const loginPassword = existingStudent.password || 'default'
+  const loginPassword = userPassword || existingStudent.password || 'default'
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
     password: loginPassword
