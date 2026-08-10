@@ -5,7 +5,7 @@
 
 -- 1. EZEAKO SAMUEL CHIBUEZE SETUP (STUDENT: EGIA-S-00998)
 -- Insert core user row
-INSERT INTO public."user" (id, email, name, "createdAt", "updatedAt")
+INSERT INTO public."user" (id, email, name, createdat, updatedat)
 VALUES (
   'user-samuel-00998',
   'samuel012@gmail.com',
@@ -15,17 +15,17 @@ VALUES (
 ) ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name;
 
 -- Insert user role
-INSERT INTO public.user_role (id, "userId", role)
+INSERT INTO public.user_role (id, userid, role)
 VALUES (
   'role-samuel-00998',
   'user-samuel-00998',
   'STUDENT'
-) ON CONFLICT ("userId") DO UPDATE SET role = EXCLUDED.role;
+) ON CONFLICT (userid) DO UPDATE SET role = EXCLUDED.role;
 
 -- Insert student profile record with WhatsApp phone number & resume options
 INSERT INTO public.student (
   id,
-  "userId",
+  userid,
   firstname,
   lastname,
   dateofbirth,
@@ -33,8 +33,8 @@ INSERT INTO public.student (
   admissionnumber,
   password,
   registrationstatus,
-  "createdAt",
-  "updatedAt"
+  createdat,
+  updatedat
 ) VALUES (
   'student-samuel-00998',
   'user-samuel-00998',
@@ -48,7 +48,7 @@ INSERT INTO public.student (
   NOW(),
   NOW()
 ) ON CONFLICT (admissionnumber) DO UPDATE SET
-  "userId" = EXCLUDED."userId",
+  userid = EXCLUDED.userid,
   dateofbirth = EXCLUDED.dateofbirth,
   class = EXCLUDED.class,
   password = EXCLUDED.password,
@@ -57,7 +57,7 @@ INSERT INTO public.student (
 
 -- 2. JEREMIAH IDAGHOSA CLEMENT SETUP (STUDENT: EGIA-S-00997)
 -- Insert core user row
-INSERT INTO public."user" (id, email, name, "createdAt", "updatedAt")
+INSERT INTO public."user" (id, email, name, createdat, updatedat)
 VALUES (
   'user-jeremiah-00997',
   'sophieadesuwa6@gmail.com',
@@ -67,17 +67,17 @@ VALUES (
 ) ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name;
 
 -- Insert user role
-INSERT INTO public.user_role (id, "userId", role)
+INSERT INTO public.user_role (id, userid, role)
 VALUES (
   'role-jeremiah-00997',
   'user-jeremiah-00997',
   'STUDENT'
-) ON CONFLICT ("userId") DO UPDATE SET role = EXCLUDED.role;
+) ON CONFLICT (userid) DO UPDATE SET role = EXCLUDED.role;
 
 -- Insert student profile record with WhatsApp phone number & resume options
 INSERT INTO public.student (
   id,
-  "userId",
+  userid,
   firstname,
   lastname,
   dateofbirth,
@@ -85,8 +85,8 @@ INSERT INTO public.student (
   admissionnumber,
   password,
   registrationstatus,
-  "createdAt",
-  "updatedAt"
+  createdat,
+  updatedat
 ) VALUES (
   'student-jeremiah-00997',
   'user-jeremiah-00997',
@@ -100,7 +100,7 @@ INSERT INTO public.student (
   NOW(),
   NOW()
 ) ON CONFLICT (admissionnumber) DO UPDATE SET
-  "userId" = EXCLUDED."userId",
+  userid = EXCLUDED.userid,
   dateofbirth = EXCLUDED.dateofbirth,
   class = EXCLUDED.class,
   password = EXCLUDED.password,
