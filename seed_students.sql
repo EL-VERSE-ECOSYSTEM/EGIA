@@ -54,32 +54,25 @@ INSERT INTO public.student (
   'EGIA-S-00998',
   'default', -- Default password, can log in with admission number and set password later
   'ACTIVE', -- Set as ACTIVE so they can bypass payment checkout
-  '{
-    "department": "COMMERCIAL",
-    "core_subjects": [
-      {"name": "Mathematics", "code": "MATH-SSS", "compulsory": true, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "English Language", "code": "ENG-SSS", "compulsory": true, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Biology", "code": "BIO-SSS", "compulsory": true, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Civic Education", "code": "CIV-SSS", "compulsory": true, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Data Processing", "code": "DAT-SSS", "compulsory": true, "level": "SENIOR", "department": "COMMERCIAL"}
-    ],
-    "elective_subjects": [
-      {"name": "Commerce", "code": "COM-SSS", "compulsory": false, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Financial Accounting", "code": "ACC-SSS", "compulsory": false, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Economics", "code": "ECO-SSS", "compulsory": false, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Government", "code": "GOV-SSS", "compulsory": false, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Literature in English", "code": "LIT-SSS", "compulsory": false, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Yoruba", "code": "YOR-SSS", "compulsory": false, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Christian Religious Studies", "code": "CRS-SSS", "compulsory": false, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Geography", "code": "GEO-SSS", "compulsory": false, "level": "SENIOR", "department": "COMMERCIAL"}
-    ],
-    "trade_subjects": [
-      {"name": "Business Studies", "code": "BUS-SSS", "compulsory": false, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Insurance", "code": "INS-SSS", "compulsory": false, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Office Practice", "code": "OFF-SSS", "compulsory": false, "level": "SENIOR", "department": "COMMERCIAL"},
-      {"name": "Book Keeping", "code": "BOK-SSS", "compulsory": false, "level": "SENIOR", "department": "COMMERCIAL"}
-    ]
-  }'::jsonb,
+  '[
+    "Mathematics",
+    "English Language",
+    "Biology",
+    "Civic Education",
+    "Data Processing",
+    "Commerce",
+    "Financial Accounting",
+    "Economics",
+    "Government",
+    "Literature in English",
+    "Yoruba",
+    "Christian Religious Studies",
+    "Geography",
+    "Business Studies",
+    "Insurance",
+    "Office Practice",
+    "Book Keeping"
+  ]'::jsonb,
   NOW(),
   NOW()
 );
