@@ -7,10 +7,10 @@ import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import type { RealtimeTable } from "@/types/database.types";
 
 const tablesByRole: Record<string, RealtimeTable[]> = {
-  student: ["assessment", "assessment_result", "notification", "attendance_record", "book", "book_borrowing"],
-  teacher: ["assessment", "assessment_result", "attendance_record", "message", "notification"],
-  parent: ["assessment_result", "payment", "message", "notification", "attendance_record"],
-  admin: ["student", "teacher", "parent", "assessment", "assessment_result", "payment", "notification", "book"],
+  student: ["assessment", "assessment_result", "notification", "attendance", "library_books", "book_borrowing"],
+  teacher: ["assessment", "assessment_result", "attendance", "message", "notification"],
+  parent: ["assessment_result", "payment", "message", "notification", "attendance"],
+  admin: ["student", "teacher", "parent", "assessment", "assessment_result", "payment", "notification", "library_books"],
 };
 
 function TableSync({ table, refresh }: { table: RealtimeTable; refresh: () => void }) {

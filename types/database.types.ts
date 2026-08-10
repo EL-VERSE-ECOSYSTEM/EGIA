@@ -28,7 +28,7 @@ type PublicTable = {
 
 export type RealtimeTable =
   | "user" | "student" | "teacher" | "parent" | "assessment" | "assessment_result"
-  | "payment" | "message" | "notification" | "book" | "attendance_record"
+  | "payment" | "message" | "notification" | "library_books" | "attendance"
   | "dispute" | "support_ticket" | "fee_structure" | "cbt_attempt" | "book_borrowing";
 
 type Tables = { [K in RealtimeTable]: PublicTable } & Record<string, PublicTable>;
