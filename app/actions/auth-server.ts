@@ -611,10 +611,60 @@ export async function loginStudent(data: any) {
   }
 
   const loginPassword = userPassword || existingStudent.password || 'default'
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+  let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
     password: loginPassword
   })
+
+  // Auto-provision or sync seeded student account in Supabase Auth if it exists on Postgres DB but not Auth
+  if (authError && getSupabaseSecretKey()) {
+    try {
+      const adminClient = authAdminClient()
+      if (adminClient) {
+        const existingAuthUser = await findAuthUserByEmail(adminClient, resolvedEmail)
+        if (!existingAuthUser) {
+          console.log(`[Auth] Auto-provisioning seeded student ${resolvedEmail} in Supabase Auth...`)
+          const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+            email: resolvedEmail,
+            password: loginPassword,
+            email_confirm: true,
+            user_metadata: {
+              full_name: `${existingStudent.firstName} ${existingStudent.lastName}`,
+              role: 'STUDENT',
+              admission_number: admissionNumber
+            }
+          })
+          if (!createError && created.user) {
+            const retry = await supabase.auth.signInWithPassword({
+              email: resolvedEmail,
+              password: loginPassword
+            })
+            authData = retry.data
+            authError = retry.error
+          }
+        } else {
+          console.log(`[Auth] Syncing password for student ${resolvedEmail} in Supabase Auth...`)
+          const { error: updateError } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
+            password: loginPassword,
+            user_metadata: {
+              ...existingAuthUser.user_metadata,
+              admission_number: admissionNumber
+            }
+          })
+          if (!updateError) {
+            const retry = await supabase.auth.signInWithPassword({
+              email: resolvedEmail,
+              password: loginPassword
+            })
+            authData = retry.data
+            authError = retry.error
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Could not auto-provision/sync Supabase Auth record on login:', err)
+    }
+  }
 
   if (authError) {
     return { error: authError.message }
@@ -677,6 +727,50 @@ export async function loginRole(data: {
     )
   } catch (error: any) {
     return { error: error?.message || 'Supabase authentication is temporarily unavailable.' }
+  }
+
+  // Auto-provision or sync Parent/Teacher/Admin accounts in Supabase Auth if it exists on Postgres DB but not Auth
+  if (signInResult.error && getSupabaseSecretKey()) {
+    try {
+      const adminClient = authAdminClient()
+      if (adminClient) {
+        const existingAuthUser = await findAuthUserByEmail(adminClient, email)
+        const dbUser = await db.query.user.findFirst({
+          where: eq(userTable.email, email)
+        })
+        if (dbUser) {
+          if (!existingAuthUser) {
+            console.log(`[Auth] Auto-provisioning seeded ${selectedRole} ${email} in Supabase...`)
+            const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+              email,
+              password: data.password,
+              email_confirm: true,
+              user_metadata: {
+                full_name: dbUser.name || 'User',
+                role: selectedRole
+              }
+            })
+            if (!createError && created.user) {
+              signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
+            }
+          } else {
+            console.log(`[Auth] Syncing password for seeded ${selectedRole} ${email} in Supabase...`)
+            const { error: updateError } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
+              password: data.password,
+              user_metadata: {
+                ...existingAuthUser.user_metadata,
+                role: selectedRole
+              }
+            })
+            if (!updateError) {
+              signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Could not auto-provision/sync Parent/Teacher Supabase Auth record on login:', err)
+    }
   }
 
   if (signInResult.error) return { error: signInResult.error.message }
