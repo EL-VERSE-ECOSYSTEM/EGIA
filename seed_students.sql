@@ -1,7 +1,13 @@
 -- =====================================================================
 -- EL GOODNEWS INT'L ACADEMY - SEED DATA FOR AUTOMATED LOGIN ACCOUNTS
 -- Handles Ezeako Samuel Chibueze and Jeremiah Idaghosa Clement setup.
+-- Includes exact and complete lists of enrolled academic subjects.
 -- =====================================================================
+
+-- 0. CLEANSE PRE-EXISTING SEED RECORDS TO PREVENT CONSTRAINT CONFLICTS
+DELETE FROM public.student WHERE admissionnumber IN ('EGIA-S-00998', 'EGIA-S-00997');
+DELETE FROM public.user_role WHERE userid IN ('user-samuel-00998', 'user-jeremiah-00997');
+DELETE FROM public."user" WHERE email IN ('samuel012@gmail.com', 'sophieadesuwa6@gmail.com');
 
 -- 1. EZEAKO SAMUEL CHIBUEZE SETUP (STUDENT: EGIA-S-00998)
 -- Insert core user row
@@ -12,7 +18,7 @@ VALUES (
   'Ezeako Samuel Chibueze',
   NOW(),
   NOW()
-) ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name;
+);
 
 -- Insert user role
 INSERT INTO public.user_role (id, userid, role)
@@ -20,7 +26,7 @@ VALUES (
   'role-samuel-00998',
   'user-samuel-00998',
   'STUDENT'
-) ON CONFLICT (userid) DO UPDATE SET role = EXCLUDED.role;
+);
 
 -- Insert student profile record with WhatsApp phone number & resume options
 INSERT INTO public.student (
@@ -30,9 +36,11 @@ INSERT INTO public.student (
   lastname,
   dateofbirth,
   class,
+  department,
   admissionnumber,
   password,
   registrationstatus,
+  subjectsdone,
   createdat,
   updatedat
 ) VALUES (
@@ -42,17 +50,32 @@ INSERT INTO public.student (
   'Ezeako',
   '2011-04-20',
   'SSS2',
+  'COMMERCIAL',
   'EGIA-S-00998',
   'default', -- Default password, can log in with admission number and set password later
   'ACTIVE', -- Set as ACTIVE so they can bypass payment checkout
+  '[
+    "Mathematics",
+    "English Language",
+    "Biology",
+    "Civic Education",
+    "Data Processing",
+    "Commerce",
+    "Financial Accounting",
+    "Economics",
+    "Government",
+    "Literature in English",
+    "Yoruba",
+    "Christian Religious Studies",
+    "Geography",
+    "Business Studies",
+    "Insurance",
+    "Office Practice",
+    "Book Keeping"
+  ]'::jsonb,
   NOW(),
   NOW()
-) ON CONFLICT (admissionnumber) DO UPDATE SET
-  userid = EXCLUDED.userid,
-  dateofbirth = EXCLUDED.dateofbirth,
-  class = EXCLUDED.class,
-  password = EXCLUDED.password,
-  registrationstatus = EXCLUDED.registrationstatus;
+);
 
 
 -- 2. JEREMIAH IDAGHOSA CLEMENT SETUP (STUDENT: EGIA-S-00997)
@@ -64,7 +87,7 @@ VALUES (
   'Jeremiah Idaghosa Clement',
   NOW(),
   NOW()
-) ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name;
+);
 
 -- Insert user role
 INSERT INTO public.user_role (id, userid, role)
@@ -72,7 +95,7 @@ VALUES (
   'role-jeremiah-00997',
   'user-jeremiah-00997',
   'STUDENT'
-) ON CONFLICT (userid) DO UPDATE SET role = EXCLUDED.role;
+);
 
 -- Insert student profile record with WhatsApp phone number & resume options
 INSERT INTO public.student (
@@ -85,6 +108,7 @@ INSERT INTO public.student (
   admissionnumber,
   password,
   registrationstatus,
+  subjectsdone,
   createdat,
   updatedat
 ) VALUES (
@@ -97,11 +121,21 @@ INSERT INTO public.student (
   'EGIA-S-00997',
   'default', -- Default password, can log in with admission number and set password later
   'ACTIVE', -- Set as ACTIVE so they can bypass payment checkout
+  '[
+    "Mathematics",
+    "English Studies",
+    "Basic Science",
+    "Basic Technology",
+    "Social Studies",
+    "Civic Education",
+    "Christian Religious Studies",
+    "Business Studies",
+    "Computer Studies",
+    "French",
+    "Yoruba",
+    "Cultural and Creative Arts",
+    "Physical and Health Education"
+  ]'::jsonb,
   NOW(),
   NOW()
-) ON CONFLICT (admissionnumber) DO UPDATE SET
-  userid = EXCLUDED.userid,
-  dateofbirth = EXCLUDED.dateofbirth,
-  class = EXCLUDED.class,
-  password = EXCLUDED.password,
-  registrationstatus = EXCLUDED.registrationstatus;
+);
