@@ -32,13 +32,17 @@ export default async function AdminOverviewPage() {
 
   const pendingCardsCount = reportCards.filter(c => c.status === 'PENDING').length
 
-  // Live messaging filter violations (Simulated real-time log)
-  const moderationViolations = [
-    { id: 'v-1', user: 'Chinedu Okafor (Student)', type: 'WhatsApp Block', message: 'Send me your whatsapp number on +234803920192', time: '5m ago' },
-    { id: 'v-2', user: 'Tunde Alao (Student)', type: 'Vernacular Block', message: 'Wetin u dey do, abi you don shayo', time: '12m ago' },
-    { id: 'v-3', user: 'Precious Eze (Parent)', type: 'Foul Language Block', message: 'You are an idiot for saying that', time: '30m ago' },
-    { id: 'v-4', user: 'Amara Nwachukwu (Student)', type: 'Love Chat Block', message: 'I really love you babe, let\'s date', time: '1h ago' }
-  ]
+  // Render real live audit logs/violations from the database!
+  const liveAuditLogs = auditLogs.map((log) => {
+    const details = log.details as Record<string, any> || {}
+    return {
+      id: log.id,
+      user: log.userId || 'System',
+      type: log.action || 'Database Operation',
+      message: details.message || details.reason || `Operated on ${log.resource} (ID: ${log.resourceId || 'N/A'})`,
+      time: new Date(log.createdAt).toLocaleDateString(undefined, { dateStyle: 'short', timeStyle: 'short' })
+    }
+  })
 
   const stats = [
     { label: 'Total Students', value: statsData.totalStudents.toLocaleString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-100', trend: '+12%', up: true },
@@ -153,13 +157,13 @@ export default async function AdminOverviewPage() {
         <Card className="border-none shadow-xl rounded-[2.5rem] bg-white overflow-hidden">
           <CardHeader className="p-10 pb-6 border-b border-slate-50">
             <CardTitle className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <Clock className="text-red-500 animate-pulse" /> Real-time Chat Censorship Monitor
+              <Clock className="text-red-500 animate-pulse" /> Real-time Audit & Censorship Monitor
             </CardTitle>
-            <p className="text-sm font-bold text-slate-400 mt-1">Live audit stream of automatically blocked messages matching strict moderation filters (WhatsApp, Love Chats, Foul Language, Vernacular)</p>
+            <p className="text-sm font-bold text-slate-400 mt-1">Live audit stream of automatically logged events and blocked content matching moderation filters (WhatsApp, Foul Language, Vernacular)</p>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-slate-100">
-              {moderationViolations.map((v) => (
+              {liveAuditLogs.length > 0 ? liveAuditLogs.map((v) => (
                 <div key={v.id} className="p-8 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
                   <div className="space-y-1">
                     <p className="font-black text-slate-900">{v.user}</p>
@@ -174,7 +178,11 @@ export default async function AdminOverviewPage() {
                     <span className="text-xs font-bold text-slate-400">{v.time}</span>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="p-12 text-center text-slate-400 font-medium">
+                  No recent audit logs or censorship violations logged.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

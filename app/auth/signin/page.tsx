@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GraduationCap, Loader2, AlertCircle } from 'lucide-react'
-import { loginRole, loginStudent } from '@/app/actions/auth-server'
+import { loginRole, loginStudent, checkStudentPasswordRequirement } from '@/app/actions/auth-server'
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
@@ -15,7 +15,25 @@ export default function SignInPage() {
   const [selectedRole, setSelectedRole] = useState<'STUDENT' | 'TEACHER' | 'PARENT' | 'ADMIN'>('PARENT')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const requiresPassword = selectedRole !== 'STUDENT'
+  const [studentRequiresPassword, setStudentRequiresPassword] = useState(false)
+
+  React.useEffect(() => {
+    if (selectedRole === 'STUDENT' && email.trim().length >= 4) {
+      const check = async () => {
+        try {
+          const req = await checkStudentPasswordRequirement(email.trim())
+          setStudentRequiresPassword(req.requiresPassword)
+        } catch {
+          setStudentRequiresPassword(false)
+        }
+      }
+      check()
+    } else {
+      setStudentRequiresPassword(false)
+    }
+  }, [email, selectedRole])
+
+  const requiresPassword = selectedRole !== 'STUDENT' || studentRequiresPassword
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,7 +42,10 @@ export default function SignInPage() {
 
     if (selectedRole === 'STUDENT') {
       try {
-        const result = await loginStudent({ admissionNumber: email.toUpperCase().trim() })
+        const result = await loginStudent({
+          admissionNumber: email.toUpperCase().trim(),
+          password: requiresPassword ? password : undefined
+        })
         if (result.error) {
           setError(result.error)
           setLoading(false)
