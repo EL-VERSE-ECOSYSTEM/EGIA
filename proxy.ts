@@ -1,7 +1,25 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/middleware'
 
-const publicRoutes = ['/', '/auth/signin', '/auth/signup', '/auth/verify-email', '/auth/callback', '/admissions', '/about', '/news', '/contact', '/faq', '/gallery', '/results-checker']
+const publicRoutes = [
+  '/',
+  '/auth/signin',
+  '/auth/signup',
+  '/auth/verify-email',
+  '/auth/callback',
+  '/admissions',
+  '/about',
+  '/news',
+  '/contact',
+  '/faq',
+  '/gallery',
+  '/results-checker',
+  '/api/webhooks/korapay',
+  '/api/webhooks/supabase',
+  '/api/korapay/webhook',
+  '/api/library/books/search',
+  '/api/library/autocomplete'
+]
 
 interface RateLimitInfo {
   count: number
