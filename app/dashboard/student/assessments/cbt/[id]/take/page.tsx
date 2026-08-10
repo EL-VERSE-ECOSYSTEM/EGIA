@@ -409,18 +409,74 @@ export default function CBTExamTakingPage() {
             </Button>
           </Card>
         ) : examFinished ? (
-          <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] bg-white overflow-hidden text-center p-12">
-            <div className="h-2 bg-emerald-600 w-full absolute top-0 left-0" />
-            <div className="mx-auto bg-emerald-50 p-6 rounded-full w-fit mb-6">
-              <CheckCircle2 className="w-16 h-16 text-emerald-600" />
-            </div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tight">CBT Submitted Successfully</h1>
-            <p className="text-slate-500 font-bold mt-2 leading-relaxed">Your answers and proctoring video feed have been securely synced to our databases for grading.</p>
-            <div className="mt-8 text-xs text-slate-400 font-bold uppercase tracking-widest">Logged Warnings: {warningCount}</div>
-            <Button onClick={() => router.push('/dashboard/student/assessments/weekend')} className="bg-slate-900 hover:bg-slate-800 text-white h-12 px-8 rounded-xl font-bold mt-8">
-              Back to Weekend Assessments
-            </Button>
-          </Card>
+          <div className="space-y-8 animate-in fade-in duration-300">
+            <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] bg-white overflow-hidden text-center p-10 relative">
+              <div className="h-2 bg-emerald-600 w-full absolute top-0 left-0" />
+              <div className="mx-auto bg-emerald-50 p-5 rounded-full w-fit mb-4">
+                <CheckCircle2 className="w-14 h-14 text-emerald-600" />
+              </div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">CBT Submitted Successfully</h1>
+              <p className="text-slate-500 font-bold mt-2 leading-relaxed text-sm">
+                Your answers and proctoring video feed have been securely synced to our databases. See below for your complete review.
+              </p>
+              <div className="mt-4 text-xs text-slate-400 font-bold uppercase tracking-widest">Logged Warnings: {warningCount}</div>
+            </Card>
+
+            <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] bg-white p-8">
+              <CardHeader className="px-0 pb-6 border-b border-slate-100 mb-6">
+                <CardTitle className="text-xl font-black text-slate-900">Performance Review & Correct Answers</CardTitle>
+                <CardDescription className="text-slate-500 font-medium text-xs mt-1">Review your selections against the correct answer keys below.</CardDescription>
+              </CardHeader>
+              <div className="space-y-8">
+                {questions.map((q, idx) => {
+                  const selected = selectedAnswers[q.id]
+                  const correct = q.answer
+                  const isCorrect = selected === correct
+
+                  return (
+                    <div key={q.id} className="p-6 rounded-2xl bg-slate-50/50 border border-slate-100 space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Question {idx + 1}</p>
+                          <p className="text-lg font-bold text-slate-800 mt-1">{q.text}</p>
+                        </div>
+                        <span className={`inline-block border-none font-black text-[10px] tracking-wider uppercase px-2.5 py-1 rounded-full ${isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                          {isCorrect ? 'Correct' : 'Incorrect'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {q.options.map((opt: string) => {
+                          const isSelectedOpt = selected === opt
+                          const isCorrectOpt = correct === opt
+
+                          let borderStyle = 'border-slate-200 bg-white text-slate-700'
+                          if (isCorrectOpt) {
+                            borderStyle = 'border-emerald-500 bg-emerald-50 text-emerald-950 font-black'
+                          } else if (isSelectedOpt) {
+                            borderStyle = 'border-rose-500 bg-rose-50 text-rose-950 font-black'
+                          }
+
+                          return (
+                            <div key={opt} className={`p-4 rounded-xl border-2 text-xs flex justify-between items-center ${borderStyle}`}>
+                              <span>{opt}</span>
+                              {isCorrectOpt && <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">Correct Answer</span>}
+                              {isSelectedOpt && !isCorrectOpt && <span className="text-[10px] font-black uppercase text-rose-800 tracking-wider">Your Selection</span>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="mt-8 flex justify-center">
+                <Button onClick={() => router.push('/dashboard/student/assessments/weekend')} className="bg-slate-900 hover:bg-slate-800 text-white h-14 px-8 rounded-2xl font-black text-sm uppercase tracking-wider">
+                  Back to Assessments
+                </Button>
+              </div>
+            </Card>
+          </div>
         ) : (
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
