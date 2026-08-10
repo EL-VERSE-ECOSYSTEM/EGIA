@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { student, parent, userRole, teacher, user as userTable, notification, payment } from '@/lib/db/schema'
+import { student, parent, userRole, teacher, user as userTable, notification, payment, academicSession, term } from '@/lib/db/schema'
 import { eq, and, desc, count, isNull } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'crypto'
@@ -53,8 +53,20 @@ export async function linkChild(admissionNumber: string) {
 
   if (child.parentId) throw new Error('This student is already linked to a parent account')
 
+  const currentSession = await db.query.academicSession.findFirst({
+    where: eq(academicSession.isCurrent, true)
+  })
+  const currentTerm = await db.query.term.findFirst({
+    where: eq(term.isCurrent, true)
+  })
+
   await db.update(student)
-    .set({ parentId: parentProfile.id })
+    .set({
+      parentId: parentProfile.id,
+      termId: currentTerm?.id || child.termId || null,
+      sessionId: currentSession?.id || child.sessionId || null,
+      updatedAt: new Date()
+    })
     .where(eq(student.id, child.id))
   // Administrative admissions are provisioned without a fee. Once a parent links the
   // child, make that existing ledger entry visible in both account histories.
@@ -163,8 +175,20 @@ export async function createParentProfile(data: {
       })
 
       if (child && !child.parentId) {
+        const currentSession = await tx.query.academicSession.findFirst({
+          where: eq(academicSession.isCurrent, true)
+        })
+        const currentTerm = await tx.query.term.findFirst({
+          where: eq(term.isCurrent, true)
+        })
+
         await tx.update(student)
-          .set({ parentId: parentId })
+          .set({
+            parentId: parentId,
+            termId: currentTerm?.id || child.termId || null,
+            sessionId: currentSession?.id || child.sessionId || null,
+            updatedAt: new Date()
+          })
           .where(eq(student.id, child.id))
       }
     }

@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata } from 'next'
 import './globals.css'
 import { RealtimeProvider } from '@/components/realtime/RealtimeProvider'
+import { TimeThemeProvider } from '@/components/TimeThemeProvider'
 
 export const metadata: Metadata = {
   title: "EL GOODNEWS INT'L ACADEMY - Empowering Excellence",
@@ -29,6 +30,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased flex flex-col min-h-screen">
         <RealtimeProvider>
+          <TimeThemeProvider />
           <div className="flex-1">
             {children}
           </div>
