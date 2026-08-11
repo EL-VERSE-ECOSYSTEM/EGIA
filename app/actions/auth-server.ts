@@ -305,21 +305,41 @@ export async function registerParent(data: any) {
         facialVerificationVideo: data.facialVerificationVideo || null
       })
 
-      if (!wardAdmissionNumber) return null
-      const ward = await tx.query.student.findFirst({
-        where: eq(student.admissionNumber, wardAdmissionNumber.trim().toUpperCase())
-      })
-      if (!ward) throw new Error('The selected child was not found.')
-      if (ward.parentId) throw new Error('This child is already linked to a parent account.')
+      // Link multiple provided ward admission numbers (up to 5)
+      const wardsList = Array.isArray(data.wardAdmissionNumbers)
+        ? data.wardAdmissionNumbers
+        : data.wardAdmissionNumber
+        ? [data.wardAdmissionNumber]
+        : []
 
-      const reference = `EGIA-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
-      await tx.update(student).set({ parentId }).where(eq(student.id, ward.id))
-      const createdPayment = (await tx.insert(payment).values({
-        id: randomUUID(), studentId: ward.id, parentId, amount: '2000.00', feeType: 'registration',
-        paymentMethod: 'KORAPAY', transactionReference: reference, status: 'pending',
-        description: `Parent registration for ${ward.firstName} ${ward.lastName}`,
-      }).returning())[0]
-      return { reference, paymentId: createdPayment.id }
+      if (wardsList.length === 0) return null
+
+      let firstReference = ''
+      let firstPaymentId = ''
+
+      for (const wardNum of wardsList) {
+        const ward = await tx.query.student.findFirst({
+          where: eq(student.admissionNumber, wardNum.trim().toUpperCase())
+        })
+        if (!ward) throw new Error(`Ward with admission number ${wardNum} was not found.`)
+        if (ward.parentId) throw new Error(`Ward ${ward.firstName} ${ward.lastName} is already linked to a parent account.`)
+
+        const reference = `EGIA-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
+        await tx.update(student).set({ parentId }).where(eq(student.id, ward.id))
+
+        const createdPayment = (await tx.insert(payment).values({
+          id: randomUUID(), studentId: ward.id, parentId, amount: '2000.00', feeType: 'registration',
+          paymentMethod: 'KORAPAY', transactionReference: reference, status: 'pending',
+          description: `Parent registration for ${ward.firstName} ${ward.lastName}`,
+        }).returning())[0]
+
+        if (!firstReference) {
+          firstReference = reference
+          firstPaymentId = createdPayment.id
+        }
+      }
+
+      return { reference: firstReference, paymentId: firstPaymentId }
     })
 
     if (!registration) return { success: true }

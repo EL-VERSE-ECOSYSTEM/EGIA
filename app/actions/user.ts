@@ -126,6 +126,58 @@ export async function getStudentByAdmissionNumber(admissionNumber: string) {
   }
 }
 
+export async function checkWardLinkingStatus(admissionNumber: string) {
+  const cleanNum = admissionNumber.trim().toUpperCase()
+  if (!cleanNum) throw new Error('Please enter a valid admission number.')
+
+  // Query database to find student
+  const lowercaseStudent = await db.query.student.findFirst({
+    where: eq(student.admissionNumber, cleanNum)
+  })
+
+  if (!lowercaseStudent) {
+    return { found: false, message: 'Student/pupil not found in the academy database.' }
+  }
+
+  const session = await auth.getSession()
+  let parentProfile = null
+  if (session?.user?.id) {
+    parentProfile = await db.query.parent.findFirst({
+      where: eq(parent.userId, session.user.id)
+    })
+  }
+
+  // Determine linkage state
+  const hasParentId = lowercaseStudent.parentId !== null && lowercaseStudent.parentId !== ''
+  const isLinkedToMe = parentProfile && lowercaseStudent.parentId === parentProfile.id
+
+  let status: 'NOT_LINKED' | 'LINKED_TO_ME' | 'LINKED_TO_ANOTHER' = 'NOT_LINKED'
+  if (hasParentId) {
+    if (isLinkedToMe) {
+      status = 'LINKED_TO_ME'
+    } else {
+      status = 'LINKED_TO_ANOTHER'
+    }
+  }
+
+  return {
+    found: true,
+    id: lowercaseStudent.id,
+    name: `${lowercaseStudent.firstName} ${lowercaseStudent.lastName}`,
+    admissionNumber: lowercaseStudent.admissionNumber,
+    class: lowercaseStudent.class,
+    parentId: lowercaseStudent.parentId,
+    sessionId: lowercaseStudent.sessionId,
+    termId: lowercaseStudent.termId,
+    status,
+    message: status === 'LINKED_TO_ME'
+      ? 'This ward is already linked to your parent account.'
+      : status === 'LINKED_TO_ANOTHER'
+      ? 'This ward is already linked to another parent account.'
+      : 'This ward is not linked to any parent account and is available.'
+  }
+}
+
 export async function getLoggedInNotifications() {
   const session = await auth.getSession()
   if (!session?.user) return []

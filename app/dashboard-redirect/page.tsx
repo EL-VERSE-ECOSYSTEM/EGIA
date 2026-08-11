@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import { getParentProfile, getStudentProfile, getTeacherProfile } from '@/app/actions/user'
+import { getParentProfile, getStudentProfile, getTeacherProfile, getLinkedChildren } from '@/app/actions/user'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +17,15 @@ export default async function DashboardRedirect() {
     }
     case 'PARENT': {
       const profile = await getParentProfile(session.user.id)
-      redirect(profile ? '/dashboard/parent/overview' : '/setup-role/parent')
+      if (!profile) {
+        redirect('/setup-role/parent')
+      }
+      // Redirect to Parent Setup if they haven't linked any ward account yet
+      const wards = await getLinkedChildren()
+      if (wards.length === 0) {
+        redirect('/setup-role/parent')
+      }
+      redirect('/dashboard/parent/overview')
     }
     case 'STUDENT': {
       const profile = await getStudentProfile(session.user.id)

@@ -178,7 +178,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
                     : "text-slate-500 hover:text-white " + config.hoverColor
                 )}
               >
-                <link.icon className={cn("w-4 h-4", isActive ? "text-white" : "group-hover:text-white transition-colors")} />
+                <link.icon className={cn("w-4 h-4 animate-icon-wiggle", isActive ? "text-white" : "group-hover:text-white transition-colors")} />
                 {link.label}
               </Link>
             )
