@@ -245,6 +245,53 @@ export async function registerStudent(data: any) {
         registrationStatus: 'PENDING_PAYMENT',
         password: password || 'default'
       })
+
+      // Sync write to public.users table
+      try {
+        await tx.execute(sql`
+          INSERT INTO public.users (id, email, full_name, role, is_active, is_verified, created_at, updated_at)
+          VALUES (
+            ${userId}::uuid,
+            ${emailAddress},
+            ${`${firstName} ${lastName}`},
+            'STUDENT'::academy_user_role,
+            true,
+            true,
+            NOW(),
+            NOW()
+          )
+          ON CONFLICT (email) DO NOTHING
+        `)
+      } catch (err) {
+        console.warn('Could not sync insert to public.users table:', err)
+      }
+
+      // Sync write to public.students table
+      try {
+        const pluralStudentId = randomUUID()
+        await tx.execute(sql`
+          INSERT INTO public.students (
+            id, user_id, admission_number, first_name, last_name, middle_name,
+            date_of_birth, gender, current_class, is_graduated, created_at, updated_at
+          ) VALUES (
+            ${pluralStudentId}::uuid,
+            ${userId}::uuid,
+            ${admissionNumber},
+            ${firstName},
+            ${lastName},
+            ${middleName || null},
+            ${dateOfBirth ? dateOfBirth : null}::date,
+            ${data.gender || null},
+            ${studentClass},
+            false,
+            NOW(),
+            NOW()
+          )
+          ON CONFLICT (admission_number) DO NOTHING
+        `)
+      } catch (err) {
+        console.warn('Could not sync insert to public.students table:', err)
+      }
     })
 
     return { success: true, admissionNumber }
@@ -304,6 +351,44 @@ export async function registerParent(data: any) {
         profileImage: profileImage || null,
         facialVerificationVideo: data.facialVerificationVideo || null
       })
+
+      // Sync write to public.users table
+      try {
+        await tx.execute(sql`
+          INSERT INTO public.users (id, email, full_name, role, is_active, is_verified, created_at, updated_at)
+          VALUES (
+            ${userId}::uuid,
+            ${emailAddress},
+            ${`${firstName} ${lastName}`},
+            'PARENT'::academy_user_role,
+            true,
+            true,
+            NOW(),
+            NOW()
+          )
+          ON CONFLICT (email) DO NOTHING
+        `)
+      } catch (err) {
+        console.warn('Could not sync insert to public.users table:', err)
+      }
+
+      // Sync write to public.parents table
+      try {
+        await tx.execute(sql`
+          INSERT INTO public.parents (
+            id, user_id, occupation, created_at, updated_at
+          ) VALUES (
+            ${parentId}::uuid,
+            ${userId}::uuid,
+            ${occupation || null},
+            NOW(),
+            NOW()
+          )
+          ON CONFLICT DO NOTHING
+        `)
+      } catch (err) {
+        console.warn('Could not sync insert to public.parents table:', err)
+      }
 
       // Link multiple provided ward admission numbers (up to 5)
       const wardsList = Array.isArray(data.wardAdmissionNumbers)
@@ -409,6 +494,50 @@ export async function registerTeacher(data: any) {
         profileImage: profileImage || null,
         facialVerificationVideo: data.facialVerificationVideo || null
       })
+
+      // Sync write to public.users table
+      try {
+        await tx.execute(sql`
+          INSERT INTO public.users (id, email, full_name, role, is_active, is_verified, created_at, updated_at)
+          VALUES (
+            ${userId}::uuid,
+            ${emailAddress},
+            ${`${firstName} ${lastName}`},
+            'TEACHER'::academy_user_role,
+            true,
+            true,
+            NOW(),
+            NOW()
+          )
+          ON CONFLICT (email) DO NOTHING
+        `)
+      } catch (err) {
+        console.warn('Could not sync insert to public.users table:', err)
+      }
+
+      // Sync write to public.teachers table
+      try {
+        const pluralTeacherId = randomUUID()
+        await tx.execute(sql`
+          INSERT INTO public.teachers (
+            id, user_id, staff_id, first_name, last_name, qualification, specialization, is_class_teacher, created_at, updated_at
+          ) VALUES (
+            ${pluralTeacherId}::uuid,
+            ${userId}::uuid,
+            ${staffCode},
+            ${firstName},
+            ${lastName},
+            ${data.qualification || null},
+            ${data.specialization || null},
+            false,
+            NOW(),
+            NOW()
+          )
+          ON CONFLICT (staff_id) DO NOTHING
+        `)
+      } catch (err) {
+        console.warn('Could not sync insert to public.teachers table:', err)
+      }
     })
 
     return { success: true, staffCode }
