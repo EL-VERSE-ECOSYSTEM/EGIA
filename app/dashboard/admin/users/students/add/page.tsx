@@ -10,12 +10,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { createStudent } from '@/app/actions/admin'
+import { createStudent, getAcademicSessions, getTerms } from '@/app/actions/admin'
 import { studentEnrollmentSchema, type StudentEnrollmentData } from '@/lib/validators/student.schema'
 import { ShieldCheck, Loader2 } from 'lucide-react'
 
 export default function AddStudentPage() {
   const router = useRouter()
+  const [sessions, setSessions] = React.useState<any[]>([])
+  const [termsList, setTerms] = React.useState<any[]>([])
+
+  React.useEffect(() => {
+    getAcademicSessions().then(setSessions).catch(() => setSessions([]))
+    getTerms().then(setTerms).catch(() => setTerms([]))
+  }, [])
+
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<StudentEnrollmentData>({
     resolver: zodResolver(studentEnrollmentSchema),
     defaultValues: { email: '', admissionNumber: '', gender: 'MALE', academicSession: '2026/2027', term: 'First Term' },
@@ -112,11 +120,27 @@ export default function AddStudentPage() {
               <CardContent className="p-8 pt-0 space-y-6">
                  <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Session</Label>
-                    <select {...register('academicSession')} className="h-12 w-full rounded-xl bg-slate-50 px-3 font-bold"><option value="2026/2027">2026/2027</option><option value="2025/2026">2025/2026</option></select>
+                    <select {...register('academicSession')} className="h-12 w-full rounded-xl bg-slate-50 px-3 font-bold">
+                      {sessions.length > 0 ? (
+                        sessions.map(s => <option key={s.id} value={s.name}>{s.name}</option>)
+                      ) : (
+                        <option value="2026/2027">2026/2027</option>
+                      )}
+                    </select>
                  </div>
                  <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Term</Label>
-                    <select {...register('term')} className="h-12 w-full rounded-xl bg-slate-50 px-3 font-bold"><option value="First Term">First Term</option><option value="Second Term">Second Term</option><option value="Third Term">Third Term</option></select>
+                    <select {...register('term')} className="h-12 w-full rounded-xl bg-slate-50 px-3 font-bold">
+                      {termsList.length > 0 ? (
+                        termsList.map(t => <option key={t.id} value={t.name}>{t.name}</option>)
+                      ) : (
+                        <>
+                          <option value="First Term">First Term</option>
+                          <option value="Second Term">Second Term</option>
+                          <option value="Third Term">Third Term</option>
+                        </>
+                      )}
+                    </select>
                  </div>
               </CardContent>
             </Card>

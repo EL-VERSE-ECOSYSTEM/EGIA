@@ -168,25 +168,35 @@ export async function getAdminDashboardStats() {
   }
 }
 
-export async function createAcademicSession(name: string, startDate: Date, endDate: Date) {
+export async function createAcademicSession(name: string, startDate: any, endDate: any) {
   await checkAdminPermission('create', 'academicSession')
+
+  // Format string YYYY-MM-DD from input or Date
+  const startStr = typeof startDate === 'string' ? startDate : new Date(startDate).toISOString().split('T')[0]
+  const endStr = typeof endDate === 'string' ? endDate : new Date(endDate).toISOString().split('T')[0]
+
   return db.insert(academicSession).values({
     id: randomUUID(),
     name,
-    startDate,
-    endDate,
+    startDate: startStr,
+    endDate: endStr,
     isCurrent: true,
   } as any).returning()
 }
 
-export async function createTerm(sessionId: string, name: string, startDate: Date, endDate: Date) {
+export async function createTerm(sessionId: string, name: string, startDate: any, endDate: any) {
   await checkAdminPermission('create', 'term')
+
+  // Format string YYYY-MM-DD from input or Date
+  const startStr = typeof startDate === 'string' ? startDate : new Date(startDate).toISOString().split('T')[0]
+  const endStr = typeof endDate === 'string' ? endDate : new Date(endDate).toISOString().split('T')[0]
+
   return db.insert(term).values({
     id: randomUUID(),
     sessionId,
     name,
-    startDate,
-    endDate,
+    startDate: startStr,
+    endDate: endStr,
     isCurrent: true,
   } as any).returning()
 }
@@ -339,4 +349,12 @@ export async function setFees(data: { class: string, department?: string, feeTyp
     id: randomUUID(),
     ...data
   }).returning()
+}
+
+export async function getAcademicSessions() {
+  return db.query.academicSession.findMany()
+}
+
+export async function getTerms() {
+  return db.query.term.findMany()
 }
