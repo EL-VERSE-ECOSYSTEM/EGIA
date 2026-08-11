@@ -68,6 +68,21 @@ export async function linkChild(admissionNumber: string) {
       updatedAt: new Date()
     })
     .where(eq(student.id, child.id))
+
+  // Link in plural public.students table for dynamic synchronization
+  try {
+    await db.execute(sql`
+      UPDATE public.students
+      SET
+        parent_id = ${parentProfile.id}::uuid,
+        current_session = ${currentSession?.name || null},
+        updated_at = NOW()
+      WHERE admission_number = ${admissionNumber.trim().toUpperCase()}
+    `)
+  } catch (err) {
+    console.warn('Could not sync update to public.students table:', err)
+  }
+
   // Administrative admissions are provisioned without a fee. Once a parent links the
   // child, make that existing ledger entry visible in both account histories.
   await db.update(payment).set({ parentId: parentProfile.id, updatedAt: new Date() })
@@ -242,6 +257,20 @@ export async function createParentProfile(data: {
             updatedAt: new Date()
           })
           .where(eq(student.id, child.id))
+
+        // Link in plural public.students table for dynamic synchronization
+        try {
+          await tx.execute(sql`
+            UPDATE public.students
+            SET
+              parent_id = ${parentId}::uuid,
+              current_session = ${currentSession?.name || null},
+              updated_at = NOW()
+            WHERE admission_number = ${data.wardAdmissionNumber.trim().toUpperCase()}
+          `)
+        } catch (err) {
+          console.warn('Could not sync update to public.students table:', err)
+        }
       }
     }
 
