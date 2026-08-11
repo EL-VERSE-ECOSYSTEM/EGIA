@@ -61,65 +61,65 @@ export default async function AdminOverviewPage() {
   // Admin Quick Navigation Departments Configuration
   const departments = [
     {
-      title: 'Student Registry & Enrollment',
-      description: 'Register and enroll new pupils, allocate classes, manage student databases and subject catalogs.',
+      title: 'Student Registry',
+      description: 'Register and enroll new pupils, allocate classes, and manage student databases.',
       link: '/dashboard/admin/users/students/list',
       icon: Users,
-      badge: 'Student Registry',
+      badge: 'Registry',
       color: 'bg-blue-50 border-blue-100 text-blue-600',
-      btnColor: 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-100'
+      btnColor: 'bg-blue-600 hover:bg-blue-700 text-white'
     },
     {
-      title: 'Academics, Sessions & Terms',
-      description: 'Configure active academic calendars, start new school sessions and manage terminal periods.',
+      title: 'Academics & Sessions',
+      description: 'Configure active academic calendars, start new school sessions and manage terms.',
       link: '/dashboard/admin/academics/sessions/active',
       icon: BookOpen,
-      badge: 'Academic Timeline',
+      badge: 'Timeline',
       color: 'bg-amber-50 border-amber-100 text-amber-600',
-      btnColor: 'bg-amber-500 hover:bg-amber-600 text-amber-950 shadow-amber-100'
+      btnColor: 'bg-amber-500 hover:bg-amber-600 text-amber-950'
     },
     {
-      title: 'Teacher Directory & Payroll',
-      description: 'Manage institutional faculty, review performance logs, monitor teaching subjects, and process payroll.',
+      title: 'Faculty & Directory',
+      description: 'Manage institutional faculty, review performance logs, and process payroll.',
       link: '/dashboard/admin/users/teachers/list',
       icon: UserCheck,
-      badge: 'Faculty Management',
+      badge: 'Faculty',
       color: 'bg-purple-50 border-purple-100 text-purple-600',
-      btnColor: 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-100'
+      btnColor: 'bg-purple-600 hover:bg-purple-700 text-white'
     },
     {
       title: 'Institutional Finances',
-      description: 'Track custom fees structures, approve installment plans, issue payment receipts, and review pending bills.',
+      description: 'Track custom fees structures, approve installment plans, and review bills.',
       link: '/dashboard/admin/finance/fees/structure',
       icon: CreditCard,
-      badge: 'Revenue Desk',
+      badge: 'Finance',
       color: 'bg-emerald-50 border-emerald-100 text-emerald-600',
-      btnColor: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100'
+      btnColor: 'bg-emerald-600 hover:bg-emerald-700 text-white'
     },
     {
-      title: 'Digital Library & Cataloging',
-      description: 'Upload textbooks, manage electronic copy indexes, track borrowing statistics, and run book imports.',
+      title: 'Library Cataloging',
+      description: 'Upload textbooks, manage electronic copy indexes, and track borrowing.',
       link: '/dashboard/admin/library/books',
       icon: BookMarked,
-      badge: 'Library Control',
+      badge: 'Library',
       color: 'bg-rose-50 border-rose-100 text-rose-600',
-      btnColor: 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-100'
+      btnColor: 'bg-rose-600 hover:bg-rose-700 text-white'
     },
     {
-      title: 'Messaging & Communications',
-      description: 'Oversight over support tickets, messaging hubs, broadcasts and student disputes mediation panels.',
+      title: 'Messaging & Support',
+      description: 'Oversight over support tickets, messaging hubs, and student disputes.',
       link: '/dashboard/admin/communication',
       icon: MessageSquare,
-      badge: 'Communications Hub',
+      badge: 'Support',
       color: 'bg-indigo-50 border-indigo-100 text-indigo-600',
-      btnColor: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100'
+      btnColor: 'bg-indigo-600 hover:bg-indigo-700 text-white'
     }
   ]
 
   return (
     <DashboardLayout role="admin">
-    <div className="p-8 max-w-[1600px] mx-auto space-y-10">
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-12 text-white shadow-2xl">
+    <div className="p-4 sm:p-8 max-w-[1600px] mx-auto space-y-8 sm:space-y-10">
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-8 sm:p-12 text-white shadow-2xl">
          <div className="absolute top-0 right-0 p-8 opacity-10">
             <Activity size={300} strokeWidth={1} />
          </div>
@@ -127,17 +127,17 @@ export default async function AdminOverviewPage() {
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-amber-500 text-xs font-black uppercase tracking-widest mb-6">
                <Calendar className="w-3.5 h-3.5" /> Live Administration Node
             </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4 text-pretty">Welcome back, Administrator.</h1>
-            <p className="text-slate-400 text-lg font-medium max-w-xl">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-4 text-pretty">Welcome back, Administrator.</h1>
+            <p className="text-slate-400 text-sm sm:text-lg font-medium max-w-xl leading-relaxed">
                Monitor institutional performance and manage academy operations in real-time.
             </p>
          </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
         {stats.map((stat, idx) => (
           <Card key={idx} className="border-none shadow-xl shadow-slate-200/50 rounded-[2rem] bg-white hover:shadow-2xl transition-all duration-300 group">
-            <CardContent className="p-8">
+            <CardContent className="p-6 sm:p-8">
               <div className="flex items-center justify-between mb-6">
                 <div className={`p-4 rounded-2xl ${stat.bg} group-hover:scale-110 transition-transform`}>
                   <stat.icon className={`w-6 h-6 ${stat.color}`} />
@@ -148,39 +148,38 @@ export default async function AdminOverviewPage() {
                 </div>
               </div>
               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
-              <h3 className="text-3xl font-black text-slate-900 tracking-tighter">{stat.value}</h3>
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tighter">{stat.value}</h3>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Dynamic Institutional Quick Navigation System Row */}
-      <div className="space-y-6">
+      {/* Dynamic Mobile-Only Navigation System (Visible ONLY on mobile devices, hidden on desktop to avoid double navigation) */}
+      <div className="space-y-4 lg:hidden">
         <div>
-           <h2 className="text-2xl font-black text-slate-900 tracking-tight">Institutional Navigation Command Center</h2>
-           <p className="text-slate-400 text-sm font-bold mt-1">Access critical administrative departments and management desks directly with active redirection.</p>
+           <h2 className="text-xl font-black text-slate-900 tracking-tight">Quick Navigation</h2>
+           <p className="text-slate-400 text-xs font-bold mt-1">Access academy departments directly from your mobile portal.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 gap-4">
            {departments.map((dept, idx) => (
-              <Card key={idx} className="border-none shadow-lg hover:shadow-2xl shadow-slate-200/50 rounded-3xl bg-white transition-all duration-300 group overflow-hidden flex flex-col justify-between">
-                 <CardContent className="p-8 space-y-4 flex-1">
+              <Card key={idx} className="border-none shadow-md rounded-2xl bg-white overflow-hidden flex flex-col justify-between">
+                 <CardContent className="p-4 space-y-3 flex-1">
                     <div className="flex justify-between items-start">
-                       <div className={`p-3.5 rounded-2xl ${dept.color.split(' ')[0]} border ${dept.color.split(' ')[1]}`}>
-                          <dept.icon className="w-6 h-6" />
+                       <div className={`p-2 rounded-xl ${dept.color.split(' ')[0]} border ${dept.color.split(' ')[1]}`}>
+                          <dept.icon className="w-5 h-5" />
                        </div>
-                       <Badge className={`border-none font-black text-[9px] px-2.5 py-1 tracking-wider uppercase ${dept.color}`}>
+                       <Badge className={`border-none font-black text-[8px] px-2 py-0.5 tracking-wider uppercase ${dept.color}`}>
                           {dept.badge}
                        </Badge>
                     </div>
                     <div>
-                       <h3 className="text-lg font-black text-slate-900 group-hover:text-amber-600 transition-colors">{dept.title}</h3>
-                       <p className="text-xs font-bold text-slate-400 leading-relaxed mt-2">{dept.description}</p>
+                       <h3 className="text-xs font-black text-slate-900">{dept.title}</h3>
                     </div>
                  </CardContent>
-                 <div className="px-8 pb-8">
+                 <div className="px-4 pb-4">
                     <Link href={dept.link} className="block">
-                       <Button className={`w-full font-black text-xs h-12 rounded-xl flex items-center justify-center gap-2 group-hover:translate-y-[-2px] transition-transform ${dept.btnColor}`}>
-                          ACCESS DEPARTMENT <ArrowRight className="w-4 h-4" />
+                       <Button size="sm" className={`w-full font-black text-[9px] h-8 rounded-lg flex items-center justify-center gap-1.5 ${dept.btnColor}`}>
+                          OPEN <ArrowRight className="w-3 h-3" />
                        </Button>
                     </Link>
                  </div>
@@ -191,16 +190,16 @@ export default async function AdminOverviewPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <Card className="lg:col-span-2 border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white overflow-hidden">
-          <CardHeader className="p-10 pb-0 flex flex-row items-center justify-between">
+          <CardHeader className="p-6 sm:p-10 pb-0 flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-2xl font-black text-slate-900">Institutional Revenue</CardTitle>
-              <p className="text-sm font-bold text-slate-400 mt-1">Fee collection trends across all departments</p>
+              <CardTitle className="text-xl sm:text-2xl font-black text-slate-900">Institutional Revenue</CardTitle>
+              <p className="text-xs sm:text-sm font-bold text-slate-400 mt-1">Fee collection trends across all departments</p>
             </div>
             <Link href="/dashboard/admin/finance/fees">
                <Button variant="outline" className="rounded-xl font-bold border-slate-100">Details</Button>
             </Link>
           </CardHeader>
-          <CardContent className="p-10 h-[450px]">
+          <CardContent className="p-6 sm:p-10 h-[350px] sm:h-[450px]">
             <AdminRevenueChart />
           </CardContent>
         </Card>
@@ -222,50 +221,22 @@ export default async function AdminOverviewPage() {
               <Button variant="ghost" className="w-full text-slate-400 font-black text-xs uppercase tracking-widest mt-2">View Audit Log</Button>
             </CardContent>
           </Card>
-
-          <Card className="border-none shadow-xl shadow-slate-900/10 rounded-[2.5rem] bg-slate-900 text-white">
-             <CardHeader className="p-8 pb-4">
-                <CardTitle className="text-sm font-black uppercase tracking-widest text-amber-500">Global Actions</CardTitle>
-             </CardHeader>
-             <CardContent className="p-8 pt-0 grid grid-cols-2 gap-3">
-                <Link href="/dashboard/admin/users/students/list">
-                   <Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-[10px] font-black flex items-center gap-2 text-white">
-                      <Plus size={14} /> ENROLL
-                   </Button>
-                </Link>
-                <Link href="/dashboard/admin/academics">
-                   <Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-[10px] font-black flex items-center gap-2 text-white">
-                      <Calendar size={14} /> SESSION
-                   </Button>
-                </Link>
-                <Link href="/dashboard/admin/finance/fees/structure">
-                   <Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-[10px] font-black flex items-center gap-2 text-white">
-                      <FileText size={14} /> FINANCE
-                   </Button>
-                </Link>
-                <Link href="/dashboard/admin/communication">
-                   <Button className="w-full bg-white/10 hover:bg-white/20 border-none rounded-xl h-12 text-[10px] font-black flex items-center gap-2 text-white">
-                      <Activity size={14} /> MESSAGING
-                   </Button>
-                </Link>
-             </CardContent>
-          </Card>
         </div>
       </div>
 
       {/* Real-time Content Censorship & Messaging Oversight Monitor */}
       <div className="grid grid-cols-1 gap-10">
         <Card className="border-none shadow-xl rounded-[2.5rem] bg-white overflow-hidden">
-          <CardHeader className="p-10 pb-6 border-b border-slate-50">
-            <CardTitle className="text-2xl font-black text-slate-900 flex items-center gap-2">
+          <CardHeader className="p-6 sm:p-10 pb-6 border-b border-slate-50">
+            <CardTitle className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
               <Clock className="text-red-500 animate-pulse" /> Real-time Audit & Censorship Monitor
             </CardTitle>
-            <p className="text-sm font-bold text-slate-400 mt-1">Live audit stream of automatically logged events and blocked content matching moderation filters (WhatsApp, Foul Language, Vernacular)</p>
+            <p className="text-xs sm:text-sm font-bold text-slate-400 mt-1">Live audit stream of automatically logged events and blocked content matching moderation filters (WhatsApp, Foul Language, Vernacular)</p>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-slate-100">
               {liveAuditLogs.length > 0 ? liveAuditLogs.map((v) => (
-                <div key={v.id} className="p-8 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
+                <div key={v.id} className="p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
                   <div className="space-y-1">
                     <p className="font-black text-slate-900">{v.user}</p>
                     <p className="text-sm text-slate-500 font-semibold italic bg-red-50/50 p-3 rounded-xl border border-red-100 inline-block">

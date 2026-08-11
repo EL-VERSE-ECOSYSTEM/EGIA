@@ -7,7 +7,7 @@
 - Local:         http://localhost:3001
 - Network:       http://192.168.0.2:3001
 - Environments: .env
-✓ Ready in 1307ms
+✓ Ready in 759ms
 ✓ Running next.config.mjs took 26ms
 ⨯ Another next dev server is already running.
 

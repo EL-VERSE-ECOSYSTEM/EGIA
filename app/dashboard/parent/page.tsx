@@ -1,11 +1,5 @@
-export const dynamic = "force-dynamic"
-import DashboardLayout from '@/components/layout/dashboard-layout'
-import ParentOverview from './overview/page'
+import { redirect } from 'next/navigation'
 
 export default function ParentPage() {
-  return (
-    <DashboardLayout role="parent">
-      <ParentOverview />
-    </DashboardLayout>
-  )
+  redirect('/dashboard/parent/overview')
 }
