@@ -21,6 +21,7 @@ import {
 import { getAdminDashboardStats, getRecentAuditLogs, getUrgentAlerts } from '@/lib/api/queries'
 import { AdminRevenueChart } from '@/components/charts/admin-revenue-chart'
 import Link from 'next/link'
+import DashboardLayout from '@/components/layout/dashboard-layout'
 
 import { getReportCards } from '@/app/actions/report-cards'
 
@@ -52,6 +53,7 @@ export default async function AdminOverviewPage() {
   ]
 
   return (
+    <DashboardLayout role="admin">
     <div className="p-8 max-w-[1600px] mx-auto space-y-10">
       <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-12 text-white shadow-2xl">
          <div className="absolute top-0 right-0 p-8 opacity-10">
@@ -188,5 +190,6 @@ export default async function AdminOverviewPage() {
         </Card>
       </div>
     </div>
+    </DashboardLayout>
   )
 }

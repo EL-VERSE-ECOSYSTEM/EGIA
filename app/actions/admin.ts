@@ -340,3 +340,11 @@ export async function setFees(data: { class: string, department?: string, feeTyp
     ...data
   }).returning()
 }
+
+export async function getAcademicSessions() {
+  return db.query.academicSession.findMany()
+}
+
+export async function getTerms() {
+  return db.query.term.findMany()
+}
