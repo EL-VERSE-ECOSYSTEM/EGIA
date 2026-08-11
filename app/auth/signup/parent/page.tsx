@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Users, Loader2, AlertCircle, GraduationCap, User, Search, Link as LinkIcon } from 'lucide-react'
+import { Users, Loader2, AlertCircle, GraduationCap, User, Search, Link as LinkIcon, CheckCircle, Trash2 } from 'lucide-react'
 import { registerParent } from '@/app/actions/auth-server'
-import { getStudentByAdmissionNumber } from '@/app/actions/user'
+import { checkWardLinkingStatus } from '@/app/actions/user'
 import { Badge } from '@/components/ui/badge'
+import { toast } from 'sonner'
 
 export default function ParentSignUpPage() {
   const [formData, setFormData] = useState({
@@ -23,11 +24,11 @@ export default function ParentSignUpPage() {
     confirmPassword: ''
   })
 
-  // Ward Search states
-  const [wardClass, setWardClass] = useState('Primary 3')
+  // Ward Search and Array states
   const [wardAdmissionNumber, setWardAdmissionNumber] = useState('')
   const [searching, setSearching] = useState(false)
-  const [foundWard, setFoundWard] = useState<{ name: string; admissionNumber: string } | null>(null)
+  const [checkedWard, setCheckedWard] = useState<any | null>(null)
+  const [addedWards, setAddedWards] = useState<any[]>([])
 
   // Profile image upload
   const [profileImage, setProfileImage] = useState<string | null>(null)
@@ -35,8 +36,6 @@ export default function ParentSignUpPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
-
-  const classesList = ['Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3']
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -48,27 +47,50 @@ export default function ParentSignUpPage() {
     }
   }
 
+  // Check linking status using parentid, sessionid, termid
   const handleSearchWard = async () => {
-    if (!wardAdmissionNumber.trim()) return alert('Please enter admission number')
+    if (!wardAdmissionNumber.trim()) {
+      toast.error('Please enter an admission number')
+      return
+    }
     setSearching(true)
+    setCheckedWard(null)
     try {
-      const studentData = await getStudentByAdmissionNumber(wardAdmissionNumber.trim().toUpperCase())
-      if (studentData) {
-        setFoundWard({
-          name: studentData.name,
-          admissionNumber: studentData.admissionNumber || ''
-        })
-        setWardClass(studentData.class || 'Primary 3')
+      const res = await checkWardLinkingStatus(wardAdmissionNumber.trim().toUpperCase())
+      if (res.found) {
+        setCheckedWard(res)
       } else {
-        setFoundWard(null)
-        alert('Student with that admission number not found in our database.')
+        toast.error(res.message || 'Ward not found')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      alert('Error searching for student.')
+      toast.error(err.message || 'Error checking ward status')
     } finally {
       setSearching(false)
     }
+  }
+
+  // Add ward to the list (up to 5)
+  const handleAddWard = () => {
+    if (!checkedWard) return
+    if (addedWards.length >= 5) {
+      toast.error('A parent account can be linked to a maximum of 5 children.')
+      return
+    }
+    if (addedWards.some(w => w.admissionNumber === checkedWard.admissionNumber)) {
+      toast.error('This ward is already added to your list.')
+      return
+    }
+    setAddedWards([...addedWards, checkedWard])
+    setCheckedWard(null)
+    setWardAdmissionNumber('')
+    toast.success('Ward added to registration list!')
+  }
+
+  // Remove ward from list
+  const handleRemoveWard = (admNum: string) => {
+    setAddedWards(addedWards.filter(w => w.admissionNumber !== admNum))
+    toast.success('Ward removed from list')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,12 +99,18 @@ export default function ParentSignUpPage() {
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
-      alert('Passwords do not match')
+      toast.error('Passwords do not match')
       return
     }
 
     if (!profileImage) {
-      return alert('Please upload a passport photo.')
+      toast.error('Please upload a passport photo.')
+      return
+    }
+
+    if (addedWards.length === 0) {
+      toast.error('Please link at least 1 ward to complete parent registration.')
+      return
     }
 
     setLoading(true)
@@ -91,7 +119,7 @@ export default function ParentSignUpPage() {
       ...formData,
       profileImage,
       facialVerificationVideo: null,
-      wardAdmissionNumber: foundWard ? foundWard.admissionNumber : undefined
+      wardAdmissionNumbers: addedWards.map(w => w.admissionNumber)
     }
 
     try {
@@ -99,19 +127,19 @@ export default function ParentSignUpPage() {
 
       if (result.error) {
         setError(result.error)
-        alert(result.error)
+        toast.error(result.error)
         setLoading(false)
       } else {
         if (result.checkoutUrl) {
           window.location.assign(result.checkoutUrl)
           return
         }
-        alert('Parent account registered successfully! Proceeding to Sign In.')
+        toast.success('Parent account registered successfully! Proceeding to Sign In.')
         router.push('/auth/signin')
       }
     } catch (err) {
       setError('Account failed to create')
-      alert('Account failed to create')
+      toast.error('Account failed to create')
       setLoading(false)
     }
   }
@@ -125,7 +153,7 @@ export default function ParentSignUpPage() {
         <span className="font-black text-xl tracking-tight text-slate-900">EL GOODNEWS <span className="text-emerald-600">ACADEMY</span></span>
       </div>
 
-      <Card className="max-w-xl w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
+      <Card className="max-w-2xl w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
         <div className="h-2 bg-emerald-600 w-full" />
         <CardHeader className="text-center pt-10">
           <div className="mx-auto bg-emerald-100 p-4 rounded-2xl w-fit mb-4">
@@ -133,7 +161,7 @@ export default function ParentSignUpPage() {
           </div>
           <CardTitle className="text-3xl font-black text-slate-900">Parent Registration</CardTitle>
           <CardDescription className="text-slate-500 font-bold mt-2">
-            Monitor your child's progress and stay updated
+            Monitor up to 5 wards, pay fees, and track performance logs in real-time
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-10 pb-12">
@@ -247,45 +275,77 @@ export default function ParentSignUpPage() {
               />
             </div>
 
-            {/* Ward Search by Class */}
+            {/* Ward Search Panel */}
             <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
-              <p className="text-xs font-black uppercase text-slate-400 tracking-widest">Search & Link Ward (Student/Pupil)</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-[9px] font-black text-slate-400 uppercase">Filter by Class</Label>
-                  <select
-                    value={wardClass}
-                    onChange={e => setWardClass(e.target.value)}
-                    className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 font-bold text-xs"
-                  >
-                    {classesList.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[9px] font-black text-slate-400 uppercase">Admission Number</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="EGIA-S-XXXXXX or EGIA-P-XXXXXX"
-                      value={wardAdmissionNumber}
-                      onChange={e => setWardAdmissionNumber(e.target.value)}
-                      className="h-11 rounded-xl border-slate-200 bg-white text-xs font-bold uppercase"
-                    />
-                    <Button type="button" onClick={handleSearchWard} disabled={searching} className="bg-emerald-600 hover:bg-emerald-700 h-11 px-3 rounded-xl shrink-0">
-                      {searching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                    </Button>
-                  </div>
-                </div>
+              <p className="text-xs font-black uppercase text-slate-400 tracking-widest">Search and Add Wards (Up to 5)</p>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter ward's admission number (e.g. EGIA-S-00998)"
+                  value={wardAdmissionNumber}
+                  onChange={e => setWardAdmissionNumber(e.target.value.toUpperCase())}
+                  className="h-11 rounded-xl border-slate-200 bg-white text-xs font-bold uppercase tracking-wider"
+                />
+                <Button type="button" onClick={handleSearchWard} disabled={searching} className="bg-emerald-600 hover:bg-emerald-700 h-11 px-4 rounded-xl shrink-0">
+                  {searching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                </Button>
               </div>
 
-              {foundWard && (
-                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between text-emerald-950 animate-in fade-in duration-300">
-                  <div>
-                    <p className="text-xs font-black">{foundWard.name}</p>
-                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">{foundWard.admissionNumber} • {wardClass}</p>
+              {/* Searched Ward Details */}
+              {checkedWard && (
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl flex flex-col gap-3 animate-in fade-in duration-200">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs font-black text-slate-900">{checkedWard.name}</p>
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{checkedWard.admissionNumber} • {checkedWard.class}</p>
+                    </div>
+                    <Badge className={`border-none font-black text-[8px] px-2.5 py-0.5 tracking-wider uppercase ${
+                      checkedWard.status === 'NOT_LINKED'
+                        ? 'bg-amber-100 text-amber-700'
+                        : checkedWard.status === 'LINKED_TO_ME'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-red-100 text-red-700'
+                    }`}>
+                      {checkedWard.status.replaceAll('_', ' ')}
+                    </Badge>
                   </div>
-                  <Badge className="bg-emerald-600 text-white font-black text-[9px] px-2.5 py-1 flex items-center gap-1">
-                    <LinkIcon size={10} /> Linked
-                  </Badge>
+
+                  <p className="text-[11px] font-semibold text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    {checkedWard.message}
+                  </p>
+
+                  <div className="flex gap-2 justify-end">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setCheckedWard(null)} className="text-xs font-bold rounded-lg">Cancel</Button>
+                    {checkedWard.status === 'NOT_LINKED' && (
+                      <Button type="button" size="sm" onClick={handleAddWard} className="bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-bold rounded-lg flex items-center gap-1">
+                        <LinkIcon size={12} /> Add to Registration
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Added Wards List */}
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Added Wards ({addedWards.length}/5)</Label>
+              {addedWards.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {addedWards.map(w => (
+                    <div key={w.admissionNumber} className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-black text-slate-900">{w.name}</p>
+                        <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">{w.admissionNumber} • {w.class}</p>
+                      </div>
+                      <button type="button" onClick={() => handleRemoveWard(w.admissionNumber)} className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-6 border-2 border-dashed border-slate-100 rounded-2xl text-center text-slate-400 font-bold text-xs">
+                  No wards added yet. Search and link up to 5 wards above to complete registration.
                 </div>
               )}
             </div>
