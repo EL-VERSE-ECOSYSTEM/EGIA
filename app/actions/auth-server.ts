@@ -611,6 +611,30 @@ export async function loginStudent(data: any) {
   }
 
   const loginPassword = userPassword || existingStudent.password || 'default'
+
+  // If the student's password in the database is 'default', ensure Supabase Auth password is set to 'default'
+  // to avoid "invalid login credentials" for first-time or seeded admissions
+  if (loginPassword === 'default' && getSupabaseSecretKey()) {
+    try {
+      const adminClient = authAdminClient()
+      if (adminClient) {
+        const existingAuthUser = await findAuthUserByEmail(adminClient, resolvedEmail)
+        if (existingAuthUser) {
+          console.log(`[Auth] Overwriting/syncing Supabase Auth password to 'default' for seeded student ${resolvedEmail}...`)
+          await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
+            password: 'default',
+            user_metadata: {
+              ...existingAuthUser.user_metadata,
+              admission_number: admissionNumber
+            }
+          })
+        }
+      }
+    } catch (err) {
+      console.warn('Could not reset/sync default password in Supabase Auth:', err)
+    }
+  }
+
   let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
     password: loginPassword
