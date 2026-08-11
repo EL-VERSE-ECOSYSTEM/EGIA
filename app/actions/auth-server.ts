@@ -541,7 +541,7 @@ export async function loginStudent(data: any) {
 
   const loginPassword = userPassword || existingStudent.password || 'default'
 
-  // Determine standard email address mapping
+  // Determine standard email address mapping dynamically from Supabase Database
   let resolvedEmail = `student.${admissionNumber.toLowerCase()}@portal.egia.local`
   if (existingStudent.userId) {
     const userRecord = await db.query.user.findFirst({
@@ -550,10 +550,6 @@ export async function loginStudent(data: any) {
     if (userRecord?.email) {
       resolvedEmail = userRecord.email
     }
-  } else if (admissionNumber === 'EGIA-S-00998') {
-    resolvedEmail = 'samuel012@gmail.com'
-  } else if (admissionNumber === 'EGIA-S-00997') {
-    resolvedEmail = 'sophieadesuwa6@gmail.com'
   }
 
   let realUserId = existingStudent.userId || null
