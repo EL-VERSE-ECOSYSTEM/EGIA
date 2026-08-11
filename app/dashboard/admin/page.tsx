@@ -1,11 +1,5 @@
-export const dynamic = "force-dynamic"
-import DashboardLayout from '@/components/layout/dashboard-layout'
-import AdminOverview from './overview/page'
+import { redirect } from 'next/navigation'
 
 export default function AdminPage() {
-  return (
-    <DashboardLayout role="admin">
-      <AdminOverview />
-    </DashboardLayout>
-  )
+  redirect('/dashboard/admin/overview')
 }

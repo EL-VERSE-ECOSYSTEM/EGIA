@@ -19,6 +19,7 @@ import { getTeacherDashboardData, getTeacherProfile } from '@/lib/api/queries'
 import { auth } from '@/lib/auth'
 import Link from 'next/link'
 import { SubjectConfig } from '@/components/teacher/subject-config'
+import DashboardLayout from '@/components/layout/dashboard-layout'
 
 export default async function TeacherOverviewPage() {
   const session = await auth.getSession()
@@ -33,6 +34,7 @@ export default async function TeacherOverviewPage() {
   ]
 
   return (
+    <DashboardLayout role="teacher">
     <div className="p-8 max-w-[1600px] mx-auto space-y-10">
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <div className="xl:col-span-2 relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-12 text-white shadow-2xl flex flex-col justify-between">
@@ -203,5 +205,6 @@ export default async function TeacherOverviewPage() {
          </Card>
       </div>
     </div>
+    </DashboardLayout>
   )
 }
