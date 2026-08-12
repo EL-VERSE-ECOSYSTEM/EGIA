@@ -19,7 +19,8 @@ import {
   Calendar,
   DollarSign
 } from 'lucide-react'
-import { getAdminTeacherRequests, getAllTeachersWithWallets, approveTeacherRequest, payTeacherSalary } from '@/app/actions/teacher'
+import { getAdminTeacherRequests, getAllTeachersWithWallets, approveTeacherRequest, payTeacherSalary, updateTeacherSalaryAmount } from '@/app/actions/teacher'
+import { toast } from 'sonner'
 
 export default function AdminTeacherRequestsPage() {
   const [requests, setRequests] = useState<any[]>([])
@@ -27,16 +28,37 @@ export default function AdminTeacherRequestsPage() {
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
 
+  // Custom states for interactive salary inputs
+  const [salaryEdits, setSalaryEdits] = useState<Record<string, string>>({})
+
   const loadData = async () => {
     try {
       const r = await getAdminTeacherRequests()
       setRequests(r || [])
       const t = await getAllTeachersWithWallets()
       setTeachers(t || [])
+
+      // Initialize salary inputs map
+      const initialSalaries: Record<string, string> = {}
+      if (t) {
+        t.forEach((teacherRow: any) => {
+          initialSalaries[teacherRow.id] = teacherRow.wallet?.salaryAmount || '150000.00'
+        })
+      }
+      setSalaryEdits(initialSalaries)
     } catch (err) {
       console.error(err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleUpdateSalary = async (teacherId: string, amount: string) => {
+    try {
+      await updateTeacherSalaryAmount(teacherId, amount)
+      toast.success('Teacher salary updated in real-time!')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update salary')
     }
   }
 
@@ -225,7 +247,23 @@ export default function AdminTeacherRequestsPage() {
                             <tr key={t.id} className="hover:bg-slate-50/30 transition-colors">
                               <td className="p-8 font-black text-slate-900">{t.firstName} {t.lastName}</td>
                               <td className="p-8 font-mono text-sm text-slate-500 uppercase">{t.staffCode || 'N/A'}</td>
-                              <td className="p-8 font-black text-slate-900">₦{parseFloat(t.wallet?.salaryAmount || '150000.00').toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                              <td className="p-8">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-400 font-bold">₦</span>
+                                  <input
+                                    type="number"
+                                    value={salaryEdits[t.id] || ''}
+                                    onChange={(e) => setSalaryEdits({ ...salaryEdits, [t.id]: e.target.value })}
+                                    onBlur={() => handleUpdateSalary(t.id, salaryEdits[t.id])}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        handleUpdateSalary(t.id, salaryEdits[t.id])
+                                      }
+                                    }}
+                                    className="w-28 h-10 px-2 rounded-lg border border-slate-200 font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                                  />
+                                </div>
+                              </td>
                               <td className="p-8 font-black text-amber-600">₦{parseFloat(t.wallet?.balance || '0.00').toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                               <td className="p-8">
                                 <Badge className={`border-none font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider ${t.wallet?.salaryStatus === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800 animate-pulse'}`}>

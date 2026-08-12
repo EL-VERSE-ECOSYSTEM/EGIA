@@ -216,6 +216,41 @@ export async function approveTeacherRequest(requestId: string, status: 'approved
   return result[0]
 }
 
+export async function updateTeacherSalaryAmount(teacherId: string, salaryAmount: string) {
+  const numericAmount = parseFloat(salaryAmount)
+  if (isNaN(numericAmount) || numericAmount < 0) {
+    throw new Error('Please enter a valid salary amount.')
+  }
+
+  // Ensure wallet exists
+  let wallet = await db.query.teacherWallet.findFirst({
+    where: eq(teacherWallet.teacherId, teacherId)
+  })
+
+  if (!wallet) {
+    // Insert new wallet row if missing
+    await db.insert(teacherWallet).values({
+      id: crypto.randomUUID(),
+      teacherId,
+      salaryAmount: numericAmount.toFixed(2),
+      balance: '0.00',
+      salaryStatus: 'pending',
+      updatedAt: new Date()
+    } as any)
+  } else {
+    // Update salary amount
+    await db.update(teacherWallet)
+      .set({
+        salaryAmount: numericAmount.toFixed(2),
+        updatedAt: new Date()
+      })
+      .where(eq(teacherWallet.id, wallet.id))
+  }
+
+  revalidatePath('/dashboard/admin/finance/teacher-requests')
+  return { success: true }
+}
+
 export async function payTeacherSalary(teacherId: string) {
   const wallet = await db.query.teacherWallet.findFirst({
     where: eq(teacherWallet.teacherId, teacherId)
@@ -249,6 +284,35 @@ export async function updateTeacherSubjects(subjects: string[]) {
 
   revalidatePath('/dashboard/teacher/overview')
   return { success: true }
+}
+
+export async function adminUpdateTeacherClassAndSubjects(teacherId: string, classes: string[], subjects: string[]) {
+  // Update classes and subjects in database
+  const result = await db.update(teacher)
+    .set({
+      handlingClasses: classes,
+      teachingSubjects: subjects,
+      updatedAt: new Date()
+    })
+    .where(eq(teacher.id, teacherId))
+    .returning()
+
+  // Also update plural public.teachers table if it exists
+  try {
+    const classStr = classes.join(', ')
+    await db.execute(sql`
+      UPDATE public.teachers
+      SET
+        class_teacher_of = ${classStr},
+        updated_at = NOW()
+      WHERE id = ${teacherId}::uuid
+    `)
+  } catch (err) {
+    console.warn('Could not sync update to public.teachers table:', err)
+  }
+
+  revalidatePath('/dashboard/admin/users/teachers/list')
+  return { success: true, teacher: result[0] }
 }
 
 export async function getStudentsBySubject(subjectName: string) {
