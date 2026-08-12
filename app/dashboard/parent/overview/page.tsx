@@ -21,11 +21,33 @@ import { getParentChildren, getParentProfile } from '@/lib/api/queries'
 import { auth } from '@/lib/auth'
 import Link from 'next/link'
 import DashboardLayout from '@/components/layout/dashboard-layout'
+import { checkWeeklyPaymentStatus } from '@/app/actions/adult-education'
+import { getParentPaymentHistory } from '@/app/actions/payments'
+import { GraduationCap, Video, BookOpen, AlertTriangle } from 'lucide-react'
 
 export default async function ParentOverviewPage() {
   const session = await auth.getSession()
   const parentProfile = await getParentProfile(session?.user.id || '')
   const children = await getParentChildren(parentProfile?.id || '')
+
+  // Check Adult Education enrollment status
+  let adultStatus = { enrolled: false, isPaid: false }
+  try {
+    adultStatus = await checkWeeklyPaymentStatus()
+  } catch (err) {
+    // Parent profile might not be fully loaded or new
+  }
+
+  // Calculate dynamic outstanding pending fees
+  let pendingAmount = 0
+  try {
+    const parentPayments = await getParentPaymentHistory()
+    pendingAmount = parentPayments
+      .filter(p => p.status === 'pending')
+      .reduce((sum, p) => sum + parseFloat(p.amount), 0)
+  } catch (err) {
+    console.warn('Failed to fetch parent payment history for overview:', err)
+  }
 
   return (
     <DashboardLayout role="parent">
@@ -118,8 +140,10 @@ export default async function ParentOverviewPage() {
                <CardContent className="p-8 pt-0 space-y-4">
                   <div className="p-6 rounded-[2rem] bg-emerald-50 border border-emerald-100">
                      <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">Current Balance</p>
-                     <p className="text-3xl font-black text-emerald-900">₦45,000.00</p>
-                     <p className="text-xs font-bold text-emerald-600 mt-2">Due Date: Oct 30, 2024</p>
+                     <p className="text-3xl font-black text-emerald-900">
+                        ₦{pendingAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                     </p>
+                     <p className="text-xs font-bold text-emerald-600 mt-2">Due Date: Dec 15, 2025</p>
                   </div>
                   <Link href="/dashboard/parent/payments/make-payment" className="block w-full">
                      <Button className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black shadow-lg shadow-emerald-600/10">PAY NOW</Button>

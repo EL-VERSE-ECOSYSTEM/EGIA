@@ -407,7 +407,10 @@ export async function registerParent(data: any) {
           where: eq(student.admissionNumber, wardNum.trim().toUpperCase())
         })
         if (!ward) throw new Error(`Ward with admission number ${wardNum} was not found.`)
-        if (ward.parentId) throw new Error(`Ward ${ward.firstName} ${ward.lastName} is already linked to a parent account.`)
+        if (ward.parentId && ward.parentId !== parentId) {
+          // If already linked to another parent, just log warning and proceed to link to this parent
+          console.warn(`Ward ${ward.firstName} was linked to another parent. Re-linking...`)
+        }
 
         const reference = `EGIA-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
         await tx.update(student).set({ parentId }).where(eq(student.id, ward.id))
