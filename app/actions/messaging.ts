@@ -177,10 +177,38 @@ export async function getConversationsForUser(userId: string) {
   })
 }
 
+import { notification as notificationTable } from '@/lib/db/schema'
+
+export async function getAllSystemUsers() {
+  const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+  if (roleData?.role !== 'ADMIN') throw new Error('Permission denied')
+
+  return db.query.user.findMany({
+    orderBy: (user, { asc }) => [asc(user.name)]
+  })
+}
+
+export async function adminSendNotification(targetUserId: string, title: string, bodyText: string, type: string = 'info') {
+  const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+  if (roleData?.role !== 'ADMIN') throw new Error('Permission denied')
+
+  return db.insert(notificationTable).values({
+    id: crypto.randomUUID(),
+    userId: targetUserId,
+    title,
+    message: bodyText,
+    type,
+    isRead: false,
+    createdAt: new Date()
+  } as any).returning()
+}
+
 export async function broadcastMessage(content: string, recipientRole: string) {
   const userId = await getUserId()
   const roleData = await getUserRoleData(userId)
-  if (roleData?.role !== 'admin') throw new Error('Permission denied')
+  if (roleData?.role !== 'ADMIN' && roleData?.role !== 'admin') throw new Error('Permission denied')
 
   const targetRoles = await db.query.userRole.findMany({
     where: eq(userRole.role, recipientRole)
