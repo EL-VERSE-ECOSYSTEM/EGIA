@@ -123,6 +123,49 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
   }
 
   const config = configMap[role]
+  const [isAdultEnrolled, setIsAdultEnrolled] = React.useState(false)
+  const [isAppointedTeacher, setIsAppointedTeacher] = React.useState(false)
+
+  React.useEffect(() => {
+    if (role === 'parent') {
+      import('@/app/actions/adult-education').then(({ checkWeeklyPaymentStatus }) => {
+        checkWeeklyPaymentStatus().then(status => {
+          setIsAdultEnrolled(!!status.enrolled)
+        }).catch(err => console.error(err))
+      })
+    } else if (role === 'teacher') {
+      import('@/app/actions/adult-education').then(({ isTeacherAppointedForAdultEd }) => {
+        isTeacherAppointedForAdultEd().then(appointed => {
+          setIsAppointedTeacher(!!appointed)
+        }).catch(err => console.error(err))
+      })
+    }
+  }, [role])
+
+  // Dynamically append Adult Education links if applicable
+  const links = [...config.links]
+  if (role === 'parent' && isAdultEnrolled) {
+    links.push(
+      { label: 'Adult Video Classes/Sessions', icon: MonitorPlay, href: '/dashboard/parent/adult-education/video-classes' },
+      { label: 'Adult Assignment and Assessment', icon: FileText, href: '/dashboard/parent/adult-education/assignments' },
+      { label: 'Saved Sessions', icon: BookMarked, href: '/dashboard/parent/adult-education/saved-sessions' },
+      { label: 'Live Classes', icon: Video, href: '/dashboard/parent/adult-education/live-classes' },
+    )
+  } else if (role === 'teacher' && isAppointedTeacher) {
+    links.push(
+      { label: 'Manage Adult Videos', icon: MonitorPlay, href: '/dashboard/teacher/adult-education/video-classes' },
+      { label: 'Manage Adult Assignments', icon: FileText, href: '/dashboard/teacher/adult-education/assignments' },
+      { label: 'Manage Adult Saved Sessions', icon: BookMarked, href: '/dashboard/teacher/adult-education/saved-sessions' },
+      { label: 'Manage Adult Live Classes', icon: Video, href: '/dashboard/teacher/adult-education/live-classes' },
+    )
+  } else if (role === 'admin') {
+    links.push(
+      { label: 'Manage Adult Videos', icon: MonitorPlay, href: '/dashboard/teacher/adult-education/video-classes' },
+      { label: 'Manage Adult Assignments', icon: FileText, href: '/dashboard/teacher/adult-education/assignments' },
+      { label: 'Manage Adult Saved Sessions', icon: BookMarked, href: '/dashboard/teacher/adult-education/saved-sessions' },
+      { label: 'Manage Adult Live Classes', icon: Video, href: '/dashboard/teacher/adult-education/live-classes' },
+    )
+  }
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -164,7 +207,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         </div>
 
         <nav className="space-y-1.5">
-          {config.links.map((link) => {
+          {links.map((link) => {
             const isActive = pathname.startsWith(link.href)
             return (
               <Link

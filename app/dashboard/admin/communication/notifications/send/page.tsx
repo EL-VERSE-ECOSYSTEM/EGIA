@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2, Send, CheckCircle, AlertCircle, Bell, Search, ShieldCheck } from 'lucide-react'
-import { getAllSystemUsers, adminSendNotification } from '@/app/actions/messaging'
+import { getAllSystemUsers, adminSendNotification, adminBroadcastNotification } from '@/app/actions/messaging'
 import { toast } from 'sonner'
 
 export default function AdminSendNotificationPage() {
@@ -16,7 +16,7 @@ export default function AdminSendNotificationPage() {
   const [submitting, setSubmitting] = useState(false)
 
   // Form states
-  const [selectedUserId, setSelectedUserId] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState('ALL_USERS')
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [type, setType] = useState('info')
@@ -26,9 +26,7 @@ export default function AdminSendNotificationPage() {
       try {
         const list = await getAllSystemUsers()
         setUsers(list || [])
-        if (list && list.length > 0) {
-          setSelectedUserId(list[0].id)
-        }
+        setSelectedUserId('ALL_USERS')
       } catch (err: any) {
         toast.error('Failed to load user registry', { description: err.message })
       } finally {
@@ -47,8 +45,13 @@ export default function AdminSendNotificationPage() {
 
     setSubmitting(true)
     try {
-      await adminSendNotification(selectedUserId, title, message, type)
-      toast.success('Notification sent to user in real-time!')
+      if (selectedUserId === 'ALL_USERS') {
+        const res = await adminBroadcastNotification(title, message, type)
+        toast.success(`Broadcast notification sent to all ${res?.count || 0} active users!`)
+      } else {
+        await adminSendNotification(selectedUserId, title, message, type)
+        toast.success('Notification sent to user in real-time!')
+      }
       setTitle('')
       setMessage('')
     } catch (err: any) {
@@ -95,6 +98,7 @@ export default function AdminSendNotificationPage() {
                       className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
                       required
                     >
+                      <option value="ALL_USERS">★ BROADCAST TO ALL PORTAL USERS ★</option>
                       {users.map(u => (
                         <option key={u.id} value={u.id}>{u.name || 'Anonymous'} ({u.email})</option>
                       ))}
