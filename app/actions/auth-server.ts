@@ -5,7 +5,7 @@ import { getSiteUrl, getSupabaseSecretKey, getSupabaseUrl, isSupabaseConfigured 
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { user as userTable, userRole, parent, teacher, student, payment, subject } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
 import { createClient as createSupabaseAdminClient, type User as SupabaseUser } from '@supabase/supabase-js'
@@ -760,10 +760,113 @@ export async function loginStudent(data: any) {
   }
 
   // Sign in using standard password client credentials
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+  let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
     password: loginPassword
   })
+
+  // Self-heal fallback: If login fails and student exists locally, attempt dynamic signup/creation
+  if (authError && (authError.message.includes('Invalid login credentials') || authError.message.includes('not found') || authError.message.includes('not verified') || authError.message.includes('database'))) {
+    console.log(`[Auth] Student login failed. Attempting self-healing signup for ${resolvedEmail}...`)
+    try {
+      // 1. Try with admin client if available
+      const adminClient = authAdminClient()
+      if (adminClient) {
+        // Force create/update
+        const existingAuthUser = await findAuthUserByEmail(adminClient, resolvedEmail)
+        if (!existingAuthUser) {
+          const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+            email: resolvedEmail,
+            password: loginPassword,
+            email_confirm: true,
+            user_metadata: {
+              full_name: `${existingStudent.firstName} ${existingStudent.lastName}`,
+              role: 'STUDENT',
+              admission_number: admissionNumber
+            }
+          })
+          if (!createError && created.user) {
+            const retry = await supabase.auth.signInWithPassword({ email: resolvedEmail, password: loginPassword })
+            if (!retry.error) {
+              authError = null
+              authData = retry.data
+              realUserId = created.user.id
+            }
+          }
+        } else {
+          const { error: updateError } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
+            password: loginPassword,
+            user_metadata: {
+              ...existingAuthUser.user_metadata,
+              role: 'STUDENT',
+              admission_number: admissionNumber
+            }
+          })
+          if (!updateError) {
+            const retry = await supabase.auth.signInWithPassword({ email: resolvedEmail, password: loginPassword })
+            if (!retry.error) {
+              authError = null
+              authData = retry.data
+              realUserId = existingAuthUser.id
+            }
+          }
+        }
+      }
+
+      // 2. If admin client failed or wasn't used, try client signUp
+      if (authError) {
+        console.log(`[Auth] Standard signUp fallback for ${resolvedEmail}...`)
+        const signUpResult = await supabase.auth.signUp({
+          email: resolvedEmail,
+          password: loginPassword,
+          options: {
+            data: {
+              full_name: `${existingStudent.firstName} ${existingStudent.lastName}`,
+              role: 'STUDENT',
+              admission_number: admissionNumber
+            }
+          }
+        })
+
+        if (!signUpResult.error && signUpResult.data.user) {
+          const retry = await supabase.auth.signInWithPassword({ email: resolvedEmail, password: loginPassword })
+          if (!retry.error) {
+            authError = null
+            authData = retry.data
+            realUserId = signUpResult.data.user.id
+          }
+        }
+      }
+
+      // 3. Sync ID mapped locally if self-healing succeeded
+      if (!authError && realUserId) {
+        await db.transaction(async (tx) => {
+          const existingLocalUser = await tx.query.user.findFirst({
+            where: eq(userTable.id, realUserId!)
+          })
+          if (!existingLocalUser) {
+            await tx.insert(userTable).values({
+              id: realUserId!,
+              email: resolvedEmail,
+              name: `${existingStudent.firstName} ${existingStudent.lastName}`
+            }).onConflictDoNothing()
+          }
+
+          await tx.insert(userRole).values({
+            id: randomUUID(),
+            userId: realUserId!,
+            role: 'STUDENT'
+          }).onConflictDoNothing()
+
+          await tx.update(student)
+            .set({ userId: realUserId!, password: loginPassword, updatedAt: new Date() })
+            .where(eq(student.id, existingStudent.id))
+        })
+      }
+    } catch (err) {
+      console.warn('[Auth] Self-healing signup fallback failed:', err)
+    }
+  }
 
   if (authError) {
     return { error: authError.message }
