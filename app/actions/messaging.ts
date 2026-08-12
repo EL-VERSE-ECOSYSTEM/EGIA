@@ -241,3 +241,28 @@ export async function broadcastMessage(content: string, recipientRole: string) {
 
   revalidatePath('/dashboard/communication')
 }
+
+export async function adminBroadcastNotification(title: string, bodyText: string, type: string = 'info') {
+  const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+  if (roleData?.role !== 'ADMIN') throw new Error('Permission denied')
+
+  // Get all active users
+  const allUsers = await db.query.user.findMany()
+  if (allUsers.length === 0) return
+
+  // Insert notifications in bulk or loop
+  const inserts = allUsers.map(u => ({
+    id: crypto.randomUUID(),
+    userId: u.id,
+    title,
+    message: bodyText,
+    type,
+    isRead: false,
+    createdAt: new Date()
+  }))
+
+  await db.insert(notificationTable).values(inserts as any)
+  revalidatePath('/dashboard/communication')
+  return { success: true, count: allUsers.length }
+}

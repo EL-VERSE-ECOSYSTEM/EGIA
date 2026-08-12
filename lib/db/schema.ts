@@ -632,3 +632,49 @@ export const bookImportLogs = pgTable('book_import_logs', {
   completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').defaultNow()
 })
+
+
+// ===== ADULT EDUCATION TABLES =====
+export const adultEducationEnrollment = pgTable('adult_education_enrollments', {
+  id: text('id').primaryKey(),
+  parentId: text('parent_id').notNull(),
+  daysOfWeek: jsonb('days_of_week').notNull(), // Array of days, e.g. ["Monday", "Wednesday"]
+  subjectToLearn: text('subject_to_learn').notNull(),
+  preferredTime: text('preferred_time').notNull(),
+  status: text('status').notNull().default('PENDING_PAYMENT'), // PENDING_PAYMENT, ACTIVE, EXPIRED
+  registrationPaid: boolean('registration_paid').notNull().default(false),
+  weeklyPaidUntil: timestamp('weekly_paid_until', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+export const adultEducationPayment = pgTable('adult_education_payments', {
+  id: text('id').primaryKey(),
+  parentId: text('parent_id').notNull(),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  paymentType: text('payment_type').notNull(), // REGISTRATION, WEEKLY
+  reference: text('reference').notNull().unique(),
+  status: text('status').notNull().default('success'), // success, pending, failed
+  paidAt: timestamp('paid_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+export const adultEducationClass = pgTable('adult_education_classes', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description'),
+  type: text('type').notNull(), // VIDEO, LIVE, ASSIGNMENT, SAVED_SESSION
+  url: text('url'), // Video URL or meeting URL
+  content: text('content'), // Assignment details
+  dueDate: timestamp('due_date', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  teacherId: text('teacher_id') // Null/empty means Admin is the teacher
+})
+
+export const systemSettings = pgTable('system_settings', {
+  id: text('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  value: text('value'),
+  type: text('type'),
+  description: text('description'),
+  updatedAt: timestamp('updated_at').defaultNow()
+})
