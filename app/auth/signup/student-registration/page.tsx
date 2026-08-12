@@ -54,6 +54,12 @@ export default function StudentRegistrationPage() {
     setIsValidDate(now <= deadline)
     getRegistrationSubjects().then(setAvailableSubjects).catch(() => setAvailableSubjects([]))
 
+    const pendingAdmission = localStorage.getItem('pending_student_admission')
+    if (pendingAdmission) {
+      setGeneratedAdmissionNumber(pendingAdmission)
+      setShowSuccessModal(true)
+      localStorage.removeItem('pending_student_admission')
+    }
   }, [])
 
   const handleAddSubject = (name: string) => {
@@ -139,6 +145,7 @@ export default function StudentRegistrationPage() {
       }
 
       setGeneratedAdmissionNumber(result.admissionNumber)
+      localStorage.setItem('pending_student_admission', result.admissionNumber)
 
       const studentId = await getStudentIdByAdmissionNumber(result.admissionNumber)
       if (!studentId) throw new Error('Registration record could not be loaded for payment.')
