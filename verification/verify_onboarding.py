@@ -21,7 +21,7 @@ def run_cuj(page, context):
     print("Screenshot of signup options saved.")
 
     # 2. Click "Parent who is a Teacher Registration" (its role link is /auth/signup/parent-teacher)
-    page.get_by_role("link", name="Register").nth(1).click()
+    page.get_by_role("link", name="Register").nth(2).click()
     page.wait_for_timeout(2000)
 
     # Take screenshot of Parent-Teacher Registration form
