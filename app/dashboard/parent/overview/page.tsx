@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic"
 import React from 'react'
+import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -27,8 +28,16 @@ import { GraduationCap, Video, BookOpen, AlertTriangle } from 'lucide-react'
 
 export default async function ParentOverviewPage() {
   const session = await auth.getSession()
-  const parentProfile = await getParentProfile(session?.user.id || '')
-  const children = await getParentChildren(parentProfile?.id || '')
+  if (!session?.user) {
+    redirect('/auth/signin')
+  }
+
+  const parentProfile = await getParentProfile(session.user.id)
+  if (!parentProfile) {
+    redirect('/auth/signin')
+  }
+
+  const children = await getParentChildren(parentProfile.id)
 
   // Check Adult Education enrollment status
   let adultStatus = { enrolled: false, isPaid: false }
