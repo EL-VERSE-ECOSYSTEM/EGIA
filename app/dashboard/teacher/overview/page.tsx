@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic"
 import React from 'react'
+import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -23,8 +24,16 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 
 export default async function TeacherOverviewPage() {
   const session = await auth.getSession()
-  const teacherProfile = await getTeacherProfile(session?.user.id || '')
-  const data = await getTeacherDashboardData(teacherProfile?.id || '')
+  if (!session?.user) {
+    redirect('/auth/signin')
+  }
+
+  const teacherProfile = await getTeacherProfile(session.user.id)
+  if (!teacherProfile) {
+    redirect('/auth/signin')
+  }
+
+  const data = await getTeacherDashboardData(teacherProfile.id)
 
   const stats = [
     { label: 'Assigned Classes', value: data.classes.length.toString(), icon: GraduationCap, color: 'text-purple-600', bg: 'bg-purple-100' },

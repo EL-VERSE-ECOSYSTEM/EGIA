@@ -85,6 +85,14 @@ export async function getUrgentAlerts() {
 }
 
 export async function getTeacherDashboardData(teacherId: string) {
+  if (!teacherId) {
+    return {
+      classes: [],
+      totalStudents: 0,
+      upcomingAssessments: []
+    }
+  }
+
   const classes = await getTeacherClasses(teacherId)
 
   const classNames = classes.map(c => c.name)
@@ -113,6 +121,13 @@ export async function getStudentDashboardData(studentId: string, className: stri
     .innerJoin(subject, eq(assessment.subjectId, subject.id))
     .where(eq(assessment.status, 'published'))
     .limit(5)
+
+  if (!studentId) {
+    return {
+      upcomingAssessments: upcomingAssessments.map(a => ({ ...a.assessment, subject: a.subject.name })),
+      recentPayments: []
+    }
+  }
 
   const recentPayments = await db.select()
     .from(payment)
