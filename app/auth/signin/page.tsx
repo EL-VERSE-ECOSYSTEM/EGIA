@@ -33,6 +33,46 @@ export default function SignInPage() {
     }
   }, [email, selectedRole])
 
+  const roleThemes = {
+    PARENT: {
+      bg: 'from-emerald-950 to-slate-900',
+      accent: 'bg-emerald-600 text-white',
+      hoverAccent: 'hover:bg-emerald-700',
+      focusRing: 'focus:ring-emerald-600',
+      shadow: 'shadow-emerald-600/10',
+      line: 'bg-emerald-600',
+      text: 'text-emerald-400'
+    },
+    STUDENT: {
+      bg: 'from-orange-950 to-slate-900',
+      accent: 'bg-orange-600 text-white',
+      hoverAccent: 'hover:bg-orange-700',
+      focusRing: 'focus:ring-orange-600',
+      shadow: 'shadow-orange-600/10',
+      line: 'bg-orange-600',
+      text: 'text-orange-400'
+    },
+    TEACHER: {
+      bg: 'from-purple-950 to-slate-900',
+      accent: 'bg-purple-600 text-white',
+      hoverAccent: 'hover:bg-purple-700',
+      focusRing: 'focus:ring-purple-600',
+      shadow: 'shadow-purple-600/10',
+      line: 'bg-purple-600',
+      text: 'text-purple-400'
+    },
+    ADMIN: {
+      bg: 'from-amber-950 to-slate-900',
+      accent: 'bg-amber-600 text-white',
+      hoverAccent: 'hover:bg-amber-700',
+      focusRing: 'focus:ring-amber-600',
+      shadow: 'shadow-amber-600/10',
+      line: 'bg-amber-600',
+      text: 'text-amber-400'
+    }
+  }
+
+  const currentTheme = roleThemes[selectedRole]
   const requiresPassword = selectedRole !== 'STUDENT' || studentRequiresPassword
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -86,37 +126,37 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
-      <div className="mb-8 flex items-center gap-2">
-        <div className="bg-amber-600 p-2 rounded-lg">
+    <div className={`min-h-screen bg-gradient-to-br ${currentTheme.bg} flex flex-col items-center justify-center p-4 transition-all duration-700`}>
+      <div className="mb-8 flex items-center gap-2 animate-bounce">
+        <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-md border border-white/15">
           <GraduationCap className="text-white w-6 h-6" />
         </div>
-        <span className="font-black text-xl tracking-tight text-slate-900">EL GOODNEWS <span className="text-amber-600">ACADEMY</span></span>
+        <span className="font-black text-xl tracking-tight text-white uppercase">EL GOODNEWS <span className={currentTheme.text}>ACADEMY</span></span>
       </div>
 
-      <Card className="max-w-md w-full border-none shadow-2xl shadow-slate-200 rounded-3xl overflow-hidden">
-        <div className="h-2 bg-amber-600 w-full" />
+      <Card className="max-w-md w-full border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white text-slate-900 transform transition-all duration-500 hover:scale-[1.01]">
+        <div className={`h-2.5 ${currentTheme.line} w-full transition-all duration-700`} />
         <CardHeader className="text-center pt-8">
-          <CardTitle className="text-3xl font-black text-slate-900">Welcome Back</CardTitle>
-          <CardDescription className="text-slate-500 font-medium mt-2">
-            Sign in to access your academy dashboard
+          <CardTitle className="text-3xl font-black text-slate-900 tracking-tight">Welcome Back</CardTitle>
+          <CardDescription className="text-slate-400 font-bold mt-2">
+            Sign in to access your secure {selectedRole.toLowerCase()} dashboard
           </CardDescription>
         </CardHeader>
         <CardContent className="px-8 pb-10">
           <form onSubmit={handleSignIn} className="space-y-6">
             {error && (
-              <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-sm font-bold rounded-2xl flex items-center gap-3">
+              <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-black rounded-2xl flex items-center gap-3 animate-in shake duration-300">
                 <AlertCircle className="w-5 h-5 shrink-0" />
                 {error}
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="role" className="text-slate-700 font-bold ml-1">Login As</Label>
+              <Label htmlFor="role" className="text-xs font-black uppercase text-slate-400 tracking-wider ml-1">Login As</Label>
               <select
                 id="role"
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value as any)}
-                className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-600 focus:outline-none transition-all"
+                className={`w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-4 font-bold text-slate-800 focus:bg-white focus:ring-2 ${currentTheme.focusRing} focus:outline-none transition-all duration-300`}
               >
                 <option value="PARENT">Parent</option>
                 <option value="STUDENT">Student</option>
@@ -125,24 +165,24 @@ export default function SignInPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-700 font-bold ml-1">
+              <Label htmlFor="email" className="text-xs font-black uppercase text-slate-400 tracking-wider ml-1">
                 {selectedRole === 'STUDENT' ? 'Admission Number Only' : selectedRole === 'TEACHER' ? 'Staff ID or Email' : 'Email Address'}
               </Label>
               <Input
                 id="email"
                 type="text"
-                placeholder={selectedRole === 'STUDENT' ? 'EGIA-S-XXXXXX or EGIA-P-XXXXXX' : selectedRole === 'TEACHER' ? 'EGIA-ST-XXXXXX or email' : 'name@example.com'}
+                placeholder={selectedRole === 'STUDENT' ? 'e.g. EGIA-S-00998' : selectedRole === 'TEACHER' ? 'e.g. EGIA-ST-00123' : 'name@example.com'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-amber-600 transition-all"
+                className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 ${currentTheme.focusRing} transition-all duration-300`}
               />
             </div>
             {requiresPassword && (
-              <div className="space-y-2">
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="flex items-center justify-between ml-1">
-                  <Label htmlFor="password" title="password" className="text-slate-700 font-bold">Password</Label>
-                  <Link href="/auth/forgot-password" title="forgot-password" className="text-xs font-bold text-amber-600 hover:underline">Forgot password?</Link>
+                  <Label htmlFor="password" title="password" className="text-xs font-black uppercase text-slate-400 tracking-wider">Password</Label>
+                  <Link href="/auth/forgot-password" title="forgot-password" className={`text-xs font-bold ${currentTheme.text.replace('text-', 'text-')} hover:underline`}>Forgot password?</Link>
                 </div>
                 <Input
                   id="password"
@@ -150,27 +190,27 @@ export default function SignInPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required={requiresPassword}
-                  className="h-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-amber-600 transition-all"
+                  className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 ${currentTheme.focusRing} transition-all duration-300`}
                 />
               </div>
             )}
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white h-14 rounded-2xl font-black text-lg shadow-xl shadow-slate-200 mt-4"
+              className={`w-full ${currentTheme.accent} ${currentTheme.hoverAccent} h-14 rounded-2xl font-black text-lg shadow-xl ${currentTheme.shadow} mt-4 transition-all duration-300 transform active:scale-95`}
             >
-              {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Sign In'}
+              {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 'Sign In'}
             </Button>
           </form>
 
-          <div className="mt-8 text-center text-sm font-medium text-slate-500">
+          <div className="mt-8 text-center text-sm font-bold text-slate-400">
             Don't have an account?
-            <Link href="/auth/signup" className="text-amber-600 font-black hover:underline ml-1">Register Now</Link>
+            <Link href="/auth/signup" className={`font-black hover:underline ml-1 ${currentTheme.text.replace('text-', 'text-')}`}>Register Now</Link>
           </div>
         </CardContent>
       </Card>
 
-      <p className="mt-8 text-xs text-slate-400 font-bold uppercase tracking-widest">
+      <p className="mt-10 text-xs text-slate-400 font-bold uppercase tracking-[0.2em]">
         built by ELCODERS by E.V.E
       </p>
     </div>

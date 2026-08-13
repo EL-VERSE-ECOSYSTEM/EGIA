@@ -1033,18 +1033,6 @@ export async function loginRole(data: {
             if (!createError && created.user) {
               signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
             }
-          } else {
-            console.log(`[Auth] Syncing password for seeded ${selectedRole} ${email} in Supabase...`)
-            const { error: updateError } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
-              password: data.password,
-              user_metadata: {
-                ...existingAuthUser.user_metadata,
-                role: selectedRole
-              }
-            })
-            if (!updateError) {
-              signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
-            }
           }
         }
       }

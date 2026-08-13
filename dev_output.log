@@ -1204,3 +1204,19 @@ If you need interactivity, consider converting part of this to a Client Componen
  GET /dashboard/student/overview 200 in 1074ms (next.js: 4ms, proxy.ts: 4ms, application-code: 1066ms)
  GET /api/fcm/notifications 200 in 381ms (next.js: 20ms, proxy.ts: 19ms, application-code: 342ms)
  GET /api/fcm/notifications 200 in 340ms (next.js: 4ms, proxy.ts: 4ms, application-code: 332ms)
+ GET /auth/signup 200 in 770ms (next.js: 68ms, proxy.ts: 89ms, application-code: 614ms)
+ GET / 200 in 1045ms (next.js: 101ms, proxy.ts: 43ms, application-code: 901ms)
+ GET /auth/signup/parent-teacher 200 in 134ms (next.js: 57ms, proxy.ts: 13ms, application-code: 64ms)
+ POST /auth/signup/parent-teacher 200 in 4.8s (next.js: 12ms, proxy.ts: 11ms, application-code: 4.8s)
+  └─ ƒ registerParentTeacher({"childClass":"Primary 3","childDOB":"2016-05-12","childFirstName":"Efe","...":"9 items not stringified"}) in 4760ms actions/auth-server.ts
+ GET /auth/signin 200 in 167ms (next.js: 17ms, proxy.ts: 6ms, application-code: 145ms)
+ POST /auth/signin 200 in 246ms (next.js: 8ms, proxy.ts: 14ms, application-code: 224ms)
+  └─ ƒ checkStudentPasswordRequirement("EGIA-P-666298") in 208ms actions/auth-server.ts
+[Auth] Creating remote Supabase Auth user for student.egia-p-666298@portal.egia.local...
+[Auth] Self-healing and synchronizing database user ID to 1038279d-dce1-4646-afb0-4c1a390ea502 for student EGIA-P-666298...
+ POST /auth/signin 200 in 2.5s (next.js: 12ms, proxy.ts: 7ms, application-code: 2.4s)
+  └─ ƒ loginStudent({"admissionNumber":"EGIA-P-666298"}) in 2384ms actions/auth-server.ts
+ GET /dashboard-redirect 200 in 665ms (next.js: 17ms, proxy.ts: 6ms, application-code: 641ms)
+[browser] Uncaught TypeError: Failed to execute 'measure' on 'Performance': '​DashboardRedirect' cannot have a negative time stamp.
+ GET /dashboard/student/overview 200 in 1064ms (next.js: 11ms, proxy.ts: 10ms, application-code: 1043ms)
+ GET /api/fcm/notifications 200 in 240ms (next.js: 22ms, proxy.ts: 12ms, application-code: 206ms)
