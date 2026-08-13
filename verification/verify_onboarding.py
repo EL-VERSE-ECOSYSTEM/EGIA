@@ -83,7 +83,7 @@ def run_cuj(page, context):
     # To log in, let's query the database to get the generated admission number for Mary Okon's child!
     print("Querying database for child's generated admission number...")
 
-    query = f"SELECT \"admissionnumber\" FROM student WHERE \"lastname\" = '{last_name}' LIMIT 1;"
+    query = f"SELECT \"admissionnumber\" FROM public.student WHERE \"lastname\" = '{last_name}' LIMIT 1;"
     proc = subprocess.Popen(
         ['python3', 'self_created_tools/db_exec.py', query],
         stdout=subprocess.PIPE,

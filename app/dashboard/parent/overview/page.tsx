@@ -33,8 +33,8 @@ export default async function ParentOverviewPage() {
   }
 
   const parentProfile = await getParentProfile(session.user.id)
-  if (!parentProfile) {
-    redirect('/auth/signin')
+  if (!parentProfile || session.user.role?.toUpperCase() !== 'PARENT') {
+    redirect('/dashboard-redirect')
   }
 
   const children = await getParentChildren(parentProfile.id)
