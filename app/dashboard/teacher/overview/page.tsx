@@ -29,8 +29,8 @@ export default async function TeacherOverviewPage() {
   }
 
   const teacherProfile = await getTeacherProfile(session.user.id)
-  if (!teacherProfile) {
-    redirect('/auth/signin')
+  if (!teacherProfile || session.user.role?.toUpperCase() !== 'TEACHER') {
+    redirect('/dashboard-redirect')
   }
 
   const data = await getTeacherDashboardData(teacherProfile.id)

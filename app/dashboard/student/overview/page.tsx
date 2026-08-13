@@ -32,8 +32,8 @@ export default async function StudentOverviewPage() {
   }
 
   const studentProfile = await getStudentProfile(session.user.id)
-  if (!studentProfile) {
-    redirect('/auth/signin')
+  if (!studentProfile || session.user.role?.toUpperCase() !== 'STUDENT') {
+    redirect('/dashboard-redirect')
   }
 
   const data = await getStudentDashboardData(studentProfile.id, studentProfile.class)

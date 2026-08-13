@@ -220,13 +220,13 @@ export async function registerStudent(data: any) {
         email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null
-      })
+      }).onConflictDoNothing()
 
       await tx.insert(userRole).values({
         id: randomUUID(),
         userId: userId,
         role: 'STUDENT',
-      })
+      }).onConflictDoNothing()
 
       await tx.insert(student).values({
         id: randomUUID(),
@@ -333,13 +333,13 @@ export async function registerParent(data: any) {
         email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null
-      })
+      }).onConflictDoNothing()
 
       await tx.insert(userRole).values({
         id: randomUUID(),
         userId: userId,
         role: 'PARENT',
-      })
+      }).onConflictDoNothing()
 
       await tx.insert(parent).values({
         id: parentId,
@@ -475,13 +475,13 @@ export async function registerTeacher(data: any) {
         email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null
-      })
+      }).onConflictDoNothing()
 
       await tx.insert(userRole).values({
         id: randomUUID(),
         userId: userId,
         role: 'TEACHER',
-      })
+      }).onConflictDoNothing()
 
       await tx.insert(teacher).values({
         id: randomUUID(),
@@ -620,6 +620,50 @@ export async function activateStudent(data: any) {
       await tx.update(student)
         .set({ userId: userId, password: password || 'default' })
         .where(eq(student.id, existingStudent.id))
+
+      // Sync write to public.students table
+      try {
+        await tx.execute(sql`
+          INSERT INTO public.students (
+            id, user_id, admission_number, first_name, last_name, middle_name,
+            date_of_birth, current_class, is_graduated, created_at, updated_at
+          ) VALUES (
+            ${existingStudent.id}::uuid,
+            ${userId}::uuid,
+            ${existingStudent.admissionNumber},
+            ${existingStudent.firstName},
+            ${existingStudent.lastName},
+            ${existingStudent.middleName || null},
+            ${existingStudent.dateOfBirth ? existingStudent.dateOfBirth : null}::date,
+            ${existingStudent.class},
+            false,
+            NOW(),
+            NOW()
+          )
+          ON CONFLICT (admission_number) DO NOTHING
+        `)
+      } catch (err) {
+        console.warn('Could not sync insert to public.students table during activateStudent:', err)
+      }
+
+      if (existingStudent.parentId) {
+        try {
+          await tx.execute(sql`
+            INSERT INTO public.parent_students (id, parent_id, student_id, is_guardian, relationship, created_at)
+            VALUES (
+              ${randomUUID()}::uuid,
+              ${existingStudent.parentId}::uuid,
+              ${existingStudent.id}::uuid,
+              true,
+              'PARENT',
+              NOW()
+            )
+            ON CONFLICT DO NOTHING
+          `)
+        } catch (err) {
+          console.warn('Could not sync insert to public.parent_students table during activateStudent:', err)
+        }
+      }
     })
 
     return { success: true }
@@ -865,6 +909,50 @@ export async function loginStudent(data: any) {
           await tx.update(student)
             .set({ userId: realUserId!, password: loginPassword, updatedAt: new Date() })
             .where(eq(student.id, existingStudent.id))
+
+          // Sync write to public.students table
+          try {
+            await tx.execute(sql`
+              INSERT INTO public.students (
+                id, user_id, admission_number, first_name, last_name, middle_name,
+                date_of_birth, current_class, is_graduated, created_at, updated_at
+              ) VALUES (
+                ${existingStudent.id}::uuid,
+                ${realUserId}::uuid,
+                ${existingStudent.admissionNumber},
+                ${existingStudent.firstName},
+                ${existingStudent.lastName},
+                ${existingStudent.middleName || null},
+                ${existingStudent.dateOfBirth ? existingStudent.dateOfBirth : null}::date,
+                ${existingStudent.class},
+                false,
+                NOW(),
+                NOW()
+              )
+              ON CONFLICT (admission_number) DO NOTHING
+            `)
+          } catch (err) {
+            console.warn('Could not sync insert to public.students table during loginStudent self-healing:', err)
+          }
+
+          if (existingStudent.parentId) {
+            try {
+              await tx.execute(sql`
+                INSERT INTO public.parent_students (id, parent_id, student_id, is_guardian, relationship, created_at)
+                VALUES (
+                  ${randomUUID()}::uuid,
+                  ${existingStudent.parentId}::uuid,
+                  ${existingStudent.id}::uuid,
+                  true,
+                  'PARENT',
+                  NOW()
+                )
+                ON CONFLICT DO NOTHING
+              `)
+            } catch (err) {
+              console.warn('Could not sync insert to public.parent_students table during loginStudent self-healing:', err)
+            }
+          }
         })
       }
     } catch (err) {
@@ -1061,14 +1149,14 @@ export async function registerParentTeacher(data: any) {
         email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null
-      })
+      }).onConflictDoNothing()
 
       // 2. Insert User Role Row (Primary role: PARENT)
       await tx.insert(userRole).values({
         id: randomUUID(),
         userId: userId,
         role: 'PARENT',
-      })
+      }).onConflictDoNothing()
 
       // 3. Insert Parent Profile Record
       await tx.insert(parent).values({
@@ -1122,7 +1210,66 @@ export async function registerParentTeacher(data: any) {
         createdAt: new Date(),
         updatedAt: new Date()
       })
+
     })
+
+    // Sync write to public.users table (executed outside main transaction to prevent rollback issues)
+    try {
+      await db.execute(sql`
+        INSERT INTO public.users (id, email, full_name, role, is_active, is_verified, created_at, updated_at)
+        VALUES (
+          ${userId}::uuid,
+          ${emailAddress},
+          ${`${firstName} ${lastName}`},
+          'PARENT'::academy_user_role,
+          true,
+          true,
+          NOW(),
+          NOW()
+        )
+        ON CONFLICT (email) DO NOTHING
+      `)
+    } catch (err) {
+      console.warn('Could not sync insert to public.users table in registerParentTeacher:', err)
+    }
+
+    // Sync write to public.parents table
+    try {
+      await db.execute(sql`
+        INSERT INTO public.parents (
+          id, user_id, created_at, updated_at
+        ) VALUES (
+          ${parentId}::uuid,
+          ${userId}::uuid,
+          NOW(),
+          NOW()
+        )
+        ON CONFLICT DO NOTHING
+      `)
+    } catch (err) {
+      console.warn('Could not sync insert to public.parents table in registerParentTeacher:', err)
+    }
+
+    // Sync write to public.teachers table
+    try {
+      await db.execute(sql`
+        INSERT INTO public.teachers (
+          id, user_id, staff_id, first_name, last_name, is_class_teacher, created_at, updated_at
+        ) VALUES (
+          ${teacherId}::uuid,
+          ${userId}::uuid,
+          ${staffCode},
+          ${firstName},
+          ${lastName},
+          false,
+          NOW(),
+          NOW()
+        )
+        ON CONFLICT (staff_id) DO NOTHING
+      `)
+    } catch (err) {
+      console.warn('Could not sync insert to public.teachers table in registerParentTeacher:', err)
+    }
 
     const checkout = new URL(process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW')
     checkout.searchParams.set('reference', registrationReference)

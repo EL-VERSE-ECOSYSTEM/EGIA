@@ -74,13 +74,29 @@ export async function linkChild(admissionNumber: string) {
     await db.execute(sql`
       UPDATE public.students
       SET
-        parent_id = ${parentProfile.id}::uuid,
         current_session = ${currentSession?.name || null},
         updated_at = NOW()
       WHERE admission_number = ${admissionNumber.trim().toUpperCase()}
     `)
   } catch (err) {
     console.warn('Could not sync update to public.students table:', err)
+  }
+
+  try {
+    await db.execute(sql`
+      INSERT INTO public.parent_students (id, parent_id, student_id, is_guardian, relationship, created_at)
+      VALUES (
+        ${randomUUID()}::uuid,
+        ${parentProfile.id}::uuid,
+        ${child.id}::uuid,
+        true,
+        'PARENT',
+        NOW()
+      )
+      ON CONFLICT DO NOTHING
+    `)
+  } catch (err) {
+    console.warn('Could not sync insert to public.parent_students table:', err)
   }
 
   // Administrative admissions are provisioned without a fee. Once a parent links the
@@ -263,13 +279,29 @@ export async function createParentProfile(data: {
           await tx.execute(sql`
             UPDATE public.students
             SET
-              parent_id = ${parentId}::uuid,
               current_session = ${currentSession?.name || null},
               updated_at = NOW()
             WHERE admission_number = ${data.wardAdmissionNumber.trim().toUpperCase()}
           `)
         } catch (err) {
           console.warn('Could not sync update to public.students table:', err)
+        }
+
+        try {
+          await tx.execute(sql`
+            INSERT INTO public.parent_students (id, parent_id, student_id, is_guardian, relationship, created_at)
+            VALUES (
+              ${randomUUID()}::uuid,
+              ${parentId}::uuid,
+              ${child.id}::uuid,
+              true,
+              'PARENT',
+              NOW()
+            )
+            ON CONFLICT DO NOTHING
+          `)
+        } catch (err) {
+          console.warn('Could not sync insert to public.parent_students table:', err)
         }
       }
     }
@@ -286,6 +318,9 @@ export async function createStudentProfile(data: {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
+  const studentId = randomUUID()
+  const admissionNumber = generateAdmissionNumber(data.class)
+
   await db.transaction(async (tx) => {
     await tx.insert(userRole).values({
       id: randomUUID(),
@@ -293,10 +328,8 @@ export async function createStudentProfile(data: {
       role: 'STUDENT',
     })
 
-    const admissionNumber = generateAdmissionNumber(data.class)
-
     await tx.insert(student).values({
-      id: randomUUID(),
+      id: studentId,
       userId: session.user.id,
       firstName: data.firstName,
       lastName: data.lastName,
@@ -304,6 +337,48 @@ export async function createStudentProfile(data: {
       admissionNumber: admissionNumber,
     })
   })
+
+  // Sync write to public.users table (executed outside main transaction to prevent rollback issues)
+  try {
+    await db.execute(sql`
+      INSERT INTO public.users (id, email, full_name, role, is_active, is_verified, created_at, updated_at)
+      VALUES (
+        ${session.user.id}::uuid,
+        ${session.user.email},
+        ${`${data.firstName} ${data.lastName}`},
+        'STUDENT'::academy_user_role,
+        true,
+        true,
+        NOW(),
+        NOW()
+      )
+      ON CONFLICT (email) DO NOTHING
+    `)
+  } catch (err) {
+    console.warn('Could not sync insert to public.users table:', err)
+  }
+
+  // Sync write to public.students table
+  try {
+    await db.execute(sql`
+      INSERT INTO public.students (
+        id, user_id, admission_number, first_name, last_name, current_class, is_graduated, created_at, updated_at
+      ) VALUES (
+        ${studentId}::uuid,
+        ${session.user.id}::uuid,
+        ${admissionNumber},
+        ${data.firstName},
+        ${data.lastName},
+        ${data.class},
+        false,
+        NOW(),
+        NOW()
+      )
+      ON CONFLICT (admission_number) DO NOTHING
+    `)
+  } catch (err) {
+    console.warn('Could not sync insert to public.students table:', err)
+  }
 
   return { success: true }
 }
@@ -317,6 +392,8 @@ export async function createTeacherProfile(data: {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
+  const teacherId = randomUUID()
+
   await db.transaction(async (tx) => {
     await tx.insert(userRole).values({
       id: randomUUID(),
@@ -325,7 +402,7 @@ export async function createTeacherProfile(data: {
     })
 
     await tx.insert(teacher).values({
-      id: randomUUID(),
+      id: teacherId,
       userId: session.user.id,
       firstName: data.firstName,
       lastName: data.lastName,
@@ -333,6 +410,47 @@ export async function createTeacherProfile(data: {
       type: data.type || 'SUBJECT',
     })
   })
+
+  // Sync write to public.users table (executed outside main transaction to prevent rollback issues)
+  try {
+    await db.execute(sql`
+      INSERT INTO public.users (id, email, full_name, role, is_active, is_verified, created_at, updated_at)
+      VALUES (
+        ${session.user.id}::uuid,
+        ${session.user.email},
+        ${`${data.firstName} ${data.lastName}`},
+        'TEACHER'::academy_user_role,
+        true,
+        true,
+        NOW(),
+        NOW()
+      )
+      ON CONFLICT (email) DO NOTHING
+    `)
+  } catch (err) {
+    console.warn('Could not sync insert to public.users table:', err)
+  }
+
+  // Sync write to public.teachers table
+  try {
+    await db.execute(sql`
+      INSERT INTO public.teachers (
+        id, user_id, staff_id, first_name, last_name, is_class_teacher, created_at, updated_at
+      ) VALUES (
+        ${teacherId}::uuid,
+        ${session.user.id}::uuid,
+        ${data.staffCode},
+        ${data.firstName},
+        ${data.lastName},
+        false,
+        NOW(),
+        NOW()
+      )
+      ON CONFLICT (staff_id) DO NOTHING
+    `)
+  } catch (err) {
+    console.warn('Could not sync insert to public.teachers table:', err)
+  }
 
   return { success: true }
 }
