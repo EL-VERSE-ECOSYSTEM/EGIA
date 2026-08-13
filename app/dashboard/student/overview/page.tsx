@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic"
 import React from 'react'
+import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,8 +27,16 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 
 export default async function StudentOverviewPage() {
   const session = await auth.getSession()
-  const studentProfile = await getStudentProfile(session?.user.id || '')
-  const data = await getStudentDashboardData(studentProfile?.id || '', studentProfile?.class || '')
+  if (!session?.user) {
+    redirect('/auth/signin')
+  }
+
+  const studentProfile = await getStudentProfile(session.user.id)
+  if (!studentProfile) {
+    redirect('/auth/signin')
+  }
+
+  const data = await getStudentDashboardData(studentProfile.id, studentProfile.class)
 
   const stats = [
      { label: 'Completed CBTs', value: '8', icon: Activity, color: 'text-orange-600', bg: 'bg-orange-50' },
