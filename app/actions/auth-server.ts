@@ -671,6 +671,10 @@ export async function loginStudent(data: any) {
     return { error: 'Password is required for this account.' }
   }
 
+  if (userPassword && existingStudent.password && userPassword !== existingStudent.password) {
+    return { error: 'Invalid login credentials.' }
+  }
+
   const loginPassword = userPassword || existingStudent.password || 'default'
 
   // Determine standard email address mapping dynamically from Supabase Database
@@ -766,8 +770,8 @@ export async function loginStudent(data: any) {
   })
 
   // Self-heal fallback: If login fails and student exists locally, attempt dynamic signup/creation
-  if (authError && (authError.message.includes('Invalid login credentials') || authError.message.includes('not found') || authError.message.includes('not verified') || authError.message.includes('database'))) {
-    console.log(`[Auth] Student login failed. Attempting self-healing signup for ${resolvedEmail}...`)
+  if (authError) {
+    console.log(`[Auth] Student login failed with error: ${authError.message}. Attempting self-healing signup for ${resolvedEmail}...`)
     try {
       // 1. Try with admin client if available
       const adminClient = authAdminClient()
