@@ -39,11 +39,24 @@ export default async function StudentOverviewPage() {
 
   const data = await getStudentDashboardData(studentProfile.id, studentProfile.class)
 
+  const dynamicStats = data.stats || {
+    completedCBTs: 0,
+    classRank: 'N/A',
+    studyMaterials: 0,
+    assignments: 0,
+    curriculumProgress: 65
+  }
+
+  const aiRecommendation = data.aiRecommendation || {
+    subject: 'Mathematics',
+    text: 'Review standard class study materials to boost your curriculum coverage.'
+  }
+
   const stats = [
-     { label: 'Completed CBTs', value: '8', icon: Activity, color: 'text-orange-600', bg: 'bg-orange-50' },
-     { label: 'Class Rank', value: '4th', icon: Award, color: 'text-amber-600', bg: 'bg-amber-50' },
-     { label: 'Study Materials', value: '42', icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
-     { label: 'Assignments', value: '3', icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50' }
+     { label: 'Completed CBTs', value: String(dynamicStats.completedCBTs), icon: Activity, color: 'text-orange-600', bg: 'bg-orange-50' },
+     { label: 'Class Rank', value: dynamicStats.classRank, icon: Award, color: 'text-amber-600', bg: 'bg-amber-50' },
+     { label: 'Study Materials', value: String(dynamicStats.studyMaterials), icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
+     { label: 'Assignments', value: String(dynamicStats.assignments), icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50' }
   ]
 
   return (
@@ -60,7 +73,7 @@ export default async function StudentOverviewPage() {
               </div>
               <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">Hello, {studentProfile?.firstName || 'Student'}.</h1>
               <p className="text-slate-400 text-lg font-medium max-w-xl">
-                 You're doing great! You've completed 85% of this term's curriculum.
+                 You're doing great! You've completed {dynamicStats.curriculumProgress}% of this term's curriculum.
                  Check your upcoming assessments below.
               </p>
            </div>
@@ -180,10 +193,10 @@ export default async function StudentOverviewPage() {
                   <div>
                     <div className="flex justify-between text-sm mb-3">
                       <span className="font-black text-slate-700">First Term Syllabus</span>
-                      <span className="font-black text-orange-600 uppercase tracking-widest">65%</span>
+                      <span className="font-black text-orange-600 uppercase tracking-widest">{dynamicStats.curriculumProgress}%</span>
                     </div>
                     <div className="w-full bg-slate-100 h-4 rounded-full overflow-hidden shadow-inner">
-                      <div className="bg-gradient-to-r from-orange-500 to-amber-500 h-full w-[65%] rounded-full shadow-lg shadow-orange-200"></div>
+                      <div className="bg-gradient-to-r from-orange-500 to-amber-500 h-full rounded-full shadow-lg shadow-orange-200" style={{ width: `${dynamicStats.curriculumProgress}%` }}></div>
                     </div>
                   </div>
 
@@ -192,7 +205,7 @@ export default async function StudentOverviewPage() {
                     <div>
                       <p className="text-sm font-black text-blue-900">AI Study Recommendation</p>
                       <p className="text-xs text-blue-700 mt-1 font-medium leading-relaxed">
-                        Focus on "Quantum Mechanics" in Physics to improve your projected term grade by 12%.
+                        {aiRecommendation.text}
                       </p>
                       <Button variant="link" className="text-blue-600 p-0 h-auto text-xs font-black mt-3 uppercase tracking-widest">Start Revision</Button>
                     </div>

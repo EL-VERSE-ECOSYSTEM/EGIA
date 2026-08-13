@@ -273,7 +273,7 @@ export default function StudentRegistrationPage() {
                     value={formData.firstName}
                     onChange={e => setFormData({...formData, firstName: e.target.value})}
                     required
-                    className="h-11 rounded-xl border-slate-200 text-xs font-bold"
+                    className="h-11 rounded-xl border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                   />
                 </div>
                 <div className="space-y-1">
@@ -283,7 +283,7 @@ export default function StudentRegistrationPage() {
                     placeholder="Chidi"
                     value={formData.middleName}
                     onChange={e => setFormData({...formData, middleName: e.target.value})}
-                    className="h-11 rounded-xl border-slate-200 text-xs font-bold"
+                    className="h-11 rounded-xl border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                   />
                 </div>
                 <div className="space-y-1">
@@ -294,7 +294,7 @@ export default function StudentRegistrationPage() {
                     value={formData.lastName}
                     onChange={e => setFormData({...formData, lastName: e.target.value})}
                     required
-                    className="h-11 rounded-xl border-slate-200 text-xs font-bold"
+                    className="h-11 rounded-xl border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                   />
                 </div>
               </div>
@@ -308,7 +308,7 @@ export default function StudentRegistrationPage() {
                     value={formData.dateOfBirth}
                     onChange={e => setFormData({...formData, dateOfBirth: e.target.value})}
                     required
-                    className="h-12 rounded-xl border-slate-200"
+                    className="h-12 rounded-xl border-slate-200 focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300 bg-slate-50/50 focus:bg-white"
                   />
                 </div>
                 <div className="space-y-2">
@@ -319,7 +319,7 @@ export default function StudentRegistrationPage() {
                     value={formData.dateOfResumption}
                     onChange={e => setFormData({...formData, dateOfResumption: e.target.value})}
                     required
-                    className="h-12 rounded-xl border-slate-200"
+                    className="h-12 rounded-xl border-slate-200 focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300 bg-slate-50/50 focus:bg-white"
                   />
                 </div>
               </div>
@@ -331,7 +331,7 @@ export default function StudentRegistrationPage() {
                     id="class"
                     value={formData.class}
                     onChange={e => setFormData({...formData, class: e.target.value})}
-                    className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-4 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:outline-none transition-all"
+                    className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-4 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent focus:outline-none transition-all duration-300"
                   >
                     <option value="Primary 3">Primary 3</option>
                     <option value="Primary 4">Primary 4</option>
@@ -355,7 +355,7 @@ export default function StudentRegistrationPage() {
                     value={formData.email}
                     onChange={e => setFormData({...formData, email: e.target.value})}
                     required
-                    className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-orange-600"
+                    className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                   />
                 </div>
               </div>
@@ -369,7 +369,7 @@ export default function StudentRegistrationPage() {
                     value={formData.department || 'SCIENCE'}
                     onChange={e => setFormData({...formData, department: e.target.value})}
                     required
-                    className="w-full h-12 rounded-xl border border-orange-200 bg-white px-4 font-bold text-slate-800 focus:ring-2 focus:ring-orange-600 focus:outline-none transition-all"
+                    className="w-full h-12 rounded-xl border border-orange-200 bg-white px-4 font-bold text-slate-800 focus:ring-2 focus:ring-orange-600 focus:border-transparent focus:outline-none transition-all"
                   >
                     <option value="SCIENCE">SCIENCE</option>
                     <option value="ARTS">ARTS</option>
@@ -382,11 +382,11 @@ export default function StudentRegistrationPage() {
               <div className="space-y-2 bg-slate-50 p-5 rounded-3xl border border-slate-100">
                 <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Select subjects</Label>
                 <div className="flex gap-2">
-                  <select aria-label="Available subjects" defaultValue="" onChange={e => { handleAddSubject(e.target.value); e.currentTarget.value = '' }} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 font-bold">
+                  <select aria-label="Available subjects" defaultValue="" onChange={e => { handleAddSubject(e.target.value); e.currentTarget.value = '' }} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 font-bold focus:ring-2 focus:ring-orange-600 focus:border-transparent focus:outline-none transition-all duration-300">
                     <option value="" disabled>{availableSubjects.length ? 'Choose a subject to add' : 'No subjects configured yet'}</option>
                     {availableSubjects.filter(item => !subjectsDone.includes(item.name)).map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
                   </select>
-                  <Input aria-label="Enter another subject" value={manualSubject} onChange={e => setManualSubject(e.target.value)} placeholder="Enter manually" className="h-11 rounded-xl border-slate-200 bg-white font-bold" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addManualSubject() } }} />
+                  <Input aria-label="Enter another subject" value={manualSubject} onChange={e => setManualSubject(e.target.value)} placeholder="Enter manually" className="h-11 rounded-xl border-slate-200 bg-white font-bold focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addManualSubject() } }} />
                   <Button type="button" onClick={addManualSubject} className="bg-orange-600 hover:bg-orange-700 h-11 px-4 rounded-xl font-bold"><Plus size={16} /> Add</Button>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-3">
@@ -422,7 +422,7 @@ export default function StudentRegistrationPage() {
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
               <div className="space-y-2">
@@ -433,7 +433,7 @@ export default function StudentRegistrationPage() {
                   value={formData.confirmPassword}
                   onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
               <Button

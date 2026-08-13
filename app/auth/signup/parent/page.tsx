@@ -220,7 +220,7 @@ export default function ParentSignUpPage() {
                   value={formData.firstName}
                   onChange={e => setFormData({...formData, firstName: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-emerald-600"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
               <div className="space-y-2">
@@ -231,7 +231,7 @@ export default function ParentSignUpPage() {
                   value={formData.lastName}
                   onChange={e => setFormData({...formData, lastName: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-emerald-600"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
             </div>
@@ -246,7 +246,7 @@ export default function ParentSignUpPage() {
                   value={formData.email}
                   onChange={e => setFormData({...formData, email: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-emerald-600"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
               <div className="space-y-2">
@@ -258,7 +258,7 @@ export default function ParentSignUpPage() {
                   value={formData.phone}
                   onChange={e => setFormData({...formData, phone: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-emerald-600"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
             </div>
@@ -271,7 +271,7 @@ export default function ParentSignUpPage() {
                 value={formData.occupation}
                 onChange={e => setFormData({...formData, occupation: e.target.value})}
                 required
-                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-emerald-600"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
               />
             </div>
 
@@ -281,10 +281,10 @@ export default function ParentSignUpPage() {
 
               <div className="flex gap-2">
                 <Input
-                  placeholder="Enter ward's admission number (e.g. EGIA-S-00998)"
+                  placeholder="Enter ward's admission number (e.g. EGIA-S-123456)"
                   value={wardAdmissionNumber}
                   onChange={e => setWardAdmissionNumber(e.target.value.toUpperCase())}
-                  className="h-11 rounded-xl border-slate-200 bg-white text-xs font-bold uppercase tracking-wider"
+                  className="h-11 rounded-xl border-slate-200 bg-white text-xs font-bold uppercase tracking-wider focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
                 />
                 <Button type="button" onClick={handleSearchWard} disabled={searching} className="bg-emerald-600 hover:bg-emerald-700 h-11 px-4 rounded-xl shrink-0">
                   {searching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
@@ -359,7 +359,7 @@ export default function ParentSignUpPage() {
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
               <div className="space-y-2">
@@ -370,7 +370,7 @@ export default function ParentSignUpPage() {
                   value={formData.confirmPassword}
                   onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
             </div>

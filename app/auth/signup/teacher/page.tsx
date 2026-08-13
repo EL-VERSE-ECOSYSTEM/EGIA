@@ -181,7 +181,7 @@ export default function TeacherSignUpPage() {
                   value={formData.firstName}
                   onChange={e => setFormData({...formData, firstName: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-purple-600 transition-all duration-300"
                 />
               </div>
               <div className="space-y-2">
@@ -192,7 +192,7 @@ export default function TeacherSignUpPage() {
                   value={formData.lastName}
                   onChange={e => setFormData({...formData, lastName: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-purple-600 transition-all duration-300"
                 />
               </div>
             </div>
@@ -206,7 +206,7 @@ export default function TeacherSignUpPage() {
                 value={formData.email}
                 onChange={e => setFormData({...formData, email: e.target.value})}
                 required
-                className="h-12 rounded-xl border-slate-200"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-purple-600 transition-all duration-300"
               />
             </div>
 
@@ -218,7 +218,7 @@ export default function TeacherSignUpPage() {
                 value={formData.password}
                 onChange={e => setFormData({...formData, password: e.target.value})}
                 required
-                className="h-12 rounded-xl border-slate-200"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-purple-600 transition-all duration-300"
               />
             </div>
 
@@ -229,7 +229,7 @@ export default function TeacherSignUpPage() {
                   id="type"
                   value={formData.type}
                   onChange={e => setFormData({...formData, type: e.target.value})}
-                  className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-4 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-600 focus:outline-none transition-all"
+                  className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-4 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-600 focus:outline-none transition-all duration-300"
                 >
                   <option value="FULL_TIME">Full-Time</option>
                   <option value="PART_TIME">Part-Time</option>
@@ -244,7 +244,7 @@ export default function TeacherSignUpPage() {
                   value={formData.resumptionDate}
                   onChange={e => setFormData({...formData, resumptionDate: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-purple-600 transition-all duration-300"
                 />
               </div>
             </div>
