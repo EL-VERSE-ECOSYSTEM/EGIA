@@ -43,6 +43,7 @@ export async function getUserRole(userId: string) {
 }
 
 export async function getParentChildren(parentId: string) {
+  if (!parentId) return []
   return await db.select()
     .from(student)
     .where(eq(student.parentId, parentId))
