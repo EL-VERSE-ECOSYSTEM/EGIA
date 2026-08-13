@@ -1220,3 +1220,48 @@ If you need interactivity, consider converting part of this to a Client Componen
 [browser] Uncaught TypeError: Failed to execute 'measure' on 'Performance': '​DashboardRedirect' cannot have a negative time stamp.
  GET /dashboard/student/overview 200 in 1064ms (next.js: 11ms, proxy.ts: 10ms, application-code: 1043ms)
  GET /api/fcm/notifications 200 in 240ms (next.js: 22ms, proxy.ts: 12ms, application-code: 206ms)
+ GET /auth/signin 200 in 1452ms (next.js: 168ms, proxy.ts: 178ms, application-code: 1106ms)
+ GET / 200 in 1175ms (next.js: 38ms, proxy.ts: 43ms, application-code: 1094ms)
+ POST /auth/signin 200 in 1415ms (next.js: 35ms, proxy.ts: 28ms, application-code: 1352ms)
+  └─ ƒ checkStudentPasswordRequirement("EGIA-S-00998") in 1286ms actions/auth-server.ts
+[Auth] Syncing password for remote Supabase Auth user student.egia-s-00998@portal.egia.local...
+[Auth] Self-healing and synchronizing database user ID to 44c3be99-2a91-4433-875c-a71da8e11a91 for student EGIA-S-00998...
+ POST /auth/signin 200 in 3.2s (next.js: 12ms, proxy.ts: 12ms, application-code: 3.1s)
+ GET /auth/signin 200 in 785ms (next.js: 69ms, proxy.ts: 83ms, application-code: 633ms)
+ POST /auth/signin 200 in 407ms (next.js: 44ms, proxy.ts: 69ms, application-code: 293ms)
+  └─ ƒ checkStudentPasswordRequirement("EGIA-S-00997") in 217ms actions/auth-server.ts
+[Auth] Creating remote Supabase Auth user for sophieadesuwa6@gmail.com...
+[Auth] Mappings self-heal/sync failed during student login: Error [AuthRetryableFetchError]: {}
+    at async loginStudent (app/actions/auth-server.ts:747:57)
+  745 |         if (!existingAuthUser) {
+  746 |           console.log(`[Auth] Creating remote Supabase Auth user for ${resolvedEmail}...`)
+> 747 |           const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+      |                                                         ^
+  748 |             email: resolvedEmail,
+  749 |             password: loginPassword,
+  750 |             email_confirm: true, {
+  __isAuthError: true,
+  status: 500,
+  code: undefined
+}
+[Auth] Student login failed with error: Invalid login credentials. Attempting self-healing signup for sophieadesuwa6@gmail.com...
+[Auth] Standard signUp fallback for sophieadesuwa6@gmail.com...
+ POST /auth/signin 200 in 1859ms (next.js: 14ms, proxy.ts: 8ms, application-code: 1837ms)
+  └─ ƒ loginStudent({"admissionNumber":"EGIA-S-00997"}) in 1801ms actions/auth-server.ts
+ GET /auth/signin 200 in 134ms (next.js: 36ms, proxy.ts: 6ms, application-code: 93ms)
+ GET / 200 in 342ms (next.js: 10ms, proxy.ts: 10ms, application-code: 322ms)
+ POST /auth/signin 200 in 1254ms (next.js: 8ms, proxy.ts: 5ms, application-code: 1241ms)
+  └─ ƒ checkStudentPasswordRequirement("EGIA-S-00998") in 1225ms actions/auth-server.ts
+[Auth] Syncing password for remote Supabase Auth user student.egia-s-00998@portal.egia.local...
+[Auth] Self-healing and synchronizing database user ID to 44c3be99-2a91-4433-875c-a71da8e11a91 for student EGIA-S-00998...
+ POST /auth/signin 200 in 2.9s (next.js: 7ms, proxy.ts: 4ms, application-code: 2.8s)
+  └─ ƒ loginStudent({"admissionNumber":"EGIA-S-00998"}) in 2802ms actions/auth-server.ts
+ GET /auth/signin 200 in 136ms (next.js: 13ms, proxy.ts: 8ms, application-code: 114ms)
+ POST /auth/signin 200 in 228ms (next.js: 4ms, proxy.ts: 6ms, application-code: 218ms)
+  └─ ƒ checkStudentPasswordRequirement("EGIA-S-00997") in 206ms actions/auth-server.ts
+[Auth] Creating remote Supabase Auth user for sophieadesuwa6@gmail.com...
+[Auth] Self-healing and synchronizing database user ID to 55d4cf99-3b92-5544-986d-b82ea9f22b91 for student EGIA-S-00997...
+ POST /auth/signin 200 in 2.1s (next.js: 5ms, proxy.ts: 5ms, application-code: 2.0s)
+  └─ ƒ loginStudent({"admissionNumber":"EGIA-S-00997"}) in 2009ms actions/auth-server.ts
+ GET /dashboard-redirect 200 in 547ms (next.js: 13ms, proxy.ts: 6ms, application-code: 527ms)
+ GET /dashboard/student/overview 200 in 1283ms (next.js: 16ms, proxy.ts: 8ms, application-code: 1259ms)

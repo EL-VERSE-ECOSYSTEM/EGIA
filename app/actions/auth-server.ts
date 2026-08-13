@@ -745,6 +745,7 @@ export async function loginStudent(data: any) {
         if (!existingAuthUser) {
           console.log(`[Auth] Creating remote Supabase Auth user for ${resolvedEmail}...`)
           const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+            id: existingStudent.userId || undefined,
             email: resolvedEmail,
             password: loginPassword,
             email_confirm: true,
@@ -824,6 +825,7 @@ export async function loginStudent(data: any) {
         const existingAuthUser = await findAuthUserByEmail(adminClient, resolvedEmail)
         if (!existingAuthUser) {
           const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+            id: existingStudent.userId || undefined,
             email: resolvedEmail,
             password: loginPassword,
             email_confirm: true,
@@ -1022,6 +1024,7 @@ export async function loginRole(data: {
           if (!existingAuthUser) {
             console.log(`[Auth] Auto-provisioning seeded ${selectedRole} ${email} in Supabase...`)
             const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+              id: dbUser.id || undefined,
               email,
               password: data.password,
               email_confirm: true,
