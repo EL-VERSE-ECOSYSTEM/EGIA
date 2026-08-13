@@ -77,7 +77,7 @@ export default function StudentSignUpPage() {
                 value={formData.admissionNumber}
                 onChange={e => setFormData({...formData, admissionNumber: e.target.value.toUpperCase()})}
                 required
-                className="h-12 rounded-xl border-slate-200 bg-orange-50/50 uppercase font-black focus:bg-white focus:ring-orange-600"
+                className="h-12 rounded-xl border-slate-200 bg-orange-50/50 uppercase font-black focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
               />
             </div>
             <div className="space-y-2">
@@ -89,7 +89,7 @@ export default function StudentSignUpPage() {
                 value={formData.email}
                 onChange={e => setFormData({...formData, email: e.target.value})}
                 required
-                className="h-12 rounded-xl border-slate-200 focus:ring-orange-600"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
               />
             </div>
             <div className="space-y-2">

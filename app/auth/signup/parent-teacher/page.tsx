@@ -167,7 +167,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.firstName}
                   onChange={e => setFormData({...formData, firstName: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-orange-600"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
               <div className="space-y-2">
@@ -178,7 +178,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.lastName}
                   onChange={e => setFormData({...formData, lastName: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-orange-600"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
             </div>
@@ -193,7 +193,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.email}
                   onChange={e => setFormData({...formData, email: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-orange-600"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
               <div className="space-y-2">
@@ -205,7 +205,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.phone}
                   onChange={e => setFormData({...formData, phone: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-orange-600"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
             </div>
@@ -227,7 +227,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.childFirstName}
                   onChange={e => setFormData({...formData, childFirstName: e.target.value})}
                   required
-                  className="h-11 rounded-xl border-slate-200 text-xs font-bold"
+                  className="h-11 rounded-xl border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
               <div className="space-y-1">
@@ -237,7 +237,7 @@ export default function ParentTeacherSignUpPage() {
                   placeholder="Bello"
                   value={formData.childMiddleName}
                   onChange={e => setFormData({...formData, childMiddleName: e.target.value})}
-                  className="h-11 rounded-xl border-slate-200 text-xs font-bold"
+                  className="h-11 rounded-xl border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
               <div className="space-y-1">
@@ -248,7 +248,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.childLastName}
                   onChange={e => setFormData({...formData, childLastName: e.target.value})}
                   required
-                  className="h-11 rounded-xl border-slate-200 text-xs font-bold"
+                  className="h-11 rounded-xl border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
             </div>
@@ -262,7 +262,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.childDOB}
                   onChange={e => setFormData({...formData, childDOB: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200"
+                  className="h-12 rounded-xl border-slate-200 focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
               <div className="space-y-2">
@@ -271,7 +271,7 @@ export default function ParentTeacherSignUpPage() {
                   id="childClass"
                   value={formData.childClass}
                   onChange={e => setFormData({...formData, childClass: e.target.value})}
-                  className="w-full h-12 rounded-xl border border-slate-200 bg-white px-4 font-bold text-slate-800 focus:outline-none"
+                  className="w-full h-12 rounded-xl border border-slate-200 bg-white px-4 font-bold text-slate-800 focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300 focus:outline-none"
                 >
                   {classesList.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -301,7 +301,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
               <div className="space-y-2">
@@ -312,7 +312,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.confirmPassword}
                   onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
             </div>
