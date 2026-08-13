@@ -73,7 +73,7 @@ export default function SignInPage() {
   }
 
   const currentTheme = roleThemes[selectedRole]
-  const requiresPassword = selectedRole !== 'STUDENT' || studentRequiresPassword
+  const requiresPassword = true // Always show password field for all roles to prevent hidden-field timing bugs and ensure standard login UX
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -166,7 +166,7 @@ export default function SignInPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email" className="text-xs font-black uppercase text-slate-400 tracking-wider ml-1">
-                {selectedRole === 'STUDENT' ? 'Admission Number Only' : selectedRole === 'TEACHER' ? 'Staff ID or Email' : 'Email Address'}
+                {selectedRole === 'STUDENT' ? 'Admission Number' : selectedRole === 'TEACHER' ? 'Staff ID or Email' : 'Email Address'}
               </Label>
               <Input
                 id="email"
