@@ -1115,3 +1115,92 @@ The width(-1) and height(-1) of chart should be greater than 0,
   └─ ƒ checkStudentPasswordRequirement("EGIA-P-442291") in 200ms actions/auth-server.ts
  POST /auth/signin 200 in 230ms (next.js: 6ms, proxy.ts: 10ms, application-code: 214ms)
   └─ ƒ loginStudent({"admissionNumber":"EGIA-P-442291"}) in 202ms actions/auth-server.ts
+ GET /auth/signin 200 in 1372ms (next.js: 145ms, proxy.ts: 536ms, application-code: 691ms)
+ GET / 200 in 958ms (next.js: 45ms, proxy.ts: 37ms, application-code: 876ms)
+ POST /auth/signin 200 in 1191ms (next.js: 15ms, proxy.ts: 28ms, application-code: 1148ms)
+  └─ ƒ checkStudentPasswordRequirement("EGIA-P-633284") in 1115ms actions/auth-server.ts
+ POST /auth/signin 200 in 255ms (next.js: 13ms, proxy.ts: 10ms, application-code: 233ms)
+  └─ ƒ loginStudent({"admissionNumber":"EGIA-P-633284"}) in 219ms actions/auth-server.ts
+○ Compiling /dashboard/student/overview ...
+ GET /dashboard/student/overview 200 in 6.9s (next.js: 6.5s, proxy.ts: 5ms, application-code: 392ms)
+[browser] Uncaught TypeError: Failed to execute 'measure' on 'Performance': '​StudentOverviewPage' cannot have a negative time stamp.
+ GET /auth/signin 200 in 324ms (next.js: 67ms, proxy.ts: 35ms, application-code: 222ms)
+ GET /auth/signup 200 in 114ms (next.js: 10ms, proxy.ts: 11ms, application-code: 93ms)
+ GET / 200 in 1391ms (next.js: 52ms, proxy.ts: 28ms, application-code: 1311ms)
+ GET /auth/signup/parent-teacher 200 in 62ms (next.js: 15ms, proxy.ts: 8ms, application-code: 39ms)
+ POST /auth/signup/parent-teacher 200 in 4.6s (next.js: 5ms, proxy.ts: 10ms, application-code: 4.6s)
+  └─ ƒ registerParentTeacher({"childClass":"Primary 3","childDOB":"2016-05-12","childFirstName":"Efe","...":"9 items not stringified"}) in 4539ms actions/auth-server.ts
+ GET /auth/signin 200 in 106ms (next.js: 9ms, proxy.ts: 4ms, application-code: 92ms)
+ POST /auth/signin 200 in 238ms (next.js: 7ms, proxy.ts: 5ms, application-code: 226ms)
+  └─ ƒ checkStudentPasswordRequirement("EGIA-P-686763") in 203ms actions/auth-server.ts
+[Auth] Creating remote Supabase Auth user for student.egia-p-686763@portal.egia.local...
+[Auth] Self-healing and synchronizing database user ID to 9e20ebc0-4c4f-4c4f-b5fa-2811503d655b for student EGIA-P-686763...
+ POST /auth/signin 200 in 2.4s (next.js: 7ms, proxy.ts: 6ms, application-code: 2.4s)
+  └─ ƒ loginStudent({"admissionNumber":"EGIA-P-686763"}) in 2367ms actions/auth-server.ts
+ GET /dashboard-redirect 200 in 1937ms (next.js: 1213ms, proxy.ts: 11ms, application-code: 712ms)
+⨯ Error: Event handlers cannot be passed to Client Component props.
+  <... data-slot="button" className=... onClick={function onClick} children=...>
+                                                ^^^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ignore-listed frames {
+  digest: '2642224398'
+}
+ GET /dashboard/student/overview 200 in 1146ms (next.js: 9ms, proxy.ts: 8ms, application-code: 1129ms)
+ GET /auth/signin 200 in 89ms (next.js: 19ms, proxy.ts: 5ms, application-code: 65ms)
+ GET / 200 in 414ms (next.js: 18ms, proxy.ts: 8ms, application-code: 388ms)
+ POST /auth/signin 200 in 233ms (next.js: 6ms, proxy.ts: 8ms, application-code: 219ms)
+  └─ ƒ checkStudentPasswordRequirement("EGIA-P-686763") in 201ms actions/auth-server.ts
+[Auth] Syncing password for remote Supabase Auth user student.egia-p-686763@portal.egia.local...
+[Auth] Self-healing and synchronizing database user ID to 9e20ebc0-4c4f-4c4f-b5fa-2811503d655b for student EGIA-P-686763...
+ POST /auth/signin 200 in 2.5s (next.js: 4ms, proxy.ts: 4ms, application-code: 2.5s)
+  └─ ƒ loginStudent({"admissionNumber":"EGIA-P-686763"}) in 2437ms actions/auth-server.ts
+ GET /dashboard-redirect 200 in 477ms (next.js: 22ms, proxy.ts: 4ms, application-code: 452ms)
+ GET /dashboard/student/overview 200 in 762ms (next.js: 12ms, proxy.ts: 5ms, application-code: 745ms)
+⨯ Error: Event handlers cannot be passed to Client Component props.
+  <... data-slot="button" className=... onClick={function onClick} children=...>
+                                                ^^^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ignore-listed frames {
+  digest: '2642224398'
+}
+⨯ Error: Event handlers cannot be passed to Client Component props.
+  <... data-slot="button" className=... onClick={function onClick} children=...>
+                                                ^^^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ignore-listed frames {
+  digest: '2642224398'
+}
+ GET /dashboard/student/overview 200 in 1591ms (next.js: 6ms, proxy.ts: 6ms, application-code: 1580ms)
+[browser] Uncaught TypeError: Failed to execute 'measure' on 'Performance': '​' cannot have a negative time stamp.
+[browser] Uncaught Error: Event handlers cannot be passed to Client Component props.
+  <... data-slot="button" className=... onClick={function onClick} children=...>
+                                                ^^^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+ GET /auth/signup 200 in 87ms (next.js: 9ms, proxy.ts: 5ms, application-code: 73ms)
+ GET / 200 in 1207ms (next.js: 22ms, proxy.ts: 14ms, application-code: 1171ms)
+ GET /auth/signup/parent-teacher 200 in 75ms (next.js: 9ms, proxy.ts: 7ms, application-code: 59ms)
+ POST /auth/signup/parent-teacher 200 in 3.7s (next.js: 5ms, proxy.ts: 5ms, application-code: 3.7s)
+  └─ ƒ registerParentTeacher({"childClass":"Primary 3","childDOB":"2016-05-12","childFirstName":"Efe","...":"9 items not stringified"}) in 3648ms actions/auth-server.ts
+ GET /auth/signin 200 in 83ms (next.js: 5ms, proxy.ts: 7ms, application-code: 71ms)
+ POST /auth/signin 200 in 232ms (next.js: 6ms, proxy.ts: 9ms, application-code: 217ms)
+  └─ ƒ checkStudentPasswordRequirement("EGIA-P-869925") in 204ms actions/auth-server.ts
+[Auth] Creating remote Supabase Auth user for student.egia-p-869925@portal.egia.local...
+[Auth] Self-healing and synchronizing database user ID to 1ca0ccda-f7f2-46f7-ac78-6b020ec89764 for student EGIA-P-869925...
+ POST /auth/signin 200 in 2.3s (next.js: 4ms, proxy.ts: 14ms, application-code: 2.2s)
+  └─ ƒ loginStudent({"admissionNumber":"EGIA-P-869925"}) in 2196ms actions/auth-server.ts
+ GET /dashboard-redirect 200 in 618ms (next.js: 7ms, proxy.ts: 8ms, application-code: 603ms)
+ GET /dashboard/student/overview 200 in 1323ms (next.js: 14ms, proxy.ts: 5ms, application-code: 1304ms)
+ GET /api/fcm/notifications 200 in 618ms (next.js: 14ms, proxy.ts: 15ms, application-code: 589ms)
+ GET /auth/signin 200 in 65ms (next.js: 4ms, proxy.ts: 4ms, application-code: 56ms)
+ GET / 200 in 369ms (next.js: 9ms, proxy.ts: 10ms, application-code: 350ms)
+ POST /auth/signin 200 in 222ms (next.js: 5ms, proxy.ts: 7ms, application-code: 210ms)
+  └─ ƒ checkStudentPasswordRequirement("EGIA-P-869925") in 200ms actions/auth-server.ts
+[Auth] Syncing password for remote Supabase Auth user student.egia-p-869925@portal.egia.local...
+[Auth] Self-healing and synchronizing database user ID to 1ca0ccda-f7f2-46f7-ac78-6b020ec89764 for student EGIA-P-869925...
+ POST /auth/signin 200 in 2.3s (next.js: 5ms, proxy.ts: 6ms, application-code: 2.3s)
+  └─ ƒ loginStudent({"admissionNumber":"EGIA-P-869925"}) in 2222ms actions/auth-server.ts
+ GET /dashboard-redirect 200 in 578ms (next.js: 4ms, proxy.ts: 4ms, application-code: 569ms)
+ GET /dashboard/student/overview 200 in 1037ms (next.js: 5ms, proxy.ts: 4ms, application-code: 1028ms)
+ GET /dashboard/student/overview 200 in 1074ms (next.js: 4ms, proxy.ts: 4ms, application-code: 1066ms)
+ GET /api/fcm/notifications 200 in 381ms (next.js: 20ms, proxy.ts: 19ms, application-code: 342ms)
+ GET /api/fcm/notifications 200 in 340ms (next.js: 4ms, proxy.ts: 4ms, application-code: 332ms)

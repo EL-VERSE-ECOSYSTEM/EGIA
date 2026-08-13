@@ -21,6 +21,7 @@ import { auth } from '@/lib/auth'
 import Link from 'next/link'
 import { SubjectConfig } from '@/components/teacher/subject-config'
 import DashboardLayout from '@/components/layout/dashboard-layout'
+import { PrintButton } from '@/components/ui/print-button'
 
 export default async function TeacherOverviewPage() {
   const session = await auth.getSession()
@@ -113,9 +114,7 @@ export default async function TeacherOverviewPage() {
             </div>
 
             <div className="text-center pt-2">
-              <Button onClick={() => window.print()} size="sm" className="bg-white text-purple-700 hover:bg-purple-50 font-black rounded-xl text-xs h-9 px-4">
-                PRINT DIGITAL STAFF ID
-              </Button>
+              <PrintButton label="PRINT DIGITAL STAFF ID" className="bg-white text-purple-700 hover:bg-purple-50 font-black rounded-xl text-xs h-9 px-4" />
             </div>
           </div>
         </Card>

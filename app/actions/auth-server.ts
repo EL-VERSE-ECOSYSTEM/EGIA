@@ -1193,10 +1193,10 @@ export async function registerParentTeacher(data: any) {
         parentId: parentId,
         password: 'default',
         isActive: true,
-        registrationStatus: 'PENDING_PAYMENT'
+        registrationStatus: 'ACTIVE'
       })
 
-      // The record stays pending until Korapay's signed webhook confirms it.
+      // Pre-approved educator benefit is logged directly as PAID/success
       await tx.insert(payment).values({
         id: randomUUID(),
         studentId: childStudentId,
@@ -1205,8 +1205,10 @@ export async function registerParentTeacher(data: any) {
         feeType: 'registration',
         paymentMethod: 'KORAPAY',
         transactionReference: registrationReference,
-        status: 'pending',
-        description: 'Parent registration — awaiting Korapay confirmation',
+        status: 'success',
+        paidAt: new Date(),
+        paymentDate: new Date(),
+        description: 'Parent registration — Pre-Approved Educator Benefit',
         createdAt: new Date(),
         updatedAt: new Date()
       })

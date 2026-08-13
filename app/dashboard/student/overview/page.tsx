@@ -24,6 +24,7 @@ import { getStudentDashboardData, getStudentProfile } from '@/lib/api/queries'
 import { auth } from '@/lib/auth'
 import Link from 'next/link'
 import DashboardLayout from '@/components/layout/dashboard-layout'
+import { PrintButton } from '@/components/ui/print-button'
 
 export default async function StudentOverviewPage() {
   const session = await auth.getSession()
@@ -117,9 +118,7 @@ export default async function StudentOverviewPage() {
             </div>
 
             <div className="text-center pt-2">
-              <Button onClick={() => window.print()} size="sm" className="bg-white text-orange-700 hover:bg-orange-50 font-black rounded-xl text-xs h-9 px-4">
-                PRINT DIGITAL ID CARD
-              </Button>
+              <PrintButton label="PRINT DIGITAL ID CARD" className="bg-white text-orange-700 hover:bg-orange-50 font-black rounded-xl text-xs h-9 px-4" />
             </div>
           </div>
         </Card>
