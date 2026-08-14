@@ -274,7 +274,7 @@ export async function updateTeacherSalaryAmount(teacherId: string, salaryAmount:
   if (!wallet) {
     // Insert new wallet row if missing
     await db.insert(teacherWallet).values({
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       teacherId,
       salaryAmount: numericAmount.toFixed(2),
       balance: '0.00',
@@ -409,4 +409,95 @@ export async function getStudentFullProfile(studentId: string) {
       payments: true
     }
   })
+}
+
+export async function getTeacherAssessments() {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+  const teacherProfile = await db.query.teacher.findFirst({ where: eq(teacher.userId, session.user.id) })
+  if (!teacherProfile) return []
+
+  return await db.query.assessment.findMany({
+    where: eq(assessment.createdBy, teacherProfile.id),
+    orderBy: [desc(assessment.updatedAt)],
+    with: {
+      subject: true,
+      questions: true
+    }
+  })
+}
+
+export async function getAssessmentById(assessmentId: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  return await db.query.assessment.findFirst({
+    where: eq(assessment.id, assessmentId),
+    with: {
+      subject: true,
+      questions: true
+    }
+  })
+}
+
+export async function updateAssessmentAndResubmit(data: {
+  id: string
+  title: string
+  description?: string
+  duration: number
+  passingScore?: number
+  questions: Array<{
+    questionText: string
+    questionType?: string
+    options?: string[]
+    correctAnswer: string
+    marks?: number
+  }>
+}) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const existing = await db.query.assessment.findFirst({
+    where: eq(assessment.id, data.id)
+  })
+
+  if (!existing) throw new Error('Assessment not found')
+
+  await db.transaction(async (tx) => {
+    // 1. Update assessment details and reset status to pending_approval
+    await tx.update(assessment)
+      .set({
+        title: data.title,
+        description: data.description || '',
+        duration: data.duration,
+        passingScore: data.passingScore || 40,
+        status: 'pending_approval',
+        adminComment: '', // clear old rejection reason upon resubmission
+        updatedAt: new Date()
+      })
+      .where(eq(assessment.id, data.id))
+
+    // 2. Delete existing questions and replace with updated questions
+    await tx.delete(assessmentQuestion).where(eq(assessmentQuestion.assessmentId, data.id))
+
+    if (data.questions && data.questions.length > 0) {
+      const questionInserts = data.questions.map((q, idx) => ({
+        id: randomUUID(),
+        assessmentId: data.id,
+        questionText: q.questionText,
+        questionType: q.questionType || 'multiple_choice',
+        options: q.options || null,
+        correctAnswer: q.correctAnswer || '',
+        points: q.marks || 1,
+        explanation: '',
+        order: idx + 1
+      }))
+      await tx.insert(assessmentQuestion).values(questionInserts as any)
+    }
+  })
+
+  revalidatePath('/dashboard/teacher/assessments')
+  revalidatePath('/dashboard/admin/assessments')
+  revalidatePath('/dashboard/admin/assessments/pending')
+  return { success: true }
 }

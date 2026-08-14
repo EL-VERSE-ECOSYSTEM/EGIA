@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db'
 import { assessment } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, desc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 
@@ -19,14 +19,31 @@ function generateAccessCode(): string {
 export async function getPendingAssessments() {
   const session = await auth.getSession()
   if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'admin')) {
-    throw new Error('Unauthorized')
+    return []
   }
 
   return await db.query.assessment.findMany({
     where: eq(assessment.status, 'pending_approval'),
     with: {
       questions: true,
-      subject: true
+      subject: true,
+      teacher: true
+    }
+  })
+}
+
+export async function getAllAdminAssessments() {
+  const session = await auth.getSession()
+  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'admin')) {
+    return []
+  }
+
+  return await db.query.assessment.findMany({
+    orderBy: [desc(assessment.updatedAt)],
+    with: {
+      questions: true,
+      subject: true,
+      teacher: true
     }
   })
 }
