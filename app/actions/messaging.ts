@@ -266,3 +266,65 @@ export async function adminBroadcastNotification(title: string, bodyText: string
   revalidatePath('/dashboard/communication')
   return { success: true, count: allUsers.length }
 }
+
+export async function createGroupConversation(participantUserIds: string[], name: string) {
+  const userId = await getUserId()
+
+  const convId = crypto.randomUUID()
+  const newConversation = await db.insert(conversation).values({
+    id: convId,
+    type: 'GROUP',
+    name: name || 'Group Chat',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }).returning()
+
+  // Always include sender as participant
+  const allParticipantIds = Array.from(new Set([userId, ...participantUserIds]))
+
+  const participants = allParticipantIds.map(uid => ({
+    id: crypto.randomUUID(),
+    conversationId: convId,
+    userId: uid,
+    joinedAt: new Date()
+  }))
+
+  await db.insert(conversationParticipant).values(participants)
+
+  revalidatePath('/dashboard/communication')
+  return newConversation[0]
+}
+
+export async function getUsersByRole(role: string) {
+  const roles = await db.query.userRole.findMany({
+    where: eq(userRole.role, role)
+  })
+
+  if (roles.length === 0) return []
+
+  const uids = roles.map(r => r.userId)
+  return await db.query.user.findMany({
+    where: inArray(user.id, uids),
+    orderBy: (user, { asc }) => [asc(user.name)]
+  })
+}
+
+export async function adminDeleteMessage(messageId: string) {
+  const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+  if (roleData?.role !== 'ADMIN') throw new Error('Permission denied')
+
+  await db.delete(message).where(eq(message.id, messageId))
+  return { success: true }
+}
+
+export async function adminDeleteConversation(conversationId: string) {
+  const userId = await getUserId()
+  const roleData = await getUserRoleData(userId)
+  if (roleData?.role !== 'ADMIN') throw new Error('Permission denied')
+
+  await db.delete(conversationParticipant).where(eq(conversationParticipant.conversationId, conversationId))
+  await db.delete(message).where(eq(message.conversationId, conversationId))
+  await db.delete(conversation).where(eq(conversation.id, conversationId))
+  return { success: true }
+}

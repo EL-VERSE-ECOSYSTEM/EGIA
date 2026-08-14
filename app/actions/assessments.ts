@@ -140,6 +140,16 @@ export async function getUpcomingAssessments(classId: string) {
   })
 }
 
+export async function getApprovedCBTs() {
+  return db.query.assessment.findMany({
+    where: eq(assessment.status, 'approved'),
+    with: {
+      subject: true,
+      questions: true
+    }
+  })
+}
+
 export async function getAssessmentWithQuestions(id: string) {
   return db.query.assessment.findFirst({
     where: eq(assessment.id, id),
