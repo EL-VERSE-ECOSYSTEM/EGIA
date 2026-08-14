@@ -189,6 +189,26 @@ export async function getAllSystemUsers() {
   })
 }
 
+export async function getAllUsersForMessaging() {
+  const userId = await getUserId()
+  if (!userId) throw new Error('Unauthorized')
+
+  const users = await db.query.user.findMany({
+    orderBy: (user, { asc }) => [asc(user.name)],
+    with: {
+      userRole: true
+    }
+  })
+
+  return users.map(u => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    image: u.image,
+    role: u.userRole?.role || 'USER'
+  }))
+}
+
 export async function adminSendNotification(targetUserId: string, title: string, bodyText: string, type: string = 'info') {
   const userId = await getUserId()
   const roleData = await getUserRoleData(userId)
