@@ -17,7 +17,7 @@ import {
   studyVideo,
   libraryBooks
 } from '@/lib/db/schema'
-import { eq, and, sql, desc, inArray } from 'drizzle-orm'
+import { eq, and, or, sql, desc, inArray } from 'drizzle-orm'
 
 export async function getStudentProfile(userId: string) {
   return await db.query.student.findFirst({
@@ -62,7 +62,7 @@ export async function getAdminDashboardStats() {
   const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
   const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
   const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment).where(eq(payment.status, 'success'))
-  const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).where(eq(assessment.status, 'published'))
+  const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).where(or(eq(assessment.status, 'published'), eq(assessment.status, 'approved')))
 
   return {
     totalStudents: Number(studentsCount?.count || 0),
@@ -109,7 +109,7 @@ export async function getTeacherDashboardData(teacherId: string) {
 
   const upcomingAssessments = await db.select()
     .from(assessment)
-    .where(and(eq(assessment.createdBy, teacherId), eq(assessment.status, 'published')))
+    .where(and(eq(assessment.createdBy, teacherId), or(eq(assessment.status, 'published'), eq(assessment.status, 'approved'))))
     .limit(5)
 
   return {
@@ -123,7 +123,7 @@ export async function getStudentDashboardData(studentId: string, className: stri
   const upcomingAssessments = await db.select()
     .from(assessment)
     .innerJoin(subject, eq(assessment.subjectId, subject.id))
-    .where(eq(assessment.status, 'published'))
+    .where(or(eq(assessment.status, 'published'), eq(assessment.status, 'approved')))
     .limit(5)
 
   if (!studentId) {
@@ -215,7 +215,7 @@ export async function getStudentDashboardData(studentId: string, className: stri
 
     const allAssessments = await db.select()
       .from(assessment)
-      .where(eq(assessment.status, 'published'))
+      .where(or(eq(assessment.status, 'published'), eq(assessment.status, 'approved')))
 
     const pendingAssessments = compIds.length > 0
       ? allAssessments.filter(a => !compIds.includes(a.id))
@@ -233,7 +233,7 @@ export async function getStudentDashboardData(studentId: string, className: stri
       count: sql<number>`count(*)`
     })
     .from(assessment)
-    .where(eq(assessment.status, 'published'))
+    .where(or(eq(assessment.status, 'published'), eq(assessment.status, 'approved')))
 
     const totalCount = Number(totalAssessmentsResult[0]?.count || 0)
 
