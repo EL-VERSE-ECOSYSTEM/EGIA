@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,9 +9,16 @@ import {
   Send, Search, MoreVertical,
   Paperclip, Smile, Image as ImageIcon,
   User, CheckCheck, Phone, Video, Plus,
-  Hash, Bell, Settings
+  Hash, Bell, Settings, Trash, Users, MessageSquare, X
 } from 'lucide-react'
-import { getConversations, getMessages, sendMessage, createConversation } from '@/app/actions/messaging'
+import {
+  getConversations, getMessages, sendMessage, createConversation,
+  createGroupConversation, getUsersByRole,
+  adminDeleteMessage, adminDeleteConversation
+} from '@/app/actions/messaging'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { toast } from 'sonner'
+import { createClient } from '@/utils/supabase/client'
 
 interface UnifiedChatProps {
   role: 'admin' | 'teacher' | 'parent' | 'student'
@@ -23,6 +30,17 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
   const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [currentUserId, setCurrentUserId] = useState<string>('')
+
+  // Modals / New Conversation flow state
+  const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false)
+  const [allUsers, setAllUsers] = useState<any[]>([])
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([])
+  const [groupName, setGroupName] = useState('')
+  const [chatType, setChatType] = useState<'INDIVIDUAL' | 'GROUP'>('INDIVIDUAL')
+
+  // Search filter
+  const [searchQuery, setSearchQuery] = useState('')
 
   const theme = {
     admin: { primary: 'bg-amber-600', hover: 'hover:bg-amber-700', text: 'text-amber-600', border: 'border-amber-100', bg: 'bg-amber-50', shadow: 'shadow-amber-100', darkText: 'text-amber-900' },
@@ -32,7 +50,15 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
   }[role]
 
   useEffect(() => {
+    // Get the current authenticated user's ID
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) {
+        setCurrentUserId(data.user.id)
+      }
+    })
     fetchConversations()
+    loadUsers()
   }, [])
 
   useEffect(() => {
@@ -40,6 +66,18 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
       fetchMessages(selectedChat.id)
     }
   }, [selectedChat])
+
+  // Real-time table subscriptions to automatically sync messages and conversations
+  useRealtimeSubscription('message', () => {
+    if (selectedChat) {
+      fetchMessages(selectedChat.id)
+    }
+    fetchConversations()
+  })
+
+  useRealtimeSubscription('conversation', () => {
+    fetchConversations()
+  })
 
   const fetchConversations = async () => {
     try {
@@ -64,6 +102,18 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
     }
   }
 
+  const loadUsers = async () => {
+    try {
+      const supabase = createClient()
+      const { data } = await supabase.from('user').select('*')
+      if (data) {
+        setAllUsers(data)
+      }
+    } catch (error) {
+      console.error('Failed to load system users:', error)
+    }
+  }
+
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedChat) return
 
@@ -75,23 +125,101 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
       fetchMessages(selectedChat.id)
     } catch (error: any) {
       console.error('Failed to send message:', error)
-      const errorMsg = error?.message || 'Failed to send message'
-      alert(errorMsg)
-      // Restore typed message so they can edit it
+      toast.error(error?.message || 'Failed to send message')
       setNewMessage(text)
     }
   }
 
+  const handleCreateChat = async () => {
+    if (chatType === 'INDIVIDUAL') {
+      if (selectedParticipants.length === 0) {
+        toast.error('Please select a recipient')
+        return
+      }
+      try {
+        const conv = await createConversation(selectedParticipants[0])
+        setSelectedChat(conv)
+        setIsNewChatModalOpen(false)
+        fetchConversations()
+        toast.success('Direct chat started!')
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to start chat')
+      }
+    } else {
+      if (selectedParticipants.length === 0) {
+        toast.error('Select at least one group member')
+        return
+      }
+      if (!groupName.trim()) {
+        toast.error('Group name is required')
+        return
+      }
+      try {
+        const conv = await createGroupConversation(selectedParticipants, groupName)
+        setSelectedChat(conv)
+        setIsNewChatModalOpen(false)
+        fetchConversations()
+        toast.success('Group chat created!')
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to create group')
+      }
+    }
+  }
+
+  const handleDeleteConversation = async (convId: string) => {
+    if (confirm('Are you sure you want to delete this entire conversation?')) {
+      try {
+        await adminDeleteConversation(convId)
+        setSelectedChat(null)
+        fetchConversations()
+        toast.success('Conversation deleted')
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to delete conversation')
+      }
+    }
+  }
+
+  const handleDeleteMessage = async (msgId: string) => {
+    if (confirm('Delete this message?')) {
+      try {
+        await adminDeleteMessage(msgId)
+        if (selectedChat) fetchMessages(selectedChat.id)
+        toast.success('Message deleted')
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to delete message')
+      }
+    }
+  }
+
+  const toggleParticipant = (userId: string) => {
+    setSelectedParticipants(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    )
+  }
+
+  const filteredConversations = conversations.filter(conv => {
+    const nameToSearch = conv.name || conv.participants?.find((p: any) => p.userId !== currentUserId)?.user?.name || ''
+    return nameToSearch.toLowerCase().includes(searchQuery.toLowerCase())
+  })
+
   if (loading) return <div className="p-8 text-center font-bold text-slate-400">Loading conversations...</div>
 
   return (
-    <div className="h-[calc(100vh-140px)] flex bg-white/50 backdrop-blur-xl rounded-[3rem] overflow-hidden border border-slate-200/50 shadow-2xl shadow-slate-200/50">
+    <div className="h-[calc(100vh-140px)] flex bg-white/50 backdrop-blur-xl rounded-[3rem] overflow-hidden border border-slate-200/50 shadow-2xl shadow-slate-200/50 relative">
       {/* Sidebar */}
       <div className="w-80 md:w-96 border-r border-slate-100 flex flex-col bg-white">
         <div className="p-8 pb-4">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Messages.</h2>
-            <Button size="icon" className={`${theme.primary} ${theme.hover} rounded-xl w-10 h-10`}>
+            <Button
+              onClick={() => {
+                setSelectedParticipants([])
+                setGroupName('')
+                setIsNewChatModalOpen(true)
+              }}
+              size="icon"
+              className={`${theme.primary} ${theme.hover} rounded-xl w-10 h-10`}
+            >
               <Plus className="w-5 h-5 text-white" />
             </Button>
           </div>
@@ -99,50 +227,61 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <Input
               placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
               className="pl-12 h-14 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:bg-white transition-all"
             />
-          </div>
-          <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-             <Badge className={`${theme.primary} text-white rounded-lg px-4 py-1.5 font-black uppercase text-[10px] tracking-widest border-none whitespace-nowrap`}>All</Badge>
-             <Badge variant="outline" className="text-slate-400 border-slate-100 rounded-lg px-4 py-1.5 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 whitespace-nowrap">Parents</Badge>
-             <Badge variant="outline" className="text-slate-400 border-slate-100 rounded-lg px-4 py-1.5 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 whitespace-nowrap">Staff</Badge>
           </div>
         </div>
 
         <div className="flex-grow overflow-y-auto px-4 space-y-2">
-          {conversations.length === 0 ? (
-            <p className="p-8 text-center text-xs font-bold text-slate-400">No conversations yet</p>
+          {filteredConversations.length === 0 ? (
+            <p className="p-8 text-center text-xs font-bold text-slate-400">No conversations found</p>
           ) : (
-            conversations.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => setSelectedChat(conv)}
-                className={`w-full p-5 rounded-[2rem] flex items-center gap-4 transition-all ${
-                  selectedChat?.id === conv.id ? theme.bg : 'hover:bg-slate-50'
-                }`}
-              >
-                <div className="relative shrink-0">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-white ${
-                    conv.type === 'GROUP' ? 'bg-slate-900' : theme.primary
-                  }`}>
-                    {conv.type === 'GROUP' ? <Hash className="w-6 h-6" /> : <User className="w-6 h-6" />}
-                  </div>
+            filteredConversations.map((conv) => {
+              const otherParticipant = conv.participants?.find((p: any) => p.userId !== currentUserId)?.user
+              const chatName = conv.type === 'GROUP' ? conv.name : (otherParticipant?.name || otherParticipant?.email || 'Direct Chat')
+              return (
+                <div key={conv.id} className="relative group">
+                  <button
+                    onClick={() => setSelectedChat(conv)}
+                    className={`w-full p-5 rounded-[2rem] flex items-center gap-4 transition-all ${
+                      selectedChat?.id === conv.id ? theme.bg : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="relative shrink-0">
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-white ${
+                        conv.type === 'GROUP' ? 'bg-slate-900' : theme.primary
+                      }`}>
+                        {conv.type === 'GROUP' ? <Hash className="w-6 h-6" /> : <User className="w-6 h-6" />}
+                      </div>
+                    </div>
+                    <div className="flex-grow text-left">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className={`font-black text-sm truncate max-w-[120px] ${selectedChat?.id === conv.id ? theme.darkText : 'text-slate-900'}`}>
+                          {chatName}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {conv.updatedAt ? new Date(conv.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 font-medium truncate max-w-[150px]">
+                        {conv.messages?.[0]?.content || 'Start a conversation'}
+                      </p>
+                    </div>
+                  </button>
+
+                  {role === 'admin' && (
+                    <button
+                      onClick={() => handleDeleteConversation(conv.id)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-all"
+                    >
+                      <Trash className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-                <div className="flex-grow text-left">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className={`font-black text-sm truncate max-w-[120px] ${selectedChat?.id === conv.id ? theme.darkText : 'text-slate-900'}`}>
-                      {conv.name || (conv.participants?.[0]?.user?.name || 'User')}
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-400">
-                      {conv.updatedAt ? new Date(conv.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 font-medium truncate max-w-[150px]">
-                    {conv.messages?.[0]?.content || 'Start a conversation'}
-                  </p>
-                </div>
-              </button>
-            ))
+              )
+            })
           )}
         </div>
       </div>
@@ -154,13 +293,15 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
             {/* Chat Header */}
             <div className="p-6 md:px-10 flex items-center justify-between border-b border-slate-100 bg-white">
                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-2xl ${theme.primary} flex items-center justify-center text-white shadow-lg ${theme.shadow}`}>
+                  <div className={`w-12 h-12 rounded-2xl ${selectedChat.type === 'GROUP' ? 'bg-slate-900' : theme.primary} flex items-center justify-center text-white shadow-lg`}>
                     {selectedChat.type === 'GROUP' ? <Hash className="w-6 h-6" /> : <User className="w-6 h-6" />}
                   </div>
                   <div>
-                     <h3 className="font-black text-slate-900">{selectedChat.name || (selectedChat.participants?.[0]?.user?.name || 'Chat')}</h3>
+                     <h3 className="font-black text-slate-900">
+                       {selectedChat.type === 'GROUP' ? selectedChat.name : (selectedChat.participants?.find((p: any) => p.userId !== currentUserId)?.user?.name || selectedChat.participants?.find((p: any) => p.userId !== currentUserId)?.user?.email || 'Direct Chat')}
+                     </h3>
                      <p className="text-xs font-bold text-emerald-500 flex items-center gap-1">
-                       <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> Active Now
+                       <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> Realtime Database Sync
                      </p>
                   </div>
                </div>
@@ -182,12 +323,12 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
                   <p className="font-black text-sm uppercase tracking-widest">No messages yet</p>
                 </div>
               ) : (
-                messages.map((msg, index) => {
-                  const isMe = msg.senderId === 'ME_ID' || index % 2 === 1 // Simulation for now
+                messages.map((msg) => {
+                  const isMe = msg.senderId === currentUserId
                   return (
-                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group relative`}>
                       <div className={`max-w-md space-y-2 ${isMe ? 'text-right' : 'text-left'}`}>
-                         {!isMe && <p className="text-[10px] font-black text-slate-400 uppercase ml-4">{msg.sender?.name || 'User'}</p>}
+                         {!isMe && <p className="text-[10px] font-black text-slate-400 uppercase ml-4">{msg.sender?.name || msg.sender?.email || 'User'}</p>}
                          <div className={`p-6 rounded-[2.5rem] shadow-xl shadow-slate-900/5 ${
                            isMe
                              ? `${theme.primary} text-white rounded-tr-none`
@@ -197,9 +338,18 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
                          </div>
                          <div className={`flex items-center gap-2 ${isMe ? 'justify-end' : 'justify-start'} px-4`}>
                             <span className="text-[10px] font-bold text-slate-400">
-                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                             </span>
                             {isMe && <CheckCheck className="w-3 h-3 text-emerald-500" />}
+
+                            {role === 'admin' && (
+                              <button
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className="opacity-0 group-hover:opacity-100 ml-2 p-1 bg-red-100 hover:bg-red-200 text-red-600 rounded"
+                              >
+                                <Trash className="w-3 h-3" />
+                              </button>
+                            )}
                          </div>
                       </div>
                     </div>
@@ -222,7 +372,7 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
                  />
                  <Button variant="ghost" size="icon" className="text-slate-400 rounded-full hover:bg-white shrink-0"><Smile size={20} /></Button>
                  <Button
-                   className={`${theme.primary} ${theme.hover} w-12 h-12 rounded-full shadow-lg ${theme.shadow} shrink-0`}
+                   className={`${theme.primary} ${theme.hover} w-12 h-12 rounded-full shadow-lg shrink-0`}
                    onClick={handleSendMessage}
                  >
                     <Send className="w-5 h-5 text-white" />
@@ -242,6 +392,89 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
           </div>
         )}
       </div>
+
+      {/* NEW CHAT MODAL */}
+      {isNewChatModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-lg rounded-[2rem] shadow-2xl border-none overflow-hidden bg-white">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h3 className="font-black text-xl text-slate-950">Start a Conversation</h3>
+              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setIsNewChatModalOpen(false)}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <CardContent className="p-6 space-y-6">
+              <div className="flex gap-4">
+                <Button
+                  onClick={() => setChatType('INDIVIDUAL')}
+                  className={`flex-1 h-12 rounded-xl font-bold border-2 ${
+                    chatType === 'INDIVIDUAL' ? 'border-purple-600 bg-purple-50 text-purple-700' : 'border-slate-100 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                  variant="ghost"
+                >
+                  <User className="w-4 h-4 mr-2" /> Direct Message
+                </Button>
+                <Button
+                  onClick={() => setChatType('GROUP')}
+                  className={`flex-1 h-12 rounded-xl font-bold border-2 ${
+                    chatType === 'GROUP' ? 'border-purple-600 bg-purple-50 text-purple-700' : 'border-slate-100 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                  variant="ghost"
+                >
+                  <Users className="w-4 h-4 mr-2" /> Group Chat
+                </Button>
+              </div>
+
+              {chatType === 'GROUP' && (
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-500 uppercase">Group Chat Name</label>
+                  <Input
+                    placeholder="Enter group name..."
+                    value={groupName}
+                    onChange={e => setGroupName(e.target.value)}
+                    className="h-12 rounded-xl border-slate-200 font-semibold"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-xs font-black text-slate-500 uppercase">Select Participants</label>
+                <div className="max-h-60 overflow-y-auto space-y-2 border border-slate-100 rounded-xl p-3 bg-slate-50/50">
+                  {allUsers.filter(u => u.id !== currentUserId).map(u => {
+                    const isSelected = selectedParticipants.includes(u.id)
+                    return (
+                      <div
+                        key={u.id}
+                        onClick={() => toggleParticipant(u.id)}
+                        className={`p-3 rounded-xl flex items-center justify-between cursor-pointer border-2 transition-all ${
+                          isSelected ? 'border-purple-500 bg-purple-50' : 'border-transparent bg-white hover:bg-slate-50/50'
+                        }`}
+                      >
+                        <div>
+                          <p className="font-bold text-sm text-slate-900">{u.name || 'Anonymous'}</p>
+                          <p className="text-xs text-slate-400 font-medium">{u.email}</p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-purple-600 bg-purple-600 text-white' : 'border-slate-300'}`}>
+                          {isSelected && <CheckCheck className="w-3 h-3" />}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-2 flex gap-4">
+                <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold" onClick={() => setIsNewChatModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button className="flex-1 h-12 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white" onClick={handleCreateChat}>
+                  Create Chat
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

@@ -12,6 +12,7 @@ export default function CreateAssessmentPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [title, setTitle] = useState('')
+  const [type, setType] = useState('ASSESSMENT_CBT') // ASSESSMENT_CBT or EXAM_CBT
   const [questions, setQuestions] = useState([{ questionText: '', options: ['', '', '', ''], correctAnswer: '', marks: 5 }])
 
   const handleAddQuestion = () => {
@@ -23,6 +24,7 @@ export default function CreateAssessmentPage() {
     try {
       await createAssessment({
         title,
+        type,
         subjectId: 'temp-subject-id',
         totalMarks: questions.reduce((acc, q) => acc + q.marks, 0),
         duration: 60,
@@ -43,10 +45,21 @@ export default function CreateAssessmentPage() {
       <h1 className="text-3xl font-bold mb-8">Create New Assessment</h1>
       <Card className="mb-8">
         <CardHeader><CardTitle>General Info</CardTitle></CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Title</Label>
             <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Mid-Term Mathematics Exam" />
+          </div>
+          <div className="space-y-2">
+            <Label className="block text-sm font-bold text-slate-700">CBT Type Selection</Label>
+            <select
+              value={type}
+              onChange={e => setType(e.target.value)}
+              className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:border-purple-500 outline-none"
+            >
+              <option value="ASSESSMENT_CBT">Assessment CBT (Viewable by Class, Requires Admin Approval)</option>
+              <option value="EXAM_CBT">Exam CBT (Access code restricted, Requires Admin Approval)</option>
+            </select>
           </div>
         </CardContent>
       </Card>

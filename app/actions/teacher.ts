@@ -15,14 +15,55 @@ async function getUserId() {
 }
 
 export async function createAssessment(data: any) {
-  const result = await db.insert(assessment).values({
-    id: crypto.randomUUID(),
-    ...data,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }).returning()
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+  const teacherProfile = await db.query.teacher.findFirst({ where: eq(teacher.userId, session.user.id) })
+  const teacherId = teacherProfile?.id || 'temp-teacher-id'
+
+  const currentTerm = await db.query.term.findFirst({ where: eq(term.isCurrent, true) })
+  const termId = currentTerm?.id || 'temp-term-id'
+
+  const assessmentId = crypto.randomUUID()
+  const { title, description, subjectId, totalMarks, duration, scheduleDate, questions, type } = data
+
+  const result = await db.transaction(async (tx) => {
+    const insertedAssessment = await tx.insert(assessment).values({
+      id: assessmentId,
+      title: title || 'New Assessment',
+      description: description || '',
+      subjectId: subjectId || 'temp-subject-id',
+      termId: termId,
+      createdBy: teacherId,
+      duration: duration || 60,
+      type: type || 'ASSESSMENT_CBT', // ASSESSMENT_CBT or EXAM_CBT
+      status: 'pending_approval', // newly created CBT starts as pending_approval
+      passingScore: 40,
+      totalPoints: totalMarks || 100,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any).returning()
+
+    if (questions && questions.length > 0) {
+      const questionInserts = questions.map((q: any, idx: number) => ({
+        id: crypto.randomUUID(),
+        assessmentId: assessmentId,
+        questionText: q.questionText,
+        questionType: q.questionType || 'multiple_choice',
+        options: q.options || null,
+        correctAnswer: q.correctAnswer || '',
+        points: q.marks || 1,
+        explanation: '',
+        order: idx + 1
+      }))
+      await tx.insert(assessmentQuestion).values(questionInserts as any)
+    }
+
+    return insertedAssessment[0]
+  })
+
   revalidatePath('/dashboard/teacher/assessments')
-  return result[0]
+  revalidatePath('/dashboard/admin/assessments/pending')
+  return result
 }
 
 export async function getTeacherProfile() {
@@ -64,7 +105,10 @@ export async function getStudentsInClass(classId: string) {
   const normalizeClass = (value: string) => value.replace(/\s+/g, '').toUpperCase()
   const roster = await db.query.student.findMany({
     orderBy: (student, { asc }) => [asc(student.lastName), asc(student.firstName)],
-    with: { parent: { with: { user: true } } }
+    with: {
+      parent: { with: { user: true } },
+      results: { with: { assessment: true } }
+    }
   })
   return roster.filter(item => normalizeClass(item.class) === normalizeClass(classData.name))
 }
