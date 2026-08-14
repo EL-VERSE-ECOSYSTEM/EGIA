@@ -25,7 +25,7 @@ export const auth = {
       .where(eq(userRole.userId, user.id))
       .limit(1)
 
-    const finalRole = metadataRole || roleRecord?.[0]?.role || null
+    const finalRole = (metadataRole || roleRecord?.[0]?.role || null)?.toUpperCase()
 
     return {
       ...session,
@@ -53,7 +53,7 @@ export const auth = {
       .where(eq(userRole.userId, user.id))
       .limit(1)
 
-    const finalRole = metadataRole || roleRecord?.[0]?.role || null
+    const finalRole = (metadataRole || roleRecord?.[0]?.role || null)?.toUpperCase()
 
     return {
       ...user,

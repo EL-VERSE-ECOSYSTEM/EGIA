@@ -8,7 +8,8 @@ begin
   foreach realtime_table in array array[
     'user', 'student', 'teacher', 'parent', 'assessment', 'assessment_result',
     'payment', 'message', 'notification', 'book', 'attendance_record',
-    'dispute', 'support_ticket', 'fee_structure', 'cbt_attempt', 'book_borrowing'
+    'dispute', 'support_ticket', 'fee_structure', 'cbt_attempt', 'book_borrowing',
+    'conversation', 'conversation_participant'
   ] loop
     if exists (
       select 1 from information_schema.tables
