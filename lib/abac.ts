@@ -63,14 +63,15 @@ export async function checkPermission(
 
   if (role.toUpperCase() === 'STUDENT') {
     if (resourceName === 'result' || resourceName === 'message' || resourceName === 'assessment') {
-      // Students can read assessments/messages/results, and create results (i.e., take assessments)
-      return action === 'read' || (action === 'create' && resourceName === 'result')
+      // Students can read assessments/messages/results, and create results (take assessments) or create messages
+      return action === 'read' || (action === 'create' && (resourceName === 'result' || resourceName === 'message'))
     }
   }
 
   if (role.toUpperCase() === 'PARENT') {
     if (resourceName === 'student' || resourceName === 'result' || resourceName === 'payment' || resourceName === 'message') {
-      return action === 'read' || (action === 'create' && resourceName === 'payment')
+      // Parents can read student/result/payment/messages, and create payments or create messages
+      return action === 'read' || (action === 'create' && (resourceName === 'payment' || resourceName === 'message'))
     }
   }
 
