@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import {
   getConversations, getMessages, sendMessage, createConversation,
-  createGroupConversation, getUsersByRole,
+  createGroupConversation, getUsersByRole, getAllUsersForMessaging,
   adminDeleteMessage, adminDeleteConversation
 } from '@/app/actions/messaging'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
@@ -79,6 +79,10 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
     fetchConversations()
   })
 
+  useRealtimeSubscription('conversation_participant', () => {
+    fetchConversations()
+  })
+
   const fetchConversations = async () => {
     try {
       const convs = await getConversations()
@@ -104,10 +108,9 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
 
   const loadUsers = async () => {
     try {
-      const supabase = createClient()
-      const { data } = await supabase.from('user').select('*')
-      if (data) {
-        setAllUsers(data)
+      const users = await getAllUsersForMessaging()
+      if (users) {
+        setAllUsers(users)
       }
     } catch (error) {
       console.error('Failed to load system users:', error)
@@ -451,7 +454,12 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
                         }`}
                       >
                         <div>
-                          <p className="font-bold text-sm text-slate-900">{u.name || 'Anonymous'}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-sm text-slate-900">{u.name || 'Anonymous'}</p>
+                            <Badge className="text-[9px] px-2 py-0.5 uppercase tracking-wider font-bold border-none bg-slate-100 text-slate-700">
+                              {u.role || 'USER'}
+                            </Badge>
+                          </div>
                           <p className="text-xs text-slate-400 font-medium">{u.email}</p>
                         </div>
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-purple-600 bg-purple-600 text-white' : 'border-slate-300'}`}>
