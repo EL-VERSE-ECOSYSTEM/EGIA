@@ -25,12 +25,17 @@ interface UnifiedChatProps {
 }
 
 export default function UnifiedChat({ role }: UnifiedChatProps) {
+  const [mounted, setMounted] = useState(false)
   const [conversations, setConversations] = useState<any[]>([])
   const [selectedChat, setSelectedChat] = useState<any>(null)
   const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string>('')
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Modals / New Conversation flow state
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false)
@@ -205,7 +210,7 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
     return nameToSearch.toLowerCase().includes(searchQuery.toLowerCase())
   })
 
-  if (loading) return <div className="p-8 text-center font-bold text-slate-400">Loading conversations...</div>
+  if (!mounted || loading) return <div className="p-8 text-center font-bold text-slate-400">Loading messaging portal...</div>
 
   return (
     <div className="h-[calc(100vh-140px)] flex bg-white/50 backdrop-blur-xl rounded-[3rem] overflow-hidden border border-slate-200/50 shadow-2xl shadow-slate-200/50 relative">
@@ -332,12 +337,12 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
                     <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group relative`}>
                       <div className={`max-w-md space-y-2 ${isMe ? 'text-right' : 'text-left'}`}>
                          {!isMe && <p className="text-[10px] font-black text-slate-400 uppercase ml-4">{msg.sender?.name || msg.sender?.email || 'User'}</p>}
-                         <div className={`p-6 rounded-[2.5rem] shadow-xl shadow-slate-900/5 ${
+                         <div className={`p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] shadow-xl shadow-slate-900/5 ${
                            isMe
                              ? `${theme.primary} text-white rounded-tr-none`
                              : 'bg-white text-slate-800 rounded-tl-none'
                          }`}>
-                            <p className="text-sm font-bold leading-relaxed">{msg.content}</p>
+                            <p className="text-sm font-bold leading-relaxed break-words text-left" dir="ltr">{msg.content}</p>
                          </div>
                          <div className={`flex items-center gap-2 ${isMe ? 'justify-end' : 'justify-start'} px-4`}>
                             <span className="text-[10px] font-bold text-slate-400">
@@ -362,23 +367,24 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
             </div>
 
             {/* Message Input */}
-            <div className="p-8 md:px-12 bg-white">
-              <div className={`flex items-center gap-4 bg-slate-50 p-3 rounded-[2.5rem] border-2 border-transparent focus-within:${theme.border} focus-within:bg-white transition-all shadow-inner`}>
-                 <Button variant="ghost" size="icon" className="text-slate-400 rounded-full hover:bg-white shrink-0"><ImageIcon size={20} /></Button>
-                 <Button variant="ghost" size="icon" className="text-slate-400 rounded-full hover:bg-white shrink-0"><Paperclip size={20} /></Button>
+            <div className="p-3 sm:p-6 md:px-12 bg-white">
+              <div className={`flex items-center gap-2 sm:gap-4 bg-slate-50 p-2 sm:p-3 rounded-[2.5rem] border-2 border-transparent focus-within:${theme.border} focus-within:bg-white transition-all shadow-inner w-full`}>
+                 <Button variant="ghost" size="icon" className="hidden sm:flex text-slate-400 rounded-full hover:bg-white shrink-0"><ImageIcon size={20} /></Button>
+                 <Button variant="ghost" size="icon" className="hidden sm:flex text-slate-400 rounded-full hover:bg-white shrink-0"><Paperclip size={20} /></Button>
                  <Input
                    placeholder="Type a message..."
-                   className="flex-grow bg-transparent border-none focus-visible:ring-0 text-sm font-bold h-10 shadow-none"
+                   dir="ltr"
+                   className="flex-1 min-w-0 bg-transparent border-none focus-visible:ring-0 text-sm font-bold h-10 shadow-none text-left"
                    value={newMessage}
                    onChange={(e) => setNewMessage(e.target.value)}
                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                  />
-                 <Button variant="ghost" size="icon" className="text-slate-400 rounded-full hover:bg-white shrink-0"><Smile size={20} /></Button>
+                 <Button variant="ghost" size="icon" className="hidden sm:flex text-slate-400 rounded-full hover:bg-white shrink-0"><Smile size={20} /></Button>
                  <Button
-                   className={`${theme.primary} ${theme.hover} w-12 h-12 rounded-full shadow-lg shrink-0`}
+                   className={`${theme.primary} ${theme.hover} w-10 h-10 sm:w-12 sm:h-12 rounded-full shadow-lg shrink-0`}
                    onClick={handleSendMessage}
                  >
-                    <Send className="w-5 h-5 text-white" />
+                    <Send className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                  </Button>
               </div>
             </div>
