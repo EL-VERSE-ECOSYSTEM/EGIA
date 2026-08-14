@@ -270,6 +270,8 @@ CREATE TABLE public.assessment (
   duration integer NOT NULL, -- Exam duration in minutes
   type text NOT NULL, -- EXAM, TEST, WEEKEND_ASSESSMENT
   status text DEFAULT 'draft',
+  accesscode text,
+  adminComment text,
   passingScore integer DEFAULT 40,
   totalPoints integer DEFAULT 100,
   createdAt timestamp with time zone NOT NULL DEFAULT now(),

@@ -162,6 +162,7 @@ create table public."assessment" (
   "id" text primary key, "title" text not null, "description" text, "subjectId" text not null references public."subject"("id"),
   "termId" text not null references public."term"("id"), "createdBy" text not null references public."teacher"("id"),
   "duration" integer not null, "type" text not null, "status" text default 'draft', "accesscode" text,
+  "adminComment" text,
   "passingScore" integer default 40, "totalPoints" integer default 100,
   "createdAt" timestamptz not null default now(), "updatedAt" timestamptz not null default now()
 );
