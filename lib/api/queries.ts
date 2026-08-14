@@ -97,38 +97,61 @@ export async function getTeacherDashboardData(teacherId: string) {
     }
   }
 
-  const classes = await getTeacherClasses(teacherId)
+  let classes: any[] = []
+  let totalStudents = 0
+  let upcomingAssessments: any[] = []
 
-  const classNames = classes.map(c => c.name)
+  try {
+    classes = await getTeacherClasses(teacherId)
+  } catch (err) {
+    console.warn('getTeacherDashboardData: Failed to get teacher classes:', err)
+  }
 
-  const studentCountResult = classNames.length > 0
-    ? await db.select({ count: sql<number>`count(*)` })
-        .from(student)
-        .where(inArray(student.class, classNames))
-    : [{ count: 0 }]
+  try {
+    const classNames = classes.map(c => c.name)
+    const studentCountResult = classNames.length > 0
+      ? await db.select({ count: sql<number>`count(*)` })
+          .from(student)
+          .where(inArray(student.class, classNames))
+      : [{ count: 0 }]
+    totalStudents = Number(studentCountResult[0]?.count || 0)
+  } catch (err) {
+    console.warn('getTeacherDashboardData: Failed to get student count:', err)
+  }
 
-  const upcomingAssessments = await db.select()
-    .from(assessment)
-    .where(and(eq(assessment.createdBy, teacherId), or(eq(assessment.status, 'published'), eq(assessment.status, 'approved'))))
-    .limit(5)
+  try {
+    upcomingAssessments = await db.select()
+      .from(assessment)
+      .where(and(eq(assessment.createdBy, teacherId), or(eq(assessment.status, 'published'), eq(assessment.status, 'approved'))))
+      .limit(5)
+  } catch (err) {
+    console.warn('getTeacherDashboardData: Failed to get upcoming assessments:', err)
+  }
 
   return {
     classes,
-    totalStudents: Number(studentCountResult[0]?.count || 0),
+    totalStudents,
     upcomingAssessments
   }
 }
 
 export async function getStudentDashboardData(studentId: string, className: string) {
-  const upcomingAssessments = await db.select()
-    .from(assessment)
-    .innerJoin(subject, eq(assessment.subjectId, subject.id))
-    .where(or(eq(assessment.status, 'published'), eq(assessment.status, 'approved')))
-    .limit(5)
+  let upcomingAssessments: any[] = []
+  try {
+    upcomingAssessments = await db.select()
+      .from(assessment)
+      .innerJoin(subject, eq(assessment.subjectId, subject.id))
+      .where(or(eq(assessment.status, 'published'), eq(assessment.status, 'approved')))
+      .limit(5)
+  } catch (err) {
+    console.warn('Could not fetch upcoming assessments:', err)
+  }
+
+  const mappedUpcoming = upcomingAssessments.map(a => ({ ...a.assessment, subject: a.subject?.name || 'Unknown' }))
 
   if (!studentId) {
     return {
-      upcomingAssessments: upcomingAssessments.map(a => ({ ...a.assessment, subject: a.subject.name })),
+      upcomingAssessments: mappedUpcoming,
       recentPayments: [],
       stats: {
         completedCBTs: 0,
@@ -280,14 +303,19 @@ export async function getStudentDashboardData(studentId: string, className: stri
     console.warn('Could not compute AI study recommendation:', err)
   }
 
-  const recentPayments = await db.select()
-    .from(payment)
-    .where(eq(payment.studentId, studentId))
-    .orderBy(desc(payment.createdAt))
-    .limit(5)
+  let recentPayments: any[] = []
+  try {
+    recentPayments = await db.select()
+      .from(payment)
+      .where(eq(payment.studentId, studentId))
+      .orderBy(desc(payment.createdAt))
+      .limit(5)
+  } catch (err) {
+    console.warn('Could not fetch recent payments:', err)
+  }
 
   return {
-    upcomingAssessments: upcomingAssessments.map(a => ({ ...a.assessment, subject: a.subject.name })),
+    upcomingAssessments: mappedUpcoming,
     recentPayments,
     stats: {
       completedCBTs: completedCBTsCount,
