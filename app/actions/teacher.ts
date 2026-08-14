@@ -2,8 +2,8 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { assessment, teacher, class_, student, teacherWallet, teacherRequest } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { assessment, assessmentQuestion, term, teacher, class_, student, teacherWallet, teacherRequest } from '@/lib/db/schema'
+import { eq, desc, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { getCachedData } from '@/lib/cache'
@@ -23,7 +23,7 @@ export async function createAssessment(data: any) {
   const currentTerm = await db.query.term.findFirst({ where: eq(term.isCurrent, true) })
   const termId = currentTerm?.id || 'temp-term-id'
 
-  const assessmentId = crypto.randomUUID()
+  const assessmentId = randomUUID()
   const { title, description, subjectId, totalMarks, duration, scheduleDate, questions, type } = data
 
   const result = await db.transaction(async (tx) => {
@@ -45,7 +45,7 @@ export async function createAssessment(data: any) {
 
     if (questions && questions.length > 0) {
       const questionInserts = questions.map((q: any, idx: number) => ({
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         assessmentId: assessmentId,
         questionText: q.questionText,
         questionType: q.questionType || 'multiple_choice',
