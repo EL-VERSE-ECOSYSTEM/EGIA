@@ -1097,11 +1097,24 @@ export async function registerParentTeacher(data: any) {
     email,
     phone,
     password,
+    occupation,
+    // Combined Teacher Fields
+    qualification,
+    specialization,
+    teacherType,
+    handlingClasses,
+    teachingSubjects,
+    presentDays,
+    // Combined Student/Child Fields
     childFirstName,
     childMiddleName,
     childLastName,
     childDOB,
+    childResumptionDate,
+    childGender,
     childClass,
+    childDepartment,
+    childSubjects,
     profileImage
   } = data
   const emailAddress = normalizeEmail(email)
@@ -1129,9 +1142,13 @@ export async function registerParentTeacher(data: any) {
     const parentId = randomUUID()
     const teacherId = randomUUID()
     const childStudentId = randomUUID()
+
+    // DYNAMIC & SIMULTANEOUS ID GENERATION
     const admissionNumber = generateAdmissionNumber(childClass)
     const staffCode = generateStaffId()
     const registrationReference = `REG-${Date.now()}-${randomUUID().slice(0, 8)}`
+
+    const selectedChildSubjects = Array.isArray(childSubjects) ? childSubjects : []
 
     await db.transaction(async (tx) => {
       // 1. Insert Parent / Teacher User Row
@@ -1142,11 +1159,17 @@ export async function registerParentTeacher(data: any) {
         image: profileImage || null
       }).onConflictDoNothing()
 
-      // 2. Insert User Role Row (Primary role: PARENT)
+      // 2. Insert User Role Rows (Primary PARENT role + TEACHER role)
       await tx.insert(userRole).values({
         id: randomUUID(),
         userId: userId,
         role: 'PARENT',
+      }).onConflictDoNothing()
+
+      await tx.insert(userRole).values({
+        id: randomUUID(),
+        userId: userId,
+        role: 'TEACHER',
       }).onConflictDoNothing()
 
       // 3. Insert Parent Profile Record
@@ -1156,30 +1179,40 @@ export async function registerParentTeacher(data: any) {
         firstName,
         lastName,
         phoneNumber: phone,
+        occupation: occupation || 'Educator',
         profileImage: profileImage || null
       })
 
-      // 4. Insert Teacher Profile Record (since they are a Parent who is a Teacher)
+      // 4. Insert Teacher Profile Record with Staff ID
       await tx.insert(teacher).values({
         id: teacherId,
         userId: userId,
         staffCode,
         firstName,
         lastName,
+        type: teacherType || 'FULL_TIME',
+        qualification: qualification || null,
+        specialization: specialization || null,
+        handlingClasses: Array.isArray(handlingClasses) ? handlingClasses : [childClass],
+        teachingSubjects: Array.isArray(teachingSubjects) ? teachingSubjects : [],
+        presentDays: Array.isArray(presentDays) ? presentDays : [],
         profileImage: profileImage || null,
-        status: 'APPROVED', // Pre-approved as they are registered staff
+        status: 'APPROVED', // Pre-approved educator status
         isActive: true
       })
 
-      // Child authentication is provisioned on their first admission-number login,
-      // so no unusable local-only identity is created here.
+      // 5. Insert Child/Pupil Record with Admission Number
       await tx.insert(student).values({
         id: childStudentId,
         firstName: childFirstName,
         middleName: childMiddleName || null,
         lastName: childLastName,
         dateOfBirth: childDOB ? childDOB : null,
+        dateOfResumption: childResumptionDate ? childResumptionDate : null,
+        gender: childGender || null,
         class: childClass,
+        department: childDepartment || null,
+        subjectsDone: selectedChildSubjects,
         admissionNumber,
         parentId: parentId,
         password: 'default',
@@ -1187,7 +1220,7 @@ export async function registerParentTeacher(data: any) {
         registrationStatus: 'ACTIVE'
       })
 
-      // Pre-approved educator benefit is logged directly as PAID/success
+      // 6. Pre-approved educator benefit payment record
       await tx.insert(payment).values({
         id: randomUUID(),
         studentId: childStudentId,
@@ -1199,7 +1232,7 @@ export async function registerParentTeacher(data: any) {
         status: 'success',
         paidAt: new Date(),
         paymentDate: new Date(),
-        description: 'Parent registration — Pre-Approved Educator Benefit',
+        description: `Parent-Teacher Combined Registration for ${childFirstName} ${childLastName} (Admission No: ${admissionNumber}, Staff ID: ${staffCode})`,
         createdAt: new Date(),
         updatedAt: new Date()
       })

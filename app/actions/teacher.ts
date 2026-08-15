@@ -18,27 +18,52 @@ export async function createAssessment(data: any) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
   const teacherProfile = await db.query.teacher.findFirst({ where: eq(teacher.userId, session.user.id) })
-  const teacherId = teacherProfile?.id || 'temp-teacher-id'
+  if (!teacherProfile) throw new Error('Teacher profile not found')
+  const teacherId = teacherProfile.id
 
-  const currentTerm = await db.query.term.findFirst({ where: eq(term.isCurrent, true) })
-  const termId = currentTerm?.id || 'temp-term-id'
+  let currentTerm = await db.query.term.findFirst({ where: eq(term.isCurrent, true) })
+  if (!currentTerm) {
+    // Fallback term if current term is not set
+    const allTerms = await db.query.term.findMany()
+    currentTerm = allTerms[0]
+  }
+  if (!currentTerm) throw new Error('No academic term configured in database')
 
   const assessmentId = randomUUID()
   const { title, description, subjectId, totalMarks, duration, scheduleDate, questions, type } = data
+
+  // Resolve valid subjectId
+  let validSubjectId = subjectId
+  if (!validSubjectId || validSubjectId === 'temp-subject-id') {
+    const firstSubject = await db.query.subject.findFirst()
+    if (firstSubject) {
+      validSubjectId = firstSubject.id
+    } else {
+      // Insert default subject if none exist
+      const defaultSubId = randomUUID()
+      await db.insert(subject).values({
+        id: defaultSubId,
+        name: 'General Mathematics',
+        code: 'MATH101',
+        isActive: true,
+      } as any)
+      validSubjectId = defaultSubId
+    }
+  }
 
   const result = await db.transaction(async (tx) => {
     const insertedAssessment = await tx.insert(assessment).values({
       id: assessmentId,
       title: title || 'New Assessment',
       description: description || '',
-      subjectId: subjectId || 'temp-subject-id',
-      termId: termId,
+      subjectId: validSubjectId,
+      termId: currentTerm.id,
       createdBy: teacherId,
       duration: duration || 60,
       type: type || 'ASSESSMENT_CBT', // ASSESSMENT_CBT or EXAM_CBT
-      status: 'pending_approval', // newly created CBT starts as pending_approval
+      status: 'pending_approval', // newly created CBT starts as pending_approval for Admin review
       passingScore: 40,
-      totalPoints: totalMarks || 100,
+      totalPoints: totalMarks || (questions ? questions.reduce((sum: number, q: any) => sum + (q.marks || 1), 0) : 100),
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any).returning()

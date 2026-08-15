@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, ShieldAlert, Plus, CheckCircle, Scale, Calendar, AlertOctagon } from 'lucide-react'
 import { getAdminDisciplinaryRecords, createDisciplinaryRecord, resolveDisciplinaryRecord } from '@/app/actions/admin-ops'
 import { getAllStudents } from '@/app/actions/admin'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { toast } from 'sonner'
 
 export default function AdminDisciplinaryCasesPage() {
@@ -45,6 +46,12 @@ export default function AdminDisciplinaryCasesPage() {
   useEffect(() => {
     loadData()
   }, [])
+
+  // Real-time Supabase Database Sync for Disciplinary Incident Desk
+  useRealtimeSubscription('disciplinary_records', () => {
+    loadData()
+    toast('Disciplinary records updated in real time')
+  })
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
