@@ -134,9 +134,9 @@ export async function payAdultRegistration() {
       paidAt: new Date()
     })
 
-    // Update enrollment - first week is included in registration
+    // Update enrollment - initial period valid for 8 days after enrollment before weekly payment starts
     const weeklyPaidUntil = new Date()
-    weeklyPaidUntil.setDate(weeklyPaidUntil.getDate() + 7)
+    weeklyPaidUntil.setDate(weeklyPaidUntil.getDate() + 8)
 
     await tx.update(adultEducationEnrollment)
       .set({
