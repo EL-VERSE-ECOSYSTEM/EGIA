@@ -8,6 +8,8 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Checkbox } from '@/components/ui/checkbox'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { toast } from 'sonner'
 import {
   Upload,
   FileText,
@@ -19,7 +21,8 @@ import {
   FileSpreadsheet,
   Clock,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from 'lucide-react'
 
 interface ImportPreview {
@@ -67,6 +70,12 @@ export default function LibraryBooksAdminPage() {
       loadHistory()
     }
   }, [activeTab])
+
+  // Real-time Supabase Database Sync for Library Books and Import Logs
+  useRealtimeSubscription('library_books', () => {
+    if (activeTab === 'history') loadHistory()
+    toast('Library catalog updated in real time')
+  })
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {

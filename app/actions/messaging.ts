@@ -2,8 +2,8 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { conversation, conversationParticipant, message, user, userRole } from '@/lib/db/schema'
-import { eq, and, or, desc, inArray } from 'drizzle-orm'
+import { conversation, conversationParticipant, message, user, userRole, student } from '@/lib/db/schema'
+import { eq, and, or, desc, inArray, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
 
@@ -109,6 +109,33 @@ export async function sendMessage(conversationId: string, content: string, attac
   // Run backend moderation and content filtration
   const moderation = moderateMessage(content)
   if (!moderation.allowed) {
+    // Record disciplinary infraction for Admin review in real time
+    try {
+      const studentRecord = await db.query.student.findFirst({
+        where: eq(student.userId, userId)
+      })
+      if (studentRecord) {
+        const recordId = crypto.randomUUID()
+        await db.execute(sql`
+          INSERT INTO public.disciplinary_records (
+            id, student_id, reported_by_id, incident_date, incident_type, description, status, created_at, updated_at
+          ) VALUES (
+            ${recordId}::uuid,
+            ${studentRecord.id}::uuid,
+            ${userId}::uuid,
+            CURRENT_DATE,
+            'In-App Messaging Violation',
+            ${`Attempted prohibited message: "${content.substring(0, 100)}...". Violation reason: ${moderation.reason}`},
+            'PENDING',
+            NOW(),
+            NOW()
+          )
+        `)
+      }
+    } catch (discErr) {
+      console.warn('Could not auto-record messaging infraction to disciplinary_records:', discErr)
+    }
+
     throw new Error(moderation.reason)
   }
 

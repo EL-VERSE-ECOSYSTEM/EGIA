@@ -17,14 +17,25 @@ export default function ParentTeacherSignUpPage() {
     lastName: '',
     email: '',
     phone: '',
+    occupation: 'Educator',
     password: '',
     confirmPassword: '',
-    // Child's Info according to Birth Certificate
+    // Teacher Fields
+    qualification: 'B.Ed / B.Sc',
+    specialization: 'Mathematics / Science',
+    teacherType: 'FULL_TIME',
+    handlingClasses: 'Primary 3, Primary 4',
+    teachingSubjects: 'Mathematics, Basic Science',
+    // Child's Info
     childFirstName: '',
     childMiddleName: '',
     childLastName: '',
     childDOB: '',
+    childResumptionDate: '',
+    childGender: 'Male',
     childClass: 'Primary 3',
+    childDepartment: 'Science',
+    childSubjects: 'Mathematics, English, Basic Science',
   })
 
   const [profileImage, setProfileImage] = useState<string | null>(null)
@@ -66,7 +77,12 @@ export default function ParentTeacherSignUpPage() {
     }
 
     try {
-      const result = await registerParentTeacher(payload)
+      const result = await registerParentTeacher({
+        ...payload,
+        handlingClasses: formData.handlingClasses.split(',').map(s => s.trim()).filter(Boolean),
+        teachingSubjects: formData.teachingSubjects.split(',').map(s => s.trim()).filter(Boolean),
+        childSubjects: formData.childSubjects.split(',').map(s => s.trim()).filter(Boolean),
+      })
 
       if (result.error) {
         setError(result.error)
@@ -77,7 +93,6 @@ export default function ParentTeacherSignUpPage() {
           window.location.assign(result.checkoutUrl)
           return
         }
-        setError('Registration was created, but checkout could not be started. Please contact support.')
         setLoading(false)
       }
     } catch (err: any) {
@@ -167,7 +182,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.firstName}
                   onChange={e => setFormData({...formData, firstName: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50"
                 />
               </div>
               <div className="space-y-2">
@@ -178,7 +193,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.lastName}
                   onChange={e => setFormData({...formData, lastName: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50"
                 />
               </div>
             </div>
@@ -193,7 +208,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.email}
                   onChange={e => setFormData({...formData, email: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50"
                 />
               </div>
               <div className="space-y-2">
@@ -205,13 +220,34 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.phone}
                   onChange={e => setFormData({...formData, phone: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Qualification</Label>
+                <Input
+                  value={formData.qualification}
+                  onChange={e => setFormData({...formData, qualification: e.target.value})}
+                  placeholder="e.g. B.Ed Mathematics"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Specialization</Label>
+                <Input
+                  value={formData.specialization}
+                  onChange={e => setFormData({...formData, specialization: e.target.value})}
+                  placeholder="e.g. STEM Education"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50"
                 />
               </div>
             </div>
 
             <div className="text-xs font-black text-amber-950 bg-amber-50 border border-amber-100 p-4 rounded-2xl">
-              👶 STAGE 2: ENTER REGISTERED CHILD/WARD DETAIL
+              👶 STAGE 2: ENTER REGISTERED CHILD / PUPIL DETAILS
             </div>
 
             <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl text-[10px] font-bold text-orange-950">
@@ -227,7 +263,7 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.childFirstName}
                   onChange={e => setFormData({...formData, childFirstName: e.target.value})}
                   required
-                  className="h-11 rounded-xl border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
+                  className="h-11 rounded-xl border-slate-200 text-xs font-bold"
                 />
               </div>
               <div className="space-y-1">
@@ -237,7 +273,7 @@ export default function ParentTeacherSignUpPage() {
                   placeholder="Bello"
                   value={formData.childMiddleName}
                   onChange={e => setFormData({...formData, childMiddleName: e.target.value})}
-                  className="h-11 rounded-xl border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
+                  className="h-11 rounded-xl border-slate-200 text-xs font-bold"
                 />
               </div>
               <div className="space-y-1">
@@ -248,33 +284,66 @@ export default function ParentTeacherSignUpPage() {
                   value={formData.childLastName}
                   onChange={e => setFormData({...formData, childLastName: e.target.value})}
                   required
-                  className="h-11 rounded-xl border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
+                  className="h-11 rounded-xl border-slate-200 text-xs font-bold"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="childDOB" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Child's Date of Birth</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="childDOB" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Date of Birth</Label>
                 <Input
                   id="childDOB"
                   type="date"
                   value={formData.childDOB}
                   onChange={e => setFormData({...formData, childDOB: e.target.value})}
                   required
-                  className="h-12 rounded-xl border-slate-200 focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300"
+                  className="h-11 rounded-xl border-slate-200 text-xs"
                 />
               </div>
+              <div className="space-y-1">
+                <Label htmlFor="childResumptionDate" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Resumption Date</Label>
+                <Input
+                  id="childResumptionDate"
+                  type="date"
+                  value={formData.childResumptionDate}
+                  onChange={e => setFormData({...formData, childResumptionDate: e.target.value})}
+                  className="h-11 rounded-xl border-slate-200 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Gender</Label>
+                <select
+                  value={formData.childGender}
+                  onChange={e => setFormData({...formData, childGender: e.target.value})}
+                  className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 font-bold text-xs"
+                >
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="childClass" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Child's Class</Label>
                 <select
                   id="childClass"
                   value={formData.childClass}
                   onChange={e => setFormData({...formData, childClass: e.target.value})}
-                  className="w-full h-12 rounded-xl border border-slate-200 bg-white px-4 font-bold text-slate-800 focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-all duration-300 focus:outline-none"
+                  className="w-full h-12 rounded-xl border border-slate-200 bg-white px-4 font-bold text-slate-800"
                 >
                   {classesList.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Registered Subjects</Label>
+                <Input
+                  value={formData.childSubjects}
+                  onChange={e => setFormData({...formData, childSubjects: e.target.value})}
+                  placeholder="Mathematics, English, Basic Science"
+                  className="h-12 rounded-xl border-slate-200 text-xs font-bold"
+                />
               </div>
             </div>
 

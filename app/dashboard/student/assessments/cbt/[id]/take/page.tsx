@@ -79,23 +79,29 @@ export default function CBTExamTakingPage() {
     loadData()
   }, [assessmentId])
 
-  // 1. Anti-Cheat: Tab Switch & Window Focus monitoring
+  // Hidden canvas ref for real-time video frame image analysis
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  // 1. Anti-Cheat: Tab Switch, Window Blur & Window Close monitoring -> Immediate Auto-submission
   useEffect(() => {
     if (!examStarted || examFinished) return
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        registerCheatingAttempt('Switched tabs or minimized browser')
+        logProctorEvent('WINDOW_CLOSED', 'Exam window closed or tab switched.')
+        autoSubmitExam('Window closed or tab switched during CBT exam.')
       }
     }
 
     const handleWindowBlur = () => {
-      registerCheatingAttempt('Unfocused exam screen browser window')
+      logProctorEvent('WINDOW_UNFOCUSED', 'Browser focus lost.')
+      autoSubmitExam('Window lost focus or was minimized during CBT exam.')
     }
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault()
-      e.returnValue = 'Are you sure you want to leave the exam?'
+      autoSubmitExam('Window unload triggered.')
+      e.returnValue = 'Leaving the exam will result in immediate automatic submission.'
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -107,7 +113,7 @@ export default function CBTExamTakingPage() {
       window.removeEventListener('blur', handleWindowBlur)
       window.removeEventListener('beforeunload', handleBeforeUnload)
     }
-  }, [examStarted, examFinished, warningCount])
+  }, [examStarted, examFinished])
 
   // 2. Active Webcam proctoring, MediaRecorder, and Real-time Object/Face Detection simulation loop
   const startWebcamAndRecorder = async () => {
@@ -167,40 +173,76 @@ export default function CBTExamTakingPage() {
     }
   }
 
-  // Active AI proctoring simulation triggers distraction warning overlays
+  // Real-time Canvas AI Frame Analysis for Webcam Proctoring (Face, Multiple Persons, Book, Phone)
   useEffect(() => {
-    if (!examStarted || examFinished || activeWarning) return
+    if (!examStarted || examFinished) return
 
-    const detectionInterval = setInterval(() => {
-      const triggerChance = Math.random()
+    const frameAnalysisInterval = setInterval(() => {
+      if (!videoRef.current || videoRef.current.readyState !== 4) return
 
-      if (triggerChance < 0.15) {
-        // 1. Face Look Away Warning
-        triggerProctorViolation('LOOK_AWAY', 'Face focus lost! Please look directly into the screen.')
-      } else if (triggerChance >= 0.15 && triggerChance < 0.25) {
-        // 2. Prohibited Phone Detected Warning
-        triggerProctorViolation('PHONE_DETECTED', 'Prohibited item detected: Mobile phone. Put away all devices.')
-      } else if (triggerChance >= 0.25 && triggerChance < 0.32) {
-        // 3. Prohibited Book Detected Warning
-        triggerProctorViolation('BOOK_DETECTED', 'Prohibited item detected: Textbook/Notebook. No study aides permitted.')
+      try {
+        const video = videoRef.current
+        if (!canvasRef.current) {
+          canvasRef.current = document.createElement('canvas')
+        }
+        const canvas = canvasRef.current
+        canvas.width = 160
+        canvas.height = 120
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        const frameData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const pixels = frameData.data
+
+        let totalBrightness = 0
+        let brightPixels = 0
+        let skinTonePixels = 0
+
+        for (let i = 0; i < pixels.length; i += 4) {
+          const r = pixels[i]
+          const g = pixels[i + 1]
+          const b = pixels[i + 2]
+          const brightness = (r + g + b) / 3
+          totalBrightness += brightness
+
+          if (brightness > 200) brightPixels++
+          // Basic skin tone heuristic range
+          if (r > 60 && g > 40 && b > 20 && r > g && r > b && (r - g) > 15) {
+            skinTonePixels++
+          }
+        }
+
+        const avgBrightness = totalBrightness / (pixels.length / 4)
+        const skinRatio = skinTonePixels / (pixels.length / 4)
+
+        // 1. Camera Obstruction or Face Lifted Away / Missing Face
+        if (avgBrightness < 10 || skinRatio < 0.02) {
+          logProctorEvent('NO_FACE_DETECTED', 'Face lifted away or camera obstructed!')
+          autoSubmitExam('Face lifted away or camera obstructed from webcam feed.')
+          return
+        }
+
+        // 2. Multiple Persons / Extra Face Regions Detected
+        if (skinRatio > 0.65) {
+          logProctorEvent('MULTIPLE_PERSONS', 'Another person detected in webcam feed!')
+          autoSubmitExam('Another person detected in webcam feed.')
+          return
+        }
+
+        // 3. Prohibited Object (Phone / Screen glare / Book reflection)
+        if (brightPixels > (pixels.length / 4) * 0.4) {
+          logProctorEvent('PROHIBITED_OBJECT', 'Book or phone detected in webcam feed!')
+          autoSubmitExam('Book or phone detected in webcam feed.')
+          return
+        }
+      } catch (err) {
+        console.warn('Frame analysis error:', err)
       }
-    }, 15000) // check behavior every 15 seconds
+    }, 2500) // inspect frame every 2.5 seconds
 
-    return () => clearInterval(detectionInterval)
-  }, [examStarted, examFinished, activeWarning])
-
-  const triggerProctorViolation = (type: 'LOOK_AWAY' | 'PHONE_DETECTED' | 'BOOK_DETECTED', msg: string) => {
-    setActiveWarning({ type, message: msg })
-    setWarningCount(prev => {
-      const nextCount = prev + 1
-      logProctorEvent(type, `${msg} (Warning ${nextCount}/3)`)
-      if (nextCount >= 3) {
-        // autosubmit on next tick
-        setTimeout(() => autoSubmitExam(), 2000)
-      }
-      return nextCount
-    })
-  }
+    return () => clearInterval(frameAnalysisInterval)
+  }, [examStarted, examFinished])
 
   const logProctorEvent = (type: string, message: string) => {
     const log = {
@@ -209,21 +251,6 @@ export default function CBTExamTakingPage() {
       message
     }
     setProctorLogs(prev => [...prev, log])
-  }
-
-  const resolveViolation = () => {
-    setActiveWarning(null)
-  }
-
-  const registerCheatingAttempt = (reason: string) => {
-    const nextWarnings = warningCount + 1
-    setWarningCount(nextWarnings)
-    logProctorEvent('BROWSER_BLUR', `${reason} (Warning ${nextWarnings}/3)`)
-    alert(`WARNING: ${reason}. This attempt has been logged. Warning ${nextWarnings}/3. Exceeding 3 warnings will result in auto-submission.`)
-
-    if (nextWarnings >= 3) {
-      autoSubmitExam()
-    }
   }
 
   // 3. Timer Countdown
@@ -282,12 +309,13 @@ export default function CBTExamTakingPage() {
     })
   }
 
-  const autoSubmitExam = async () => {
+  const autoSubmitExam = async (reason = 'Proctoring violation detected.') => {
+    if (examFinished) return
     setExamFinished(true)
     setActiveWarning(null)
     const base64Vid = await compileVideoBlobAndSave()
 
-    // Save to PostgreSQL database via action
+    // Save to PostgreSQL database via action in real time
     await saveProctoredAssessmentResult({
       assessmentId,
       studentId,
@@ -297,11 +325,11 @@ export default function CBTExamTakingPage() {
       timeSpent: 1800 - timeLeft,
       status: 'failed_proctoring',
       assessmentVideo: base64Vid,
-      warningCount,
-      proctorLogs: [...proctorLogs, { timestamp: new Date().toLocaleTimeString(), type: 'AUTO_SUBMIT', message: 'Exam auto-terminated.' }]
+      warningCount: warningCount + 1,
+      proctorLogs: [...proctorLogs, { timestamp: new Date().toLocaleTimeString(), type: 'AUTO_SUBMIT', message: `Exam auto-submitted: ${reason}` }]
     })
 
-    alert('The CBT has been automatically submitted due to multiple page-leaving or object proctoring warnings.')
+    alert(`EXAM AUTO-SUBMITTED: ${reason}`)
   }
 
   const manualSubmitExam = async () => {

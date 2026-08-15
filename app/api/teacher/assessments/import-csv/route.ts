@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { parseCSV, validateQuestionCSV } from '@/lib/csv-parser'
 import { db } from '@/lib/db'
-import { assessmentQuestion, assessment, teacher } from '@/lib/db/schema'
+import { assessmentQuestion, assessment, teacher, term } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -15,49 +15,99 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData()
     const file = formData.get('file') as File
-    const assessmentId = formData.get('assessmentId') as string
+    let assessmentId = formData.get('assessmentId') as string
+    const title = formData.get('title') as string || 'CSV Imported Assessment'
+    const type = formData.get('type') as string || 'ASSESSMENT_CBT'
+    const subjectId = formData.get('subjectId') as string
+    const duration = parseInt((formData.get('duration') as string) || '60', 10)
 
-    if (!file || !assessmentId) {
-      return NextResponse.json({ error: 'Missing file or assessmentId' }, { status: 400 })
+    if (!file) {
+      return NextResponse.json({ error: 'No CSV file uploaded' }, { status: 400 })
     }
 
     const teacherProfile = await db.query.teacher.findFirst({ where: eq(teacher.userId, session.user.id) })
     if (!teacherProfile) return NextResponse.json({ error: 'Teacher profile not found' }, { status: 403 })
-    const ownedAssessment = await db.query.assessment.findFirst({
-      where: and(eq(assessment.id, assessmentId), eq(assessment.createdBy, teacherProfile.id)),
-    })
-    if (!ownedAssessment) return NextResponse.json({ error: 'Assessment not found or access denied' }, { status: 404 })
 
     const text = await file.text()
     const data = parseCSV(text) as any[]
 
     if (!validateQuestionCSV(data)) {
-      return NextResponse.json({ error: 'Invalid CSV format' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid CSV format. Missing required columns: questionText, questionType, marks' }, { status: 400 })
+    }
+
+    // If no existing assessmentId provided, create a new CBT assessment record
+    if (!assessmentId) {
+      let targetSubjectId = subjectId
+      if (!targetSubjectId) {
+        const firstSub = await db.query.subject.findFirst()
+        targetSubjectId = firstSub ? firstSub.id : uuidv4()
+      }
+
+      let currentTerm = await db.query.term.findFirst({ where: eq(term.isCurrent, true) })
+      if (!currentTerm) {
+        const allTerms = await db.query.term.findMany()
+        currentTerm = allTerms[0]
+      }
+
+      const newId = uuidv4()
+      await db.insert(assessment).values({
+        id: newId,
+        title,
+        description: 'Bulk CSV Imported Assessment',
+        subjectId: targetSubjectId,
+        termId: currentTerm?.id || 'default-term',
+        createdBy: teacherProfile.id,
+        duration: duration || 60,
+        type,
+        status: 'pending_approval', // Pending Admin approval
+        passingScore: 40,
+        totalPoints: data.reduce((sum, row) => sum + (parseInt(row.marks, 10) || 1), 0),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any)
+
+      assessmentId = newId
+    } else {
+      // Ensure owned assessment exists and set status to pending_approval
+      const owned = await db.query.assessment.findFirst({
+        where: and(eq(assessment.id, assessmentId), eq(assessment.createdBy, teacherProfile.id))
+      })
+      if (!owned) return NextResponse.json({ error: 'Assessment not found or permission denied' }, { status: 404 })
+
+      await db.update(assessment)
+        .set({ status: 'pending_approval', updatedAt: new Date() })
+        .where(eq(assessment.id, assessmentId))
     }
 
     const questionsToInsert = data.map((row: any, index: number) => {
-
-      const marks = parseInt(row.marks, 10)
-      if (isNaN(marks) || marks <= 0) {
-        throw new Error(`Invalid marks value at row ${index + 1}. Marks must be a positive integer.`)
+      const marks = parseInt(row.marks, 10) || 1
+      let parsedOptions = null
+      if (row.options) {
+        try {
+          parsedOptions = typeof row.options === 'string' && row.options.startsWith('[')
+            ? JSON.parse(row.options)
+            : row.options.split(';').map((s: string) => s.trim())
+        } catch (e) {
+          parsedOptions = [row.options]
+        }
       }
 
       return {
         id: uuidv4(),
         assessmentId,
         questionText: row.questionText,
-        questionType: row.questionType,
+        questionType: row.questionType || 'multiple_choice',
         points: marks,
-        options: row.options ? JSON.parse(row.options) : null,
-        correctAnswer: row.correctAnswer,
-        explanation: row.explanation,
+        options: parsedOptions,
+        correctAnswer: row.correctAnswer || '',
+        explanation: row.explanation || null,
         order: index + 1,
       }
     })
 
     await db.insert(assessmentQuestion).values(questionsToInsert)
 
-    return NextResponse.json({ success: true, count: questionsToInsert.length })
+    return NextResponse.json({ success: true, count: questionsToInsert.length, assessmentId })
   } catch (error: any) {
     console.error('CSV import failed:', error)
     return NextResponse.json({ error: error.message || 'Import failed' }, { status: 500 })
