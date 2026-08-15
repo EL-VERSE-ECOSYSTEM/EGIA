@@ -8,8 +8,26 @@ import { Badge } from '@/components/ui/badge'
 import { Bell, ShieldCheck, HelpCircle, Loader2, Sparkles, Smartphone, CheckCircle } from 'lucide-react'
 import { getLoggedInNotifications } from '@/app/actions/user'
 import { requestNotificationPermission, sendDeviceNotification } from '@/lib/notifications'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { toast } from 'sonner'
 
 export default function StudentNotificationsPage() {
+  const loadNotifications = async () => {
+    try {
+      const list = await getLoggedInNotifications()
+      setNotifications(list || [])
+    } catch (err) {
+      console.warn('Could not load notifications:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Real-time Supabase Database Sync for Notifications
+  useRealtimeSubscription('notification', () => {
+    loadNotifications()
+    toast('New notification received!')
+  })
   const [notifications, setNotifications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [permissionGranted, setPermissionGranted] = useState(false)
