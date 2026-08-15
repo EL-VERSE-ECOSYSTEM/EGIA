@@ -326,7 +326,7 @@ export async function registerParent(data: any) {
   const userId = authUser.userId
 
   try {
-    const registration = await db.transaction(async (tx) => {
+    await db.transaction(async (tx) => {
       const parentId = randomUUID()
       await tx.insert(userTable).values({
         id: userId,
@@ -390,50 +390,25 @@ export async function registerParent(data: any) {
         console.warn('Could not sync insert to public.parents table:', err)
       }
 
-      // Link multiple provided ward admission numbers (up to 5)
+      // Link multiple provided ward admission numbers (up to 5) for free
       const wardsList = Array.isArray(data.wardAdmissionNumbers)
         ? data.wardAdmissionNumbers
         : data.wardAdmissionNumber
         ? [data.wardAdmissionNumber]
         : []
 
-      if (wardsList.length === 0) return null
-
-      let firstReference = ''
-      let firstPaymentId = ''
-
       for (const wardNum of wardsList) {
         const ward = await tx.query.student.findFirst({
           where: eq(student.admissionNumber, wardNum.trim().toUpperCase())
         })
-        if (!ward) throw new Error(`Ward with admission number ${wardNum} was not found.`)
-        if (ward.parentId && ward.parentId !== parentId) {
-          // If already linked to another parent, just log warning and proceed to link to this parent
-          console.warn(`Ward ${ward.firstName} was linked to another parent. Re-linking...`)
-        }
-
-        const reference = `EGIA-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
-        await tx.update(student).set({ parentId }).where(eq(student.id, ward.id))
-
-        const createdPayment = (await tx.insert(payment).values({
-          id: randomUUID(), studentId: ward.id, parentId, amount: '2000.00', feeType: 'registration',
-          paymentMethod: 'KORAPAY', transactionReference: reference, status: 'pending',
-          description: `Parent registration for ${ward.firstName} ${ward.lastName}`,
-        }).returning())[0]
-
-        if (!firstReference) {
-          firstReference = reference
-          firstPaymentId = createdPayment.id
+        if (ward) {
+          await tx.update(student).set({ parentId }).where(eq(student.id, ward.id))
         }
       }
-
-      return { reference: firstReference, paymentId: firstPaymentId }
     })
 
-    if (!registration) return { success: true }
-    const url = new URL('https://checkout.korapay.com/pay/BHba4zdsceZDgyW')
-    url.searchParams.set('reference', registration.reference)
-    return { success: true, checkoutUrl: url.toString(), paymentId: registration.paymentId }
+    // Parent Registration is FREE and does NOT require payment
+    return { success: true }
   } catch (dbError: any) {
     console.error('DB Error:', dbError)
     await deleteAuthUserIfCreated(userId, authUser.created === true)
@@ -1220,7 +1195,7 @@ export async function registerParentTeacher(data: any) {
         registrationStatus: 'ACTIVE'
       })
 
-      // 6. Pre-approved educator benefit payment record
+      // 6. Registration payment record (Parent-Teacher requires payment)
       await tx.insert(payment).values({
         id: randomUUID(),
         studentId: childStudentId,
@@ -1229,9 +1204,7 @@ export async function registerParentTeacher(data: any) {
         feeType: 'registration',
         paymentMethod: 'KORAPAY',
         transactionReference: registrationReference,
-        status: 'success',
-        paidAt: new Date(),
-        paymentDate: new Date(),
+        status: 'pending',
         description: `Parent-Teacher Combined Registration for ${childFirstName} ${childLastName} (Admission No: ${admissionNumber}, Staff ID: ${staffCode})`,
         createdAt: new Date(),
         updatedAt: new Date()

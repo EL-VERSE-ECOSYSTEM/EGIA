@@ -148,6 +148,44 @@ export default async function ParentOverviewPage() {
          </div>
 
          <div className="space-y-8">
+            {/* Adult Education Status Card */}
+            <Card className="border-none shadow-xl shadow-slate-200/50 dark:shadow-none rounded-[2.5rem] bg-amber-950 text-white overflow-hidden p-8 space-y-4">
+               <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                     <GraduationCap className="text-amber-400 w-6 h-6" />
+                     <h3 className="text-lg font-black">Adult Education</h3>
+                  </div>
+                  <Badge className={adultStatus.enrolled ? "bg-amber-400 text-slate-950 font-black text-[10px]" : "bg-white/10 text-white font-black text-[10px]"}>
+                     {adultStatus.enrolled ? (adultStatus.isPaid ? 'ACTIVE ENROLLMENT' : 'PAYMENT DUE') : 'NOT ENROLLED'}
+                  </Badge>
+               </div>
+               <p className="text-xs text-amber-200 font-semibold leading-relaxed">
+                  {adultStatus.enrolled
+                     ? 'Access video classes, live interactive sessions, saved sessions, and adult literacy assignments.'
+                     : 'Enroll in adult education classes tailored for parents and adult learners.'}
+               </p>
+               {adultStatus.enrolled ? (
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                     <Link href="/dashboard/parent/adult-education/video-classes">
+                        <Button size="sm" className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl">
+                           VIDEO CLASSES
+                        </Button>
+                     </Link>
+                     <Link href="/dashboard/parent/adult-education/live-classes">
+                        <Button size="sm" variant="outline" className="w-full border-amber-400/40 text-amber-300 font-black text-xs rounded-xl">
+                           LIVE SESSIONS
+                        </Button>
+                     </Link>
+                  </div>
+               ) : (
+                  <Link href="/dashboard/parent/adult-education/video-classes" className="block pt-2">
+                     <Button className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl">
+                        ENROLL IN ADULT EDUCATION
+                     </Button>
+                  </Link>
+               )}
+            </Card>
+
             <Card className="border-none shadow-xl shadow-slate-200/50 dark:shadow-none rounded-[2.5rem] bg-white dark:bg-slate-900 overflow-hidden">
                <CardHeader className="p-8 pb-4">
                   <CardTitle className="text-lg font-black flex items-center gap-2 text-slate-900 dark:text-white">

@@ -462,8 +462,54 @@ export async function getParentProfile(userId?: string) {
     userId = session.user.id
   }
   return await db.query.parent.findFirst({
-    where: eq(parent.userId, userId)
+    where: eq(parent.userId, userId),
+    with: { user: true }
   })
+}
+
+export async function updateParentProfile(data: {
+  firstName: string
+  lastName: string
+  phoneNumber: string
+  address?: string
+  occupation?: string
+  profileImage?: string
+}) {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role !== 'PARENT') {
+    throw new Error('Unauthorized')
+  }
+
+  const existingParent = await db.query.parent.findFirst({
+    where: eq(parent.userId, session.user.id)
+  })
+
+  if (!existingParent) throw new Error('Parent profile not found.')
+
+  await db.update(parent)
+    .set({
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phoneNumber: data.phoneNumber,
+      address: data.address || null,
+      occupation: data.occupation || null,
+      profileImage: data.profileImage || existingParent.profileImage,
+      updatedAt: new Date()
+    })
+    .where(eq(parent.id, existingParent.id))
+
+  // Sync user full name
+  await db.update(userTable)
+    .set({
+      name: `${data.firstName} ${data.lastName}`,
+      image: data.profileImage || existingParent.profileImage,
+      updatedAt: new Date()
+    })
+    .where(eq(userTable.id, session.user.id))
+
+  revalidatePath('/dashboard/parent/settings/profile')
+  revalidatePath('/dashboard/parent/overview')
+  return { success: true }
 }
 
 export async function getStudentProfile(userId?: string) {
