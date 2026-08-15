@@ -540,6 +540,7 @@ export const assessmentRelations = relations(assessment, ({ one, many }) => ({
   questions: many(assessmentQuestion),
   results: many(assessmentResult),
   term: one(term, { fields: [assessment.termId], references: [term.id] }),
+  teacher: one(teacher, { fields: [assessment.createdBy], references: [teacher.id] }),
 }))
 
 export const assessmentResultRelations = relations(assessmentResult, ({ one, many }) => ({
