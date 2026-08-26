@@ -88,7 +88,7 @@ export default function SchoolRegistrationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col justify-between p-4 sm:p-8">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-4 sm:p-8">
       {/* Background Glow */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl"></div>
@@ -101,7 +101,7 @@ export default function SchoolRegistrationPage() {
             EL
           </div>
           <span className="font-black text-xl tracking-tight text-white uppercase">
-            EL <span className="text-emerald-400">LEARN APP</span>
+            EL <span className="text-emerald-400">LEARNERS APP</span>
           </span>
         </div>
         <a href="/auth/signin" className="text-xs font-bold text-slate-400 hover:text-emerald-400 transition">
@@ -109,13 +109,13 @@ export default function SchoolRegistrationPage() {
         </a>
       </header>
 
-      <main className="relative max-w-4xl mx-auto w-full my-8 bg-slate-950/80 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-2xl">
+      <main className="relative max-w-4xl mx-auto w-full my-8 bg-slate-900/80 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-2xl">
         <div className="mb-8 text-center sm:text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold mb-3">
             <Sparkles className="w-3.5 h-3.5" /> Institutional Onboarding
           </div>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-            Register Your School on EL LEARN
+            Register Your School on EL LEARNERS APP
           </h1>
           <p className="text-slate-400 mt-2 text-sm sm:text-base">
             Enroll your institution, manage classes from Primary 3 to SSS3, set parent access, and activate your school portal with a standard NGN 30,000 subscription payment.
@@ -143,7 +143,7 @@ export default function SchoolRegistrationPage() {
                   placeholder="e.g. Excellence International College"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
                 />
               </div>
               <div>
@@ -154,7 +154,7 @@ export default function SchoolRegistrationPage() {
                   placeholder="e.g. Ikeja, Lagos State"
                   value={formData.location}
                   onChange={e => setFormData({ ...formData, location: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
                 />
               </div>
             </div>
@@ -177,7 +177,7 @@ export default function SchoolRegistrationPage() {
                     className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-between ${
                       isChecked
                         ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                     }`}
                   >
                     <span>{cls}</span>
@@ -189,7 +189,7 @@ export default function SchoolRegistrationPage() {
           </div>
 
           {/* Parents Verification Option */}
-          <div className="space-y-3 p-4 rounded-2xl bg-slate-900 border border-slate-800">
+          <div className="space-y-3 p-4 rounded-2xl bg-slate-950 border border-slate-800">
             <h2 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4" /> Access Verification
             </h2>
@@ -224,7 +224,7 @@ export default function SchoolRegistrationPage() {
                   placeholder="e.g. Dr. Jane Doe"
                   value={formData.adminName}
                   onChange={e => setFormData({ ...formData, adminName: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
                 />
               </div>
               <div>
@@ -235,7 +235,7 @@ export default function SchoolRegistrationPage() {
                   placeholder="e.g. +234 801 234 5678"
                   value={formData.adminPhone}
                   onChange={e => setFormData({ ...formData, adminPhone: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
                 />
               </div>
               <div>
@@ -246,7 +246,7 @@ export default function SchoolRegistrationPage() {
                   placeholder="admin@school.com"
                   value={formData.adminEmail}
                   onChange={e => setFormData({ ...formData, adminEmail: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
                 />
               </div>
             </div>
@@ -295,7 +295,7 @@ export default function SchoolRegistrationPage() {
               </div>
               <h2 className="text-2xl font-black text-white">Payment Successful!</h2>
               <p className="text-slate-400 text-xs sm:text-sm">
-                Your school has been registered and activated on EL LEARN APP.
+                Your school has been registered and activated on EL LEARNERS APP.
               </p>
             </div>
 
@@ -303,7 +303,7 @@ export default function SchoolRegistrationPage() {
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 font-mono text-xs">
               <div className="flex justify-between border-b border-slate-800 pb-2">
                 <span className="text-slate-400">Platform:</span>
-                <span className="font-bold text-emerald-400">EL LEARN APP</span>
+                <span className="font-bold text-emerald-400">EL LEARNERS APP</span>
               </div>
               <div className="flex justify-between border-b border-slate-800 pb-2">
                 <span className="text-slate-400">School Name:</span>
@@ -350,7 +350,7 @@ export default function SchoolRegistrationPage() {
       )}
 
       <footer className="relative max-w-5xl mx-auto w-full text-center py-4 border-t border-slate-800 text-xs text-slate-500">
-        &copy; {new Date().getFullYear()} EL LEARN APP. All rights reserved.
+        &copy; {new Date().getFullYear()} EL LEARNERS APP. All rights reserved.
       </footer>
     </div>
   )
