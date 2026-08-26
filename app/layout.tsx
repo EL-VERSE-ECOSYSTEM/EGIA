@@ -5,7 +5,7 @@ import { RealtimeProvider } from '@/components/realtime/RealtimeProvider'
 import { TimeThemeProvider } from '@/components/TimeThemeProvider'
 
 export const metadata: Metadata = {
-  title: "EL GOODNEWS INT'L ACADEMY - Empowering Excellence",
+  title: "EL LEARN - Empowering Excellence",
   description: 'Complete school management system with CBT, assessments, and child monitoring.',
   generator: 'ELCODERS',
   icons: {
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: "EL GOODNEWS",
+    title: "EL LEARN",
   }
 }
 
