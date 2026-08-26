@@ -557,11 +557,11 @@ export async function loginStudent(data: any) {
 export async function loginRole(data: {
   identifier: string
   password: string
-  role: Exclude<AuthRole, 'STUDENT'>
+  role: Exclude<AuthRole, 'STUDENT'> | 'SCHOOL_ADMIN' | 'SUPER_ADMIN'
 }) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
-  const selectedRole = data.role?.toUpperCase() as Exclude<AuthRole, 'STUDENT'>
+  const selectedRole = data.role?.toUpperCase()
   const identifier = (data.identifier || '').trim()
 
   if (!identifier || !data.password) {
@@ -592,6 +592,39 @@ export async function loginRole(data: {
     return { error: error?.message || 'Supabase authentication is temporarily unavailable.' }
   }
 
+  // Auto-provision or sync accounts in Supabase Auth if found locally
+  if (signInResult.error && getSupabaseSecretKey()) {
+    try {
+      const adminClient = authAdminClient()
+      if (adminClient) {
+        const existingAuthUser = await findAuthUserByEmail(adminClient, email)
+        const dbUser = await db.query.user.findFirst({
+          where: eq(userTable.email, email)
+        })
+        if (dbUser) {
+          if (!existingAuthUser) {
+            console.log(`[Auth] Auto-provisioning seeded ${selectedRole} ${email} in Supabase...`)
+            const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+              id: dbUser.id || undefined,
+              email,
+              password: data.password,
+              email_confirm: true,
+              user_metadata: {
+                full_name: dbUser.name || 'User',
+                role: selectedRole
+              }
+            })
+            if (!createError && created.user) {
+              signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Could not auto-provision/sync Supabase Auth record on login:', err)
+    }
+  }
+
   if (signInResult.error) return { error: signInResult.error.message }
   if (!signInResult.data.user) return { error: 'Sign-in failed. Please try again.' }
 
@@ -599,7 +632,7 @@ export async function loginRole(data: {
   const metadataRole = signInResult.data.user.user_metadata?.role?.toUpperCase()
 
   // Strict role verification check against database roles & Supabase Auth metadata
-  const targetRoleName = selectedRole === 'ADMIN' ? 'ADMIN' : selectedRole
+  const targetRoleName = (selectedRole === 'SCHOOL_ADMIN' || selectedRole === 'SUPER_ADMIN') ? 'ADMIN' : selectedRole
   const roleData = await db.query.userRole.findFirst({
     where: and(eq(userRole.userId, userId), eq(userRole.role, targetRoleName)),
   })

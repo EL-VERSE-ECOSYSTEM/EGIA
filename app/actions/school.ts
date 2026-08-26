@@ -5,6 +5,7 @@ import { school, user, userRole } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
+import { randomUUID } from 'crypto'
 
 export interface SchoolRegistrationInput {
   name: string
@@ -48,7 +49,7 @@ export async function generateSchoolCode(schoolName: string): Promise<string> {
 
 export async function registerSchoolAction(input: SchoolRegistrationInput) {
   try {
-    const schoolId = `sch_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+    const schoolId = randomUUID()
     const schoolCode = await generateSchoolCode(input.name)
     const paymentReference = `SCH_PAY_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
@@ -63,13 +64,13 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       adminName: input.adminName,
       adminPhone: input.adminPhone,
       adminEmail: input.adminEmail,
-      paymentStatus: 'PAID', // Direct activation after checkout processing
+      paymentStatus: 'PAID',
       paymentReference: paymentReference,
     })
 
     const adminEmail = input.adminEmail.trim().toLowerCase()
     const adminPassword = input.adminPassword || 'AdminPass123!'
-    const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+    const userId = randomUUID()
 
     // Provision admin in Supabase Auth if secret key is present
     const adminClient = authAdminClient()
@@ -100,7 +101,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     }).onConflictDoNothing()
 
     await db.insert(userRole).values({
-      id: `ur_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: randomUUID(),
       userId: userId,
       role: 'ADMIN',
     }).onConflictDoNothing()
