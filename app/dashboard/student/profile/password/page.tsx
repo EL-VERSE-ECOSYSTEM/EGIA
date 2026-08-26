@@ -52,7 +52,7 @@ export default function StudentPasswordPage() {
       <div className="p-8 max-w-2xl mx-auto space-y-10 min-h-screen">
         <div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Create Custom Password</h1>
-          <p className="text-slate-500 text-lg font-medium">Configure your own personalized access password for EL GOODNEWS ACADEMY.</p>
+          <p className="text-slate-500 text-lg font-medium">Configure your own personalized access password for EL LEARN App.</p>
         </div>
 
         <Card className="border-none shadow-2xl rounded-[2.5rem] bg-white overflow-hidden">

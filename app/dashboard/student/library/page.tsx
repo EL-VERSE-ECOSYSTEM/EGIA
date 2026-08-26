@@ -14,7 +14,7 @@ import {
   ChevronRight, ZoomIn, ZoomOut, RotateCcw
 } from 'lucide-react'
 
-// Realistic comprehensive academic resource library dataset for EL GOODNEWS INT'L ACADEMY
+// Realistic comprehensive academic resource library dataset for EL LEARN App
 const LIBRARY_RESOURCES = [
   // TEXTBOOKS
   {
@@ -353,7 +353,7 @@ export default function StudentLibraryPage() {
           </div>
           <div className="relative z-10 space-y-6 max-w-3xl">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-orange-400 text-xs font-black uppercase tracking-widest">
-              <Sparkles className="w-4 h-4 text-orange-400" /> EL GOODNEWS ACADEMY DIGITAL LIBRARY
+              <Sparkles className="w-4 h-4 text-orange-400" /> EL LEARN App DIGITAL LIBRARY
             </div>
             <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-none">
               Your Academic Excellence Starts Here.
@@ -445,7 +445,7 @@ export default function StudentLibraryPage() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                 </div>
-                <p className="text-slate-500 font-bold text-sm">Searching EL GOODNEWS database...</p>
+                <p className="text-slate-500 font-bold text-sm">Searching EL LEARN App database...</p>
               </Card>
             ) : filteredResources.length === 0 ? (
               <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white p-20 text-center">
@@ -682,7 +682,7 @@ export default function StudentLibraryPage() {
                       <Play className="w-8 h-8 fill-white ml-1 text-white" />
                     </div>
                     <div className="relative z-10 space-y-2">
-                      <p className="text-sm font-black text-white uppercase tracking-widest">EL GOODNEWS ACADEMY SCREEN PLAYER</p>
+                      <p className="text-sm font-black text-white uppercase tracking-widest">EL LEARN App SCREEN PLAYER</p>
                       <p className="text-xs text-slate-400 font-medium max-w-md mx-auto leading-relaxed">
                         Simulating media playback streaming. Complete lecture notes of chemistry, biology, or physics are pre-indexed to facilitate high speed learning.
                       </p>
@@ -697,7 +697,7 @@ export default function StudentLibraryPage() {
                     <div className="space-y-6">
                       <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          EL GOODNEWS ACADEMY LIBRARY
+                          EL LEARN App LIBRARY
                         </span>
                         <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">
                           Page {currentPage} of {activePreview.pages}
@@ -717,7 +717,7 @@ export default function StudentLibraryPage() {
                               {activePreview.content}
                             </p>
                             <p className="text-slate-400 text-xs leading-relaxed font-semibold">
-                              This document extract represents the active lesson material approved by EL GOODNEWS ACADEMY. Use the direct download options on the catalog card to obtain full offline documents.
+                              This document extract represents the active lesson material approved by EL LEARN App. Use the direct download options on the catalog card to obtain full offline documents.
                             </p>
                           </div>
                         ) : (
@@ -734,7 +734,7 @@ export default function StudentLibraryPage() {
 
                     {/* Page Footer */}
                     <div className="border-t border-slate-100 pt-6 text-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                      © EL GOODNEWS INT'L ACADEMY • PREVIEW REVISION LICENSE
+                      © EL LEARN App • PREVIEW REVISION LICENSE
                     </div>
                   </div>
                 )}

@@ -21,7 +21,7 @@ export default function AdmissionsPage() {
             <div className="bg-amber-600 p-2 rounded-lg">
               <GraduationCap className="text-white w-6 h-6" />
             </div>
-            <span className="font-black text-xl tracking-tight text-slate-900 uppercase">EL GOODNEWS <span className="text-amber-600">ACADEMY</span></span>
+            <span className="font-black text-xl tracking-tight text-slate-900 uppercase">EL LEARN App <span className="text-amber-600">ACADEMY</span></span>
           </Link>
           <Link href="/auth/signup/parent">
             <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-6 font-black shadow-lg shadow-amber-200">APPLY NOW</Button>

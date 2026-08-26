@@ -165,7 +165,7 @@ export default function StudentRegistrationPage() {
         <div className="bg-orange-600 p-2 rounded-lg">
           <GraduationCap className="text-white w-6 h-6" />
         </div>
-        <span className="font-black text-xl tracking-tight text-slate-900">EL GOODNEWS <span className="text-orange-600">ACADEMY</span></span>
+        <span className="font-black text-xl tracking-tight text-slate-900">EL LEARN App <span className="text-orange-600">ACADEMY</span></span>
       </div>
 
       {!isValidDate ? (

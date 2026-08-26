@@ -90,7 +90,7 @@ export default function StudentReportCardPage() {
     // School details
     ctx.fillStyle = '#FFFFFF'
     ctx.font = 'black 36px sans-serif'
-    ctx.fillText("EL GOODNEWS INT'L ACADEMY", 200, 115)
+    ctx.fillText("EL LEARN App", 200, 115)
     ctx.font = 'bold 18px sans-serif'
     ctx.fillStyle = '#94A3B8'
     ctx.fillText('OFFICIAL ACADEMIC REPORT TRANSCRIPT', 200, 150)
@@ -362,7 +362,7 @@ export default function StudentReportCardPage() {
             <div class="header">
               <div class="logo">EG</div>
               <div>
-                <h1 class="school-name">EL GOODNEWS INT'L ACADEMY</h1>
+                <h1 class="school-name">EL LEARN App</h1>
                 <p class="motto">MOTTO: EXCELLENCE, INTEGRITY AND KNOWLEDGE • OFFICIAL TRANSCRIPT</p>
               </div>
             </div>
