@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { getSiteUrl, getSupabaseSecretKey, getSupabaseUrl, isSupabaseConfigured } from '@/utils/supabase/config'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
-import { user as userTable, userRole, parent, teacher, student, payment, subject } from '@/lib/db/schema'
+import { user as userTable, userRole, parent, teacher, student, payment, subject, school } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
@@ -182,11 +182,24 @@ export async function registerStudent(data: any) {
     dateOfResumption,
     subjectsDone,
     profileImage,
-    password
+    password,
+    schoolCode
   } = data
   const emailAddress = normalizeEmail(email)
 
-  // Check if account already exists in database
+  let schoolId: string | null = null
+  let schoolName: string | null = null
+  if (schoolCode) {
+    const schoolRec = await db.query.school.findFirst({
+      where: eq(school.code, schoolCode.trim().toUpperCase())
+    })
+    if (!schoolRec) {
+      return { error: 'Invalid School Registration Code.' }
+    }
+    schoolId = schoolRec.id
+    schoolName = schoolRec.name
+  }
+
   const existingUser = await db.query.user.findFirst({
     where: eq(userTable.email, emailAddress)
   })
@@ -195,8 +208,7 @@ export async function registerStudent(data: any) {
     return { error: 'Account already exists. An account with this email is already registered.' }
   }
 
-  // Generate unique 6-digit admission or pupil number
-  const admissionNumber = generateAdmissionNumber(studentClass)
+  const admissionNumber = generateAdmissionNumber(studentClass, schoolName || schoolCode)
 
   const selectedSubjects = Array.isArray(subjectsDone) ? subjectsDone.map((item: unknown) => String(item).trim()).filter(Boolean) : []
   if (!selectedSubjects.length) return { error: 'Select at least one subject.' }
@@ -207,7 +219,7 @@ export async function registerStudent(data: any) {
     password,
     role: 'STUDENT',
     fullName: `${firstName} ${lastName}`,
-    metadata: { admission_number: admissionNumber },
+    metadata: { admission_number: admissionNumber, school_id: schoolId },
   })
   if (authUser.error || !authUser.userId) return { error: authUser.error || 'Could not create the Supabase account. Please try again.' }
 
@@ -219,7 +231,8 @@ export async function registerStudent(data: any) {
         id: userId,
         email: emailAddress,
         name: `${firstName} ${lastName}`,
-        image: profileImage || null
+        image: profileImage || null,
+        schoolId
       }).onConflictDoNothing()
 
       await tx.insert(userRole).values({
@@ -231,6 +244,7 @@ export async function registerStudent(data: any) {
       await tx.insert(student).values({
         id: randomUUID(),
         userId: userId,
+        schoolId,
         firstName,
         middleName: middleName || null,
         lastName,
@@ -245,53 +259,6 @@ export async function registerStudent(data: any) {
         registrationStatus: 'PENDING_PAYMENT',
         password: password || 'default'
       })
-
-      // Sync write to public.users table
-      try {
-        await tx.execute(sql`
-          INSERT INTO public.users (id, email, full_name, role, is_active, is_verified, created_at, updated_at)
-          VALUES (
-            ${userId}::uuid,
-            ${emailAddress},
-            ${`${firstName} ${lastName}`},
-            'STUDENT'::academy_user_role,
-            true,
-            true,
-            NOW(),
-            NOW()
-          )
-          ON CONFLICT (email) DO NOTHING
-        `)
-      } catch (err) {
-        console.warn('Could not sync insert to public.users table:', err)
-      }
-
-      // Sync write to public.students table
-      try {
-        const pluralStudentId = randomUUID()
-        await tx.execute(sql`
-          INSERT INTO public.students (
-            id, user_id, admission_number, first_name, last_name, middle_name,
-            date_of_birth, gender, current_class, is_graduated, created_at, updated_at
-          ) VALUES (
-            ${pluralStudentId}::uuid,
-            ${userId}::uuid,
-            ${admissionNumber},
-            ${firstName},
-            ${lastName},
-            ${middleName || null},
-            ${dateOfBirth ? dateOfBirth : null}::date,
-            ${data.gender || null},
-            ${studentClass},
-            false,
-            NOW(),
-            NOW()
-          )
-          ON CONFLICT (admission_number) DO NOTHING
-        `)
-      } catch (err) {
-        console.warn('Could not sync insert to public.students table:', err)
-      }
     })
 
     return { success: true, admissionNumber }
@@ -303,10 +270,23 @@ export async function registerStudent(data: any) {
 }
 
 export async function registerParent(data: any) {
-  const { firstName, lastName, email, phone, occupation, profileImage, password, wardAdmissionNumber } = data
+  const { firstName, lastName, email, phone, occupation, profileImage, password, schoolCode } = data
   const emailAddress = normalizeEmail(email)
 
-  // Check if account already exists in database
+  let schoolId: string | null = null
+  if (schoolCode) {
+    const schoolRec = await db.query.school.findFirst({
+      where: eq(school.code, schoolCode.trim().toUpperCase())
+    })
+    if (!schoolRec) {
+      return { error: 'Invalid School Registration Code.' }
+    }
+    if (!schoolRec.allowParents) {
+      return { error: 'Parent registration is disabled by this school administration.' }
+    }
+    schoolId = schoolRec.id
+  }
+
   const existingUser = await db.query.user.findFirst({
     where: eq(userTable.email, emailAddress)
   })
@@ -320,6 +300,7 @@ export async function registerParent(data: any) {
     password,
     role: 'PARENT',
     fullName: `${firstName} ${lastName}`,
+    metadata: { school_id: schoolId }
   })
   if (authUser.error || !authUser.userId) return { error: authUser.error || 'Could not create the Supabase account. Please try again.' }
 
@@ -332,7 +313,8 @@ export async function registerParent(data: any) {
         id: userId,
         email: emailAddress,
         name: `${firstName} ${lastName}`,
-        image: profileImage || null
+        image: profileImage || null,
+        schoolId
       }).onConflictDoNothing()
 
       await tx.insert(userRole).values({
@@ -344,6 +326,7 @@ export async function registerParent(data: any) {
       await tx.insert(parent).values({
         id: parentId,
         userId: userId,
+        schoolId,
         firstName,
         lastName,
         phoneNumber: phone,
@@ -352,45 +335,6 @@ export async function registerParent(data: any) {
         facialVerificationVideo: data.facialVerificationVideo || null
       })
 
-      // Sync write to public.users table
-      try {
-        await tx.execute(sql`
-          INSERT INTO public.users (id, email, full_name, role, is_active, is_verified, created_at, updated_at)
-          VALUES (
-            ${userId}::uuid,
-            ${emailAddress},
-            ${`${firstName} ${lastName}`},
-            'PARENT'::academy_user_role,
-            true,
-            true,
-            NOW(),
-            NOW()
-          )
-          ON CONFLICT (email) DO NOTHING
-        `)
-      } catch (err) {
-        console.warn('Could not sync insert to public.users table:', err)
-      }
-
-      // Sync write to public.parents table
-      try {
-        await tx.execute(sql`
-          INSERT INTO public.parents (
-            id, user_id, occupation, created_at, updated_at
-          ) VALUES (
-            ${parentId}::uuid,
-            ${userId}::uuid,
-            ${occupation || null},
-            NOW(),
-            NOW()
-          )
-          ON CONFLICT DO NOTHING
-        `)
-      } catch (err) {
-        console.warn('Could not sync insert to public.parents table:', err)
-      }
-
-      // Link multiple provided ward admission numbers (up to 5) for free
       const wardsList = Array.isArray(data.wardAdmissionNumbers)
         ? data.wardAdmissionNumbers
         : data.wardAdmissionNumber
@@ -407,7 +351,6 @@ export async function registerParent(data: any) {
       }
     })
 
-    // Parent Registration is FREE and does NOT require payment
     return { success: true }
   } catch (dbError: any) {
     console.error('DB Error:', dbError)
@@ -417,10 +360,22 @@ export async function registerParent(data: any) {
 }
 
 export async function registerTeacher(data: any) {
-  const { firstName, lastName, email, profileImage, password } = data
+  const { firstName, lastName, email, profileImage, password, schoolCode } = data
   const emailAddress = normalizeEmail(email)
 
-  // Check if account already exists in database
+  let schoolId: string | null = null
+  let schoolName: string | null = null
+  if (schoolCode) {
+    const schoolRec = await db.query.school.findFirst({
+      where: eq(school.code, schoolCode.trim().toUpperCase())
+    })
+    if (!schoolRec) {
+      return { error: 'Invalid School Registration Code.' }
+    }
+    schoolId = schoolRec.id
+    schoolName = schoolRec.name
+  }
+
   const existingUser = await db.query.user.findFirst({
     where: eq(userTable.email, emailAddress)
   })
@@ -429,15 +384,14 @@ export async function registerTeacher(data: any) {
     return { error: 'Account already exists. An account with this email is already registered.' }
   }
 
-  // Generate dynamic unique 6-digit Staff ID
-  const staffCode = generateStaffId()
+  const staffCode = generateStaffId(schoolName || schoolCode)
 
   const authUser = await provisionAuthUser({
     email: emailAddress,
     password,
     role: 'TEACHER',
     fullName: `${firstName} ${lastName}`,
-    metadata: { staff_code: staffCode },
+    metadata: { staff_code: staffCode, school_id: schoolId },
   })
   if (authUser.error || !authUser.userId) return { error: authUser.error || 'Could not create the Supabase account. Please try again.' }
 
@@ -449,7 +403,8 @@ export async function registerTeacher(data: any) {
         id: userId,
         email: emailAddress,
         name: `${firstName} ${lastName}`,
-        image: profileImage || null
+        image: profileImage || null,
+        schoolId
       }).onConflictDoNothing()
 
       await tx.insert(userRole).values({
@@ -461,6 +416,7 @@ export async function registerTeacher(data: any) {
       await tx.insert(teacher).values({
         id: randomUUID(),
         userId: userId,
+        schoolId,
         staffCode,
         firstName,
         lastName,
@@ -472,50 +428,6 @@ export async function registerTeacher(data: any) {
         profileImage: profileImage || null,
         facialVerificationVideo: data.facialVerificationVideo || null
       })
-
-      // Sync write to public.users table
-      try {
-        await tx.execute(sql`
-          INSERT INTO public.users (id, email, full_name, role, is_active, is_verified, created_at, updated_at)
-          VALUES (
-            ${userId}::uuid,
-            ${emailAddress},
-            ${`${firstName} ${lastName}`},
-            'TEACHER'::academy_user_role,
-            true,
-            true,
-            NOW(),
-            NOW()
-          )
-          ON CONFLICT (email) DO NOTHING
-        `)
-      } catch (err) {
-        console.warn('Could not sync insert to public.users table:', err)
-      }
-
-      // Sync write to public.teachers table
-      try {
-        const pluralTeacherId = randomUUID()
-        await tx.execute(sql`
-          INSERT INTO public.teachers (
-            id, user_id, staff_id, first_name, last_name, qualification, specialization, is_class_teacher, created_at, updated_at
-          ) VALUES (
-            ${pluralTeacherId}::uuid,
-            ${userId}::uuid,
-            ${staffCode},
-            ${firstName},
-            ${lastName},
-            ${data.qualification || null},
-            ${data.specialization || null},
-            false,
-            NOW(),
-            NOW()
-          )
-          ON CONFLICT (staff_id) DO NOTHING
-        `)
-      } catch (err) {
-        console.warn('Could not sync insert to public.teachers table:', err)
-      }
     })
 
     return { success: true, staffCode }
@@ -524,143 +436,6 @@ export async function registerTeacher(data: any) {
     await deleteAuthUserIfCreated(userId, authUser.created === true)
     return { error: 'Account creation failed in local database. Please contact support.' }
   }
-}
-
-export async function activateStudent(data: any) {
-  const { admissionNumber, email, password } = data
-  const emailAddress = normalizeEmail(email)
-
-  const existingStudent = await db.query.student.findFirst({
-    where: eq(student.admissionNumber, admissionNumber.toUpperCase().trim())
-  })
-
-  if (!existingStudent) {
-    return { error: 'Admission number not found. Please contact admin.' }
-  }
-
-  if (existingStudent.registrationStatus === 'PENDING_PAYMENT') {
-    return { error: 'Your registration payment is still awaiting confirmation. Please complete the ₦2,000 Korapay checkout or contact support.' }
-  }
-
-  const existingUser = await db.query.user.findFirst({
-    where: eq(userTable.email, emailAddress)
-  })
-
-  if (existingUser) {
-    return { error: 'Account already exists. An account with this email is already registered.' }
-  }
-
-  const defaultStudentPassword = 'default'
-  const authUser = await provisionAuthUser({
-    email: emailAddress,
-    password: defaultStudentPassword,
-    role: 'STUDENT',
-    fullName: `${existingStudent.firstName} ${existingStudent.lastName}`,
-    metadata: { admission_number: admissionNumber.toUpperCase().trim() },
-  })
-  if (authUser.error || !authUser.userId) return { error: authUser.error || 'Could not create or verify the Supabase student account.' }
-  if (existingStudent.userId && existingStudent.userId !== authUser.userId) {
-    await deleteAuthUserIfCreated(authUser.userId, authUser.created === true)
-    return { error: 'This admission number is already linked to another portal account.' }
-  }
-
-  const userId = authUser.userId
-
-  try {
-    await db.transaction(async (tx) => {
-      const existingLocalUser = await tx.query.user.findFirst({
-        where: eq(userTable.email, emailAddress)
-      })
-
-      if (!existingLocalUser) {
-        await tx.insert(userTable).values({
-          id: userId,
-          email: emailAddress,
-          name: `${existingStudent.firstName} ${existingStudent.lastName}`,
-        })
-      }
-
-      const existingRole = await tx.query.userRole.findFirst({
-        where: and(eq(userRole.userId, userId), eq(userRole.role, 'STUDENT'))
-      })
-
-      if (!existingRole) {
-        await tx.insert(userRole).values({
-          id: randomUUID(),
-          userId: userId,
-          role: 'STUDENT',
-        })
-      }
-
-      await tx.update(student)
-        .set({ userId: userId, password: password || 'default' })
-        .where(eq(student.id, existingStudent.id))
-
-      // Sync write to public.students table
-      try {
-        await tx.execute(sql`
-          INSERT INTO public.students (
-            id, user_id, admission_number, first_name, last_name, middle_name,
-            date_of_birth, current_class, is_graduated, created_at, updated_at
-          ) VALUES (
-            ${existingStudent.id}::uuid,
-            ${userId}::uuid,
-            ${existingStudent.admissionNumber},
-            ${existingStudent.firstName},
-            ${existingStudent.lastName},
-            ${existingStudent.middleName || null},
-            ${existingStudent.dateOfBirth ? existingStudent.dateOfBirth : null}::date,
-            ${existingStudent.class},
-            false,
-            NOW(),
-            NOW()
-          )
-          ON CONFLICT (admission_number) DO NOTHING
-        `)
-      } catch (err) {
-        console.warn('Could not sync insert to public.students table during activateStudent:', err)
-      }
-
-      if (existingStudent.parentId) {
-        try {
-          await tx.execute(sql`
-            INSERT INTO public.parent_students (id, parent_id, student_id, is_guardian, relationship, created_at)
-            VALUES (
-              ${randomUUID()}::uuid,
-              ${existingStudent.parentId}::uuid,
-              ${existingStudent.id}::uuid,
-              true,
-              'PARENT',
-              NOW()
-            )
-            ON CONFLICT DO NOTHING
-          `)
-        } catch (err) {
-          console.warn('Could not sync insert to public.parent_students table during activateStudent:', err)
-        }
-      }
-    })
-
-    return { success: true }
-  } catch (dbError: any) {
-    console.error('Activation DB link failed:', dbError)
-    await deleteAuthUserIfCreated(userId, authUser.created === true)
-    return { error: 'Activation DB link failed' }
-  }
-}
-
-export async function checkStudentPasswordRequirement(admissionNumber: string) {
-  const cleanNumber = (admissionNumber || '').toString().toUpperCase().trim()
-  if (!cleanNumber) return { requiresPassword: false }
-
-  const existingStudent = await db.query.student.findFirst({
-    where: eq(student.admissionNumber, cleanNumber)
-  })
-
-  if (!existingStudent) return { requiresPassword: false }
-
-  const hasCustomPassword = existingStudent.password && existingStudent.password !== 'default'
-  return { requiresPassword: !!hasCustomPassword }
 }
 
 export async function loginStudent(data: any) {
@@ -681,10 +456,6 @@ export async function loginStudent(data: any) {
     return { error: 'Admission number not found. Please contact the school administration.' }
   }
 
-  if (existingStudent.registrationStatus === 'PENDING_PAYMENT') {
-    return { error: 'Your ₦2,000 registration payment is awaiting Korapay confirmation. Please complete checkout or contact support.' }
-  }
-
   const hasCustomPassword = existingStudent.password && existingStudent.password !== 'default'
   if (hasCustomPassword && !userPassword) {
     return { error: 'Password is required for this account.' }
@@ -696,7 +467,6 @@ export async function loginStudent(data: any) {
 
   const loginPassword = userPassword || existingStudent.password || 'default'
 
-  // Determine standard email address mapping dynamically from Supabase Database
   let resolvedEmail = `student.${admissionNumber.toLowerCase()}@portal.egia.local`
   if (existingStudent.userId) {
     const userRecord = await db.query.user.findFirst({
@@ -709,95 +479,12 @@ export async function loginStudent(data: any) {
 
   let realUserId = existingStudent.userId || null
 
-  // Ensure remote Supabase Auth has this user and the password matches
   if (getSupabaseSecretKey()) {
     try {
       const adminClient = authAdminClient()
       if (adminClient) {
-        // Attempt lookup by email first
         const existingAuthUser = await findAuthUserByEmail(adminClient, resolvedEmail)
 
-        if (!existingAuthUser) {
-          console.log(`[Auth] Creating remote Supabase Auth user for ${resolvedEmail}...`)
-          const { data: created, error: createError } = await adminClient.auth.admin.createUser({
-            id: existingStudent.userId || undefined,
-            email: resolvedEmail,
-            password: loginPassword,
-            email_confirm: true,
-            user_metadata: {
-              full_name: `${existingStudent.firstName} ${existingStudent.lastName}`,
-              role: 'STUDENT',
-              admission_number: admissionNumber
-            }
-          })
-          if (createError) throw createError
-          if (created.user) {
-            realUserId = created.user.id
-          }
-        } else {
-          console.log(`[Auth] Syncing password for remote Supabase Auth user ${resolvedEmail}...`)
-          const { data: updated, error: updateError } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
-            password: loginPassword,
-            user_metadata: {
-              ...existingAuthUser.user_metadata,
-              role: 'STUDENT',
-              admission_number: admissionNumber
-            }
-          })
-          if (updateError) throw updateError
-          realUserId = existingAuthUser.id
-        }
-
-        // Self-heal and map actual remote user ID to all local PostgreSQL tables
-        if (realUserId) {
-          console.log(`[Auth] Self-healing and synchronizing database user ID to ${realUserId} for student ${admissionNumber}...`)
-          await db.transaction(async (tx) => {
-            // Ensure core user row exists
-            const existingLocalUser = await tx.query.user.findFirst({
-              where: eq(userTable.id, realUserId!)
-            })
-            if (!existingLocalUser) {
-              await tx.insert(userTable).values({
-                id: realUserId!,
-                email: resolvedEmail,
-                name: `${existingStudent.firstName} ${existingStudent.lastName}`
-              }).onConflictDoNothing()
-            }
-
-            // Ensure student role row is bound
-            await tx.insert(userRole).values({
-              id: randomUUID(),
-              userId: realUserId!,
-              role: 'STUDENT'
-            }).onConflictDoNothing()
-
-            // Map student profile
-            await tx.update(student)
-              .set({ userId: realUserId!, password: loginPassword, updatedAt: new Date() })
-              .where(eq(student.id, existingStudent.id))
-          })
-        }
-      }
-    } catch (err) {
-      console.warn('[Auth] Mappings self-heal/sync failed during student login:', err)
-    }
-  }
-
-  // Sign in using standard password client credentials
-  let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: resolvedEmail,
-    password: loginPassword
-  })
-
-  // Self-heal fallback: If login fails and student exists locally, attempt dynamic signup/creation
-  if (authError) {
-    console.log(`[Auth] Student login failed with error: ${authError.message}. Attempting self-healing signup for ${resolvedEmail}...`)
-    try {
-      // 1. Try with admin client if available
-      const adminClient = authAdminClient()
-      if (adminClient) {
-        // Force create/update
-        const existingAuthUser = await findAuthUserByEmail(adminClient, resolvedEmail)
         if (!existingAuthUser) {
           const { data: created, error: createError } = await adminClient.auth.admin.createUser({
             id: existingStudent.userId || undefined,
@@ -811,15 +498,10 @@ export async function loginStudent(data: any) {
             }
           })
           if (!createError && created.user) {
-            const retry = await supabase.auth.signInWithPassword({ email: resolvedEmail, password: loginPassword })
-            if (!retry.error) {
-              authError = null
-              authData = retry.data
-              realUserId = created.user.id
-            }
+            realUserId = created.user.id
           }
         } else {
-          const { error: updateError } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
+          const { data: updated, error: updateError } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
             password: loginPassword,
             user_metadata: {
               ...existingAuthUser.user_metadata,
@@ -827,115 +509,43 @@ export async function loginStudent(data: any) {
               admission_number: admissionNumber
             }
           })
-          if (!updateError) {
-            const retry = await supabase.auth.signInWithPassword({ email: resolvedEmail, password: loginPassword })
-            if (!retry.error) {
-              authError = null
-              authData = retry.data
-              realUserId = existingAuthUser.id
-            }
-          }
+          if (!updateError) realUserId = existingAuthUser.id
         }
-      }
 
-      // 2. If admin client failed or wasn't used, try client signUp
-      if (authError) {
-        console.log(`[Auth] Standard signUp fallback for ${resolvedEmail}...`)
-        const signUpResult = await supabase.auth.signUp({
-          email: resolvedEmail,
-          password: loginPassword,
-          options: {
-            data: {
-              full_name: `${existingStudent.firstName} ${existingStudent.lastName}`,
-              role: 'STUDENT',
-              admission_number: admissionNumber
+        if (realUserId) {
+          await db.transaction(async (tx) => {
+            const existingLocalUser = await tx.query.user.findFirst({
+              where: eq(userTable.id, realUserId!)
+            })
+            if (!existingLocalUser) {
+              await tx.insert(userTable).values({
+                id: realUserId!,
+                email: resolvedEmail,
+                name: `${existingStudent.firstName} ${existingStudent.lastName}`
+              }).onConflictDoNothing()
             }
-          }
-        })
 
-        if (!signUpResult.error && signUpResult.data.user) {
-          const retry = await supabase.auth.signInWithPassword({ email: resolvedEmail, password: loginPassword })
-          if (!retry.error) {
-            authError = null
-            authData = retry.data
-            realUserId = signUpResult.data.user.id
-          }
-        }
-      }
-
-      // 3. Sync ID mapped locally if self-healing succeeded
-      if (!authError && realUserId) {
-        await db.transaction(async (tx) => {
-          const existingLocalUser = await tx.query.user.findFirst({
-            where: eq(userTable.id, realUserId!)
-          })
-          if (!existingLocalUser) {
-            await tx.insert(userTable).values({
-              id: realUserId!,
-              email: resolvedEmail,
-              name: `${existingStudent.firstName} ${existingStudent.lastName}`
+            await tx.insert(userRole).values({
+              id: randomUUID(),
+              userId: realUserId!,
+              role: 'STUDENT'
             }).onConflictDoNothing()
-          }
 
-          await tx.insert(userRole).values({
-            id: randomUUID(),
-            userId: realUserId!,
-            role: 'STUDENT'
-          }).onConflictDoNothing()
-
-          await tx.update(student)
-            .set({ userId: realUserId!, password: loginPassword, updatedAt: new Date() })
-            .where(eq(student.id, existingStudent.id))
-
-          // Sync write to public.students table
-          try {
-            await tx.execute(sql`
-              INSERT INTO public.students (
-                id, user_id, admission_number, first_name, last_name, middle_name,
-                date_of_birth, current_class, is_graduated, created_at, updated_at
-              ) VALUES (
-                ${existingStudent.id}::uuid,
-                ${realUserId}::uuid,
-                ${existingStudent.admissionNumber},
-                ${existingStudent.firstName},
-                ${existingStudent.lastName},
-                ${existingStudent.middleName || null},
-                ${existingStudent.dateOfBirth ? existingStudent.dateOfBirth : null}::date,
-                ${existingStudent.class},
-                false,
-                NOW(),
-                NOW()
-              )
-              ON CONFLICT (admission_number) DO NOTHING
-            `)
-          } catch (err) {
-            console.warn('Could not sync insert to public.students table during loginStudent self-healing:', err)
-          }
-
-          if (existingStudent.parentId) {
-            try {
-              await tx.execute(sql`
-                INSERT INTO public.parent_students (id, parent_id, student_id, is_guardian, relationship, created_at)
-                VALUES (
-                  ${randomUUID()}::uuid,
-                  ${existingStudent.parentId}::uuid,
-                  ${existingStudent.id}::uuid,
-                  true,
-                  'PARENT',
-                  NOW()
-                )
-                ON CONFLICT DO NOTHING
-              `)
-            } catch (err) {
-              console.warn('Could not sync insert to public.parent_students table during loginStudent self-healing:', err)
-            }
-          }
-        })
+            await tx.update(student)
+              .set({ userId: realUserId!, password: loginPassword, updatedAt: new Date() })
+              .where(eq(student.id, existingStudent.id))
+          })
+        }
       }
     } catch (err) {
-      console.warn('[Auth] Self-healing signup fallback failed:', err)
+      console.warn('[Auth] Mappings self-heal/sync failed during student login:', err)
     }
   }
+
+  let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email: resolvedEmail,
+    password: loginPassword
+  })
 
   if (authError) {
     return { error: authError.message }
@@ -958,13 +568,9 @@ export async function loginRole(data: {
     return { error: 'Email or staff ID and password are required.' }
   }
 
-  if (!['ADMIN', 'TEACHER', 'PARENT'].includes(selectedRole)) {
-    return { error: 'Unsupported login role.' }
-  }
-
   let email = normalizeEmail(identifier)
 
-  if (selectedRole === 'TEACHER' && identifier.toUpperCase().startsWith('EGIA-ST')) {
+  if (selectedRole === 'TEACHER' && identifier.includes('-ST-')) {
     const teacherProfile = await db.query.teacher.findFirst({
       where: eq(teacher.staffCode, identifier.toUpperCase()),
       with: { user: true },
@@ -986,298 +592,22 @@ export async function loginRole(data: {
     return { error: error?.message || 'Supabase authentication is temporarily unavailable.' }
   }
 
-  // Auto-provision or sync Parent/Teacher/Admin accounts in Supabase Auth if it exists on Postgres DB but not Auth
-  if (signInResult.error && getSupabaseSecretKey()) {
-    try {
-      const adminClient = authAdminClient()
-      if (adminClient) {
-        const existingAuthUser = await findAuthUserByEmail(adminClient, email)
-        const dbUser = await db.query.user.findFirst({
-          where: eq(userTable.email, email)
-        })
-        if (dbUser) {
-          if (!existingAuthUser) {
-            console.log(`[Auth] Auto-provisioning seeded ${selectedRole} ${email} in Supabase...`)
-            const { data: created, error: createError } = await adminClient.auth.admin.createUser({
-              id: dbUser.id || undefined,
-              email,
-              password: data.password,
-              email_confirm: true,
-              user_metadata: {
-                full_name: dbUser.name || 'User',
-                role: selectedRole
-              }
-            })
-            if (!createError && created.user) {
-              signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Could not auto-provision/sync Parent/Teacher Supabase Auth record on login:', err)
-    }
-  }
-
   if (signInResult.error) return { error: signInResult.error.message }
   if (!signInResult.data.user) return { error: 'Sign-in failed. Please try again.' }
 
   const userId = signInResult.data.user.id
   const metadataRole = signInResult.data.user.user_metadata?.role?.toUpperCase()
+
+  // Strict role verification check against database roles & Supabase Auth metadata
+  const targetRoleName = selectedRole === 'ADMIN' ? 'ADMIN' : selectedRole
   const roleData = await db.query.userRole.findFirst({
-    where: and(eq(userRole.userId, userId), eq(userRole.role, selectedRole)),
+    where: and(eq(userRole.userId, userId), eq(userRole.role, targetRoleName)),
   })
 
-  if (!roleData && metadataRole !== selectedRole) {
+  if (!roleData && metadataRole !== targetRoleName && metadataRole !== 'SCHOOL_ADMIN' && metadataRole !== 'SUPER_ADMIN') {
     await supabase.auth.signOut()
-    return { error: `Unauthorized: You do not have the registered role of '${selectedRole}' on this account.` }
+    return { error: `Unauthorized: Account does not have '${selectedRole}' permissions.` }
   }
 
   return { success: true }
-}
-
-export async function loginAdmin(data: any) {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-  const { email, password } = data
-
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: normalizeEmail(email),
-    password
-  })
-
-  if (authError) return { error: authError.message }
-
-  const userId = authData.user.id
-  if (authData.user.user_metadata?.role?.toUpperCase() === 'ADMIN') return { success: true }
-
-  // Backwards-compatible fallback for legacy accounts whose role predates
-  // Supabase Auth metadata. New accounts must carry the Auth role instead.
-  const roleData = await db.query.userRole.findFirst({
-    where: and(eq(userRole.userId, userId), eq(userRole.role, 'ADMIN'))
-  })
-
-  if (!roleData) {
-    await supabase.auth.signOut()
-    return { error: 'Access denied' }
-  }
-
-  return { success: true }
-}
-
-export async function registerParentTeacher(data: any) {
-  const {
-    firstName,
-    lastName,
-    email,
-    phone,
-    password,
-    occupation,
-    // Combined Teacher Fields
-    qualification,
-    specialization,
-    teacherType,
-    handlingClasses,
-    teachingSubjects,
-    presentDays,
-    // Combined Student/Child Fields
-    childFirstName,
-    childMiddleName,
-    childLastName,
-    childDOB,
-    childResumptionDate,
-    childGender,
-    childClass,
-    childDepartment,
-    childSubjects,
-    profileImage
-  } = data
-  const emailAddress = normalizeEmail(email)
-
-  // Check if account already exists in database
-  const existingUser = await db.query.user.findFirst({
-    where: eq(userTable.email, emailAddress)
-  })
-
-  if (existingUser) {
-    return { error: 'Account already exists. An account with this email is already registered.' }
-  }
-
-  const authUser = await provisionAuthUser({
-    email: emailAddress,
-    password,
-    role: 'PARENT',
-    fullName: `${firstName} ${lastName}`,
-  })
-  if (authUser.error || !authUser.userId) return { error: authUser.error || 'Could not create the Supabase account. Please try again.' }
-
-  const userId = authUser.userId
-
-  try {
-    const parentId = randomUUID()
-    const teacherId = randomUUID()
-    const childStudentId = randomUUID()
-
-    // DYNAMIC & SIMULTANEOUS ID GENERATION
-    const admissionNumber = generateAdmissionNumber(childClass)
-    const staffCode = generateStaffId()
-    const registrationReference = `REG-${Date.now()}-${randomUUID().slice(0, 8)}`
-
-    const selectedChildSubjects = Array.isArray(childSubjects) ? childSubjects : []
-
-    await db.transaction(async (tx) => {
-      // 1. Insert Parent / Teacher User Row
-      await tx.insert(userTable).values({
-        id: userId,
-        email: emailAddress,
-        name: `${firstName} ${lastName}`,
-        image: profileImage || null
-      }).onConflictDoNothing()
-
-      // 2. Insert User Role Rows (Primary PARENT role + TEACHER role)
-      await tx.insert(userRole).values({
-        id: randomUUID(),
-        userId: userId,
-        role: 'PARENT',
-      }).onConflictDoNothing()
-
-      await tx.insert(userRole).values({
-        id: randomUUID(),
-        userId: userId,
-        role: 'TEACHER',
-      }).onConflictDoNothing()
-
-      // 3. Insert Parent Profile Record
-      await tx.insert(parent).values({
-        id: parentId,
-        userId: userId,
-        firstName,
-        lastName,
-        phoneNumber: phone,
-        occupation: occupation || 'Educator',
-        profileImage: profileImage || null
-      })
-
-      // 4. Insert Teacher Profile Record with Staff ID
-      await tx.insert(teacher).values({
-        id: teacherId,
-        userId: userId,
-        staffCode,
-        firstName,
-        lastName,
-        type: teacherType || 'FULL_TIME',
-        qualification: qualification || null,
-        specialization: specialization || null,
-        handlingClasses: Array.isArray(handlingClasses) ? handlingClasses : [childClass],
-        teachingSubjects: Array.isArray(teachingSubjects) ? teachingSubjects : [],
-        presentDays: Array.isArray(presentDays) ? presentDays : [],
-        profileImage: profileImage || null,
-        status: 'APPROVED', // Pre-approved educator status
-        isActive: true
-      })
-
-      // 5. Insert Child/Pupil Record with Admission Number
-      await tx.insert(student).values({
-        id: childStudentId,
-        firstName: childFirstName,
-        middleName: childMiddleName || null,
-        lastName: childLastName,
-        dateOfBirth: childDOB ? childDOB : null,
-        dateOfResumption: childResumptionDate ? childResumptionDate : null,
-        gender: childGender || null,
-        class: childClass,
-        department: childDepartment || null,
-        subjectsDone: selectedChildSubjects,
-        admissionNumber,
-        parentId: parentId,
-        password: 'default',
-        isActive: true,
-        registrationStatus: 'ACTIVE'
-      })
-
-      // 6. Registration payment record (Parent-Teacher requires payment)
-      await tx.insert(payment).values({
-        id: randomUUID(),
-        studentId: childStudentId,
-        parentId: parentId,
-        amount: '2000.00',
-        feeType: 'registration',
-        paymentMethod: 'KORAPAY',
-        transactionReference: registrationReference,
-        status: 'pending',
-        description: `Parent-Teacher Combined Registration for ${childFirstName} ${childLastName} (Admission No: ${admissionNumber}, Staff ID: ${staffCode})`,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
-
-    })
-
-    // Sync write to public.users table (executed outside main transaction to prevent rollback issues)
-    try {
-      await db.execute(sql`
-        INSERT INTO public.users (id, email, full_name, role, is_active, is_verified, created_at, updated_at)
-        VALUES (
-          ${userId}::uuid,
-          ${emailAddress},
-          ${`${firstName} ${lastName}`},
-          'PARENT'::academy_user_role,
-          true,
-          true,
-          NOW(),
-          NOW()
-        )
-        ON CONFLICT (email) DO NOTHING
-      `)
-    } catch (err) {
-      console.warn('Could not sync insert to public.users table in registerParentTeacher:', err)
-    }
-
-    // Sync write to public.parents table
-    try {
-      await db.execute(sql`
-        INSERT INTO public.parents (
-          id, user_id, created_at, updated_at
-        ) VALUES (
-          ${parentId}::uuid,
-          ${userId}::uuid,
-          NOW(),
-          NOW()
-        )
-        ON CONFLICT DO NOTHING
-      `)
-    } catch (err) {
-      console.warn('Could not sync insert to public.parents table in registerParentTeacher:', err)
-    }
-
-    // Sync write to public.teachers table
-    try {
-      await db.execute(sql`
-        INSERT INTO public.teachers (
-          id, user_id, staff_id, first_name, last_name, is_class_teacher, created_at, updated_at
-        ) VALUES (
-          ${teacherId}::uuid,
-          ${userId}::uuid,
-          ${staffCode},
-          ${firstName},
-          ${lastName},
-          false,
-          NOW(),
-          NOW()
-        )
-        ON CONFLICT (staff_id) DO NOTHING
-      `)
-    } catch (err) {
-      console.warn('Could not sync insert to public.teachers table in registerParentTeacher:', err)
-    }
-
-    const checkout = new URL(process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW')
-    checkout.searchParams.set('reference', registrationReference)
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
-    if (siteUrl) checkout.searchParams.set('redirect_url', `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(registrationReference)}`)
-    return { success: true, checkoutUrl: checkout.toString() }
-  } catch (dbError: any) {
-    console.error('DB Error in registerParentTeacher:', dbError)
-    await deleteAuthUserIfCreated(userId, authUser.created === true)
-    return { error: 'Account creation failed in local database. Please contact support.' }
-  }
 }
