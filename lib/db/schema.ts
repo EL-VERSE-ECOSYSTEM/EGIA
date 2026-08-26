@@ -12,6 +12,10 @@ export const school = pgTable('school', {
   adminName: text('adminname').notNull(),
   adminPhone: text('adminphone').notNull(),
   adminEmail: text('adminemail').notNull(),
+  bankName: text('bankname'),
+  accountNumber: text('accountnumber'),
+  accountName: text('accountname'),
+  customPaymentLink: text('custompaymentlink'),
   paymentStatus: text('paymentstatus').notNull().default('PENDING'), // PENDING, PAID
   paymentReference: text('paymentreference').unique(),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
@@ -136,7 +140,7 @@ export const parent = pgTable('parent', {
   userId: text('userid').notNull().unique(),
   schoolId: text('schoolid'),
   firstName: text('firstname').notNull(),
-  lastName: text('lastname').notNull(),
+  lastName: text('lastName').notNull(),
   phoneNumber: text('phonenumber'),
   address: text('address'),
   profileImage: text('profileimage'),
@@ -324,11 +328,11 @@ export const payment = pgTable('payment', {
   termId: text('termid'),
   amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
   feeType: text('feetype'),
-  paymentMethod: text('paymentmethod').notNull(),
+  paymentMethod: text('paymentmethod').notNull(), // KORAPAY, BANK_TRANSFER, CUSTOM_LINK
   transactionReference: text('transactionreference').unique(),
   korapayReference: text('korapayreference').unique(),
   receiptUrl: text('receipturl'),
-  status: text('status').default('pending'),
+  status: text('status').default('pending'), // pending, approved, cleared, failed
   paymentDate: timestamp('paymentdate', { withTimezone: true }),
   paidAt: timestamp('paidat', { withTimezone: true }),
   description: text('description'),

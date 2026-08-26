@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { registerSchoolAction, confirmSchoolPaymentAction } from '@/app/actions/school'
-import { CheckCircle2, Building2, Sparkles, CreditCard, Download, ShieldCheck, ArrowRight, BookOpen } from 'lucide-react'
+import { CheckCircle2, Building2, Sparkles, CreditCard, Download, ShieldCheck, ArrowRight, BookOpen, ExternalLink } from 'lucide-react'
 
 const AVAILABLE_CLASSES = [
   'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
@@ -26,6 +26,7 @@ export default function SchoolRegistrationPage() {
   const [errorMessage, setErrorMessage] = useState('')
 
   // State for post-payment / confirmation modal
+  const [pendingCheckout, setPendingCheckout] = useState<any>(null)
   const [registeredData, setRegisteredData] = useState<any>(null)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
 
@@ -66,16 +67,7 @@ export default function SchoolRegistrationPage() {
         return
       }
 
-      // Simulate Korapay Checkout Flow
-      // In production environment Korapay Checkout JS is triggered. Here we seamlessly process payment confirmation.
-      const confirmRes = await confirmSchoolPaymentAction(res.paymentReference!)
-
-      if (confirmRes.success) {
-        setRegisteredData(confirmRes)
-        setShowReceiptModal(true)
-      } else {
-        setErrorMessage(confirmRes.error || 'Payment processing failed')
-      }
+      setPendingCheckout(res)
     } catch (err: any) {
       setErrorMessage(err.message || 'An unexpected error occurred')
     } finally {
@@ -83,12 +75,26 @@ export default function SchoolRegistrationPage() {
     }
   }
 
+  const handleConfirmPayment = async () => {
+    if (!pendingCheckout) return
+    setLoading(true)
+    const confirmRes = await confirmSchoolPaymentAction(pendingCheckout.paymentReference)
+    if (confirmRes.success) {
+      setRegisteredData(confirmRes)
+      setShowReceiptModal(true)
+      setPendingCheckout(null)
+    } else {
+      setErrorMessage(confirmRes.error || 'Payment confirmation failed')
+    }
+    setLoading(false)
+  }
+
   const handlePrintReceipt = () => {
     window.print()
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col justify-between p-4 sm:p-8">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-4 sm:p-8">
       {/* Background Glow */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl"></div>
@@ -101,7 +107,7 @@ export default function SchoolRegistrationPage() {
             EL
           </div>
           <span className="font-black text-xl tracking-tight text-white uppercase">
-            EL <span className="text-emerald-400">LEARN APP</span>
+            EL <span className="text-emerald-400">LEARNERS APP</span>
           </span>
         </div>
         <a href="/auth/signin" className="text-xs font-bold text-slate-400 hover:text-emerald-400 transition">
@@ -109,13 +115,13 @@ export default function SchoolRegistrationPage() {
         </a>
       </header>
 
-      <main className="relative max-w-4xl mx-auto w-full my-8 bg-slate-950/80 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-2xl">
+      <main className="relative max-w-4xl mx-auto w-full my-8 bg-slate-900/80 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-2xl">
         <div className="mb-8 text-center sm:text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold mb-3">
             <Sparkles className="w-3.5 h-3.5" /> Institutional Onboarding
           </div>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-            Register Your School on EL LEARN
+            Register Your School on EL LEARNERS APP
           </h1>
           <p className="text-slate-400 mt-2 text-sm sm:text-base">
             Enroll your institution, manage classes from Primary 3 to SSS3, set parent access, and activate your school portal with a standard NGN 30,000 subscription payment.
@@ -128,161 +134,209 @@ export default function SchoolRegistrationPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* School Details */}
-          <div className="space-y-4">
-            <h2 className="text-sm font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
-              <Building2 className="w-4 h-4" /> School Profile
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Name of School *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Excellence International College"
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
-                />
+        {pendingCheckout ? (
+          <div className="p-8 bg-slate-950 border border-emerald-500/40 rounded-3xl space-y-6 text-center animate-in fade-in duration-300">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center mx-auto text-emerald-400">
+              <CreditCard className="w-8 h-8" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-white">Complete Korapay Subscription Payment</h2>
+              <p className="text-slate-400 text-sm mt-2 max-w-md mx-auto">
+                Click below to complete the NGN 30,000 subscription payment for <strong className="text-white">{pendingCheckout.schoolName}</strong>.
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl max-w-md mx-auto text-xs font-mono space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-400">School Code:</span>
+                <span className="font-bold text-emerald-400">{pendingCheckout.schoolCode}</span>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Location of School *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Ikeja, Lagos State"
-                  value={formData.location}
-                  onChange={e => setFormData({ ...formData, location: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
-                />
+              <div className="flex justify-between">
+                <span className="text-slate-400">Payment Reference:</span>
+                <span className="font-bold text-white">{pendingCheckout.paymentReference}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Amount:</span>
+                <span className="font-bold text-white">NGN 30,000</span>
               </div>
             </div>
-          </div>
 
-          {/* Classes Selection */}
-          <div className="space-y-3">
-            <h2 className="text-sm font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
-              <BookOpen className="w-4 h-4" /> Registering Classes (PRIMARY 3 TO SSS3)
-            </h2>
-            <p className="text-xs text-slate-400">Select all academic levels operating in your school:</p>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-              {AVAILABLE_CLASSES.map(cls => {
-                const isChecked = selectedClasses.includes(cls)
-                return (
-                  <button
-                    type="button"
-                    key={cls}
-                    onClick={() => handleClassToggle(cls)}
-                    className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-between ${
-                      isChecked
-                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    <span>{cls}</span>
-                    {isChecked && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
-                  </button>
-                )
-              })}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
+              <a
+                href={pendingCheckout.checkoutUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-3.5 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm flex items-center justify-center gap-2 transition"
+              >
+                <span>Proceed to Korapay Checkout</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+              <button
+                onClick={handleConfirmPayment}
+                disabled={loading}
+                className="w-full py-3.5 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm transition disabled:opacity-50"
+              >
+                {loading ? 'Verifying...' : 'Verify Completed Payment'}
+              </button>
             </div>
           </div>
-
-          {/* Parents Verification Option */}
-          <div className="space-y-3 p-4 rounded-2xl bg-slate-900 border border-slate-800">
-            <h2 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4" /> Access Verification
-            </h2>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-white">Register Parents along with Students?</p>
-                <p className="text-xs text-slate-400">If enabled, parents can register accounts, link wards, and enroll for Adult Education.</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.allowParents}
-                  onChange={e => setFormData({ ...formData, allowParents: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-              </label>
-            </div>
-          </div>
-
-          {/* Admin Information */}
-          <div className="space-y-4">
-            <h2 className="text-sm font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
-              <Building2 className="w-4 h-4" /> School Administrator Credentials
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Name of Admin *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Dr. Jane Doe"
-                  value={formData.adminName}
-                  onChange={e => setFormData({ ...formData, adminName: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Phone Number of Admin *</label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="e.g. +234 801 234 5678"
-                  value={formData.adminPhone}
-                  onChange={e => setFormData({ ...formData, adminPhone: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Email Address of Admin *</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="admin@school.com"
-                  value={formData.adminEmail}
-                  onChange={e => setFormData({ ...formData, adminEmail: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
-                />
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* School Details */}
+            <div className="space-y-4">
+              <h2 className="text-sm font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                <Building2 className="w-4 h-4" /> School Profile
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Name of School *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Excellence International College"
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Location of School *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Ikeja, Lagos State"
+                    value={formData.location}
+                    onChange={e => setFormData({ ...formData, location: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Subscription Fee Banner */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 to-teal-950/40 border border-emerald-500/30 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                <CreditCard className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Subscription Fee</p>
-                <p className="text-xl font-black text-white">NGN 30,000</p>
+            {/* Classes Selection */}
+            <div className="space-y-3">
+              <h2 className="text-sm font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                <BookOpen className="w-4 h-4" /> Registering Classes (PRIMARY 3 TO SSS3)
+              </h2>
+              <p className="text-xs text-slate-400">Select all academic levels operating in your school:</p>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                {AVAILABLE_CLASSES.map(cls => {
+                  const isChecked = selectedClasses.includes(cls)
+                  return (
+                    <button
+                      type="button"
+                      key={cls}
+                      onClick={() => handleClassToggle(cls)}
+                      className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-between ${
+                        isChecked
+                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <span>{cls}</span>
+                      {isChecked && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+                    </button>
+                  )
+                })}
               </div>
             </div>
-            <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400">
-              Korapay Checkout
-            </span>
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-base shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {loading ? (
-              <span>Processing Subscription...</span>
-            ) : (
-              <>
-                <span>Pay NGN 30,000 & Register School</span>
-                <ArrowRight className="w-5 h-5" />
-              </>
-            )}
-          </button>
-        </form>
+            {/* Parents Verification Option */}
+            <div className="space-y-3 p-4 rounded-2xl bg-slate-950 border border-slate-800">
+              <h2 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4" /> Access Verification
+              </h2>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-white">Register Parents along with Students?</p>
+                  <p className="text-xs text-slate-400">If enabled, parents can register accounts, link wards, and enroll for Adult Education.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.allowParents}
+                    onChange={e => setFormData({ ...formData, allowParents: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+            </div>
+
+            {/* Admin Information */}
+            <div className="space-y-4">
+              <h2 className="text-sm font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                <Building2 className="w-4 h-4" /> School Administrator Credentials
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Name of Admin *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Dr. Jane Doe"
+                    value={formData.adminName}
+                    onChange={e => setFormData({ ...formData, adminName: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Phone Number of Admin *</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="e.g. +234 801 234 5678"
+                    value={formData.adminPhone}
+                    onChange={e => setFormData({ ...formData, adminPhone: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Email Address of Admin *</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="admin@school.com"
+                    value={formData.adminEmail}
+                    onChange={e => setFormData({ ...formData, adminEmail: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Subscription Fee Banner */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 to-teal-950/40 border border-emerald-500/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Subscription Fee</p>
+                  <p className="text-xl font-black text-white">NGN 30,000</p>
+                </div>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400">
+                Korapay Checkout
+              </span>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-base shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {loading ? (
+                <span>Generating Payment Order...</span>
+              ) : (
+                <>
+                  <span>Pay NGN 30,000 & Register School</span>
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
+          </form>
+        )}
       </main>
 
       {/* SUCCESS PAYMENT & RECEIPT MODAL */}
@@ -295,7 +349,7 @@ export default function SchoolRegistrationPage() {
               </div>
               <h2 className="text-2xl font-black text-white">Payment Successful!</h2>
               <p className="text-slate-400 text-xs sm:text-sm">
-                Your school has been registered and activated on EL LEARN APP.
+                Your school has been registered and activated on EL LEARNERS APP.
               </p>
             </div>
 
@@ -303,7 +357,7 @@ export default function SchoolRegistrationPage() {
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 font-mono text-xs">
               <div className="flex justify-between border-b border-slate-800 pb-2">
                 <span className="text-slate-400">Platform:</span>
-                <span className="font-bold text-emerald-400">EL LEARN APP</span>
+                <span className="font-bold text-emerald-400">EL LEARNERS APP</span>
               </div>
               <div className="flex justify-between border-b border-slate-800 pb-2">
                 <span className="text-slate-400">School Name:</span>
@@ -350,7 +404,7 @@ export default function SchoolRegistrationPage() {
       )}
 
       <footer className="relative max-w-5xl mx-auto w-full text-center py-4 border-t border-slate-800 text-xs text-slate-500">
-        &copy; {new Date().getFullYear()} EL LEARN APP. All rights reserved.
+        &copy; {new Date().getFullYear()} EL LEARNERS APP. All rights reserved.
       </footer>
     </div>
   )

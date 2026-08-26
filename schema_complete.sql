@@ -1,7 +1,7 @@
 -- =====================================================================
--- EL LEARN APP - UNIFIED MULTI-TENANT PostgreSQL DATABASE SCHEMA
--- Handles multi-tenant school accounts, automated credentials, library,
--- CBT proctored exams, adult education, messaging, and real-time sync.
+-- EL LEARNERS APP - UNIFIED MULTI-TENANT PostgreSQL DATABASE SCHEMA
+-- Handles multi-tenant school accounts, custom bank settings, automated credentials,
+-- library resources, CBT proctored exams, adult education, messaging, and real-time sync.
 -- =====================================================================
 
 -- Enable Extensions
@@ -42,6 +42,10 @@ CREATE TABLE public.school (
   adminName text NOT NULL,
   adminPhone text NOT NULL,
   adminEmail text NOT NULL,
+  bankName text,
+  accountNumber text,
+  accountName text,
+  customPaymentLink text,
   paymentStatus text NOT NULL DEFAULT 'PAID',
   paymentReference text UNIQUE,
   createdAt timestamp with time zone NOT NULL DEFAULT now(),
@@ -194,7 +198,31 @@ CREATE TABLE public.assessment_result (
 );
 
 -- ---------------------------------------------------------------------
--- 5. MESSAGING & NOTIFICATIONS
+-- 5. FEES, PAYMENTS, AND BANK TRANSFERS
+-- ---------------------------------------------------------------------
+CREATE TABLE public.payment (
+  id text NOT NULL,
+  studentId text NOT NULL,
+  parentId text,
+  termId text,
+  amount numeric(12, 2) NOT NULL,
+  feeType text,
+  paymentMethod text NOT NULL, -- KORAPAY, BANK_TRANSFER, CUSTOM_LINK
+  transactionReference text UNIQUE,
+  korapayReference text UNIQUE,
+  receiptUrl text,
+  status text DEFAULT 'pending', -- pending, approved, cleared, failed
+  paymentDate timestamp with time zone,
+  paidAt timestamp with time zone,
+  description text,
+  createdAt timestamp with time zone NOT NULL DEFAULT now(),
+  updatedAt timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT payment_pkey PRIMARY KEY (id),
+  CONSTRAINT payment_studentId_fkey FOREIGN KEY (studentId) REFERENCES public.student(id)
+);
+
+-- ---------------------------------------------------------------------
+-- 6. MESSAGING & NOTIFICATIONS
 -- ---------------------------------------------------------------------
 CREATE TABLE public.conversation (
   id text NOT NULL,
@@ -238,10 +266,9 @@ CREATE TABLE public.notification (
 );
 
 -- ---------------------------------------------------------------------
--- 6. DEFAULT SEED RECORDS
+-- 7. DEFAULT SEED RECORDS
 -- ---------------------------------------------------------------------
--- Insert Default School: EL GOODNEWS INTERNATIONAL ACADEMY
-INSERT INTO public.school (id, name, code, location, registeredClasses, allowParents, adminName, adminPhone, adminEmail, paymentStatus, paymentReference)
+INSERT INTO public.school (id, name, code, location, registeredClasses, allowParents, adminName, adminPhone, adminEmail, bankName, accountNumber, accountName, customPaymentLink, paymentStatus, paymentReference)
 VALUES (
   'sch_egia_default',
   'EL GOODNEWS INTERNATIONAL ACADEMY',
@@ -252,11 +279,14 @@ VALUES (
   'School Administrator',
   '08108854279, 08061908715',
   'admin@egia.com',
+  'First Bank of Nigeria',
+  '2034567890',
+  'EL GOODNEWS INT ACADEMY',
+  'https://checkout.korapay.com/pay/BHba4zdsceZDgyW',
   'PAID',
   'REF_EGIA_19001'
 ) ON CONFLICT (code) DO NOTHING;
 
--- Insert Super Admin User
 INSERT INTO public."user" (id, email, name, schoolId)
 VALUES (
   'usr_super_admin_01',
@@ -265,7 +295,6 @@ VALUES (
   'sch_egia_default'
 ) ON CONFLICT (email) DO NOTHING;
 
--- Assign SUPER_ADMIN role
 INSERT INTO public.user_role (id, userId, role)
 VALUES (
   'ur_super_admin_01',
