@@ -189,7 +189,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
               <GraduationCap className="text-white w-7 h-7" />
             </div>
             <div className="leading-tight">
-              <h2 className="font-black text-white text-base tracking-tighter uppercase">EL GOODNEWS</h2>
+              <h2 className="font-black text-white text-base tracking-tighter uppercase">EL LEARN</h2>
               <p className="text-[10px] text-amber-500 font-black uppercase tracking-[0.2em]">ACADEMY</p>
             </div>
           </div>
@@ -237,7 +237,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
             </div>
             <div className="overflow-hidden">
               <p className="text-xs font-black text-white truncate capitalize">{role} User</p>
-              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest text-pretty">EL GOODNEWS</p>
+              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest text-pretty">EL LEARN</p>
             </div>
           </div>
           <Button

@@ -81,7 +81,7 @@ export default function MakePaymentPage() {
       <div className="p-8 max-w-7xl mx-auto min-h-screen bg-slate-50/30">
         <div className="mb-12">
           <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Secure Payment Portal</h1>
-          <p className="text-slate-500 text-lg font-medium">Quick and reliable fee processing for EL GOODNEWS INT'L ACADEMY.</p>
+          <p className="text-slate-500 text-lg font-medium">Quick and reliable fee processing for EL LEARN App.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">

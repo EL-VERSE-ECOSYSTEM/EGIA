@@ -150,7 +150,7 @@ export default function ParentSignUpPage() {
         <div className="bg-emerald-600 p-2 rounded-lg">
           <GraduationCap className="text-white w-6 h-6" />
         </div>
-        <span className="font-black text-xl tracking-tight text-slate-900">EL GOODNEWS <span className="text-emerald-600">ACADEMY</span></span>
+        <span className="font-black text-xl tracking-tight text-slate-900">EL LEARN App <span className="text-emerald-600">ACADEMY</span></span>
       </div>
 
       <Card className="max-w-2xl w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">

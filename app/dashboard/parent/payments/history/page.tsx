@@ -90,7 +90,7 @@ export default function PaymentHistoryPage() {
                 </div>
                 <div>
                   <h3 className="text-2xl font-black text-slate-900">Official Receipt</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">EL GOODNEWS INT'L ACADEMY</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">EL LEARN App</p>
                 </div>
               </div>
 

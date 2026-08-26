@@ -12,7 +12,7 @@ export default function GlobalLoading() {
           <GraduationCap className="text-white w-10 h-10" />
         </div>
         <div className="text-center space-y-1">
-          <span className="font-black text-2xl tracking-tight text-slate-900">EL GOODNEWS <span className="text-orange-600">ACADEMY</span></span>
+          <span className="font-black text-2xl tracking-tight text-slate-900">EL LEARN <span className="text-orange-600">ACADEMY</span></span>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Empowering Educational Excellence</p>
         </div>
         <SVGLoader className="w-10 h-10 text-orange-600" />
