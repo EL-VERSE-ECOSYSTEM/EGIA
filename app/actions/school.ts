@@ -28,15 +28,25 @@ function authAdminClient() {
 }
 
 export async function generateSchoolCode(schoolName: string): Promise<string> {
-  const cleanName = schoolName.replace(/[^a-zA-Z]/g, '').toUpperCase()
-  const prefix = (cleanName + 'SCHO').slice(0, 4)
+  // Extract words and build 4-letter prefix from initials or clean school name
+  const words = schoolName.trim().split(/\s+/).filter(w => w.length > 0)
+  let prefix = ''
+
+  if (words.length >= 4) {
+    prefix = words.slice(0, 4).map(w => w[0]).join('').toUpperCase()
+  } else if (words.length === 2 || words.length === 3) {
+    prefix = words.map(w => w.slice(0, 2)).join('').slice(0, 4).toUpperCase()
+  } else {
+    const cleanName = schoolName.replace(/[^a-zA-Z]/g, '').toUpperCase()
+    prefix = (cleanName + 'SCHO').slice(0, 4)
+  }
 
   let isUnique = false
   let finalCode = ''
 
   while (!isUnique) {
     const randomDigits = Math.floor(10000 + Math.random() * 90000).toString()
-    finalCode = `${prefix}${randomDigits}`
+    finalCode = `${prefix}-${randomDigits}`
 
     const existing = await db.select({ id: school.id }).from(school).where(eq(school.code, finalCode))
     if (existing.length === 0) {
@@ -53,7 +63,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     const schoolCode = await generateSchoolCode(input.name)
     const paymentReference = `SCH_PAY_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
-    // Insert school record
+    // Insert school record in PENDING state awaiting Korapay payment checkout
     await db.insert(school).values({
       id: schoolId,
       name: input.name,
@@ -64,7 +74,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       adminName: input.adminName,
       adminPhone: input.adminPhone,
       adminEmail: input.adminEmail,
-      paymentStatus: 'PAID',
+      paymentStatus: 'PENDING',
       paymentReference: paymentReference,
     })
 
@@ -72,7 +82,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     const adminPassword = input.adminPassword || 'AdminPass123!'
     const userId = randomUUID()
 
-    // Provision admin in Supabase Auth if secret key is present
+    // Provision admin in Supabase Auth
     const adminClient = authAdminClient()
     if (adminClient) {
       try {
@@ -106,7 +116,8 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       role: 'ADMIN',
     }).onConflictDoNothing()
 
-    const checkoutUrl = process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
+    const checkoutBaseUrl = process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
+    const checkoutUrl = `${checkoutBaseUrl}?reference=${encodeURIComponent(paymentReference)}&amount=30000&customer_email=${encodeURIComponent(adminEmail)}`
 
     return {
       success: true,

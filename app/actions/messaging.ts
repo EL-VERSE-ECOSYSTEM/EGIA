@@ -2,10 +2,11 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { conversation, conversationParticipant, message, user, userRole, student } from '@/lib/db/schema'
+import { conversation, conversationParticipant, message, user, userRole, student, notification as notificationTable } from '@/lib/db/schema'
 import { eq, and, or, desc, inArray, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
+import { moderateMessage } from '@/lib/moderation'
 
 async function getUserId() {
   const session = await auth.getSession()
@@ -13,19 +14,24 @@ async function getUserId() {
   return session.user.id
 }
 
-async function getUserRoleData(userId: string) {
-  return await db.query.userRole.findFirst({
-    where: eq(userRole.userId, userId),
+async function getUserWithSchool(userId: string) {
+  const currentUser = await db.query.user.findFirst({
+    where: eq(user.id, userId),
+    with: {
+      userRole: true
+    }
   })
+  if (!currentUser) throw new Error('User account not found')
+  return currentUser
 }
 
 export async function getConversations() {
   const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
+  const currentUser = await getUserWithSchool(userId)
 
   const hasPermission = await checkPermission(
     userId,
-    roleData?.role || '',
+    currentUser.userRole?.role || '',
     'read',
     'message'
   )
@@ -51,16 +57,19 @@ export async function getConversations() {
     },
   })
 
-  return participants.map(p => p.conversation)
+  // Filter conversations by school boundary (Super Admin sees all)
+  return participants
+    .map(p => p.conversation)
+    .filter(c => currentUser.userRole?.role === 'SUPER_ADMIN' || !c.schoolId || !currentUser.schoolId || c.schoolId === currentUser.schoolId)
 }
 
 export async function createConversation(recipientId: string, type: 'INDIVIDUAL' | 'GROUP' = 'INDIVIDUAL', name?: string) {
   const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
+  const currentUser = await getUserWithSchool(userId)
 
   const hasPermission = await checkPermission(
     userId,
-    roleData?.role || '',
+    currentUser.userRole?.role || '',
     'create',
     'message',
     { recipientId, type }
@@ -74,13 +83,18 @@ export async function createConversation(recipientId: string, type: 'INDIVIDUAL'
 
   if (!recipient) throw new Error('Recipient not found')
 
+  // Enforce single-school boundary isolation
+  if (currentUser.userRole?.role !== 'SUPER_ADMIN' && currentUser.schoolId && recipient.schoolId && currentUser.schoolId !== recipient.schoolId) {
+    throw new Error('Messaging is restricted to members registered within your specific school.')
+  }
+
+  const convId = crypto.randomUUID()
   const newConversation = await db.insert(conversation).values({
-    id: crypto.randomUUID(),
+    id: convId,
+    schoolId: currentUser.schoolId || recipient.schoolId || null,
     type,
     name,
   }).returning()
-
-  const convId = newConversation[0].id
 
   await db.insert(conversationParticipant).values([
     { id: crypto.randomUUID(), conversationId: convId, userId },
@@ -90,15 +104,13 @@ export async function createConversation(recipientId: string, type: 'INDIVIDUAL'
   return newConversation[0]
 }
 
-import { moderateMessage } from '@/lib/moderation'
-
 export async function sendMessage(conversationId: string, content: string, attachments?: any) {
   const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
+  const currentUser = await getUserWithSchool(userId)
 
   const hasPermission = await checkPermission(
     userId,
-    roleData?.role || '',
+    currentUser.userRole?.role || '',
     'create',
     'message',
     { conversationId }
@@ -109,7 +121,6 @@ export async function sendMessage(conversationId: string, content: string, attac
   // Run backend moderation and content filtration
   const moderation = moderateMessage(content)
   if (!moderation.allowed) {
-    // Record disciplinary infraction for Admin review in real time
     try {
       const studentRecord = await db.query.student.findFirst({
         where: eq(student.userId, userId)
@@ -125,7 +136,7 @@ export async function sendMessage(conversationId: string, content: string, attac
             ${userId}::uuid,
             CURRENT_DATE,
             'In-App Messaging Violation',
-            ${`Attempted prohibited message: "${content.substring(0, 100)}...". Violation reason: ${moderation.reason}`},
+            ${`Attempted prohibited message: "${content.substring(0, 100)}...". Reason: ${moderation.reason}`},
             'PENDING',
             NOW(),
             NOW()
@@ -133,7 +144,7 @@ export async function sendMessage(conversationId: string, content: string, attac
         `)
       }
     } catch (discErr) {
-      console.warn('Could not auto-record messaging infraction to disciplinary_records:', discErr)
+      console.warn('Could not auto-record messaging infraction:', discErr)
     }
 
     throw new Error(moderation.reason)
@@ -143,6 +154,7 @@ export async function sendMessage(conversationId: string, content: string, attac
     id: crypto.randomUUID(),
     conversationId,
     senderId: userId,
+    schoolId: currentUser.schoolId || null,
     content,
     attachments,
   }).returning()
@@ -157,11 +169,11 @@ export async function sendMessage(conversationId: string, content: string, attac
 
 export async function getMessages(conversationId: string) {
   const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
+  const currentUser = await getUserWithSchool(userId)
 
   const hasPermission = await checkPermission(
     userId,
-    roleData?.role || '',
+    currentUser.userRole?.role || '',
     'read',
     'message',
     { conversationId }
@@ -178,47 +190,9 @@ export async function getMessages(conversationId: string) {
   })
 }
 
-export async function getConversationsForUser(userId: string) {
-  const userParticipants = await db.query.conversationParticipant.findMany({
-    where: eq(conversationParticipant.userId, userId),
-  })
-
-  const conversationIds = userParticipants.map(p => p.conversationId)
-
-  if (conversationIds.length === 0) return []
-
-  return db.query.conversation.findMany({
-    where: inArray(conversation.id, conversationIds),
-    with: {
-      messages: {
-        orderBy: [desc(message.createdAt)],
-        limit: 1,
-      },
-      participants: {
-        with: {
-          user: true
-        }
-      }
-    },
-    orderBy: [desc(conversation.updatedAt)]
-  })
-}
-
-import { notification as notificationTable } from '@/lib/db/schema'
-
-export async function getAllSystemUsers() {
-  const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
-  if (roleData?.role !== 'ADMIN') throw new Error('Permission denied')
-
-  return db.query.user.findMany({
-    orderBy: (user, { asc }) => [asc(user.name)]
-  })
-}
-
 export async function getAllUsersForMessaging() {
   const userId = await getUserId()
-  if (!userId) throw new Error('Unauthorized')
+  const currentUser = await getUserWithSchool(userId)
 
   const users = await db.query.user.findMany({
     orderBy: (user, { asc }) => [asc(user.name)],
@@ -227,23 +201,30 @@ export async function getAllUsersForMessaging() {
     }
   })
 
-  return users.map(u => ({
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    image: u.image,
-    role: u.userRole?.role || 'USER'
-  }))
+  // Filter users by school boundary (Super Admin sees all users across schools)
+  return users
+    .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || !u.schoolId || !currentUser.schoolId || u.schoolId === currentUser.schoolId)
+    .map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      image: u.image,
+      role: u.userRole?.role || 'USER'
+    }))
 }
 
 export async function adminSendNotification(targetUserId: string, title: string, bodyText: string, type: string = 'info') {
   const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
-  if (roleData?.role !== 'ADMIN') throw new Error('Permission denied')
+  const currentUser = await getUserWithSchool(userId)
+
+  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
+    throw new Error('Permission denied')
+  }
 
   return db.insert(notificationTable).values({
     id: crypto.randomUUID(),
     userId: targetUserId,
+    schoolId: currentUser.schoolId || null,
     title,
     message: bodyText,
     type,
@@ -254,27 +235,37 @@ export async function adminSendNotification(targetUserId: string, title: string,
 
 export async function broadcastMessage(content: string, recipientRole: string) {
   const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
-  if (roleData?.role !== 'ADMIN' && roleData?.role !== 'admin') throw new Error('Permission denied')
+  const currentUser = await getUserWithSchool(userId)
 
+  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
+    throw new Error('Permission denied')
+  }
+
+  // Get users for recipientRole filtered by school
   const targetRoles = await db.query.userRole.findMany({
-    where: eq(userRole.role, recipientRole)
+    where: eq(userRole.role, recipientRole),
+    with: {
+      user: true
+    }
   })
 
-  const targetUserIds = targetRoles.map(r => r.userId)
-  if (targetUserIds.length === 0) return
+  const targetUsers = targetRoles
+    .map(r => r.user)
+    .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || !u.schoolId || !currentUser.schoolId || u.schoolId === currentUser.schoolId)
 
+  if (targetUsers.length === 0) return
+
+  const convId = crypto.randomUUID()
   const newConversation = await db.insert(conversation).values({
-    id: crypto.randomUUID(),
+    id: convId,
+    schoolId: currentUser.schoolId || null,
     type: 'BROADCAST',
     name: `Broadcast to ${recipientRole}s - ${new Date().toLocaleDateString()}`,
   }).returning()
 
-  const convId = newConversation[0].id
-
   const participants = [
     { id: crypto.randomUUID(), conversationId: convId, userId },
-    ...targetUserIds.map(uid => ({ id: crypto.randomUUID(), conversationId: convId, userId: uid }))
+    ...targetUsers.map(u => ({ id: crypto.randomUUID(), conversationId: convId, userId: u.id }))
   ]
 
   await db.insert(conversationParticipant).values(participants)
@@ -283,95 +274,9 @@ export async function broadcastMessage(content: string, recipientRole: string) {
     id: crypto.randomUUID(),
     conversationId: convId,
     senderId: userId,
+    schoolId: currentUser.schoolId || null,
     content,
   })
 
   revalidatePath('/dashboard/communication')
-}
-
-export async function adminBroadcastNotification(title: string, bodyText: string, type: string = 'info') {
-  const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
-  if (roleData?.role !== 'ADMIN') throw new Error('Permission denied')
-
-  // Get all active users
-  const allUsers = await db.query.user.findMany()
-  if (allUsers.length === 0) return
-
-  // Insert notifications in bulk or loop
-  const inserts = allUsers.map(u => ({
-    id: crypto.randomUUID(),
-    userId: u.id,
-    title,
-    message: bodyText,
-    type,
-    isRead: false,
-    createdAt: new Date()
-  }))
-
-  await db.insert(notificationTable).values(inserts as any)
-  revalidatePath('/dashboard/communication')
-  return { success: true, count: allUsers.length }
-}
-
-export async function createGroupConversation(participantUserIds: string[], name: string) {
-  const userId = await getUserId()
-
-  const convId = crypto.randomUUID()
-  const newConversation = await db.insert(conversation).values({
-    id: convId,
-    type: 'GROUP',
-    name: name || 'Group Chat',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }).returning()
-
-  // Always include sender as participant
-  const allParticipantIds = Array.from(new Set([userId, ...participantUserIds]))
-
-  const participants = allParticipantIds.map(uid => ({
-    id: crypto.randomUUID(),
-    conversationId: convId,
-    userId: uid,
-    joinedAt: new Date()
-  }))
-
-  await db.insert(conversationParticipant).values(participants)
-
-  revalidatePath('/dashboard/communication')
-  return newConversation[0]
-}
-
-export async function getUsersByRole(role: string) {
-  const roles = await db.query.userRole.findMany({
-    where: eq(userRole.role, role)
-  })
-
-  if (roles.length === 0) return []
-
-  const uids = roles.map(r => r.userId)
-  return await db.query.user.findMany({
-    where: inArray(user.id, uids),
-    orderBy: (user, { asc }) => [asc(user.name)]
-  })
-}
-
-export async function adminDeleteMessage(messageId: string) {
-  const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
-  if (roleData?.role !== 'ADMIN') throw new Error('Permission denied')
-
-  await db.delete(message).where(eq(message.id, messageId))
-  return { success: true }
-}
-
-export async function adminDeleteConversation(conversationId: string) {
-  const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
-  if (roleData?.role !== 'ADMIN') throw new Error('Permission denied')
-
-  await db.delete(conversationParticipant).where(eq(conversationParticipant.conversationId, conversationId))
-  await db.delete(message).where(eq(message.conversationId, conversationId))
-  await db.delete(conversation).where(eq(conversation.id, conversationId))
-  return { success: true }
 }

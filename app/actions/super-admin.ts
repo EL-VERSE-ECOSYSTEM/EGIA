@@ -2,11 +2,29 @@
 
 import { db } from '@/lib/db'
 import { school, user, userRole, student, teacher, parent, assessment, message, notification, adultEducationEnrollment } from '@/lib/db/schema'
-import { eq, sql, desc } from 'drizzle-orm'
+import { eq, sql, desc, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+import { auth } from '@/lib/auth'
+
+async function checkSuperAdminPermission() {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized: Session required.')
+
+  const roleRecord = await db.query.userRole.findFirst({
+    where: and(eq(userRole.userId, session.user.id), eq(userRole.role, 'SUPER_ADMIN'))
+  })
+
+  if (!roleRecord && session.user.role !== 'SUPER_ADMIN') {
+    throw new Error('Forbidden: Super Admin access required.')
+  }
+
+  return session.user
+}
 
 export async function getSuperAdminOverviewStats() {
   try {
+    await checkSuperAdminPermission()
+
     const schoolsList = await db.select().from(school).orderBy(desc(school.createdAt))
     const totalUsers = await db.select({ count: sql<number>`count(*)` }).from(user)
     const totalStudents = await db.select({ count: sql<number>`count(*)` }).from(student)
@@ -40,11 +58,13 @@ export async function getSuperAdminOverviewStats() {
 
 export async function toggleSchoolParentRegistrationAction(schoolId: string, allowParents: boolean) {
   try {
+    await checkSuperAdminPermission()
+
     await db.update(school)
       .set({ allowParents, updatedAt: new Date() })
       .where(eq(school.id, schoolId))
 
-    revalidatePath('/dashboard/super-admin/schools')
+    revalidatePath('/dashboard/super-admin/overview')
     return { success: true }
   } catch (error: any) {
     return { success: false, error: error.message }
@@ -53,11 +73,13 @@ export async function toggleSchoolParentRegistrationAction(schoolId: string, all
 
 export async function updateSchoolPaymentStatusAction(schoolId: string, status: 'PAID' | 'PENDING') {
   try {
+    await checkSuperAdminPermission()
+
     await db.update(school)
       .set({ paymentStatus: status, updatedAt: new Date() })
       .where(eq(school.id, schoolId))
 
-    revalidatePath('/dashboard/super-admin/schools')
+    revalidatePath('/dashboard/super-admin/overview')
     return { success: true }
   } catch (error: any) {
     return { success: false, error: error.message }
@@ -71,6 +93,8 @@ export async function sendSystemWideNotificationAction(input: {
   targetRole?: string
 }) {
   try {
+    await checkSuperAdminPermission()
+
     let targetUsers: { id: string }[] = []
 
     if (input.targetSchoolId) {
@@ -90,13 +114,12 @@ export async function sendSystemWideNotificationAction(input: {
     }))
 
     if (notificationInserts.length > 0) {
-      // Chunk inserts in batches of 500
       for (let i = 0; i < notificationInserts.length; i += 500) {
         await db.insert(notification).values(notificationInserts.slice(i, i + 500) as any)
       }
     }
 
-    revalidatePath('/dashboard/super-admin/notifications')
+    revalidatePath('/dashboard/super-admin/overview')
     return { success: true, count: notificationInserts.length }
   } catch (error: any) {
     return { success: false, error: error.message }
@@ -105,6 +128,8 @@ export async function sendSystemWideNotificationAction(input: {
 
 export async function getAllUsersForSuperAdmin() {
   try {
+    await checkSuperAdminPermission()
+
     const usersList = await db.query.user.findMany({
       with: {
         school: true,
@@ -122,8 +147,56 @@ export async function getAllUsersForSuperAdmin() {
   }
 }
 
+export async function updateUserRoleAction(userId: string, newRole: string) {
+  try {
+    await checkSuperAdminPermission()
+
+    await db.update(userRole)
+      .set({ role: newRole })
+      .where(eq(userRole.userId, userId))
+
+    revalidatePath('/dashboard/super-admin/overview')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
+export async function deleteUserAccountAction(userId: string) {
+  try {
+    await checkSuperAdminPermission()
+
+    await db.delete(user).where(eq(user.id, userId))
+    revalidatePath('/dashboard/super-admin/overview')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
+export async function getAllCBTsForSuperAdmin() {
+  try {
+    await checkSuperAdminPermission()
+
+    const cbtsList = await db.query.assessment.findMany({
+      with: {
+        school: true,
+        subject: true,
+        questions: true
+      },
+      orderBy: (assessment, { desc }) => [desc(assessment.createdAt)]
+    })
+
+    return { success: true, cbts: cbtsList }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
 export async function approveCBTAssessmentAction(assessmentId: string, approved: boolean, comment?: string) {
   try {
+    await checkSuperAdminPermission()
+
     await db.update(assessment)
       .set({
         status: approved ? 'approved' : 'rejected',
@@ -132,7 +205,7 @@ export async function approveCBTAssessmentAction(assessmentId: string, approved:
       })
       .where(eq(assessment.id, assessmentId))
 
-    revalidatePath('/dashboard/super-admin/cbt')
+    revalidatePath('/dashboard/super-admin/overview')
     return { success: true }
   } catch (error: any) {
     return { success: false, error: error.message }
