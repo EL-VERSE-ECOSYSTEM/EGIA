@@ -2,13 +2,13 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "EL LEARN Portal",
-    short_name: "EL LEARN",
-    description: "Complete school management system with CBT, assessments, and child monitoring.",
+    name: "EL LEARN App Portal",
+    short_name: "EL LEARN App",
+    description: "Complete multi-tenant school management system with CBT, assessments, and child monitoring.",
     start_url: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#f97316",
+    background_color: "#020617",
+    theme_color: "#10b981",
     icons: [
       {
         src: "/apple-icon.png",

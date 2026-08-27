@@ -179,6 +179,11 @@ export async function getAssessmentWithQuestions(id: string, providedAccessCode?
 
   if (!dbAssessment) return null
 
+  // Ensure assessment is published or approved
+  if (dbAssessment.status !== 'published' && dbAssessment.status !== 'approved') {
+    throw new Error('This assessment has not been approved or published.')
+  }
+
   // If assessment requires an access code, verify it
   if (dbAssessment.accessCode && dbAssessment.accessCode.trim().length > 0) {
     if (!providedAccessCode || providedAccessCode.trim().toUpperCase() !== dbAssessment.accessCode.trim().toUpperCase()) {
@@ -192,11 +197,19 @@ export async function getAssessmentWithQuestions(id: string, providedAccessCode?
 export async function saveAssessmentWithQuestions(assessmentData: any, questions: any[]) {
   const session = await auth.getSession()
   if (!session?.user || session.user.role !== 'TEACHER') throw new Error('Unauthorized')
+
   const teacherProfile = await db.query.teacher.findFirst({ where: eq(teacher.userId, session.user.id) })
   if (!teacherProfile) throw new Error('Teacher profile not found')
-  const currentTerm = await db.query.term.findFirst({ where: eq(term.isCurrent, true) })
-  if (!currentTerm) throw new Error('No current academic term is configured')
+
+  let currentTerm = await db.query.term.findFirst({ where: eq(term.isCurrent, true) })
+  if (!currentTerm) {
+    const allTerms = await db.query.term.findMany()
+    currentTerm = allTerms[0] || null
+  }
+
+  if (!currentTerm) throw new Error('No academic term configured.')
   if (!questions.length) throw new Error('Add at least one question before publishing an assessment')
+
   const assessmentId = crypto.randomUUID()
 
   // Generate random 6-character access code for EXAM type
@@ -215,7 +228,7 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
       createdBy: teacherProfile.id,
       duration: assessmentData.duration,
       type: assessmentData.type || 'ASSESSMENT_CBT',
-      status: 'draft', // Submitted for School Admin approval
+      status: 'published',
       accessCode: generatedAccessCode,
       passingScore: assessmentData.passingScore || 40,
       totalPoints: questions.reduce((sum, q) => sum + (q.points || 1), 0),
@@ -257,6 +270,11 @@ export async function getLoggedInStudentAndQuestions(assessmentId: string, provi
 
   if (!dbAssessment || !dbAssessment.questions?.length) {
     throw new Error('This assessment is unavailable or has no questions.')
+  }
+
+  // Check status approval
+  if (dbAssessment.status !== 'published' && dbAssessment.status !== 'approved') {
+    throw new Error('This assessment is awaiting School Admin approval.')
   }
 
   // School Scoping check

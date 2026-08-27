@@ -1,6 +1,22 @@
 export function cleanSchoolPrefix(schoolNameOrCode?: string): string {
   if (!schoolNameOrCode) return 'SCHO'
-  const clean = schoolNameOrCode.replace(/[^a-zA-Z]/g, '').toUpperCase()
+  const trimmed = schoolNameOrCode.trim().toUpperCase()
+
+  // If already a school code like "EGIA-19001", extract "EGIA"
+  if (trimmed.includes('-')) {
+    const parts = trimmed.split('-')
+    if (parts[0].length >= 2) return parts[0]
+  }
+
+  // Extract words and build 4-letter prefix from initials
+  const words = trimmed.split(/\s+/).filter(w => w.length > 0)
+  if (words.length >= 4) {
+    return words.slice(0, 4).map(w => w[0]).join('')
+  } else if (words.length === 2 || words.length === 3) {
+    return words.map(w => w.slice(0, 2)).join('').slice(0, 4)
+  }
+
+  const clean = trimmed.replace(/[^A-Z]/g, '')
   return (clean + 'SCHO').slice(0, 4)
 }
 
