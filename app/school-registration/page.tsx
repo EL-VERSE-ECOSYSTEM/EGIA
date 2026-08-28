@@ -121,7 +121,7 @@ export default function SchoolRegistrationPage() {
             <Sparkles className="w-3.5 h-3.5" /> Institutional Onboarding
           </div>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-            Register Your School on EL LEARNERS APP
+            Register Your School on EL LEARN APP
           </h1>
           <p className="text-slate-400 mt-2 text-sm sm:text-base">
             Enroll your institution, manage classes from Primary 3 to SSS3, set parent access, and activate your school portal with a standard NGN 30,000 subscription payment.
@@ -349,7 +349,7 @@ export default function SchoolRegistrationPage() {
               </div>
               <h2 className="text-2xl font-black text-white">Payment Successful!</h2>
               <p className="text-slate-400 text-xs sm:text-sm">
-                Your school has been registered and activated on EL LEARNERS APP.
+                Your school has been registered and activated on EL LEARN APP.
               </p>
             </div>
 
@@ -357,7 +357,7 @@ export default function SchoolRegistrationPage() {
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 font-mono text-xs">
               <div className="flex justify-between border-b border-slate-800 pb-2">
                 <span className="text-slate-400">Platform:</span>
-                <span className="font-bold text-emerald-400">EL LEARNERS APP</span>
+                <span className="font-bold text-emerald-400">EL LEARN APP</span>
               </div>
               <div className="flex justify-between border-b border-slate-800 pb-2">
                 <span className="text-slate-400">School Name:</span>
@@ -404,7 +404,7 @@ export default function SchoolRegistrationPage() {
       )}
 
       <footer className="relative max-w-5xl mx-auto w-full text-center py-4 border-t border-slate-800 text-xs text-slate-500">
-        &copy; {new Date().getFullYear()} EL LEARNERS APP. All rights reserved.
+        &copy; {new Date().getFullYear()} EL LEARN APP. All rights reserved.
       </footer>
     </div>
   )

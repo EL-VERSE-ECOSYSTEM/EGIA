@@ -156,7 +156,7 @@ export default function SuperAdminOverviewPage() {
             <Sparkles className="w-3.5 h-3.5" /> Multi-Tenant Platform Control
           </div>
           <h1 className="text-3xl font-black tracking-tight text-white flex items-center gap-2">
-            Super Admin Dashboard <span className="text-emerald-400">EL LEARNERS APP</span>
+            Super Admin Dashboard <span className="text-emerald-400">EL LEARN APP</span>
           </h1>
           <p className="text-slate-400 text-sm">
             Control, manage, verify, approve, manipulate, and broadcast to all registered schools and users in real time.
