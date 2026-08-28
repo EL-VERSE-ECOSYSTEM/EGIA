@@ -57,10 +57,14 @@ export async function getConversations() {
     },
   })
 
-  // Filter conversations by school boundary (Super Admin sees all)
+  // Strict school boundary filtering (Super Admin bypass)
   return participants
     .map(p => p.conversation)
-    .filter(c => currentUser.userRole?.role === 'SUPER_ADMIN' || !c.schoolId || !currentUser.schoolId || c.schoolId === currentUser.schoolId)
+    .filter(c => {
+      if (currentUser.userRole?.role === 'SUPER_ADMIN') return true
+      if (!currentUser.schoolId) return false
+      return c.schoolId === currentUser.schoolId
+    })
 }
 
 export async function createConversation(recipientId: string, type: 'INDIVIDUAL' | 'GROUP' = 'INDIVIDUAL', name?: string) {
@@ -83,9 +87,11 @@ export async function createConversation(recipientId: string, type: 'INDIVIDUAL'
 
   if (!recipient) throw new Error('Recipient not found')
 
-  // Enforce single-school boundary isolation
-  if (currentUser.userRole?.role !== 'SUPER_ADMIN' && currentUser.schoolId && recipient.schoolId && currentUser.schoolId !== recipient.schoolId) {
-    throw new Error('Messaging is restricted to members registered within your specific school.')
+  // Enforce strict single-school boundary isolation
+  if (currentUser.userRole?.role !== 'SUPER_ADMIN') {
+    if (!currentUser.schoolId || !recipient.schoolId || currentUser.schoolId !== recipient.schoolId) {
+      throw new Error('Messaging is restricted to members registered within your specific school.')
+    }
   }
 
   const convId = crypto.randomUUID()
@@ -201,9 +207,9 @@ export async function getAllUsersForMessaging() {
     }
   })
 
-  // Filter users by school boundary (Super Admin sees all users across schools)
+  // Strict boundary filter by school (Super Admin sees all)
   return users
-    .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || !u.schoolId || !currentUser.schoolId || u.schoolId === currentUser.schoolId)
+    .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || (currentUser.schoolId && u.schoolId === currentUser.schoolId))
     .map(u => ({
       id: u.id,
       name: u.name,
@@ -241,7 +247,6 @@ export async function broadcastMessage(content: string, recipientRole: string) {
     throw new Error('Permission denied')
   }
 
-  // Get users for recipientRole filtered by school
   const targetRoles = await db.query.userRole.findMany({
     where: eq(userRole.role, recipientRole),
     with: {
@@ -251,7 +256,7 @@ export async function broadcastMessage(content: string, recipientRole: string) {
 
   const targetUsers = targetRoles
     .map(r => r.user)
-    .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || !u.schoolId || !currentUser.schoolId || u.schoolId === currentUser.schoolId)
+    .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || (currentUser.schoolId && u.schoolId === currentUser.schoolId))
 
   if (targetUsers.length === 0) return
 

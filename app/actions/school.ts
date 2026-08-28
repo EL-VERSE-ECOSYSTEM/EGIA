@@ -145,23 +145,26 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
 
     const rec = existingSchool[0]
 
-    // Verify transaction status against Korapay verification API if secret key is present
+    // Verify transaction status against Korapay verification API
     const korapaySecretKey = process.env.KORAPAY_SECRET_KEY
-    if (korapaySecretKey) {
-      try {
-        const verifyRes = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${paymentReference}`, {
-          headers: {
-            Authorization: `Bearer ${korapaySecretKey}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        const verifyData = await verifyRes.json()
-        if (!verifyRes.ok || verifyData?.data?.status !== 'success') {
-          return { success: false, error: 'Payment transaction could not be verified with Korapay. Please complete checkout or contact support.' }
+    if (!korapaySecretKey) {
+      return { success: false, error: 'Korapay payment secret key is not configured on the server environment.' }
+    }
+
+    try {
+      const verifyRes = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${paymentReference}`, {
+        headers: {
+          Authorization: `Bearer ${korapaySecretKey}`,
+          'Content-Type': 'application/json'
         }
-      } catch (err) {
-        console.warn('Korapay verification call failed, falling back to reference verification:', err)
+      })
+      const verifyData = await verifyRes.json()
+
+      if (!verifyRes.ok || verifyData?.data?.status !== 'success') {
+        return { success: false, error: 'Payment verification failed with Korapay. Transaction is not marked as successful.' }
       }
+    } catch (err: any) {
+      return { success: false, error: 'Failed to verify payment with Korapay payment gateway: ' + (err.message || 'Network error') }
     }
 
     await db.update(school)

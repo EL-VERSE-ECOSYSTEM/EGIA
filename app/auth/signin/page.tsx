@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GraduationCap, Loader2, AlertCircle, Building2 } from 'lucide-react'
-import { loginRole, loginStudent, checkStudentPasswordRequirement } from '@/app/actions/auth-server'
-import { getSchoolByCodeAction } from '@/app/actions/school'
+import { loginRole, loginStudent } from '@/app/actions/auth-server'
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
@@ -80,17 +79,11 @@ export default function SignInPage() {
         return
       }
 
-      const schoolCheck = await getSchoolByCodeAction(schoolCode)
-      if (!schoolCheck.success) {
-        setError('Invalid School Registration Code.')
-        setLoading(false)
-        return
-      }
-
       const result = await loginRole({
         identifier: email,
         password,
-        role: 'ADMIN' as any,
+        role: 'SCHOOL_ADMIN',
+        schoolCode: schoolCode.trim().toUpperCase()
       })
 
       if (result.error) {
@@ -108,7 +101,7 @@ export default function SignInPage() {
       const result = await loginRole({
         identifier: email,
         password,
-        role: 'ADMIN' as any,
+        role: 'SUPER_ADMIN',
       })
 
       if (result.error) {
@@ -216,7 +209,7 @@ export default function SignInPage() {
                 <Input
                   id="schoolCode"
                   type="text"
-                  placeholder="e.g. SCHO12345"
+                  placeholder="e.g. EGIA-19001"
                   value={schoolCode}
                   onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
                   required

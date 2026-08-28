@@ -36,8 +36,8 @@ export async function submitCBT(assessmentId: string, studentId: string, answers
     throw new Error('This assessment is not available for your school.')
   }
 
-  // Check Approval Status
-  if (assessmentData.status !== 'approved' && assessmentData.status !== 'published') {
+  // Check Approval Status (Strictly require approved status)
+  if (assessmentData.status !== 'approved') {
     throw new Error('This assessment has not been approved by your School Admin.')
   }
 
@@ -147,8 +147,8 @@ export async function getUpcomingAssessments(classId: string, schoolId?: string)
   })
 
   return all.filter(a =>
-    (a.status === 'published' || a.status === 'approved') &&
-    (!schoolId || !a.schoolId || a.schoolId === schoolId)
+    a.status === 'approved' &&
+    (!schoolId || a.schoolId === schoolId)
   )
 }
 
@@ -162,7 +162,7 @@ export async function getApprovedCBTs(schoolId?: string) {
 
   return all.filter(a =>
     a.status === 'approved' &&
-    (!schoolId || !a.schoolId || a.schoolId === schoolId)
+    (!schoolId || a.schoolId === schoolId)
   )
 }
 
@@ -179,9 +179,9 @@ export async function getAssessmentWithQuestions(id: string, providedAccessCode?
 
   if (!dbAssessment) return null
 
-  // Ensure assessment is published or approved
-  if (dbAssessment.status !== 'published' && dbAssessment.status !== 'approved') {
-    throw new Error('This assessment has not been approved or published.')
+  // Ensure assessment has been approved by School Admin
+  if (dbAssessment.status !== 'approved') {
+    throw new Error('This assessment is awaiting School Admin review and approval.')
   }
 
   // If assessment requires an access code, verify it
@@ -208,7 +208,7 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
   }
 
   if (!currentTerm) throw new Error('No academic term configured.')
-  if (!questions.length) throw new Error('Add at least one question before publishing an assessment')
+  if (!questions.length) throw new Error('Add at least one question before submitting an assessment')
 
   const assessmentId = crypto.randomUUID()
 
@@ -228,7 +228,7 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
       createdBy: teacherProfile.id,
       duration: assessmentData.duration,
       type: assessmentData.type || 'ASSESSMENT_CBT',
-      status: 'published',
+      status: 'draft', // Saved as draft awaiting School Admin approval
       accessCode: generatedAccessCode,
       passingScore: assessmentData.passingScore || 40,
       totalPoints: questions.reduce((sum, q) => sum + (q.points || 1), 0),
@@ -272,12 +272,7 @@ export async function getLoggedInStudentAndQuestions(assessmentId: string, provi
     throw new Error('This assessment is unavailable or has no questions.')
   }
 
-  // Check status approval
-  if (dbAssessment.status !== 'published' && dbAssessment.status !== 'approved') {
-    throw new Error('This assessment is awaiting School Admin approval.')
-  }
-
-  // School Scoping check
+  // Strict School Scoping check
   if (dbAssessment.schoolId && studentProfile.schoolId && dbAssessment.schoolId !== studentProfile.schoolId) {
     throw new Error('This assessment is not available for your school.')
   }

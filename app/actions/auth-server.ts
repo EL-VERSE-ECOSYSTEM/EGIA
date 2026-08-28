@@ -558,6 +558,7 @@ export async function loginRole(data: {
   identifier: string
   password: string
   role: Exclude<AuthRole, 'STUDENT'> | 'SCHOOL_ADMIN' | 'SUPER_ADMIN'
+  schoolCode?: string
 }) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
@@ -592,54 +593,35 @@ export async function loginRole(data: {
     return { error: error?.message || 'Supabase authentication is temporarily unavailable.' }
   }
 
-  // Auto-provision or sync accounts in Supabase Auth if found locally
-  if (signInResult.error && getSupabaseSecretKey()) {
-    try {
-      const adminClient = authAdminClient()
-      if (adminClient) {
-        const existingAuthUser = await findAuthUserByEmail(adminClient, email)
-        const dbUser = await db.query.user.findFirst({
-          where: eq(userTable.email, email)
-        })
-        if (dbUser) {
-          if (!existingAuthUser) {
-            console.log(`[Auth] Auto-provisioning seeded ${selectedRole} ${email} in Supabase...`)
-            const { data: created, error: createError } = await adminClient.auth.admin.createUser({
-              id: dbUser.id || undefined,
-              email,
-              password: data.password,
-              email_confirm: true,
-              user_metadata: {
-                full_name: dbUser.name || 'User',
-                role: selectedRole
-              }
-            })
-            if (!createError && created.user) {
-              signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Could not auto-provision/sync Supabase Auth record on login:', err)
-    }
-  }
-
   if (signInResult.error) return { error: signInResult.error.message }
   if (!signInResult.data.user) return { error: 'Sign-in failed. Please try again.' }
 
   const userId = signInResult.data.user.id
-  const metadataRole = signInResult.data.user.user_metadata?.role?.toUpperCase()
 
-  // Strict role verification check against database roles & Supabase Auth metadata
-  const targetRoleName = (selectedRole === 'SCHOOL_ADMIN' || selectedRole === 'SUPER_ADMIN') ? 'ADMIN' : selectedRole
-  const roleData = await db.query.userRole.findFirst({
-    where: and(eq(userRole.userId, userId), eq(userRole.role, targetRoleName)),
-  })
+  // Verify School Admin is bound to the submitted schoolCode
+  if (selectedRole === 'SCHOOL_ADMIN') {
+    if (!data.schoolCode) {
+      await supabase.auth.signOut()
+      return { error: 'School Registration Code is required for School Admin sign in.' }
+    }
 
-  if (!roleData && metadataRole !== targetRoleName && metadataRole !== 'SCHOOL_ADMIN' && metadataRole !== 'SUPER_ADMIN') {
-    await supabase.auth.signOut()
-    return { error: `Unauthorized: Account does not have '${selectedRole}' permissions.` }
+    const schoolRec = await db.query.school.findFirst({
+      where: eq(school.code, data.schoolCode.trim().toUpperCase())
+    })
+
+    if (!schoolRec) {
+      await supabase.auth.signOut()
+      return { error: 'Invalid School Registration Code.' }
+    }
+
+    const dbUser = await db.query.user.findFirst({
+      where: eq(userTable.id, userId)
+    })
+
+    if (!dbUser || (dbUser.schoolId && dbUser.schoolId !== schoolRec.id)) {
+      await supabase.auth.signOut()
+      return { error: 'Unauthorized: Your administrator account does not belong to this school.' }
+    }
   }
 
   return { success: true }
