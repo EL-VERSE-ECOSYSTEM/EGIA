@@ -402,7 +402,7 @@ export default function CBTExamTakingPage() {
 
         {loading ? (
           <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-            {/* Dynamic, responsive SVG loader custom built for EL LEARN App */}
+            {/* Dynamic, responsive SVG loader custom built for EL LEARNERS App */}
             <svg className="w-16 h-16 animate-spin text-orange-600" viewBox="0 0 50 50">
               <circle className="opacity-25" cx="25" cy="25" r="20" stroke="currentColor" strokeWidth="4" fill="none" />
               <path className="opacity-75" fill="currentColor" d="M4 25a21 21 0 0 1 21-21v4a17 17 0 0 0-17 17z" />
@@ -416,7 +416,7 @@ export default function CBTExamTakingPage() {
               <ShieldAlert className="w-16 h-16 text-orange-600" />
             </div>
             <h1 className="text-4xl font-black text-slate-900 tracking-tight">{assessmentTitle}</h1>
-            <p className="text-slate-500 font-bold mt-2 uppercase tracking-widest text-xs">EL LEARN App CBT</p>
+            <p className="text-slate-500 font-bold mt-2 uppercase tracking-widest text-xs">EL LEARNERS App CBT</p>
 
             <div className="my-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 text-left max-w-lg mx-auto space-y-4">
               <h3 className="font-bold text-slate-800 text-lg">Strict Exam Rules:</h3>

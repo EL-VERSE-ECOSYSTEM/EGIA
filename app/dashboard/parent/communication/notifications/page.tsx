@@ -49,7 +49,7 @@ export default function ParentNotificationsPage() {
 
     if (granted) {
       sendDeviceNotification('System Notifications Active!', {
-        body: 'You have successfully subscribed to EL LEARN App mobile device and browser alerts.',
+        body: 'You have successfully subscribed to EL LEARNERS App mobile device and browser alerts.',
         tag: 'system-active'
       })
       toast.success('Mobile device notifications enabled!')

@@ -47,7 +47,7 @@ export default function SetupRolePage() {
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4 py-12">
       <div className="w-full max-w-4xl">
         <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold text-white">Welcome to EL LEARN App Academy</h1>
+          <h1 className="text-4xl font-bold text-white">Welcome to EL LEARNERS App Academy</h1>
           <p className="mt-4 text-xl text-slate-300">Please select your role to get started</p>
         </div>
 

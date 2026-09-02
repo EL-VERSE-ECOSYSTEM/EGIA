@@ -47,7 +47,7 @@ export default function StudentSignUpPage() {
         <div className="bg-orange-600 p-2 rounded-lg">
           <GraduationCap className="text-white w-6 h-6" />
         </div>
-        <span className="font-black text-xl tracking-tight text-slate-900">EL LEARN App <span className="text-orange-600">ACADEMY</span></span>
+        <span className="font-black text-xl tracking-tight text-slate-900">EL LEARNERS App <span className="text-orange-600">ACADEMY</span></span>
       </div>
 
       <Card className="max-w-md w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">

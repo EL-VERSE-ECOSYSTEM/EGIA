@@ -40,7 +40,7 @@ export default async function LandingPage() {
             <div className="bg-amber-600 p-2 rounded-lg">
               <GraduationCap className="text-white w-6 h-6" />
             </div>
-            <span className="font-black text-xl tracking-tight text-slate-900 uppercase">EL LEARN <span className="text-amber-600">ACADEMY</span></span>
+            <span className="font-black text-xl tracking-tight text-slate-900 uppercase">EL LEARNERS <span className="text-amber-600">ACADEMY</span></span>
           </div>
           <nav className="hidden md:flex items-center gap-8">
             <Link href="#about" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">About</Link>
@@ -76,7 +76,7 @@ export default async function LandingPage() {
               Inspiring <span className="text-amber-600">Greatness</span> In Every Student
             </h1>
             <p className="text-xl md:text-2xl text-slate-500 mb-14 leading-relaxed max-w-3xl mx-auto font-medium">
-              EL LEARN is where traditional values meet 21st-century innovation.
+              EL LEARNERS is where traditional values meet 21st-century innovation.
               Join a community committed to nurturing the total child.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
@@ -129,7 +129,7 @@ export default async function LandingPage() {
                 <div className="aspect-[3/4] bg-slate-100 rounded-[4rem] overflow-hidden shadow-2xl relative border-[16px] border-slate-50">
                    <img
                      src="https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1200"
-                     alt="EL LEARN Academy Classroom"
+                     alt="EL LEARNERS Academy Classroom"
                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
                    />
                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent opacity-40" />
@@ -142,7 +142,7 @@ export default async function LandingPage() {
                 <div className="inline-block px-8 py-2 rounded-full bg-amber-100 text-amber-700 text-xs font-black uppercase tracking-[0.3em]">Our Heritage</div>
                 <h2 className="text-6xl md:text-7xl font-black text-slate-900 leading-[0.95] tracking-tighter">Committed to Academic Rigor</h2>
                 <p className="text-slate-500 text-2xl leading-relaxed font-medium">
-                  At EL LEARN, we don't just teach; we inspire. Our curriculum is designed to challenge students
+                  At EL LEARNERS, we don't just teach; we inspire. Our curriculum is designed to challenge students
                   intellectually while grounding them in moral discipline.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -222,7 +222,7 @@ export default async function LandingPage() {
                   <div className="inline-block px-8 py-2 rounded-full bg-amber-100 text-amber-700 text-xs font-black uppercase tracking-[0.3em]">Testimonials</div>
                   <h2 className="text-6xl md:text-7xl font-black text-slate-900 tracking-tighter">Voices of Success</h2>
                </div>
-               <p className="text-slate-500 text-xl font-medium max-w-md">Our results speak for themselves. Hear from those who experienced EL LEARN firsthand.</p>
+               <p className="text-slate-500 text-xl font-medium max-w-md">Our results speak for themselves. Hear from those who experienced EL LEARNERS firsthand.</p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                {[
@@ -234,7 +234,7 @@ export default async function LandingPage() {
                  {
                    name: "Olawale John",
                    role: "Class of 2018",
-                   quote: "The academic rigor at EL LEARN prepared me for the competitive world of STEM. I am forever grateful."
+                   quote: "The academic rigor at EL LEARNERS prepared me for the competitive world of STEM. I am forever grateful."
                  },
                  {
                    name: "Dr. Evans",

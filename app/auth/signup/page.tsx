@@ -63,7 +63,7 @@ export default function SignUpPage() {
       <div className="max-w-4xl w-full text-center mb-12">
         <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tighter">Create Your Account</h1>
         <p className="text-slate-400 text-base font-medium mt-2">
-          Select your registration portal to get started on EL LEARN APP
+          Select your registration portal to get started on EL LEARNERS App
         </p>
       </div>
 
@@ -99,7 +99,7 @@ export default function SignUpPage() {
       </div>
 
       <p className="mt-16 text-xs text-slate-500 font-bold uppercase tracking-[0.2em]">
-        EL LEARN APP • Premium Multi-Tenant School Ecosystem
+        EL LEARNERS App • Premium Multi-Tenant School Ecosystem
       </p>
     </div>
   )
