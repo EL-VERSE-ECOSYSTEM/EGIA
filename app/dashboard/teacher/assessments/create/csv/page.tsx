@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Upload, FileText, CheckCircle, AlertCircle, Table, ArrowRight, Database } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { AdvancedCSVUploader } from '@/components/csv/AdvancedCSVUploader'
 
 export default function CSVImportPage() {
   const [file, setFile] = useState<File | null>(null)
@@ -69,50 +70,9 @@ export default function CSVImportPage() {
         </div>
 
         <div className="grid lg:grid-cols-5 gap-10">
-          <Card className="lg:col-span-3 border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
-            <CardHeader className="p-10 pb-0">
-              <CardTitle className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                <Upload className="w-6 h-6 text-emerald-600" /> Choose CSV Data
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-10 space-y-8">
-              <div className="border-4 border-dashed border-slate-50 rounded-[2rem] p-16 text-center hover:border-emerald-200 hover:bg-emerald-50/30 transition-all cursor-pointer group relative overflow-hidden">
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileChange}
-                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                />
-                <div className="relative z-0">
-                  <div className="w-20 h-20 bg-emerald-100 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-                    <Database className="w-10 h-10 text-emerald-600" />
-                  </div>
-                  <p className="text-xl font-black text-slate-900 mb-2">
-                    {file ? file.name : 'Drop your CSV file here'}
-                  </p>
-                  <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">
-                    MAX SIZE: 5MB • .CSV ONLY
-                  </p>
-                </div>
-              </div>
-
-              {message && (
-                <div className={`p-6 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ${message.startsWith('Error') ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
-                  {message.startsWith('Error') ? <AlertCircle className="w-6 h-6 shrink-0" /> : <CheckCircle className="w-6 h-6 shrink-0" />}
-                  <span className="font-bold">{message}</span>
-                </div>
-              )}
-
-              <Button
-                className="w-full h-16 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl rounded-2xl shadow-xl shadow-emerald-200 transition-all hover:-translate-y-1"
-                disabled={!file || !assessmentId || uploading}
-                onClick={handleUpload}
-              >
-                {uploading ? 'Processing Data...' : 'Begin Bulk Import'}
-                <ArrowRight className="ml-2 w-6 h-6" />
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="lg:col-span-3 space-y-6">
+            <AdvancedCSVUploader mode="quiz" targetId={assessmentId || ''} />
+          </div>
 
           <div className="lg:col-span-2 space-y-8">
             <Card className="border-none shadow-xl shadow-slate-100 rounded-[2rem] bg-white p-10">
