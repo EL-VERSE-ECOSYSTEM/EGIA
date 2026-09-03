@@ -2,8 +2,8 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "EL LEARN Portal",
-    short_name: "EL LEARN",
+    name: "EL LEARNERS Portal",
+    short_name: "EL LEARNERS",
     description: "Complete school management system with CBT, assessments, and child monitoring.",
     start_url: "/",
     display: "standalone",

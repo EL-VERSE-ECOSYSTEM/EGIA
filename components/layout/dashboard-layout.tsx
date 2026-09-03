@@ -124,7 +124,7 @@ export default function DashboardLayout({
             <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden sm:block"></div>
             <div className="flex items-center gap-3 pl-2">
               <div className="text-right hidden md:block">
-                <p className="text-xs font-black text-slate-900">EL LEARN</p>
+                <p className="text-xs font-black text-slate-900">EL LEARNERS</p>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{activeRole} Portal</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-lg">
@@ -153,7 +153,7 @@ export default function DashboardLayout({
                     </button>
                   </div>
                   <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
-                    Install <strong>EL LEARN</strong> directly to your home screen:
+                    Install <strong>EL LEARNERS</strong> directly to your home screen:
                   </p>
                   <ol className="list-decimal list-inside text-[11px] text-slate-600 font-bold space-y-1 mt-1.5">
                     <li>Tap the Safari <span className="text-blue-600">Share button</span> (square with arrow up).</li>
@@ -181,7 +181,7 @@ export default function DashboardLayout({
               </div>
               <div>
                 <p className="text-xs font-black text-slate-900">Application Installed!</p>
-                <p className="text-[10px] font-bold text-slate-400">EL LEARN is now accessible directly on your device desktop.</p>
+                <p className="text-[10px] font-bold text-slate-400">EL LEARNERS is now accessible directly on your device desktop.</p>
               </div>
               <button onClick={() => setInstalledSuccess(false)} className="text-slate-400 hover:text-slate-600 ml-2">
                 <X className="w-4 h-4" />

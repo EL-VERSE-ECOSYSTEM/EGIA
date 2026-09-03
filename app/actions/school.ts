@@ -116,8 +116,50 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       role: 'ADMIN',
     }).onConflictDoNothing()
 
-    const checkoutBaseUrl = process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
-    const checkoutUrl = `${checkoutBaseUrl}?reference=${encodeURIComponent(paymentReference)}&amount=30000&customer_email=${encodeURIComponent(adminEmail)}`
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://goodnews-app-mu.vercel.app/'
+    const secretKey = process.env.KORAPAY_SECRET_KEY
+
+    let checkoutUrl = `${process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'}?reference=${encodeURIComponent(paymentReference)}&amount=30000&customer_email=${encodeURIComponent(adminEmail)}`
+
+    if (secretKey) {
+      try {
+        const payload = {
+          amount: 30000,
+          currency: 'NGN',
+          reference: paymentReference,
+          narration: `School Registration - ${input.name}`,
+          notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
+          redirect_url: `${siteUrl.replace(/\/$/, '')}/api/payments/callback`,
+          customer: {
+            email: adminEmail,
+            name: input.adminName,
+          },
+          metadata: {
+            schoolId,
+            schoolCode,
+            type: 'SCHOOL_REGISTRATION',
+          },
+        }
+
+        const koraRes = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${secretKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        })
+
+        if (koraRes.ok) {
+          const koraData = await koraRes.json()
+          if (koraData.status && koraData.data?.checkout_url) {
+            checkoutUrl = koraData.data.checkout_url
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to call Korapay initialize charge API, falling back to hosted checkout url:', e)
+      }
+    }
 
     return {
       success: true,
