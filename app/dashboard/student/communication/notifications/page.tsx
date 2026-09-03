@@ -65,7 +65,7 @@ export default function StudentNotificationsPage() {
 
     if (granted) {
       sendDeviceNotification('System Notifications Active!', {
-        body: 'You have successfully subscribed to EL LEARNERS App mobile device and browser alerts.',
+        body: 'You have successfully subscribed to EL LEARN App mobile device and browser alerts.',
         tag: 'system-active'
       })
       alert('Congratulations! Mobile device and system browser notifications are now fully active.')

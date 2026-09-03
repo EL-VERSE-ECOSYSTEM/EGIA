@@ -210,9 +210,21 @@ export default function StudentRegistrationPage() {
                 </Label>
                 <Input
                   id="schoolCode"
-                  placeholder="e.g. EGIA-19001"
+                  placeholder="e.g. SCHO-12345"
                   value={formData.schoolCode}
-                  onChange={e => setFormData({ ...formData, schoolCode: e.target.value.toUpperCase() })}
+                  onChange={async e => {
+                    const code = e.target.value.toUpperCase()
+                    setFormData({ ...formData, schoolCode: code })
+                    if (code.length >= 6) {
+                      const { getSchoolByCodeAction } = await import('@/app/actions/school')
+                      const res = await getSchoolByCodeAction(code)
+                      if (res.success && res.school) {
+                        setError(null)
+                      } else {
+                        setError('Invalid School Registration Code. Please verify with your school.')
+                      }
+                    }
+                  }}
                   required
                   className="h-11 rounded-xl border-slate-800 bg-slate-950 text-white font-mono uppercase focus:ring-2 focus:ring-orange-500"
                 />

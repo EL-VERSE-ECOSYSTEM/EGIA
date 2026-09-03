@@ -202,7 +202,7 @@ export default function AvailableLibraryBooksPage() {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
             </div>
-            <p className="text-slate-500 font-bold text-sm">Searching EL LEARNERS App library repository...</p>
+            <p className="text-slate-500 font-bold text-sm">Searching EL LEARN App library repository...</p>
           </Card>
         ) : filteredResources.length === 0 ? (
           <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white p-20 text-center">
@@ -328,7 +328,7 @@ export default function AvailableLibraryBooksPage() {
                   <div className="space-y-6">
                     <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        EL LEARNERS App LIBRARY
+                        EL LEARN App LIBRARY
                       </span>
                       <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
                         Page {currentPage} of {activePreview.pages || 210}
@@ -347,14 +347,14 @@ export default function AvailableLibraryBooksPage() {
                           {activePreview.content}
                         </p>
                         <p className="text-slate-400 text-xs leading-relaxed font-semibold">
-                          Approved by the EL LEARNERS App Curriculum Committee. Parents can safely store or print this segment for tutoring support.
+                          Approved by the EL LEARN App Curriculum Committee. Parents can safely store or print this segment for tutoring support.
                         </p>
                       </div>
                     </div>
                   </div>
 
                   <div className="border-t border-slate-100 pt-6 text-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                    © EL LEARNERS App • PARENT PREVIEW LICENSE
+                    © EL LEARN App • PARENT PREVIEW LICENSE
                   </div>
                 </div>
               </div>

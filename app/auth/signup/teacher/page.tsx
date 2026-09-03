@@ -19,6 +19,7 @@ export default function TeacherSignUpPage() {
     type: 'FULL_TIME', // FULL_TIME, PART_TIME
     resumptionDate: '',
     resumptionTime: '',
+    schoolCode: '',
     bio: ''
   })
 
@@ -111,7 +112,7 @@ export default function TeacherSignUpPage() {
         <div className="bg-purple-600 p-2 rounded-lg">
           <GraduationCap className="text-white w-6 h-6" />
         </div>
-        <span className="font-black text-xl tracking-tight text-slate-900">EL LEARNERS App <span className="text-purple-600">ACADEMY</span></span>
+        <span className="font-black text-xl tracking-tight text-slate-900">EL LEARNERS APP <span className="text-purple-600">ACADEMY</span></span>
       </div>
 
       <Card className="max-w-xl w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
@@ -197,17 +198,42 @@ export default function TeacherSignUpPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Work Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="jane@elgoodnews.edu.ng"
-                value={formData.email}
-                onChange={e => setFormData({...formData, email: e.target.value})}
-                required
-                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-purple-600 transition-all duration-300"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Work Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="jane@school.edu.ng"
+                  value={formData.email}
+                  onChange={e => setFormData({...formData, email: e.target.value})}
+                  required
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-purple-600 transition-all duration-300"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="schoolCode" className="text-[10px] font-black uppercase text-purple-600 tracking-widest ml-1">School Registration Code *</Label>
+                <Input
+                  id="schoolCode"
+                  placeholder="e.g. SCHO-12345"
+                  value={formData.schoolCode}
+                  onChange={async e => {
+                    const code = e.target.value.toUpperCase()
+                    setFormData({...formData, schoolCode: code})
+                    if (code.length >= 6) {
+                      const { getSchoolByCodeAction } = await import('@/app/actions/school')
+                      const res = await getSchoolByCodeAction(code)
+                      if (res.success && res.school) {
+                        setError(null)
+                      } else {
+                        setError('Invalid School Registration Code. Please verify with your school administration.')
+                      }
+                    }
+                  }}
+                  required
+                  className="h-12 rounded-xl border-purple-200 bg-purple-50/30 font-bold uppercase tracking-wider focus:bg-white focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all duration-300"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { toast } from 'sonner'
+import { AdvancedCSVUploader } from '@/components/csv/AdvancedCSVUploader'
 import {
   Upload,
   FileText,
@@ -230,132 +231,7 @@ export default function LibraryBooksAdminPage() {
         {activeTab === 'import' ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 space-y-8">
-              <Card className="border-none shadow-2xl rounded-[2.5rem] bg-white overflow-hidden">
-                <CardHeader className="p-10 pb-4 flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="text-2xl font-black">Bulk Book Import Portal</CardTitle>
-                    <CardDescription className="font-semibold text-slate-400">Drag and drop book files here</CardDescription>
-                  </div>
-                  <Button variant="outline" onClick={downloadTemplate} className="font-bold border-slate-200">
-                    <Download className="w-4 h-4 mr-2" /> Download Template
-                  </Button>
-                </CardHeader>
-                <CardContent className="p-10 pt-0 space-y-6">
-                  {/* File Upload Zone */}
-                  <div className="border-2 border-dashed border-slate-200 rounded-[2rem] p-12 text-center hover:bg-slate-50/50 transition-colors relative cursor-pointer group">
-                    <input
-                      type="file"
-                      accept=".csv"
-                      onChange={handleFileChange}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                    />
-                    <div className="flex flex-col items-center justify-center space-y-4">
-                      <div className="bg-orange-100 p-4 rounded-full text-orange-600 group-hover:scale-110 transition-transform">
-                        <Upload className="w-10 h-10" />
-                      </div>
-                      <div>
-                        <p className="font-black text-slate-900 text-lg">{file ? file.name : "Select your CSV Catalog File"}</p>
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">Supports UTF-8 CSV only</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {file && (
-                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                      <div>
-                        <p className="font-black text-slate-900">{file.name}</p>
-                        <p className="text-xs text-slate-400 font-bold">{(file.size / 1024).toFixed(1)} KB</p>
-                      </div>
-                      <Button
-                        onClick={() => { setFile(null); setPreviewData(null); setErrors([]); }}
-                        variant="ghost"
-                        className="text-red-600 font-bold hover:bg-red-50 hover:text-red-700 rounded-xl"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Options */}
-                  {file && (
-                    <div className="space-y-4 border-t border-slate-50 pt-6">
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            id="update_existing"
-                            checked={updateExisting}
-                            onCheckedChange={(checked) => setUpdateExisting(checked as boolean)}
-                          />
-                          <label htmlFor="update_existing" className="text-sm font-bold text-slate-700">
-                            Update existing books matching on unique ISBN (Upsert mode)
-                          </label>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            id="skip_duplicates"
-                            checked={skipDuplicates}
-                            onCheckedChange={(checked) => setSkipDuplicates(checked as boolean)}
-                          />
-                          <label htmlFor="skip_duplicates" className="text-sm font-bold text-slate-700">
-                            Skip duplicates to avoid redundant writes
-                          </label>
-                        </div>
-                      </div>
-
-                      <Button
-                        onClick={handleExecuteImport}
-                        disabled={importing}
-                        className="w-full bg-slate-900 hover:bg-slate-800 text-white h-14 rounded-2xl font-black text-lg"
-                      >
-                        {importing ? <Loader2 className="animate-spin w-5 h-5 mr-2" /> : "EXECUTE PORTAL IMPORT"}
-                      </Button>
-                    </div>
-                  )}
-
-                  {importing && (
-                    <div className="space-y-2">
-                      <Progress value={progress} className="h-2" />
-                      <p className="text-xs text-center text-slate-400 font-bold uppercase tracking-wider">Processing records... {progress}%</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Preview Zone */}
-              {previewData && (
-                <Card className="border-none shadow-2xl rounded-[2.5rem] bg-white overflow-hidden animate-in fade-in duration-300">
-                  <CardHeader className="p-10 pb-4">
-                    <CardTitle className="text-2xl font-black">Pre-Commit Preview (First 10 Records)</CardTitle>
-                    <CardDescription className="font-bold">Verify that the CSV parsed columns align properly</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader className="bg-slate-50">
-                        <TableRow>
-                          <TableHead className="p-6 font-black text-[10px] text-slate-400 uppercase tracking-widest">ISBN</TableHead>
-                          <TableHead className="p-6 font-black text-[10px] text-slate-400 uppercase tracking-widest">Title</TableHead>
-                          <TableHead className="p-6 font-black text-[10px] text-slate-400 uppercase tracking-widest">Authors</TableHead>
-                          <TableHead className="p-6 font-black text-[10px] text-slate-400 uppercase tracking-widest">Publisher</TableHead>
-                          <TableHead className="p-6 font-black text-[10px] text-slate-400 uppercase tracking-widest">Category</TableHead>
-                          <TableHead className="p-6 font-black text-[10px] text-slate-400 uppercase tracking-widest">Class</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody className="divide-y divide-slate-50">
-                        {previewData.preview.map((book, idx) => (
-                          <TableRow key={idx}>
-                            <TableCell className="p-6 font-mono text-xs">{book.isbn || "N/A"}</TableCell>
-                            <TableCell className="p-6 font-black text-slate-900 text-sm">{book.title}</TableCell>
-                            <TableCell className="p-6 text-slate-500 font-bold text-sm">{book.authors?.join(', ') || "N/A"}</TableCell>
-                            <TableCell className="p-6 text-slate-500 font-bold text-xs">{book.publisher || "N/A"}</TableCell>
-                            <TableCell className="p-6"><Badge className="bg-indigo-50 text-indigo-700 font-black text-[10px] px-2.5 py-1">{book.category || "General"}</Badge></TableCell>
-                            <TableCell className="p-6 font-black text-xs">{book.class_level || "ALL"}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              )}
+              <AdvancedCSVUploader mode="books" />
             </div>
 
             {/* Side summary panel */}

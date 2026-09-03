@@ -108,7 +108,7 @@ export default function ParentTeacherSignUpPage() {
         <div className="bg-orange-600 p-2 rounded-lg">
           <GraduationCap className="text-white w-6 h-6" />
         </div>
-        <span className="font-black text-xl tracking-tight text-slate-900">EL LEARNERS App <span className="text-orange-600">ACADEMY</span></span>
+        <span className="font-black text-xl tracking-tight text-slate-900">EL LEARNERS APP <span className="text-orange-600">ACADEMY</span></span>
       </div>
 
       <Card className="max-w-xl w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
@@ -119,7 +119,7 @@ export default function ParentTeacherSignUpPage() {
           </div>
           <CardTitle className="text-3xl font-black text-slate-900 leading-none">Parent who is a Teacher</CardTitle>
           <CardDescription className="text-slate-500 font-bold mt-2">
-            Onboard as a Parent who is also an educator/staff member of EL LEARNERS App.
+            Onboard as a Parent who is also an educator/staff member of EL LEARNERS APP.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-10 pb-12">
