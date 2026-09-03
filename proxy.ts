@@ -17,6 +17,9 @@ const publicRoutes = [
   '/api/webhooks/korapay',
   '/api/webhooks/supabase',
   '/api/korapay/webhook',
+  '/api/payments/initialize',
+  '/api/payments/callback',
+  '/payment/return',
   '/api/library/books/search',
   '/api/library/autocomplete'
 ]
