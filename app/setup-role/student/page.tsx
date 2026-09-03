@@ -49,7 +49,7 @@ export default function StudentSetupPage() {
         <CardHeader>
           <CardTitle className="text-white text-2xl font-bold">Student Profile Setup</CardTitle>
           <CardDescription className="text-orange-200/60 font-medium">
-            Complete your information to join EL LEARNERS App Academy
+            Complete your information to join EL LEARN App Academy
           </CardDescription>
         </CardHeader>
         <CardContent>

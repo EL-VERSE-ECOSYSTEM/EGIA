@@ -20,6 +20,7 @@ export default function ParentSignUpPage() {
     email: '',
     phone: '',
     occupation: '',
+    schoolCode: '',
     password: '',
     confirmPassword: ''
   })
@@ -150,7 +151,7 @@ export default function ParentSignUpPage() {
         <div className="bg-emerald-600 p-2 rounded-lg">
           <GraduationCap className="text-white w-6 h-6" />
         </div>
-        <span className="font-black text-xl tracking-tight text-slate-900">EL LEARNERS App <span className="text-emerald-600">ACADEMY</span></span>
+        <span className="font-black text-xl tracking-tight text-slate-900">EL LEARNERS APP <span className="text-emerald-600">ACADEMY</span></span>
       </div>
 
       <Card className="max-w-2xl w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
@@ -263,16 +264,28 @@ export default function ParentSignUpPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="occupation" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Occupation</Label>
-              <Input
-                id="occupation"
-                placeholder="e.g. Civil Servant, Engineer"
-                value={formData.occupation}
-                onChange={e => setFormData({...formData, occupation: e.target.value})}
-                required
-                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="occupation" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Occupation</Label>
+                <Input
+                  id="occupation"
+                  placeholder="e.g. Civil Servant, Engineer"
+                  value={formData.occupation}
+                  onChange={e => setFormData({...formData, occupation: e.target.value})}
+                  required
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="schoolCode" className="text-[10px] font-black uppercase text-emerald-600 tracking-widest ml-1">School Code (Optional)</Label>
+                <Input
+                  id="schoolCode"
+                  placeholder="e.g. SCHO-12345"
+                  value={formData.schoolCode}
+                  onChange={e => setFormData({...formData, schoolCode: e.target.value.toUpperCase()})}
+                  className="h-12 rounded-xl border-emerald-200 bg-emerald-50/30 font-bold uppercase tracking-wider focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
+                />
+              </div>
             </div>
 
             {/* Ward Search Panel */}

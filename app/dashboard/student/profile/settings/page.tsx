@@ -75,7 +75,7 @@ export default function StudentSettingsPage() {
               <div>
                 <p className="font-black text-red-950 text-lg">Delete Account</p>
                 <p className="text-sm font-medium text-red-700 max-w-lg mt-1 leading-relaxed">
-                  Permanently erase your student profile, grades, and CBT history from EL LEARNERS App. This action is absolute and cannot be undone.
+                  Permanently erase your student profile, grades, and CBT history from EL LEARN App. This action is absolute and cannot be undone.
                 </p>
               </div>
               <Button

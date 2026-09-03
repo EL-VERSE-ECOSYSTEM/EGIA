@@ -33,7 +33,7 @@ export default function StudentGamesPage() {
           </div>
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest mb-6">
-              <Star size={12} className="fill-orange-400" /> EL LEARNERS App PLAY & LEARN
+              <Star size={12} className="fill-orange-400" /> EL LEARN App PLAY & LEARN
             </div>
             <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">Interactive Learning Arena</h1>
             <p className="text-slate-400 text-lg font-medium max-w-2xl text-pretty">

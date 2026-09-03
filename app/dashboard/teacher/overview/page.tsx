@@ -80,7 +80,7 @@ export default async function TeacherOverviewPage() {
                 <div className="bg-white/20 p-2 rounded-lg">
                   <GraduationCap className="text-white w-5 h-5" />
                 </div>
-                <span className="font-black text-xs tracking-wider uppercase">EL LEARNERS App</span>
+                <span className="font-black text-xs tracking-wider uppercase">EL LEARNERS APP</span>
               </div>
               <Badge className="bg-white/20 text-white font-black text-[9px] border-none uppercase tracking-widest px-2.5 py-1">STAFF ID</Badge>
             </div>
