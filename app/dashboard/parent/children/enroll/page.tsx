@@ -67,7 +67,7 @@ export default function ParentEnrollStudentPage() {
 
         <div className="mb-10">
           <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">New Enrollment</h1>
-          <p className="text-slate-500 font-medium text-lg text-pretty">Enroll your ward directly into EL LEARN App.</p>
+          <p className="text-slate-500 font-medium text-lg text-pretty">Enroll your ward directly into EL LEARNERS App.</p>
         </div>
 
         <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">

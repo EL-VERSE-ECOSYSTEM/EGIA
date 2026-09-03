@@ -185,12 +185,12 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       <div className="p-8">
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shadow-lg shadow-amber-600/20">
-              <GraduationCap className="text-white w-7 h-7" />
+            <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shadow-lg shadow-amber-600/20 shrink-0">
+              <img src="/logo.svg" alt="EL LEARNERS App" className="w-8 h-8 object-contain" />
             </div>
             <div className="leading-tight">
-              <h2 className="font-black text-white text-base tracking-tighter uppercase">EL LEARN</h2>
-              <p className="text-[10px] text-amber-500 font-black uppercase tracking-[0.2em]">ACADEMY</p>
+              <h2 className="font-black text-white text-base tracking-tighter uppercase">EL LEARNERS</h2>
+              <p className="text-[10px] text-amber-500 font-black uppercase tracking-[0.2em]">APP</p>
             </div>
           </div>
 
@@ -237,7 +237,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
             </div>
             <div className="overflow-hidden">
               <p className="text-xs font-black text-white truncate capitalize">{role} User</p>
-              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest text-pretty">EL LEARN</p>
+              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest text-pretty">EL LEARNERS APP</p>
             </div>
           </div>
           <Button

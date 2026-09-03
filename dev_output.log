@@ -1,17 +1,22 @@
-$ next dev
+
+> my-project@0.1.0 dev /app
+> next dev
+
 ▲ Next.js 16.3.0 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
 - Environments: .env
-✓ Ready in 551ms
-✓ Running next.config.mjs took 29ms
+✓ Ready in 1079ms
+✓ Running next.config.mjs took 33ms
 - Experiments (use with caution):
   ⨯ useTypeScriptCli
 
-○ Compiling /sign-in ...
- GET /sign-in 200 in 4.2s (next.js: 3.4s, proxy.ts: 349ms, application-code: 404ms)
+○ Compiling / ...
 Received `true` for a non-boolean attribute `collapsible`.
 
 If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
- GET /auth/signin 200 in 2.6s (next.js: 2.4s, proxy.ts: 9ms, application-code: 131ms)
- GET / 200 in 2.6s (next.js: 1930ms, proxy.ts: 10ms, application-code: 694ms)
+ GET / 200 in 10.7s (next.js: 8.7s, proxy.ts: 783ms, application-code: 1261ms)
+ GET / 200 in 522ms (next.js: 23ms, proxy.ts: 31ms, application-code: 468ms)
+[browser] Received `true` for a non-boolean attribute `collapsible`.
+
+If you want to write it to the DOM, pass a string instead: collapsible="true" or collapsible={value.toString()}.
