@@ -95,7 +95,7 @@ export default function ParentReportCardPage() {
     // School details
     ctx.fillStyle = '#FFFFFF'
     ctx.font = 'black 36px sans-serif'
-    ctx.fillText("EL LEARN App", 200, 115)
+    ctx.fillText("EL LEARNERS App", 200, 115)
     ctx.font = 'bold 18px sans-serif'
     ctx.fillStyle = '#A7F3D0'
     ctx.fillText('OFFICIAL ACADEMIC REPORT TRANSCRIPT', 200, 150)
@@ -368,7 +368,7 @@ export default function ParentReportCardPage() {
             <div class="header">
               <div class="logo">EG</div>
               <div>
-                <h1 class="school-name">EL LEARN App</h1>
+                <h1 class="school-name">EL LEARNERS App</h1>
                 <p class="motto">MOTTO: EXCELLENCE, INTEGRITY AND KNOWLEDGE • OFFICIAL TRANSCRIPT</p>
               </div>
             </div>

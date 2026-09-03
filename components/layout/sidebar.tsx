@@ -185,8 +185,8 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       <div className="p-8">
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shadow-lg shadow-amber-600/20">
-              <GraduationCap className="text-white w-7 h-7" />
+            <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shadow-lg shadow-amber-600/20 shrink-0">
+              <img src="/logo.svg" alt="EL LEARNERS App" className="w-8 h-8 object-contain" />
             </div>
             <div className="leading-tight">
               <h2 className="font-black text-white text-base tracking-tighter uppercase">EL LEARNERS</h2>

@@ -104,6 +104,30 @@ export async function createConversation(recipientId: string, type: 'INDIVIDUAL'
   return newConversation[0]
 }
 
+export async function createGroupConversation(participantIds: string[], name: string) {
+  const userId = await getUserId()
+  const currentUser = await getUserWithSchool(userId)
+
+  const convId = crypto.randomUUID()
+  const newConversation = await db.insert(conversation).values({
+    id: convId,
+    schoolId: currentUser.schoolId || null,
+    type: 'GROUP',
+    name: name || 'Group Chat',
+  }).returning()
+
+  const allParticipantIds = Array.from(new Set([userId, ...participantIds]))
+  await db.insert(conversationParticipant).values(
+    allParticipantIds.map(pId => ({
+      id: crypto.randomUUID(),
+      conversationId: convId,
+      userId: pId,
+    }))
+  )
+
+  return newConversation[0]
+}
+
 export async function sendMessage(conversationId: string, content: string, attachments?: any) {
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
@@ -213,6 +237,24 @@ export async function getAllUsersForMessaging() {
     }))
 }
 
+export const getAllSystemUsers = getAllUsersForMessaging
+
+export async function getUsersByRole(targetRole: string) {
+  const userId = await getUserId()
+  const currentUser = await getUserWithSchool(userId)
+
+  const targetRoles = await db.query.userRole.findMany({
+    where: eq(userRole.role, targetRole.toUpperCase()),
+    with: {
+      user: true
+    }
+  })
+
+  return targetRoles
+    .map(r => r.user)
+    .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || !u.schoolId || !currentUser.schoolId || u.schoolId === currentUser.schoolId)
+}
+
 export async function adminSendNotification(targetUserId: string, title: string, bodyText: string, type: string = 'info') {
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
@@ -231,6 +273,32 @@ export async function adminSendNotification(targetUserId: string, title: string,
     isRead: false,
     createdAt: new Date()
   } as any).returning()
+}
+
+export async function adminBroadcastNotification(title: string, bodyText: string, type: string = 'info') {
+  const userId = await getUserId()
+  const currentUser = await getUserWithSchool(userId)
+
+  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
+    throw new Error('Permission denied')
+  }
+
+  const allUsers = await getAllUsersForMessaging()
+  if (!allUsers.length) return { count: 0 }
+
+  const newNotifications = allUsers.map(u => ({
+    id: crypto.randomUUID(),
+    userId: u.id,
+    schoolId: currentUser.schoolId || null,
+    title,
+    message: bodyText,
+    type,
+    isRead: false,
+    createdAt: new Date()
+  }))
+
+  await db.insert(notificationTable).values(newNotifications as any)
+  return { count: allUsers.length }
 }
 
 export async function broadcastMessage(content: string, recipientRole: string) {
@@ -279,4 +347,33 @@ export async function broadcastMessage(content: string, recipientRole: string) {
   })
 
   revalidatePath('/dashboard/communication')
+}
+
+export async function adminDeleteConversation(conversationId: string) {
+  const userId = await getUserId()
+  const currentUser = await getUserWithSchool(userId)
+
+  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
+    throw new Error('Permission denied')
+  }
+
+  await db.delete(message).where(eq(message.conversationId, conversationId))
+  await db.delete(conversationParticipant).where(eq(conversationParticipant.conversationId, conversationId))
+  await db.delete(conversation).where(eq(conversation.id, conversationId))
+
+  revalidatePath('/dashboard/communication')
+  return { success: true }
+}
+
+export async function adminDeleteMessage(messageId: string) {
+  const userId = await getUserId()
+  const currentUser = await getUserWithSchool(userId)
+
+  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
+    throw new Error('Permission denied')
+  }
+
+  await db.delete(message).where(eq(message.id, messageId))
+  revalidatePath('/dashboard/communication')
+  return { success: true }
 }
