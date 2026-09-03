@@ -282,7 +282,25 @@ export default function ParentSignUpPage() {
                   id="schoolCode"
                   placeholder="e.g. SCHO-12345"
                   value={formData.schoolCode}
-                  onChange={e => setFormData({...formData, schoolCode: e.target.value.toUpperCase()})}
+                  onChange={async e => {
+                    const code = e.target.value.toUpperCase()
+                    setFormData({...formData, schoolCode: code})
+                    if (code.length >= 6) {
+                      const { getSchoolByCodeAction } = await import('@/app/actions/school')
+                      const res = await getSchoolByCodeAction(code)
+                      if (res.success && res.school) {
+                        if (!res.school.allowParents) {
+                          setError(`Parent registration is toggled OFF for ${res.school.name}. Please contact school administration.`)
+                          toast.error(`Parent registration is disabled for ${res.school.name}`)
+                        } else {
+                          setError(null)
+                          toast.success(`School verified: ${res.school.name}`)
+                        }
+                      } else {
+                        setError('Invalid School Code.')
+                      }
+                    }
+                  }}
                   className="h-12 rounded-xl border-emerald-200 bg-emerald-50/30 font-bold uppercase tracking-wider focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
                 />
               </div>

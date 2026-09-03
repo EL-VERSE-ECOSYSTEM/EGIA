@@ -217,7 +217,19 @@ export default function TeacherSignUpPage() {
                   id="schoolCode"
                   placeholder="e.g. SCHO-12345"
                   value={formData.schoolCode}
-                  onChange={e => setFormData({...formData, schoolCode: e.target.value.toUpperCase()})}
+                  onChange={async e => {
+                    const code = e.target.value.toUpperCase()
+                    setFormData({...formData, schoolCode: code})
+                    if (code.length >= 6) {
+                      const { getSchoolByCodeAction } = await import('@/app/actions/school')
+                      const res = await getSchoolByCodeAction(code)
+                      if (res.success && res.school) {
+                        setError(null)
+                      } else {
+                        setError('Invalid School Registration Code. Please verify with your school administration.')
+                      }
+                    }
+                  }}
                   required
                   className="h-12 rounded-xl border-purple-200 bg-purple-50/30 font-bold uppercase tracking-wider focus:bg-white focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all duration-300"
                 />
