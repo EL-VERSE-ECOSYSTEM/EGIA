@@ -355,6 +355,21 @@ export const paymentInstallment = pgTable('payment_installment', {
   foreignKey({ columns: [t.paymentId], foreignColumns: [payment.id] }),
 ])
 
+export const transactions = pgTable('transactions', {
+  id: text('id').primaryKey(),
+  reference: text('reference').notNull().unique(),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  currency: text('currency').notNull().default('NGN'),
+  status: text('status').notNull().default('pending'), // pending, success, failed
+  customerEmail: text('customer_email').notNull(),
+  customerName: text('customer_name'),
+  description: text('description'),
+  checkoutUrl: text('checkout_url'),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ===== MESSAGING SYSTEM =====
 export const conversation = pgTable('conversation', {
   id: text('id').primaryKey(),

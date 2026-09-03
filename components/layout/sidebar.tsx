@@ -190,7 +190,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
             </div>
             <div className="leading-tight">
               <h2 className="font-black text-white text-base tracking-tighter uppercase">EL LEARNERS</h2>
-              <p className="text-[10px] text-amber-500 font-black uppercase tracking-[0.2em]">APP</p>
+              <p className="text-[10px] text-amber-500 font-black uppercase tracking-[0.2em]">ACADEMY</p>
             </div>
           </div>
 
@@ -237,7 +237,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
             </div>
             <div className="overflow-hidden">
               <p className="text-xs font-black text-white truncate capitalize">{role} User</p>
-              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest text-pretty">EL LEARNERS APP</p>
+              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest text-pretty">EL LEARNERS</p>
             </div>
           </div>
           <Button

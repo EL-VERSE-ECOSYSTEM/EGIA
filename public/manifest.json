@@ -1,7 +1,7 @@
 {
-  "name": "EL LEARNERS App Portal",
-  "short_name": "EL LEARNERS App",
-  "description": "Complete multi-tenant school management system with CBT, real-time assessments, and child monitoring.",
+  "name": "EL LEARNERS Portal",
+  "short_name": "EL LEARNERS",
+  "description": "Complete school management system with CBT, assessments, and child monitoring.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

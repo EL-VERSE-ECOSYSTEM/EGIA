@@ -181,7 +181,7 @@ export default function SignInPage() {
         <CardHeader className="text-center pt-8">
           <CardTitle className="text-3xl font-black text-white tracking-tight">Welcome Back</CardTitle>
           <CardDescription className="text-slate-400 font-bold mt-2">
-            Sign in to access your secure portal on EL LEARNERS App
+            Sign in to access your secure portal on EL LEARNERS APP
           </CardDescription>
         </CardHeader>
         <CardContent className="px-8 pb-10">
@@ -275,7 +275,7 @@ export default function SignInPage() {
       </Card>
 
       <p className="mt-8 text-xs text-slate-500 font-bold uppercase tracking-[0.2em]">
-        EL LEARNERS App • Institutional Education Portal
+        EL LEARNERS APP • Institutional Education Portal
       </p>
     </div>
   )

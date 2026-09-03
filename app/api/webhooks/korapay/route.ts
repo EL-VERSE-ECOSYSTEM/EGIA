@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { payment, student } from '@/lib/db/schema'
+import { payment, student, transactions } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 function validSignature(data: unknown, signature: string | null) {
@@ -24,8 +24,27 @@ export async function POST(req: Request) {
   const reference = body.data?.reference
   if (!reference) return NextResponse.json({ received: true })
 
+  // Check general transactions table first
+  const trxRecord = await db.query.transactions.findFirst({ where: eq(transactions.reference, reference) })
+  if (trxRecord) {
+    if (event === 'charge.success' || event === 'transfer.success') {
+      if (body.data?.amount !== undefined && Number(body.data.amount) !== Number(trxRecord.amount)) {
+        return NextResponse.json({ error: 'Payment amount mismatch' }, { status: 409 })
+      }
+      await db.update(transactions)
+        .set({ status: 'success', updatedAt: new Date() })
+        .where(eq(transactions.id, trxRecord.id))
+    } else if (event === 'charge.failed' || event === 'transfer.failed') {
+      await db.update(transactions)
+        .set({ status: 'failed', updatedAt: new Date() })
+        .where(eq(transactions.id, trxRecord.id))
+    }
+    return NextResponse.json({ received: true })
+  }
+
+  // Check student payment table
   const record = await db.query.payment.findFirst({ where: eq(payment.transactionReference, reference) })
-  if (!record) return NextResponse.json({ received: true }) // Never create a payment from a gateway callback.
+  if (!record) return NextResponse.json({ received: true })
 
   if (event === 'charge.success' || event === 'transfer.success') {
     if (body.data?.amount !== undefined && Number(body.data.amount) !== Number(record.amount)) {

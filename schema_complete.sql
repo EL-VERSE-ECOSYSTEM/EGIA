@@ -221,6 +221,22 @@ CREATE TABLE public.payment (
   CONSTRAINT payment_studentId_fkey FOREIGN KEY (studentId) REFERENCES public.student(id)
 );
 
+CREATE TABLE public.transactions (
+  id text NOT NULL,
+  reference text NOT NULL UNIQUE,
+  amount numeric(12, 2) NOT NULL,
+  currency text NOT NULL DEFAULT 'NGN',
+  status text NOT NULL DEFAULT 'pending',
+  customer_email text NOT NULL,
+  customer_name text,
+  description text,
+  checkout_url text,
+  metadata jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT transactions_pkey PRIMARY KEY (id)
+);
+
 -- ---------------------------------------------------------------------
 -- 6. MESSAGING & NOTIFICATIONS
 -- ---------------------------------------------------------------------

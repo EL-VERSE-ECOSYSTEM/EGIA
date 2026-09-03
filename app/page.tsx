@@ -43,9 +43,7 @@ export default async function LandingPage() {
                 <img src="/logo.svg" alt="EL LEARNERS App" className="w-7 h-7 object-contain" />
               </div>
             </div>
-            <span className="font-black text-xl tracking-tight text-white uppercase">
-              EL LEARNERS <span className="text-amber-500">APP</span>
-            </span>
+            <span className="font-black text-xl tracking-tight text-slate-900 uppercase">EL LEARNERS <span className="text-amber-600">ACADEMY</span></span>
           </div>
           <nav className="hidden md:flex items-center gap-8">
             <Link href="#about" className="text-sm font-bold text-slate-300 hover:text-amber-400 transition-colors">About</Link>
@@ -80,9 +78,9 @@ export default async function LandingPage() {
             <h1 className="text-6xl md:text-8xl lg:text-9xl font-black text-white mb-8 leading-[0.92] tracking-tighter">
               Inspiring <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500">Greatness</span> In Every Student
             </h1>
-            <p className="text-xl md:text-2xl text-slate-400 mb-14 leading-relaxed max-w-3xl mx-auto font-medium">
-              EL LEARNERS App is where traditional educational values meet 21st-century real-time digital innovation.
-              Connecting parents, teachers, students, and administrators seamlessly.
+            <p className="text-xl md:text-2xl text-slate-500 mb-14 leading-relaxed max-w-3xl mx-auto font-medium">
+              EL LEARNERS is where traditional values meet 21st-century innovation.
+              Join a community committed to nurturing the total child.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
               <Link href="/auth/signup">
@@ -143,11 +141,12 @@ export default async function LandingPage() {
                   <p className="font-black text-2xl italic leading-snug">"We nurture the total child for a brighter global future."</p>
                 </div>
               </div>
-              <div className="space-y-8">
-                <div className="inline-block px-6 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-[0.3em]">Our Vision</div>
-                <h2 className="text-5xl md:text-6xl font-black text-white leading-tight tracking-tighter">Committed to Academic & Technical Excellence</h2>
-                <p className="text-slate-400 text-xl leading-relaxed font-medium">
-                  At EL LEARNERS App, we don't just teach; we inspire. Our platform is engineered to streamline institutional administration, CBT assessments, and parent-teacher collaboration.
+              <div className="space-y-12">
+                <div className="inline-block px-8 py-2 rounded-full bg-amber-100 text-amber-700 text-xs font-black uppercase tracking-[0.3em]">Our Heritage</div>
+                <h2 className="text-6xl md:text-7xl font-black text-slate-900 leading-[0.95] tracking-tighter">Committed to Academic Rigor</h2>
+                <p className="text-slate-500 text-2xl leading-relaxed font-medium">
+                  At EL LEARNERS, we don't just teach; we inspire. Our curriculum is designed to challenge students
+                  intellectually while grounding them in moral discipline.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                   {[
@@ -213,6 +212,54 @@ export default async function LandingPage() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Testimonials */}
+        <section id="testimonials" className="py-40 bg-white">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col md:flex-row justify-between items-end gap-10 mb-32">
+               <div className="space-y-6">
+                  <div className="inline-block px-8 py-2 rounded-full bg-amber-100 text-amber-700 text-xs font-black uppercase tracking-[0.3em]">Testimonials</div>
+                  <h2 className="text-6xl md:text-7xl font-black text-slate-900 tracking-tighter">Voices of Success</h2>
+               </div>
+               <p className="text-slate-500 text-xl font-medium max-w-md">Our results speak for themselves. Hear from those who experienced EL LEARNERS firsthand.</p>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+               {[
+                 {
+                   name: "Mrs. Adebayo",
+                   role: "Parent of 3 Students",
+                   quote: "The transparency is refreshing. I get my children's CBT results before they even get home from school."
+                 },
+                 {
+                   name: "Olawale John",
+                   role: "Class of 2018",
+                   quote: "The academic rigor at EL LEARNERS prepared me for the competitive world of STEM. I am forever grateful."
+                 },
+                 {
+                   name: "Dr. Evans",
+                   role: "International Alumni",
+                   quote: "Truly a world-class academy. The digital library and expert tutors make it a center of excellence."
+                 }
+               ].map((t, i) => (
+                 <Card key={i} className="border-none bg-slate-50/50 rounded-[3rem] p-14 relative group hover:bg-white hover:shadow-2xl transition-all duration-500 border border-transparent hover:border-slate-100">
+                    <MessageSquare className="text-amber-500/10 absolute top-12 right-12 w-24 h-24" />
+                    <CardContent className="p-0 space-y-10 relative z-10">
+                       <p className="text-2xl text-slate-700 font-black italic leading-snug">"{t.quote}"</p>
+                       <div className="flex items-center gap-6">
+                          <div className="w-16 h-16 rounded-2xl bg-amber-600 flex items-center justify-center text-white font-black text-2xl shadow-xl shadow-amber-200">
+                            {t.name[0]}
+                          </div>
+                          <div>
+                             <p className="font-black text-xl text-slate-900">{t.name}</p>
+                             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">{t.role}</p>
+                          </div>
+                       </div>
+                    </CardContent>
+                 </Card>
+               ))}
             </div>
           </div>
         </section>
