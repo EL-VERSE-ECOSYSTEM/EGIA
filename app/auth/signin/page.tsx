@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GraduationCap, Loader2, AlertCircle, Building2 } from 'lucide-react'
-import { loginRole, loginStudent, checkStudentPasswordRequirement } from '@/app/actions/auth-server'
+import { loginRole, loginStudent } from '@/app/actions/auth-server'
 import { getSchoolByCodeAction } from '@/app/actions/school'
 
 export default function SignInPage() {
@@ -19,50 +19,50 @@ export default function SignInPage() {
   const [error, setError] = useState<string | null>(null)
 
   const roleThemes = {
-    SCHOOL_ADMIN: {
-      bg: 'from-emerald-950 to-slate-900',
-      accent: 'bg-emerald-600 text-white',
-      hoverAccent: 'hover:bg-emerald-700',
-      focusRing: 'focus:ring-emerald-600',
-      shadow: 'shadow-emerald-600/10',
-      line: 'bg-emerald-600',
-      text: 'text-emerald-400'
-    },
     SUPER_ADMIN: {
-      bg: 'from-blue-950 to-slate-900',
-      accent: 'bg-blue-600 text-white',
-      hoverAccent: 'hover:bg-blue-700',
-      focusRing: 'focus:ring-blue-600',
-      shadow: 'shadow-blue-600/10',
-      line: 'bg-blue-600',
+      bg: 'from-purple-950 to-slate-900',
+      accent: 'bg-[#7C3AED] text-white',
+      hoverAccent: 'hover:bg-purple-700',
+      focusRing: 'focus:ring-purple-600',
+      shadow: 'shadow-purple-600/20',
+      line: 'bg-[#7C3AED]',
+      text: 'text-purple-400'
+    },
+    SCHOOL_ADMIN: {
+      bg: 'from-slate-950 via-blue-950 to-slate-900',
+      accent: 'bg-[#1E3A8A] text-white',
+      hoverAccent: 'hover:bg-blue-800',
+      focusRing: 'focus:ring-blue-800',
+      shadow: 'shadow-blue-900/20',
+      line: 'bg-[#1E3A8A]',
       text: 'text-blue-400'
     },
-    PARENT: {
+    TEACHER: {
       bg: 'from-teal-950 to-slate-900',
-      accent: 'bg-teal-600 text-white',
+      accent: 'bg-[#0D9488] text-white',
       hoverAccent: 'hover:bg-teal-700',
       focusRing: 'focus:ring-teal-600',
-      shadow: 'shadow-teal-600/10',
-      line: 'bg-teal-600',
+      shadow: 'shadow-teal-600/20',
+      line: 'bg-[#0D9488]',
       text: 'text-teal-400'
     },
     STUDENT: {
       bg: 'from-orange-950 to-slate-900',
-      accent: 'bg-orange-600 text-white',
-      hoverAccent: 'hover:bg-orange-700',
-      focusRing: 'focus:ring-orange-600',
-      shadow: 'shadow-orange-600/10',
-      line: 'bg-orange-600',
+      accent: 'bg-[#F97316] text-white',
+      hoverAccent: 'hover:bg-orange-600',
+      focusRing: 'focus:ring-orange-500',
+      shadow: 'shadow-orange-500/20',
+      line: 'bg-[#F97316]',
       text: 'text-orange-400'
     },
-    TEACHER: {
-      bg: 'from-purple-950 to-slate-900',
-      accent: 'bg-purple-600 text-white',
-      hoverAccent: 'hover:bg-purple-700',
-      focusRing: 'focus:ring-purple-600',
-      shadow: 'shadow-purple-600/10',
-      line: 'bg-purple-600',
-      text: 'text-purple-400'
+    PARENT: {
+      bg: 'from-indigo-950 to-slate-900',
+      accent: 'bg-[#4F46E5] text-white',
+      hoverAccent: 'hover:bg-indigo-700',
+      focusRing: 'focus:ring-indigo-600',
+      shadow: 'shadow-indigo-600/20',
+      line: 'bg-[#4F46E5]',
+      text: 'text-indigo-400'
     }
   }
 
@@ -181,7 +181,7 @@ export default function SignInPage() {
         <CardHeader className="text-center pt-8">
           <CardTitle className="text-3xl font-black text-white tracking-tight">Welcome Back</CardTitle>
           <CardDescription className="text-slate-400 font-bold mt-2">
-            Sign in to access your secure portal on EL LEARNERS APP
+            Sign in to access your role-tailored dashboard on EL LEARNERS APP
           </CardDescription>
         </CardHeader>
         <CardContent className="px-8 pb-10">
@@ -200,23 +200,23 @@ export default function SignInPage() {
                 onChange={(e) => setSelectedRole(e.target.value as any)}
                 className={`w-full h-12 rounded-xl border border-slate-800 bg-slate-900 px-4 font-bold text-white focus:ring-2 ${currentTheme.focusRing} focus:outline-none transition-all duration-300`}
               >
-                <option value="SCHOOL_ADMIN">School Admin</option>
-                <option value="SUPER_ADMIN">Super Admin</option>
-                <option value="TEACHER">Teacher</option>
-                <option value="STUDENT">Student / Pupil</option>
-                <option value="PARENT">Parent</option>
+                <option value="SCHOOL_ADMIN">School Admin (Deep Navy)</option>
+                <option value="SUPER_ADMIN">Super Admin (Royal Purple)</option>
+                <option value="TEACHER">Teacher (Teal)</option>
+                <option value="STUDENT">Student / Pupil (Vibrant Orange)</option>
+                <option value="PARENT">Parent (Soft Indigo)</option>
               </select>
             </div>
 
             {selectedRole === 'SCHOOL_ADMIN' && (
               <div className="space-y-2">
-                <Label htmlFor="schoolCode" className="text-xs font-black uppercase text-emerald-400 tracking-wider ml-1 flex items-center gap-1">
+                <Label htmlFor="schoolCode" className="text-xs font-black uppercase text-blue-400 tracking-wider ml-1 flex items-center gap-1">
                   <Building2 className="w-3.5 h-3.5" /> School Registration Code *
                 </Label>
                 <Input
                   id="schoolCode"
                   type="text"
-                  placeholder="e.g. SCHO12345"
+                  placeholder="e.g. EXCE-12345"
                   value={schoolCode}
                   onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
                   required
@@ -232,7 +232,7 @@ export default function SignInPage() {
               <Input
                 id="email"
                 type="text"
-                placeholder={selectedRole === 'STUDENT' ? 'e.g. EGIA-S-123456' : selectedRole === 'TEACHER' ? 'e.g. EGIA-ST-00123' : 'admin@school.com'}
+                placeholder={selectedRole === 'STUDENT' ? 'e.g. EXCE-S-12345' : selectedRole === 'TEACHER' ? 'e.g. EXCE-ST-00123' : 'admin@school.com'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -265,7 +265,7 @@ export default function SignInPage() {
 
           <div className="mt-6 text-center text-xs font-bold text-slate-400 space-y-2">
             <div>
-              New School? <Link href="/school-registration" className="text-emerald-400 hover:underline font-black">Register School Now</Link>
+              New School? <Link href="/school-registration" className="text-blue-400 hover:underline font-black">Register School Now</Link>
             </div>
             <div>
               User Registration? <Link href="/auth/signup" className="text-teal-400 hover:underline font-black">Create User Account</Link>
@@ -275,7 +275,7 @@ export default function SignInPage() {
       </Card>
 
       <p className="mt-8 text-xs text-slate-500 font-bold uppercase tracking-[0.2em]">
-        EL LEARNERS APP • Institutional Education Portal
+        EL LEARNERS APP • Role Design Standardized
       </p>
     </div>
   )
