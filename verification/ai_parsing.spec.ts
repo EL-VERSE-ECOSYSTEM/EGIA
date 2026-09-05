@@ -1,11 +1,34 @@
 import { test, expect } from '@playwright/test';
 const fs = require('fs');
 
-test.use({ userAgent: 'Mozilla/5.0 Playwright HeadlessChrome' });
-
 test('verify AI PDF parsing simulation', async ({ page }) => {
+  page.on('dialog', dialog => dialog.dismiss());
+
+  await page.route('/api/teacher/assessments/convert-pdf', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        questions: [
+          { text: 'What is 2 + 2?', type: 'multiple_choice', options: ['2', '3', '4', '5'], correctAnswer: '4', confidence: 0.98 },
+          { text: 'Water boils at 100 degrees C.', type: 'true_false', options: ['True', 'False'], correctAnswer: 'True', confidence: 0.95 },
+          { text: 'Capital of France is Paris.', type: 'fill_in_the_gap', correctAnswer: 'Paris', confidence: 0.92 },
+          { text: 'Primary color among these is Blue.', type: 'multiple_choice', options: ['Green', 'Blue', 'Orange', 'Purple'], correctAnswer: 'Blue', confidence: 0.96 },
+          { text: 'The sun rises in the East.', type: 'true_false', options: ['True', 'False'], correctAnswer: 'True', confidence: 0.99 }
+        ]
+      })
+    });
+  });
+
+  await page.goto('http://localhost:3000/dashboard/teacher');
+  await page.waitForTimeout(1000);
   await page.goto('http://localhost:3000/dashboard/teacher/assessments/create/pdf');
   await page.waitForTimeout(2000);
+
+  console.log('Current URL:', page.url());
+  const bodyText = await page.textContent('body');
+  console.log('Body Text:', bodyText);
 
   // Take screenshot of empty state
   await page.screenshot({ path: 'verification/ai_pdf_empty.png', fullPage: true });
@@ -13,7 +36,8 @@ test('verify AI PDF parsing simulation', async ({ page }) => {
   // Create a dummy file
   fs.writeFileSync('dummy.pdf', 'fake pdf content');
 
-  // Find the file input by its ID and set it
+  // Wait for file input to be attached in DOM
+  await page.waitForSelector('input#pdf-upload', { state: 'attached', timeout: 10000 });
   const fileInput = await page.locator('input#pdf-upload');
   await fileInput.setInputFiles('dummy.pdf');
 

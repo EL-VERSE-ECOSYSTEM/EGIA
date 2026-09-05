@@ -29,7 +29,13 @@ async function getParentProfile() {
 }
 
 export async function checkWeeklyPaymentStatus() {
-  const { profile } = await getParentProfile()
+  const session = await auth.getSession()
+  if (!session?.user) return { enrolled: false, isPaid: false }
+  const profile = await db.query.parent.findFirst({
+    where: eq(parent.userId, session.user.id)
+  })
+  if (!profile) return { enrolled: false, isPaid: false }
+
   const enrollment = await db.query.adultEducationEnrollment.findFirst({
     where: eq(adultEducationEnrollment.parentId, profile.id)
   })

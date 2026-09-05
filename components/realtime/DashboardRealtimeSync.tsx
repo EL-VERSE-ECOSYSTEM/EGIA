@@ -31,5 +31,7 @@ export function DashboardRealtimeSync({ role }: { role: "admin" | "teacher" | "p
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => router.refresh(), 150);
   }, [router]);
-  return <>{tablesByRole[role].map((table) => <TableSync key={table} table={table} refresh={refresh} />)}</>;
+  const safeRole = (role || "admin").toLowerCase();
+  const tables = tablesByRole[safeRole] || tablesByRole.admin;
+  return <>{tables.map((table) => <TableSync key={table} table={table} refresh={refresh} />)}</>;
 }

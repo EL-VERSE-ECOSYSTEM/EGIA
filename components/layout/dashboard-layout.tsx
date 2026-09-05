@@ -21,6 +21,7 @@ export default function DashboardLayout({
   [key: string]: any
 }) {
   const activeRole = role || 'admin'
+  const [mounted, setMounted] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showInstallBtn, setShowInstallBtn] = useState(false)
   const [showIOSInstructions, setShowIOSInstructions] = useState(false)
@@ -30,6 +31,7 @@ export default function DashboardLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     // Check standalone state (already installed)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
                           (window.navigator as any).standalone === true
@@ -93,7 +95,7 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] relative">
-      <DashboardRealtimeSync role={activeRole} />
+      {mounted && <DashboardRealtimeSync role={activeRole} />}
       {/* Mobile Sidebar backdrop overlay */}
       {isSidebarOpen && (
         <div
@@ -120,7 +122,7 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-6">
-            <NotificationBell />
+            {mounted && <NotificationBell />}
             <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden sm:block"></div>
             <div className="flex items-center gap-3 pl-2">
               <div className="text-right hidden md:block">
@@ -135,7 +137,7 @@ export default function DashboardLayout({
         </header>
 
         <main className="flex-1 overflow-y-auto bg-slate-50/50 relative">
-          <PermissionRequest />
+          {mounted && <PermissionRequest />}
           {children}
 
           {/* Floating interactive PWA Download / Install App Prompt Widget */}

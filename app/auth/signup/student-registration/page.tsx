@@ -33,9 +33,10 @@ export default function StudentRegistrationPage() {
   const [schoolDetails, setSchoolDetails] = useState<{ id: string; name: string; allowParents: boolean } | null>(null)
   const [schoolError, setSchoolError] = useState<string | null>(null)
 
-  // Subjects Done tag list & database subjects
+  // Subjects Done tag list & database subjects with live search
   const [subjectsDone, setSubjectsDone] = useState<string[]>([])
   const [availableSubjects, setAvailableSubjects] = useState<{ id: string; name: string; category?: string }[]>([])
+  const [subjectSearchQuery, setSubjectSearchQuery] = useState('')
   const [manualSubject, setManualSubject] = useState('')
 
   // Passport photo state
@@ -470,55 +471,71 @@ export default function StudentRegistrationPage() {
               {/* Department & Real-Time Subjects Done Selection */}
               <div className="space-y-3 p-4 bg-slate-950 rounded-2xl border border-slate-800">
                 <Label className="text-xs font-black uppercase text-orange-400 tracking-wider flex items-center gap-1.5">
-                  <BookOpen className="w-4 h-4" /> Subjects Done (Pulled from Supabase Database)
+                  <BookOpen className="w-4 h-4" /> Live Search Department & Subjects (Supabase Database)
                 </Label>
-                <p className="text-[11px] text-slate-400">Click on available subjects or enter custom subjects:</p>
+                <p className="text-[11px] text-slate-400">Search and click subjects or add custom subjects below:</p>
 
-                {/* Available DB Subject Badges */}
-                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-slate-900 rounded-xl border border-slate-800">
-                  {availableSubjects.map(sub => {
-                    const isSelected = subjectsDone.some(s => s.toLowerCase() === sub.name.toLowerCase())
-                    return (
-                      <button
-                        type="button"
-                        key={sub.id}
-                        onClick={() => handleAddSubject(sub.name)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
-                          isSelected
-                            ? 'bg-orange-500 text-white'
-                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                        }`}
-                      >
-                        {sub.name}
-                        {isSelected ? <CheckCircle2 className="w-3 h-3" /> : <Plus className="w-3 h-3 text-slate-400" />}
-                      </button>
-                    )
-                  })}
+                {/* Live Search Box */}
+                <Input
+                  placeholder="🔍 Type to search subjects in real time..."
+                  value={subjectSearchQuery}
+                  onChange={e => setSubjectSearchQuery(e.target.value)}
+                  className="h-10 text-xs bg-slate-900 border-slate-800 text-white rounded-xl placeholder:text-slate-500"
+                />
+
+                {/* Filtered DB Subject Badges */}
+                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2 bg-slate-900 rounded-xl border border-slate-800">
+                  {availableSubjects
+                    .filter(sub => sub.name.toLowerCase().includes(subjectSearchQuery.toLowerCase()))
+                    .map(sub => {
+                      const isSelected = subjectsDone.some(s => s.toLowerCase() === sub.name.toLowerCase())
+                      return (
+                        <button
+                          type="button"
+                          key={sub.id}
+                          onClick={() => handleAddSubject(sub.name)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                          }`}
+                        >
+                          {sub.name}
+                          {isSelected ? <CheckCircle2 className="w-3 h-3" /> : <Plus className="w-3 h-3 text-slate-400" />}
+                        </button>
+                      )
+                    })}
+                  {availableSubjects.filter(sub => sub.name.toLowerCase().includes(subjectSearchQuery.toLowerCase())).length === 0 && (
+                    <p className="text-[11px] text-slate-500 p-2 italic">No matching subject found in database.</p>
+                  )}
                 </div>
 
                 {/* Manual Subject Addition */}
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Type custom subject name..."
+                    placeholder="Add custom subject if not listed above..."
                     value={manualSubject}
                     onChange={e => setManualSubject(e.target.value)}
                     className="h-10 text-xs bg-slate-900 border-slate-800 text-white rounded-xl"
                   />
-                  <Button type="button" onClick={addManualSubject} size="sm" className="bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl shrink-0">
-                    Add
+                  <Button type="button" onClick={addManualSubject} size="sm" className="bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-xl shrink-0">
+                    Add Subject
                   </Button>
                 </div>
 
                 {/* Selected Subjects Tags */}
-                <div className="flex flex-wrap gap-1.5 pt-2">
-                  {subjectsDone.map(sub => (
-                    <span key={sub} className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-xs font-bold flex items-center gap-1.5">
-                      {sub}
-                      <button type="button" onClick={() => handleRemoveSubject(sub)} className="hover:text-red-400">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </span>
-                  ))}
+                <div className="space-y-1 pt-2">
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Selected Subjects ({subjectsDone.length}):</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {subjectsDone.map(sub => (
+                      <span key={sub} className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-xs font-bold flex items-center gap-1.5">
+                        {sub}
+                        <button type="button" onClick={() => handleRemoveSubject(sub)} className="hover:text-red-400">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
 

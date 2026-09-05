@@ -60,6 +60,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         { label: 'Fees Structure', icon: CreditCard, href: '/dashboard/admin/finance/fees/structure' },
         { label: 'Teacher Utility & Payroll', icon: Wallet, href: '/dashboard/admin/finance/teacher-requests' },
         { label: 'Communication Hub', icon: MessageSquare, href: '/dashboard/admin/communication' },
+        { label: 'Notifications', icon: Bell, href: '/dashboard/admin/communication/notifications/history' },
         { label: 'Analytical Reports', icon: BarChart3, href: '/dashboard/admin/reports' },
         { label: 'Settings', icon: Settings, href: '/dashboard/admin/settings' },
       ]
@@ -80,6 +81,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         { label: 'Results & Compilation', icon: Award, href: '/dashboard/teacher/results' },
         { label: 'Analytics Panel', icon: BarChart3, href: '/dashboard/teacher/analytics/student-growth' },
         { label: 'Communication Desk', icon: MessageSquare, href: '/dashboard/teacher/communication/messages' },
+        { label: 'Notifications', icon: Bell, href: '/dashboard/teacher/communication/notifications' },
         { label: 'My Wallet', icon: Wallet, href: '/dashboard/teacher/wallet' },
         { label: 'Profile Settings', icon: User, href: '/dashboard/teacher/profile' },
       ]
@@ -96,6 +98,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         { label: 'Report Cards Desk', icon: FileText, href: '/dashboard/parent/results/report-card' },
         { label: 'School Calendar', icon: Calendar, href: '/dashboard/parent/calendar' },
         { label: 'Communication Hub', icon: MessageSquare, href: '/dashboard/parent/communication' },
+        { label: 'Notifications', icon: Bell, href: '/dashboard/parent/communication/notifications' },
         { label: 'Help & Support Desk', icon: HelpCircle, href: '/dashboard/parent/help/contact-support' },
         { label: 'Settings', icon: Settings, href: '/dashboard/parent/settings/profile' },
       ]
@@ -115,6 +118,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         { label: 'Leaderboard Rankings', icon: BarChart3, href: '/dashboard/student/leaderboard/class' },
         { label: 'Results Sheet', icon: Award, href: '/dashboard/student/results/current' },
         { label: 'Communication Hub', icon: MessageSquare, href: '/dashboard/student/communication/messages' },
+        { label: 'Notifications', icon: Bell, href: '/dashboard/student/communication/notifications' },
         { label: 'Educational Games', icon: Gamepad2, href: '/dashboard/student/games' },
         { label: 'Class Timetable', icon: Calendar, href: '/dashboard/student/timetable' },
         { label: 'Profile Settings', icon: User, href: '/dashboard/student/profile' },
