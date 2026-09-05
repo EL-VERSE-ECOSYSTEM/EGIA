@@ -124,14 +124,14 @@ export default function ParentSignUpPage() {
     }
 
     try {
-      const result = await registerParent(payload)
+      const result: any = await registerParent(payload)
 
-      if (result.error) {
+      if (result?.error) {
         setError(result.error)
         toast.error(result.error)
         setLoading(false)
       } else {
-        if (result.checkoutUrl) {
+        if (result?.checkoutUrl) {
           window.location.assign(result.checkoutUrl)
           return
         }

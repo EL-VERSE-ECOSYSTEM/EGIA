@@ -13,9 +13,16 @@ export function Footer() {
               Staff & Admin Portal
             </Link>
           </div>
-          <div className="text-xs text-slate-500 font-mono text-center md:text-right leading-relaxed">
-            built by <span className="text-amber-500 font-black">ELCODERS</span> by E.V.E <br />
-            # EL LEARNERS - Complete School Management System (UPDATED)
+          <div className="text-xs text-slate-400 font-medium text-center md:text-right leading-relaxed">
+            Made with 💕 from{' '}
+            <a
+              href="https://x.com/EVE_Connect1"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-amber-500 font-black hover:underline"
+            >
+              EL CODERS BY EL VERSE ECOSYSTEM
+            </a>
           </div>
         </div>
       </div>

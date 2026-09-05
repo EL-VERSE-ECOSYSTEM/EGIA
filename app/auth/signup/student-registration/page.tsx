@@ -7,11 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { GraduationCap, Loader2, AlertCircle, Laptop, CreditCard, CheckCircle2, User, Plus, X, Building2 } from 'lucide-react'
-import { registerStudent } from '@/app/actions/auth-server'
+import { GraduationCap, Loader2, AlertCircle, Laptop, CheckCircle2, User, Plus, X, Building2, BookOpen } from 'lucide-react'
+import { registerStudent, getRegistrationSubjects } from '@/app/actions/auth-server'
 import { initializeStudentRegistrationPayment, getStudentIdByAdmissionNumber } from '@/app/actions/payments'
+import { getSchoolByCodeAction } from '@/app/actions/school'
 import { Badge } from '@/components/ui/badge'
-import { getRegistrationSubjects } from '@/app/actions/auth-server'
 
 export default function StudentRegistrationPage() {
   const [formData, setFormData] = useState({
@@ -28,9 +28,14 @@ export default function StudentRegistrationPage() {
     dateOfResumption: ''
   })
 
-  // Subjects Done tag list
+  // School Verification state
+  const [verifyingSchool, setVerifyingSchool] = useState(false)
+  const [schoolDetails, setSchoolDetails] = useState<{ id: string; name: string; allowParents: boolean } | null>(null)
+  const [schoolError, setSchoolError] = useState<string | null>(null)
+
+  // Subjects Done tag list & database subjects
   const [subjectsDone, setSubjectsDone] = useState<string[]>([])
-  const [availableSubjects, setAvailableSubjects] = useState<{ id: string; name: string }[]>([])
+  const [availableSubjects, setAvailableSubjects] = useState<{ id: string; name: string; category?: string }[]>([])
   const [manualSubject, setManualSubject] = useState('')
 
   // Passport photo state
@@ -41,14 +46,17 @@ export default function StudentRegistrationPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [isValidDate, setIsValidDate] = useState(false)
   const [generatedAdmissionNumber, setGeneratedAdmissionNumber] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     const now = new Date()
     const deadline = new Date('2026-09-30T23:59:59')
     setIsValidDate(now <= deadline)
-    getRegistrationSubjects().then(setAvailableSubjects).catch(() => setAvailableSubjects([]))
+
+    // Pull subjects from Supabase DB in real-time / on load
+    getRegistrationSubjects()
+      .then(subjects => setAvailableSubjects(subjects || []))
+      .catch(() => setAvailableSubjects([]))
 
     const pendingAdmission = localStorage.getItem('pending_student_admission')
     if (pendingAdmission) {
@@ -58,8 +66,39 @@ export default function StudentRegistrationPage() {
     }
   }, [])
 
+  const handleSchoolCodeCheck = async (code: string) => {
+    const cleanCode = code.trim().toUpperCase()
+    if (cleanCode.length < 5) {
+      setSchoolDetails(null)
+      setSchoolError(null)
+      return
+    }
+
+    setVerifyingSchool(true)
+    setSchoolError(null)
+
+    try {
+      const res = await getSchoolByCodeAction(cleanCode)
+      if (res.success && res.school) {
+        setSchoolDetails({
+          id: res.school.id,
+          name: res.school.name,
+          allowParents: res.school.allowParents ?? true
+        })
+        setSchoolError(null)
+      } else {
+        setSchoolDetails(null)
+        setSchoolError('Invalid School Code. Please check with your school administrator.')
+      }
+    } catch (err) {
+      setSchoolError('Could not verify school code at this time.')
+    } finally {
+      setVerifyingSchool(false)
+    }
+  }
+
   const handleAddSubject = (name: string) => {
-    if (!name || subjectsDone.includes(name)) return
+    if (!name || subjectsDone.some(s => s.toLowerCase() === name.toLowerCase())) return
     setSubjectsDone([...subjectsDone, name])
   }
 
@@ -84,12 +123,19 @@ export default function StudentRegistrationPage() {
     }
   }
 
+  const isSeniorClass = formData.class === 'SSS1' || formData.class === 'SSS2' || formData.class === 'SSS3'
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
     if (!formData.schoolCode) {
       setError('School Registration Code is required.')
+      return
+    }
+
+    if (schoolError || !schoolDetails) {
+      setError('Please provide a valid School Registration Code before proceeding.')
       return
     }
 
@@ -103,7 +149,7 @@ export default function StudentRegistrationPage() {
     }
 
     if (subjectsDone.length === 0) {
-      return alert('Please type and add at least one subject done.')
+      return alert('Please select or add at least one subject done.')
     }
 
     setLoading(true)
@@ -112,7 +158,7 @@ export default function StudentRegistrationPage() {
       const payload = {
         ...formData,
         schoolCode: formData.schoolCode.trim().toUpperCase(),
-        department: (formData.class === 'SSS1' || formData.class === 'SSS2' || formData.class === 'SSS3') ? (formData.department || 'SCIENCE') : null,
+        department: isSeniorClass ? (formData.department || 'SCIENCE') : 'GENERAL',
         subjectsDone,
         profileImage: passportImage,
         facialVerificationVideo: null
@@ -120,19 +166,20 @@ export default function StudentRegistrationPage() {
 
       const result = await registerStudent(payload)
 
-      if (result.error) {
-        setError(result.error)
+      if (result.error || !result.admissionNumber) {
+        setError(result.error || 'Failed to generate admission number')
         setLoading(false)
         return
       }
 
-      setGeneratedAdmissionNumber(result.admissionNumber)
-      localStorage.setItem('pending_student_admission', result.admissionNumber)
+      const admissionNum = result.admissionNumber
+      setGeneratedAdmissionNumber(admissionNum)
+      localStorage.setItem('pending_student_admission', admissionNum)
 
-      const studentId = await getStudentIdByAdmissionNumber(result.admissionNumber)
+      const studentId = await getStudentIdByAdmissionNumber(admissionNum)
       if (!studentId) throw new Error('Registration record could not be loaded for payment.')
       const payment = await initializeStudentRegistrationPayment(studentId)
-      alert(`Your admission number is ${result.admissionNumber}. Continue to Korapay to pay the ₦2,000 registration fee.`)
+      alert(`Your admission number is ${admissionNum}. Continue to Korapay to pay the ₦2,000 registration fee.`)
       window.location.assign(payment.checkoutUrl)
     } catch (err: any) {
       console.warn('Unexpected registration redirect handling failed:', err)
@@ -147,7 +194,7 @@ export default function StudentRegistrationPage() {
         <div className="bg-orange-600 p-2 rounded-lg">
           <GraduationCap className="text-white w-6 h-6" />
         </div>
-        <span className="font-black text-xl tracking-tight text-white">EL LEARNERS App <span className="text-orange-500">ACADEMY</span></span>
+        <span className="font-black text-xl tracking-tight text-white">EL LEARNERS APP <span className="text-orange-500">ACADEMY</span></span>
       </div>
 
       {!isValidDate ? (
@@ -203,34 +250,52 @@ export default function StudentRegistrationPage() {
                 </div>
               )}
 
-              {/* School Registration Code */}
+              {/* Real-time School Code Verification Block */}
               <div className="space-y-2 bg-orange-500/10 border border-orange-500/30 p-4 rounded-2xl">
-                <Label htmlFor="schoolCode" className="text-xs font-black uppercase text-orange-400 tracking-wider flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4" /> School Registration Code *
-                </Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="schoolCode" className="text-xs font-black uppercase text-orange-400 tracking-wider flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4" /> School Registration Code *
+                  </Label>
+                  {verifyingSchool && (
+                    <span className="text-[10px] text-orange-400 flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Verifying...
+                    </span>
+                  )}
+                </div>
                 <Input
                   id="schoolCode"
-                  placeholder="e.g. SCHO-12345"
+                  placeholder="e.g. EXCE-12345"
                   value={formData.schoolCode}
-                  onChange={async e => {
+                  onChange={e => {
                     const code = e.target.value.toUpperCase()
                     setFormData({ ...formData, schoolCode: code })
-                    if (code.length >= 6) {
-                      const { getSchoolByCodeAction } = await import('@/app/actions/school')
-                      const res = await getSchoolByCodeAction(code)
-                      if (res.success && res.school) {
-                        setError(null)
-                      } else {
-                        setError('Invalid School Registration Code. Please verify with your school.')
-                      }
-                    }
+                    handleSchoolCodeCheck(code)
                   }}
                   required
                   className="h-11 rounded-xl border-slate-800 bg-slate-950 text-white font-mono uppercase focus:ring-2 focus:ring-orange-500"
                 />
+
+                {schoolDetails && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between text-xs font-bold text-emerald-400">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>Verified: <strong>{schoolDetails.name}</strong></span>
+                    </div>
+                    <Badge className={schoolDetails.allowParents ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}>
+                      {schoolDetails.allowParents ? 'Parents Allowed' : 'Parents Disabled'}
+                    </Badge>
+                  </div>
+                )}
+
+                {schoolError && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs font-bold text-red-400 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{schoolError}</span>
+                  </div>
+                )}
               </div>
 
-              {/* Passport picture Upload Block */}
+              {/* Passport Picture Upload */}
               <div className="flex flex-col items-center justify-center p-6 bg-slate-950 rounded-3xl border border-slate-800 space-y-4">
                 <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Passport Photograph</Label>
                 {passportImage ? (
@@ -269,7 +334,7 @@ export default function StudentRegistrationPage() {
               </div>
 
               <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl text-[10px] font-bold text-orange-300">
-                 ⚠️ CRITICAL: Enter student's first, middle, and last names exactly as printed on their Birth Certificate.
+                ⚠️ CRITICAL: Enter student's first, middle, and last names exactly as printed on their Birth Certificate.
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -279,7 +344,7 @@ export default function StudentRegistrationPage() {
                     id="firstName"
                     placeholder="John"
                     value={formData.firstName}
-                    onChange={e => setFormData({...formData, firstName: e.target.value})}
+                    onChange={e => setFormData({ ...formData, firstName: e.target.value })}
                     required
                     className="h-11 rounded-xl border-slate-800 bg-slate-950 text-white text-xs font-bold"
                   />
@@ -290,7 +355,7 @@ export default function StudentRegistrationPage() {
                     id="middleName"
                     placeholder="Chidi"
                     value={formData.middleName}
-                    onChange={e => setFormData({...formData, middleName: e.target.value})}
+                    onChange={e => setFormData({ ...formData, middleName: e.target.value })}
                     className="h-11 rounded-xl border-slate-800 bg-slate-950 text-white text-xs font-bold"
                   />
                 </div>
@@ -300,7 +365,7 @@ export default function StudentRegistrationPage() {
                     id="lastName"
                     placeholder="Doe"
                     value={formData.lastName}
-                    onChange={e => setFormData({...formData, lastName: e.target.value})}
+                    onChange={e => setFormData({ ...formData, lastName: e.target.value })}
                     required
                     className="h-11 rounded-xl border-slate-800 bg-slate-950 text-white text-xs font-bold"
                   />
@@ -314,7 +379,7 @@ export default function StudentRegistrationPage() {
                     id="dateOfBirth"
                     type="date"
                     value={formData.dateOfBirth}
-                    onChange={e => setFormData({...formData, dateOfBirth: e.target.value})}
+                    onChange={e => setFormData({ ...formData, dateOfBirth: e.target.value })}
                     required
                     className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white"
                   />
@@ -325,20 +390,21 @@ export default function StudentRegistrationPage() {
                     id="dateOfResumption"
                     type="date"
                     value={formData.dateOfResumption}
-                    onChange={e => setFormData({...formData, dateOfResumption: e.target.value})}
+                    onChange={e => setFormData({ ...formData, dateOfResumption: e.target.value })}
                     required
                     className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white"
                   />
                 </div>
               </div>
 
+              {/* Class & Department Selection */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="class" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Admission Class</Label>
                   <select
                     id="class"
                     value={formData.class}
-                    onChange={e => setFormData({...formData, class: e.target.value})}
+                    onChange={e => setFormData({ ...formData, class: e.target.value })}
                     className="w-full h-12 rounded-xl border border-slate-800 bg-slate-950 px-4 font-bold text-white focus:outline-none"
                   >
                     <option value="Primary 3">Primary 3</option>
@@ -354,6 +420,39 @@ export default function StudentRegistrationPage() {
                   </select>
                 </div>
 
+                {isSeniorClass && (
+                  <div className="space-y-2">
+                    <Label htmlFor="department" className="text-[10px] font-black uppercase text-orange-400 tracking-widest ml-1">Department *</Label>
+                    <select
+                      id="department"
+                      value={formData.department}
+                      onChange={e => setFormData({ ...formData, department: e.target.value })}
+                      className="w-full h-12 rounded-xl border border-orange-500/40 bg-slate-950 px-4 font-bold text-white focus:outline-none"
+                    >
+                      <option value="SCIENCE">SCIENCE</option>
+                      <option value="ARTS">ARTS</option>
+                      <option value="COMMERCIAL">COMMERCIAL</option>
+                    </select>
+                  </div>
+                )}
+
+                {!isSeniorClass && (
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="john.doe@example.com"
+                      value={formData.email}
+                      onChange={e => setFormData({ ...formData, email: e.target.value })}
+                      required
+                      className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {isSeniorClass && (
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Email Address</Label>
                   <Input
@@ -361,10 +460,65 @@ export default function StudentRegistrationPage() {
                     type="email"
                     placeholder="john.doe@example.com"
                     value={formData.email}
-                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
                     required
                     className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white"
                   />
+                </div>
+              )}
+
+              {/* Department & Real-Time Subjects Done Selection */}
+              <div className="space-y-3 p-4 bg-slate-950 rounded-2xl border border-slate-800">
+                <Label className="text-xs font-black uppercase text-orange-400 tracking-wider flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4" /> Subjects Done (Pulled from Supabase Database)
+                </Label>
+                <p className="text-[11px] text-slate-400">Click on available subjects or enter custom subjects:</p>
+
+                {/* Available DB Subject Badges */}
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-slate-900 rounded-xl border border-slate-800">
+                  {availableSubjects.map(sub => {
+                    const isSelected = subjectsDone.some(s => s.toLowerCase() === sub.name.toLowerCase())
+                    return (
+                      <button
+                        type="button"
+                        key={sub.id}
+                        onClick={() => handleAddSubject(sub.name)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        }`}
+                      >
+                        {sub.name}
+                        {isSelected ? <CheckCircle2 className="w-3 h-3" /> : <Plus className="w-3 h-3 text-slate-400" />}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Manual Subject Addition */}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Type custom subject name..."
+                    value={manualSubject}
+                    onChange={e => setManualSubject(e.target.value)}
+                    className="h-10 text-xs bg-slate-900 border-slate-800 text-white rounded-xl"
+                  />
+                  <Button type="button" onClick={addManualSubject} size="sm" className="bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl shrink-0">
+                    Add
+                  </Button>
+                </div>
+
+                {/* Selected Subjects Tags */}
+                <div className="flex flex-wrap gap-1.5 pt-2">
+                  {subjectsDone.map(sub => (
+                    <span key={sub} className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-xs font-bold flex items-center gap-1.5">
+                      {sub}
+                      <button type="button" onClick={() => handleRemoveSubject(sub)} className="hover:text-red-400">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  ))}
                 </div>
               </div>
 
@@ -374,7 +528,7 @@ export default function StudentRegistrationPage() {
                   id="password"
                   type="password"
                   value={formData.password}
-                  onChange={e => setFormData({...formData, password: e.target.value})}
+                  onChange={e => setFormData({ ...formData, password: e.target.value })}
                   required
                   className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white"
                 />
@@ -385,7 +539,7 @@ export default function StudentRegistrationPage() {
                   id="confirmPassword"
                   type="password"
                   value={formData.confirmPassword}
-                  onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
+                  onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
                   required
                   className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white"
                 />

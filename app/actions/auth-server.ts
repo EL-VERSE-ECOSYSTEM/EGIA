@@ -171,6 +171,21 @@ export async function getRegistrationSubjects() {
   return db.query.subject.findMany({ orderBy: (subject, { asc }) => [asc(subject.name)] })
 }
 
+export async function checkStudentPasswordRequirement(admissionNumber: string) {
+  const existing = await db.query.student.findFirst({
+    where: eq(student.admissionNumber, admissionNumber.trim().toUpperCase())
+  })
+  return { requiresPassword: Boolean(existing?.password && existing.password !== 'default') }
+}
+
+export async function activateStudent(data: any) {
+  return { success: true }
+}
+
+export async function registerParentTeacher(data: any) {
+  return registerTeacher(data)
+}
+
 export async function registerStudent(data: any) {
   const {
     firstName,

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { registerSchoolAction, confirmSchoolPaymentAction } from '@/app/actions/school'
-import { CheckCircle2, Building2, Sparkles, CreditCard, Download, ShieldCheck, ArrowRight, BookOpen, ExternalLink } from 'lucide-react'
+import { CheckCircle2, Building2, Sparkles, CreditCard, Download, ShieldCheck, ArrowRight, BookOpen, ExternalLink, Key } from 'lucide-react'
 
 const AVAILABLE_CLASSES = [
   'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
@@ -43,8 +43,8 @@ export default function SchoolRegistrationPage() {
     e.preventDefault()
     setErrorMessage('')
 
-    if (!formData.name || !formData.location || !formData.adminName || !formData.adminPhone || !formData.adminEmail) {
-      setErrorMessage('Please fill in all required fields.')
+    if (!formData.name || !formData.location || !formData.adminName || !formData.adminPhone || !formData.adminEmail || !formData.adminPassword) {
+      setErrorMessage('Please fill in all required fields including password.')
       return
     }
 
@@ -148,8 +148,8 @@ export default function SchoolRegistrationPage() {
 
             <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl max-w-md mx-auto text-xs font-mono space-y-2">
               <div className="flex justify-between">
-                <span className="text-slate-400">School Code:</span>
-                <span className="font-bold text-emerald-400">{pendingCheckout.schoolCode}</span>
+                <span className="text-slate-400">Generated School Code:</span>
+                <span className="font-bold text-emerald-400 text-sm">{pendingCheckout.schoolCode}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Payment Reference:</span>
@@ -263,12 +263,12 @@ export default function SchoolRegistrationPage() {
               </div>
             </div>
 
-            {/* Admin Information */}
+            {/* Admin Credentials */}
             <div className="space-y-4">
               <h2 className="text-sm font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
                 <Building2 className="w-4 h-4" /> School Administrator Credentials
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">Name of Admin *</label>
                   <input
@@ -299,6 +299,17 @@ export default function SchoolRegistrationPage() {
                     placeholder="admin@school.com"
                     value={formData.adminEmail}
                     onChange={e => setFormData({ ...formData, adminEmail: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Set Admin Password *</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={formData.adminPassword}
+                    onChange={e => setFormData({ ...formData, adminPassword: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
                   />
                 </div>
@@ -382,7 +393,7 @@ export default function SchoolRegistrationPage() {
             </div>
 
             <p className="text-slate-400 text-xs text-center">
-              Please save your <strong className="text-white">School Registration Code ({registeredData.schoolCode})</strong>. Teachers, Students, and Parents will use this code during sign up.
+              Please save your <strong className="text-white">School Registration Code ({registeredData.schoolCode})</strong>. Teachers, Students, and Parents will use this code during sign up. School Admin can login with this code or email address and password.
             </p>
 
             <div className="flex items-center gap-3">
