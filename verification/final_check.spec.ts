@@ -15,7 +15,7 @@ test.describe('EL GOODNEWS - Final Integrated Verification', () => {
   test('Institutional Landing Visibility', async ({ page }) => {
     await page.goto(BASE_URL);
     // Use getByRole for the footer logo or similar unique element
-    await expect(page.getByText('built by ELCODERS by E.V.E').first()).toBeVisible();
+    await expect(page.getByText('EL CODERS BY EL VERSE ECOSYSTEM').first()).toBeVisible();
   });
 
   test('Public Admissions Page', async ({ page }) => {

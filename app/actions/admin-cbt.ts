@@ -1,8 +1,8 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { assessment } from '@/lib/db/schema'
-import { eq, and, desc } from 'drizzle-orm'
+import { assessment, user } from '@/lib/db/schema'
+import { eq, or, desc, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 
@@ -22,14 +22,23 @@ export async function getPendingAssessments() {
     return []
   }
 
-  return await db.query.assessment.findMany({
-    where: eq(assessment.status, 'pending_approval'),
+  const currentUser = await db.query.user.findFirst({
+    where: eq(user.id, session.user.id)
+  })
+
+  const allAssessments = await db.query.assessment.findMany({
+    orderBy: [desc(assessment.createdAt)],
     with: {
       questions: true,
       subject: true,
       teacher: true
     }
   })
+
+  return allAssessments.filter(a =>
+    (a.status === 'pending_approval' || a.status === 'draft') &&
+    (!currentUser?.schoolId || !a.schoolId || a.schoolId === currentUser.schoolId)
+  )
 }
 
 export async function getAllAdminAssessments() {
@@ -38,7 +47,11 @@ export async function getAllAdminAssessments() {
     return []
   }
 
-  return await db.query.assessment.findMany({
+  const currentUser = await db.query.user.findFirst({
+    where: eq(user.id, session.user.id)
+  })
+
+  const allAssessments = await db.query.assessment.findMany({
     orderBy: [desc(assessment.updatedAt)],
     with: {
       questions: true,
@@ -46,6 +59,10 @@ export async function getAllAdminAssessments() {
       teacher: true
     }
   })
+
+  return allAssessments.filter(a =>
+    !currentUser?.schoolId || !a.schoolId || a.schoolId === currentUser.schoolId
+  )
 }
 
 export async function handleCBTDecision(assessmentId: string, action: 'approve' | 'reject', comment: string) {
@@ -65,9 +82,9 @@ export async function handleCBTDecision(assessmentId: string, action: 'approve' 
   const finalStatus = action === 'approve' ? 'approved' : 'rejected'
   let accessCode = record.accessCode
 
-  // Generate code only if type is EXAM_CBT and we are approving it
-  if (action === 'approve' && record.type === 'EXAM_CBT') {
-    accessCode = generateAccessCode()
+  // Generate unique access code if approving and code isn't assigned yet
+  if (action === 'approve') {
+    accessCode = accessCode || generateAccessCode()
   }
 
   await db.update(assessment)

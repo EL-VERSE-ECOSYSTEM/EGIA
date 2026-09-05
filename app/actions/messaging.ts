@@ -104,6 +104,29 @@ export async function createConversation(recipientId: string, type: 'INDIVIDUAL'
   return newConversation[0]
 }
 
+export async function createGroupConversation(participantIds: string[], groupName: string) {
+  const userId = await getUserId()
+  const currentUser = await getUserWithSchool(userId)
+
+  const convId = crypto.randomUUID()
+  const newConversation = await db.insert(conversation).values({
+    id: convId,
+    schoolId: currentUser.schoolId || null,
+    type: 'GROUP',
+    name: groupName,
+  }).returning()
+
+  const allParticipantIds = Array.from(new Set([userId, ...participantIds]))
+  const participantInserts = allParticipantIds.map(pId => ({
+    id: crypto.randomUUID(),
+    conversationId: convId,
+    userId: pId
+  }))
+
+  await db.insert(conversationParticipant).values(participantInserts)
+  return newConversation[0]
+}
+
 export async function sendMessage(conversationId: string, content: string, attachments?: any) {
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
@@ -213,6 +236,35 @@ export async function getAllUsersForMessaging() {
     }))
 }
 
+export async function getAllSystemUsers() {
+  return getAllUsersForMessaging()
+}
+
+export async function getUsersByRole(roleName: string) {
+  const all = await getAllUsersForMessaging()
+  return all.filter(u => u.role.toUpperCase() === roleName.toUpperCase())
+}
+
+export async function adminDeleteMessage(messageId: string) {
+  const userId = await getUserId()
+  const currentUser = await getUserWithSchool(userId)
+  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
+    throw new Error('Permission denied')
+  }
+  await db.delete(message).where(eq(message.id, messageId))
+  return { success: true }
+}
+
+export async function adminDeleteConversation(conversationId: string) {
+  const userId = await getUserId()
+  const currentUser = await getUserWithSchool(userId)
+  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
+    throw new Error('Permission denied')
+  }
+  await db.delete(conversation).where(eq(conversation.id, conversationId))
+  return { success: true }
+}
+
 export async function adminSendNotification(targetUserId: string, title: string, bodyText: string, type: string = 'info') {
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
@@ -233,6 +285,33 @@ export async function adminSendNotification(targetUserId: string, title: string,
   } as any).returning()
 }
 
+export async function adminBroadcastNotification(title: string, bodyText: string, targetRole?: string) {
+  const userId = await getUserId()
+  const currentUser = await getUserWithSchool(userId)
+
+  let users = await getAllUsersForMessaging()
+  if (targetRole) {
+    users = users.filter(u => u.role.toUpperCase() === targetRole.toUpperCase())
+  }
+
+  const inserts = users.map(u => ({
+    id: crypto.randomUUID(),
+    userId: u.id,
+    schoolId: currentUser.schoolId || null,
+    title,
+    message: bodyText,
+    type: 'BROADCAST',
+    isRead: false,
+    createdAt: new Date()
+  }))
+
+  if (inserts.length > 0) {
+    await db.insert(notificationTable).values(inserts as any)
+  }
+
+  return { success: true, count: inserts.length }
+}
+
 export async function broadcastMessage(content: string, recipientRole: string) {
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
@@ -251,6 +330,7 @@ export async function broadcastMessage(content: string, recipientRole: string) {
 
   const targetUsers = targetRoles
     .map(r => r.user)
+    .filter((u): u is NonNullable<typeof u> => Boolean(u))
     .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || !u.schoolId || !currentUser.schoolId || u.schoolId === currentUser.schoolId)
 
   if (targetUsers.length === 0) return

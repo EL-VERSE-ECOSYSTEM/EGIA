@@ -228,7 +228,7 @@ export async function getParentsWithPendingFees() {
       )
     })
 
-    const totalPending = pendingPayments.reduce((sum, pay) => sum + parseFloat(p.amount || '0'), 0)
+    const totalPending = pendingPayments.reduce((sum, pay) => sum + parseFloat(pay.amount || '0'), 0)
 
     result.push({
       ...p,

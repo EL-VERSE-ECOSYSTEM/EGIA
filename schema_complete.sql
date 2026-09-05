@@ -1,319 +1,509 @@
--- =====================================================================
--- EL LEARNERS APP - UNIFIED MULTI-TENANT PostgreSQL DATABASE SCHEMA
--- Handles multi-tenant school accounts, custom bank settings, automated credentials,
--- library resources, CBT proctored exams, adult education, messaging, and real-time sync.
--- =====================================================================
+-- EL GOODNEWS ACADEMY: Canonical Complete Supabase SQL Schema
+-- Full setup including multi-tenant school tenancy, adult education, realtime publications, and triggers.
 
--- Enable Extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+drop table if exists public.adult_education_payments cascade;
+drop table if exists public.adult_education_classes cascade;
+drop table if exists public.adult_education_enrollments cascade;
+drop table if exists public.report_card cascade;
+drop table if exists public.teacher_request cascade;
+drop table if exists public.teacher_wallet cascade;
+drop table if exists public.book_favorites cascade;
+drop table if exists public.book_import_logs cascade;
+drop table if exists public.search_logs cascade;
+drop table if exists public.book_reviews cascade;
+drop table if exists public.reading_history cascade;
+drop table if exists public.book_requests cascade;
+drop table if exists public.book_borrowings cascade;
+drop table if exists public.book_tag_relations cascade;
+drop table if exists public.book_tags cascade;
+drop table if exists public.book_categories cascade;
+drop table if exists public.books cascade;
+drop table if exists public.attendance_records cascade;
+drop table if exists public.support_ticket_replies cascade;
+drop table if exists public.support_tickets cascade;
+drop table if exists public.dispute_messages cascade;
+drop table if exists public.disputes cascade;
+drop table if exists public.announcements cascade;
+drop table if exists public.notification cascade;
+drop table if exists public.notifications cascade;
+drop table if exists public.message cascade;
+drop table if exists public.messages cascade;
+drop table if exists public.conversation_participant cascade;
+drop table if exists public.conversation_participants cascade;
+drop table if exists public.conversation cascade;
+drop table if exists public.conversations cascade;
+drop table if exists public.payment_webhook_logs cascade;
+drop table if exists public.payment_installment cascade;
+drop table if exists public.payment_installments cascade;
+drop table if exists public.payment cascade;
+drop table if exists public.payments cascade;
+drop table if exists public.fee_structure cascade;
+drop table if exists public.fee_structures cascade;
+drop table if exists public.cbt_attempts cascade;
+drop table if exists public.cbt_sessions cascade;
+drop table if exists public.results cascade;
+drop table if exists public.fitb_answers cascade;
+drop table if exists public.questions cascade;
+drop table if exists public.student_answer cascade;
+drop table if exists public.assessment_result cascade;
+drop table if exists public.assessment_question cascade;
+drop table if exists public.assessment cascade;
+drop table if exists public.assessments cascade;
+drop table if exists public.timetables cascade;
+drop table if exists public.class_subjects cascade;
+drop table if exists public.teacher_on_subject cascade;
+drop table if exists public.subject cascade;
+drop table if exists public.subjects cascade;
+drop table if exists public.student_class_assignments cascade;
+drop table if exists public.class_arms cascade;
+drop table if exists public.class cascade;
+drop table if exists public.classes cascade;
+drop table if exists public.term cascade;
+drop table if exists public.terms cascade;
+drop table if exists public.academic_session cascade;
+drop table if exists public.academic_sessions cascade;
+drop table if exists public.admins cascade;
+drop table if exists public.parent_students cascade;
+drop table if exists public.parent cascade;
+drop table if exists public.parents cascade;
+drop table if exists public.teacher cascade;
+drop table if exists public.teachers cascade;
+drop table if exists public.student cascade;
+drop table if exists public.students cascade;
+drop table if exists public.user_role cascade;
+drop table if exists public."user" cascade;
+drop table if exists public.users cascade;
+drop table if exists public.school cascade;
+drop table if exists public.promotion_history cascade;
+drop table if exists public.permissions cascade;
+drop table if exists public.role_permissions cascade;
+drop table if exists public.user_permissions cascade;
+drop table if exists public.abac_policy cascade;
+drop table if exists public.abac_policies cascade;
+drop table if exists public.audit_log cascade;
+drop table if exists public.audit_logs cascade;
+drop table if exists public.login_history cascade;
+drop table if exists public.system_settings cascade;
+drop table if exists public.learning_materials cascade;
+drop table if exists public.disciplinary_records cascade;
 
--- Drop existing tables to ensure clean initialization
-DROP TABLE IF EXISTS public.adult_education_enrollments CASCADE;
-DROP TABLE IF EXISTS public.adult_education_payments CASCADE;
-DROP TABLE IF EXISTS public.adult_education_classes CASCADE;
-DROP TABLE IF EXISTS public.library_books CASCADE;
-DROP TABLE IF EXISTS public.payment CASCADE;
-DROP TABLE IF EXISTS public.fee_structure CASCADE;
-DROP TABLE IF EXISTS public.assessment_result CASCADE;
-DROP TABLE IF EXISTS public.assessment_question CASCADE;
-DROP TABLE IF EXISTS public.assessment CASCADE;
-DROP TABLE IF EXISTS public.message CASCADE;
-DROP TABLE IF EXISTS public.conversation_participant CASCADE;
-DROP TABLE IF EXISTS public.conversation CASCADE;
-DROP TABLE IF EXISTS public.notification CASCADE;
-DROP TABLE IF EXISTS public.student CASCADE;
-DROP TABLE IF EXISTS public.teacher CASCADE;
-DROP TABLE IF EXISTS public.parent CASCADE;
-DROP TABLE IF EXISTS public.user_role CASCADE;
-DROP TABLE IF EXISTS public."user" CASCADE;
-DROP TABLE IF EXISTS public.school CASCADE;
+drop schema if exists public cascade;
+create schema public;
+grant usage on schema public to postgres, anon, authenticated, service_role;
 
--- ---------------------------------------------------------------------
--- 1. SCHOOL TENANCY TABLE
--- ---------------------------------------------------------------------
-CREATE TABLE public.school (
-  id text NOT NULL,
-  name text NOT NULL,
-  code text NOT NULL UNIQUE, -- First 4 letters of school name + 5 random digits (e.g., EGIA-19001)
-  location text NOT NULL,
-  registeredClasses jsonb NOT NULL,
-  allowParents boolean NOT NULL DEFAULT true,
-  adminName text NOT NULL,
-  adminPhone text NOT NULL,
-  adminEmail text NOT NULL,
-  bankName text,
-  accountNumber text,
-  accountName text,
-  customPaymentLink text,
-  paymentStatus text NOT NULL DEFAULT 'PAID',
-  paymentReference text UNIQUE,
-  createdAt timestamp with time zone NOT NULL DEFAULT now(),
-  updatedAt timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT school_pkey PRIMARY KEY (id)
+create extension if not exists pgcrypto;
+create extension if not exists "uuid-ossp";
+create extension if not exists citext;
+create extension if not exists pg_trgm;
+create extension if not exists unaccent;
+
+-- SCHOOL TENANCY -------------------------------------------------------------
+create table public."school" (
+  "id" text primary key,
+  "name" text not null,
+  "code" text not null unique,
+  "location" text not null,
+  "registeredclasses" jsonb not null,
+  "allowparents" boolean not null default true,
+  "adminname" text not null,
+  "adminphone" text not null,
+  "adminemail" text not null,
+  "bankname" text,
+  "accountnumber" text,
+  "accountname" text,
+  "custompaymentlink" text,
+  "paymentstatus" text not null default 'PENDING',
+  "paymentreference" text unique,
+  "createdat" timestamptz not null default now(),
+  "updatedat" timestamptz not null default now()
 );
 
--- ---------------------------------------------------------------------
--- 2. CORE USER & SECURITY TABLES
--- ---------------------------------------------------------------------
-CREATE TABLE public."user" (
-  id text NOT NULL,
-  email text NOT NULL UNIQUE,
-  name text,
-  image text,
-  schoolId text,
-  createdAt timestamp with time zone NOT NULL DEFAULT now(),
-  updatedAt timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT user_pkey PRIMARY KEY (id),
-  CONSTRAINT user_schoolId_fkey FOREIGN KEY (schoolId) REFERENCES public.school(id) ON DELETE CASCADE
+-- CORE ACCOUNTS AND PROFILES -------------------------------------------------
+create table public."user" (
+  "id" text primary key,
+  "email" text not null unique,
+  "name" text,
+  "image" text,
+  "schoolid" text references public."school"("id") on delete cascade,
+  "createdat" timestamptz not null default now(),
+  "updatedat" timestamptz not null default now()
 );
 
-CREATE TABLE public.user_role (
-  id text NOT NULL,
-  userId text NOT NULL UNIQUE,
-  role text NOT NULL, -- SUPER_ADMIN, SCHOOL_ADMIN, TEACHER, PARENT, STUDENT
-  createdAt timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT user_role_pkey PRIMARY KEY (id),
-  CONSTRAINT user_role_userId_fkey FOREIGN KEY (userId) REFERENCES public."user"(id) ON DELETE CASCADE
+create table public."user_role" (
+  "id" text primary key,
+  "userid" text not null unique references public."user"("id") on delete cascade,
+  "role" text not null,
+  "createdat" timestamptz not null default now()
 );
 
--- ---------------------------------------------------------------------
--- 3. PROFILES: PARENT, STUDENT, TEACHER
--- ---------------------------------------------------------------------
-CREATE TABLE public.parent (
-  id text NOT NULL,
-  userId text NOT NULL UNIQUE,
-  schoolId text,
-  firstName text NOT NULL,
-  lastName text NOT NULL,
-  phoneNumber text,
-  address text,
-  profileImage text,
-  facialVerificationVideo text,
-  occupation text,
-  createdAt timestamp with time zone NOT NULL DEFAULT now(),
-  updatedAt timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT parent_pkey PRIMARY KEY (id),
-  CONSTRAINT parent_userId_fkey FOREIGN KEY (userId) REFERENCES public."user"(id) ON DELETE CASCADE,
-  CONSTRAINT parent_schoolId_fkey FOREIGN KEY (schoolId) REFERENCES public.school(id) ON DELETE SET NULL
+create table public."parent" (
+  "id" text primary key,
+  "userid" text not null unique references public."user"("id") on delete cascade,
+  "schoolid" text references public."school"("id") on delete set null,
+  "firstname" text not null,
+  "lastname" text not null,
+  "phonenumber" text,
+  "address" text,
+  "profileimage" text,
+  "facialverificationvideo" text,
+  "occupation" text,
+  "createdat" timestamptz not null default now(),
+  "updatedat" timestamptz not null default now()
 );
 
-CREATE TABLE public.student (
-  id text NOT NULL,
-  userId text UNIQUE,
-  schoolId text,
-  firstName text NOT NULL,
-  middleName text,
-  lastName text NOT NULL,
-  dateOfBirth date,
-  dateOfResumption date,
-  gender text,
-  class text NOT NULL,
-  arm text,
-  department text,
-  admissionNumber text UNIQUE, -- e.g. EGIA-S-123456 or EGIA-P-123456
-  parentId text,
-  termId text,
-  sessionId text,
-  profileImage text,
-  facialVerificationVideo text,
-  subjectsDone jsonb,
-  isActive boolean DEFAULT true,
-  registrationStatus text NOT NULL DEFAULT 'WAIVED',
-  password text DEFAULT 'default',
-  createdAt timestamp with time zone NOT NULL DEFAULT now(),
-  updatedAt timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT student_pkey PRIMARY KEY (id),
-  CONSTRAINT student_userId_fkey FOREIGN KEY (userId) REFERENCES public."user"(id) ON DELETE CASCADE,
-  CONSTRAINT student_parentId_fkey FOREIGN KEY (parentId) REFERENCES public.parent(id) ON DELETE SET NULL,
-  CONSTRAINT student_schoolId_fkey FOREIGN KEY (schoolId) REFERENCES public.school(id) ON DELETE SET NULL
+create table public."teacher" (
+  "id" text primary key,
+  "userid" text not null unique references public."user"("id") on delete cascade,
+  "schoolid" text references public."school"("id") on delete set null,
+  "staffcode" text unique,
+  "firstname" text not null,
+  "lastname" text not null,
+  "type" text default 'FULL_TIME',
+  "isclassteacher" boolean default false,
+  "isparttime" boolean default false,
+  "assignedclassid" text,
+  "dayspresent" jsonb,
+  "handlingclasses" jsonb,
+  "teachingsubjects" jsonb,
+  "presentdays" jsonb,
+  "resumptiontime" text,
+  "resumptiondate" date,
+  "bio" text,
+  "applicationletterurl" text,
+  "cvurl" text,
+  "qualification" text,
+  "specialization" text,
+  "profileimage" text,
+  "facialverificationvideo" text,
+  "status" text default 'PENDING',
+  "isactive" boolean default true,
+  "createdat" timestamptz not null default now(),
+  "updatedat" timestamptz not null default now()
 );
 
-CREATE TABLE public.teacher (
-  id text NOT NULL,
-  userId text NOT NULL UNIQUE,
-  schoolId text,
-  staffCode text UNIQUE, -- e.g. EGIA-ST-123456
-  firstName text NOT NULL,
-  lastName text NOT NULL,
-  type text DEFAULT 'FULL_TIME',
-  isClassTeacher boolean DEFAULT false,
-  isPartTime boolean DEFAULT false,
-  assignedClassId text,
-  handlingClasses jsonb,
-  teachingSubjects jsonb,
-  qualification text,
-  specialization text,
-  profileImage text,
-  facialVerificationVideo text,
-  status text DEFAULT 'PENDING',
-  isActive boolean DEFAULT true,
-  createdAt timestamp with time zone NOT NULL DEFAULT now(),
-  updatedAt timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT teacher_pkey PRIMARY KEY (id),
-  CONSTRAINT teacher_userId_fkey FOREIGN KEY (userId) REFERENCES public."user"(id) ON DELETE CASCADE,
-  CONSTRAINT teacher_schoolId_fkey FOREIGN KEY (schoolId) REFERENCES public.school(id) ON DELETE SET NULL
+create table public."academic_session" (
+  "id" text primary key,
+  "name" text not null,
+  "startDate" date not null,
+  "endDate" date not null,
+  "isCurrent" boolean default false
 );
 
--- ---------------------------------------------------------------------
--- 4. CBT ASSESSMENTS & EXAMS
--- ---------------------------------------------------------------------
-CREATE TABLE public.assessment (
-  id text NOT NULL,
-  schoolId text,
-  title text NOT NULL,
-  description text,
-  subjectId text NOT NULL,
-  termId text NOT NULL,
-  createdBy text NOT NULL,
-  duration integer NOT NULL,
-  type text NOT NULL, -- ASSESSMENT_CBT, EXAM_CBT, WEEKEND_ASSIGNMENT
-  status text DEFAULT 'draft', -- draft, published, approved, rejected
-  accesscode text,
-  adminComment text,
-  passingScore integer DEFAULT 40,
-  totalPoints integer DEFAULT 100,
-  createdAt timestamp with time zone NOT NULL DEFAULT now(),
-  updatedAt timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT assessment_pkey PRIMARY KEY (id),
-  CONSTRAINT assessment_schoolId_fkey FOREIGN KEY (schoolId) REFERENCES public.school(id) ON DELETE SET NULL
+create table public."term" (
+  "id" text primary key,
+  "sessionId" text not null references public."academic_session"("id"),
+  "name" text not null,
+  "startDate" date not null,
+  "endDate" date not null,
+  "isCurrent" boolean default false
 );
 
-CREATE TABLE public.assessment_result (
-  id text NOT NULL,
-  assessmentId text NOT NULL,
-  studentId text NOT NULL,
-  score numeric(5, 2) NOT NULL,
-  totalQuestions integer NOT NULL,
-  correctAnswers integer NOT NULL,
-  timeSpent integer NOT NULL,
-  status text NOT NULL,
-  assessmentVideo text,
-  warningCount integer DEFAULT 0,
-  proctorLogs jsonb,
-  createdAt timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT assessment_result_pkey PRIMARY KEY (id),
-  CONSTRAINT assessment_result_assessmentId_fkey FOREIGN KEY (assessmentId) REFERENCES public.assessment(id) ON DELETE CASCADE,
-  CONSTRAINT assessment_result_studentId_fkey FOREIGN KEY (studentId) REFERENCES public.student(id) ON DELETE CASCADE
+create table public."class" (
+  "id" text primary key,
+  "name" text not null,
+  "schoolId" text references public."school"("id") on delete cascade,
+  "teacherId" text references public."teacher"("id")
 );
 
--- ---------------------------------------------------------------------
--- 5. FEES, PAYMENTS, AND BANK TRANSFERS
--- ---------------------------------------------------------------------
-CREATE TABLE public.payment (
-  id text NOT NULL,
-  studentId text NOT NULL,
-  parentId text,
-  termId text,
-  amount numeric(12, 2) NOT NULL,
-  feeType text,
-  paymentMethod text NOT NULL, -- KORAPAY, BANK_TRANSFER, CUSTOM_LINK
-  transactionReference text UNIQUE,
-  korapayReference text UNIQUE,
-  receiptUrl text,
-  status text DEFAULT 'pending', -- pending, approved, cleared, failed
-  paymentDate timestamp with time zone,
-  paidAt timestamp with time zone,
-  description text,
-  createdAt timestamp with time zone NOT NULL DEFAULT now(),
-  updatedAt timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT payment_pkey PRIMARY KEY (id),
-  CONSTRAINT payment_studentId_fkey FOREIGN KEY (studentId) REFERENCES public.student(id)
+create table public."student" (
+  "id" text primary key,
+  "userid" text unique references public."user"("id") on delete cascade,
+  "schoolid" text references public."school"("id") on delete set null,
+  "firstname" text not null,
+  "middlename" text,
+  "lastname" text not null,
+  "dateofbirth" date,
+  "dateofresumption" date,
+  "gender" text,
+  "class" text not null,
+  "arm" text,
+  "department" text,
+  "admissionnumber" text unique,
+  "parentid" text references public."parent"("id") on delete set null,
+  "termid" text,
+  "sessionid" text,
+  "profileimage" text,
+  "facialverificationvideo" text,
+  "subjectsdone" jsonb,
+  "isactive" boolean default true,
+  "registrationstatus" text not null default 'WAIVED',
+  "password" text default 'default',
+  "createdat" timestamptz not null default now(),
+  "updatedat" timestamptz not null default now()
 );
 
-CREATE TABLE public.transactions (
-  id text NOT NULL,
-  reference text NOT NULL UNIQUE,
-  amount numeric(12, 2) NOT NULL,
-  currency text NOT NULL DEFAULT 'NGN',
-  status text NOT NULL DEFAULT 'pending',
-  customer_email text NOT NULL,
-  customer_name text,
-  description text,
-  checkout_url text,
-  metadata jsonb,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT transactions_pkey PRIMARY KEY (id)
+-- SUBJECTS & ACADEMICS -------------------------------------------------------
+create table public."subject" (
+  "id" text primary key,
+  "name" text not null,
+  "code" text unique,
+  "is_active" boolean not null default true,
+  "is_custom" boolean not null default false,
+  "education_levels" text[] not null default '{}',
+  "departments" text[] not null default '{}'
 );
 
--- ---------------------------------------------------------------------
--- 6. MESSAGING & NOTIFICATIONS
--- ---------------------------------------------------------------------
-CREATE TABLE public.conversation (
-  id text NOT NULL,
-  schoolId text,
-  type text NOT NULL,
-  name text,
-  createdAt timestamp with time zone DEFAULT now(),
-  updatedAt timestamp with time zone DEFAULT now(),
-  CONSTRAINT conversation_pkey PRIMARY KEY (id),
-  CONSTRAINT conversation_schoolId_fkey FOREIGN KEY (schoolId) REFERENCES public.school(id) ON DELETE CASCADE
+create table public."teacher_on_subject" (
+  "id" text primary key,
+  "teacherId" text not null references public."teacher"("id"),
+  "subjectId" text not null references public."subject"("id"),
+  "classId" text not null references public."class"("id"),
+  unique ("teacherId", "subjectId", "classId")
 );
 
-CREATE TABLE public.message (
-  id text NOT NULL,
-  content text NOT NULL,
-  senderId text NOT NULL,
-  conversationId text NOT NULL,
-  schoolId text,
-  attachments jsonb,
-  isRead boolean DEFAULT false,
-  createdAt timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT message_pkey PRIMARY KEY (id),
-  CONSTRAINT message_senderId_fkey FOREIGN KEY (senderId) REFERENCES public."user"(id) ON DELETE CASCADE,
-  CONSTRAINT message_conversationId_fkey FOREIGN KEY (conversationId) REFERENCES public.conversation(id) ON DELETE CASCADE,
-  CONSTRAINT message_schoolId_fkey FOREIGN KEY (schoolId) REFERENCES public.school(id) ON DELETE SET NULL
+create table public."promotion_history" (
+  "id" text primary key,
+  "studentId" text not null references public."student"("id"),
+  "fromClass" text not null,
+  "toClass" text not null,
+  "type" text not null,
+  "reason" text,
+  "adminComment" text,
+  "performedBy" text not null references public."user"("id"),
+  "createdAt" timestamptz not null default now()
 );
 
-CREATE TABLE public.notification (
-  id text NOT NULL,
-  userId text NOT NULL,
-  schoolId text,
-  title text NOT NULL,
-  message text NOT NULL,
-  type text NOT NULL,
-  metadata jsonb,
-  isRead boolean DEFAULT false,
-  createdAt timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT notification_pkey PRIMARY KEY (id),
-  CONSTRAINT notification_userId_fkey FOREIGN KEY (userId) REFERENCES public."user"(id) ON DELETE CASCADE,
-  CONSTRAINT notification_schoolId_fkey FOREIGN KEY (schoolId) REFERENCES public.school(id) ON DELETE CASCADE
+-- ASSESSMENTS & CBT ---------------------------------------------------------
+create table public."assessment" (
+  "id" text primary key,
+  "schoolid" text references public."school"("id") on delete set null,
+  "title" text not null,
+  "description" text,
+  "subjectId" text not null references public."subject"("id"),
+  "termId" text not null references public."term"("id"),
+  "createdBy" text not null references public."teacher"("id"),
+  "duration" integer not null,
+  "type" text not null,
+  "status" text default 'draft',
+  "accesscode" text,
+  "adminComment" text,
+  "passingScore" integer default 40,
+  "totalPoints" integer default 100,
+  "createdAt" timestamptz not null default now(),
+  "updatedAt" timestamptz not null default now()
 );
 
--- ---------------------------------------------------------------------
--- 7. DEFAULT SEED RECORDS
--- ---------------------------------------------------------------------
-INSERT INTO public.school (id, name, code, location, registeredClasses, allowParents, adminName, adminPhone, adminEmail, bankName, accountNumber, accountName, customPaymentLink, paymentStatus, paymentReference)
-VALUES (
-  'sch_egia_default',
-  'EL GOODNEWS INTERNATIONAL ACADEMY',
-  'EGIA-19001',
-  'Lagos, Nigeria',
-  '["Primary 3","Primary 4","Primary 5","Primary 6","JSS1","JSS2","JSS3","SSS1","SSS2","SSS3"]'::jsonb,
-  true,
-  'School Administrator',
-  '08108854279, 08061908715',
-  'admin@egia.com',
-  'First Bank of Nigeria',
-  '2034567890',
-  'EL GOODNEWS INT ACADEMY',
-  'https://checkout.korapay.com/pay/BHba4zdsceZDgyW',
-  'PAID',
-  'REF_EGIA_19001'
-) ON CONFLICT (code) DO NOTHING;
+create table public."assessment_question" (
+  "id" text primary key,
+  "assessmentId" text not null references public."assessment"("id") on delete cascade,
+  "questionText" text not null,
+  "questionType" text not null,
+  "options" jsonb,
+  "correctAnswer" text,
+  "points" integer default 1,
+  "explanation" text,
+  "order" integer not null
+);
 
-INSERT INTO public."user" (id, email, name, schoolId)
-VALUES (
-  'usr_super_admin_01',
-  'ixoralyon013@gmail.com',
-  'Super Administrator',
-  'sch_egia_default'
-) ON CONFLICT (email) DO NOTHING;
+create table public."assessment_result" (
+  "id" text primary key,
+  "assessmentId" text not null references public."assessment"("id"),
+  "studentId" text not null references public."student"("id"),
+  "score" numeric(5,2) not null,
+  "totalQuestions" integer not null, "correctAnswers" integer not null, "timeSpent" integer not null,
+  "status" text not null, "gradedBy" text, "assessmentVideo" text, "warningCount" integer default 0,
+  "proctorLogs" jsonb, "createdAt" timestamptz not null default now()
+);
 
-INSERT INTO public.user_role (id, userId, role)
-VALUES (
-  'ur_super_admin_01',
-  'usr_super_admin_01',
-  'SUPER_ADMIN'
-) ON CONFLICT (userId) DO NOTHING;
+create table public."student_answer" (
+  "id" text primary key,
+  "assessmentResultId" text not null references public."assessment_result"("id") on delete cascade,
+  "questionId" text not null references public."assessment_question"("id"),
+  "answerText" text, "isCorrect" boolean, "pointsEarned" integer, "createdAt" timestamptz not null default now()
+);
+
+create table public."attendance" (
+  "id" text primary key,
+  "studentId" text not null references public."student"("id"),
+  "classId" text not null references public."class"("id"),
+  "date" date not null, "status" text not null, "remarks" text, "recordedBy" text, "recordedAt" timestamptz not null default now()
+);
+
+-- FEES & PAYMENTS -----------------------------------------------------------
+create table public."fee_structure" (
+  "id" text primary key, "class" text not null, "department" text, "feeType" text not null,
+  "amount" numeric(12,2) not null, "dueDate" date, "description" text, "isActive" boolean default true,
+  "createdAt" timestamptz not null default now(), "updatedAt" timestamptz not null default now(),
+  unique ("class", "department", "feeType")
+);
+
+create table public."payment" (
+  "id" text primary key,
+  "studentid" text not null references public."student"("id"),
+  "parentid" text, "termid" text, "amount" numeric(12,2) not null, "feetype" text, "paymentmethod" text not null,
+  "transactionreference" text unique, "korapayreference" text unique, "receipturl" text, "status" text default 'pending',
+  "paymentdate" timestamptz, "paidat" timestamptz, "description" text,
+  "createdat" timestamptz not null default now(), "updatedat" timestamptz not null default now()
+);
+
+create table public."payment_installment" (
+  "id" text primary key,
+  "paymentId" text not null references public."payment"("id"),
+  "amount" numeric(12,2) not null, "dueDate" date not null, "paidAt" timestamptz, "status" text default 'pending', "installmentNumber" integer not null,
+  "createdAt" timestamptz not null default now()
+);
+
+-- COMMUNICATION & NOTIFICATIONS ---------------------------------------------
+create table public."conversation" (
+  "id" text primary key,
+  "schoolid" text references public."school"("id") on delete cascade,
+  "type" text not null, "name" text, "createdAt" timestamp default now(), "updatedAt" timestamp default now()
+);
+
+create table public."conversation_participant" (
+  "id" text primary key,
+  "conversationId" text not null references public."conversation"("id") on delete cascade,
+  "userId" text not null references public."user"("id") on delete cascade,
+  "lastReadAt" timestamp, "joinedAt" timestamp default now()
+);
+
+create table public."message" (
+  "id" text primary key,
+  "content" text not null,
+  "senderId" text not null references public."user"("id") on delete cascade,
+  "conversationId" text not null references public."conversation"("id") on delete cascade,
+  "schoolid" text references public."school"("id") on delete set null,
+  "attachments" jsonb, "isRead" boolean default false, "isDeleted" boolean default false, "replyToId" text, "reactions" jsonb,
+  "createdAt" timestamptz not null default now()
+);
+
+create table public."notification" (
+  "id" text primary key,
+  "userId" text not null references public."user"("id") on delete cascade,
+  "schoolid" text references public."school"("id") on delete cascade,
+  "title" text not null, "message" text not null, "type" text not null, "metadata" jsonb, "isRead" boolean default false,
+  "actionUrl" text, "readAt" timestamptz, "createdAt" timestamptz not null default now()
+);
+
+-- ADULT EDUCATION ------------------------------------------------------------
+create table public."adult_education_enrollments" (
+  "id" text primary key,
+  "parent_id" text not null,
+  "school_id" text references public."school"("id") on delete set null,
+  "days_of_week" jsonb not null,
+  "subject_to_learn" text not null,
+  "preferred_time" text not null,
+  "status" text not null default 'PENDING_PAYMENT',
+  "registration_paid" boolean not null default false,
+  "weekly_paid_until" timestamptz,
+  "created_at" timestamptz not null default now(),
+  "updated_at" timestamptz not null default now()
+);
+
+create table public."adult_education_payments" (
+  "id" text primary key,
+  "parent_id" text not null,
+  "amount" numeric(12,2) not null,
+  "payment_type" text not null,
+  "reference" text not null unique,
+  "status" text not null default 'success',
+  "paid_at" timestamptz not null default now()
+);
+
+create table public."adult_education_classes" (
+  "id" text primary key,
+  "title" text not null,
+  "description" text,
+  "type" text not null,
+  "url" text,
+  "content" text,
+  "due_date" timestamptz,
+  "created_at" timestamptz not null default now(),
+  "teacher_id" text
+);
+
+-- TEACHER WALLET & REQUESTS --------------------------------------------------
+create table public."teacher_wallet" (
+  "id" text primary key,
+  "teacherId" text not null unique references public."teacher"("id"),
+  "balance" numeric(12,2) default 0.00,
+  "salaryAmount" numeric(12,2) default 150000.00,
+  "salaryStatus" text default 'pending',
+  "updatedAt" timestamptz not null default now()
+);
+
+create table public."teacher_request" (
+  "id" text primary key,
+  "teacherId" text not null references public."teacher"("id"),
+  "type" text not null,
+  "amount" numeric(12,2) not null,
+  "details" text,
+  "phoneNumber" text not null,
+  "status" text default 'pending',
+  "createdAt" timestamptz not null default now(),
+  "updatedAt" timestamptz not null default now()
+);
+
+create table public."report_card" (
+  "id" text primary key,
+  "studentId" text not null,
+  "studentName" text not null,
+  "className" text not null,
+  "marks" jsonb not null,
+  "teacherRemarks" text,
+  "status" text default 'PENDING',
+  "adminFeedback" text,
+  "term" text,
+  "session" text,
+  "endorsedAt" timestamp,
+  "createdAt" timestamp default now()
+);
+
+create table public."system_settings" (
+  "id" text primary key,
+  "key" text not null unique,
+  "value" text,
+  "type" text,
+  "description" text,
+  "updated_at" timestamp default now()
+);
+
+-- SUPABASE REALTIME PUBLICATION SETUP -----------------------------------------
+do $$
+begin
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    create publication supabase_realtime;
+  end if;
+end $$;
+
+alter publication supabase_realtime add table
+  public."school",
+  public."user",
+  public."student",
+  public."teacher",
+  public."parent",
+  public."assessment",
+  public."conversation",
+  public."message",
+  public."notification",
+  public."adult_education_enrollments";
+
+-- SEED DATA ------------------------------------------------------------------
+insert into public."subject" ("id", "name", "code", "education_levels", "departments") values
+  (gen_random_uuid()::text, 'Mathematics', 'MATH', array['PRIMARY','JUNIOR','SENIOR'], array['GENERAL','SCIENCE','COMMERCIAL']),
+  (gen_random_uuid()::text, 'English Studies', 'ENG', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Use of English', 'USE-ENG', array['SENIOR'], array['GENERAL','SCIENCE','ARTS','COMMERCIAL']),
+  (gen_random_uuid()::text, 'History', 'HIST', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Security and Citizenship Education', 'SCE', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'French', 'FRENCH', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Intermediate Science', 'INT-SCI', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Verbal Reasoning', 'VERBAL', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Quantitative Reasoning', 'QUANT', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Digital Technology', 'DIGI', array['PRIMARY','JUNIOR','SENIOR'], array['GENERAL','SCIENCE','ARTS','COMMERCIAL']),
+  (gen_random_uuid()::text, 'Cultural and Creative Arts', 'CCA', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Yoruba', 'YORUBA', array['PRIMARY','JUNIOR','SENIOR'], array['GENERAL','ARTS']),
+  (gen_random_uuid()::text, 'Prevocational Studies', 'PVS', array['PRIMARY','JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Business Studies', 'BUS', array['JUNIOR'], array['GENERAL']),
+  (gen_random_uuid()::text, 'Biology', 'BIO', array['SENIOR'], array['GENERAL','SCIENCE']),
+  (gen_random_uuid()::text, 'Citizenship and Heritage Studies', 'CHS', array['SENIOR'], array['GENERAL','SCIENCE','ARTS','COMMERCIAL']),
+  (gen_random_uuid()::text, 'Physics', 'PHY', array['SENIOR'], array['SCIENCE']),
+  (gen_random_uuid()::text, 'Chemistry', 'CHEM', array['SENIOR'], array['SCIENCE']),
+  (gen_random_uuid()::text, 'Agricultural Science', 'AGRIC', array['SENIOR'], array['SCIENCE']),
+  (gen_random_uuid()::text, 'Further Mathematics', 'FMATH', array['SENIOR'], array['SCIENCE','COMMERCIAL']),
+  (gen_random_uuid()::text, 'Geography', 'GEO', array['SENIOR'], array['SCIENCE']),
+  (gen_random_uuid()::text, 'Government', 'GOV', array['SENIOR'], array['ARTS','COMMERCIAL']),
+  (gen_random_uuid()::text, 'Literature in English', 'LIT', array['SENIOR'], array['ARTS']),
+  (gen_random_uuid()::text, 'Christian Religious Studies', 'CRS', array['SENIOR'], array['ARTS']),
+  (gen_random_uuid()::text, 'Commerce', 'COMM', array['SENIOR'], array['COMMERCIAL']),
+  (gen_random_uuid()::text, 'Financial Accounting', 'ACC', array['SENIOR'], array['COMMERCIAL'])
+on conflict (code) do nothing;

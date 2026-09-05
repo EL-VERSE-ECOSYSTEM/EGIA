@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db'
 import { school, user, userRole } from '@/lib/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
 import { randomUUID } from 'crypto'
@@ -28,18 +28,8 @@ function authAdminClient() {
 }
 
 export async function generateSchoolCode(schoolName: string): Promise<string> {
-  // Extract words and build 4-letter prefix from initials or clean school name
-  const words = schoolName.trim().split(/\s+/).filter(w => w.length > 0)
-  let prefix = ''
-
-  if (words.length >= 4) {
-    prefix = words.slice(0, 4).map(w => w[0]).join('').toUpperCase()
-  } else if (words.length === 2 || words.length === 3) {
-    prefix = words.map(w => w.slice(0, 2)).join('').slice(0, 4).toUpperCase()
-  } else {
-    const cleanName = schoolName.replace(/[^a-zA-Z]/g, '').toUpperCase()
-    prefix = (cleanName + 'SCHO').slice(0, 4)
-  }
+  const clean = schoolName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+  const prefix = clean.length >= 4 ? clean.slice(0, 4) : (clean + 'SCHO').slice(0, 4)
 
   let isUnique = false
   let finalCode = ''

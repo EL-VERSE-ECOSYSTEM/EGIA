@@ -1,29 +1,53 @@
 -- =====================================================================
--- EL GOODNEWS INT'L ACADEMY - SEED DATA FOR AUTOMATED LOGIN ACCOUNTS
--- Handles Ezeako Samuel Chibueze and Jeremiah Idaghosa Clement setup.
--- Includes both lowercase (user, student) and plural (users, students) tables.
+-- EL GOODNEWS INT'L ACADEMY - SEED DATA FOR MULTI-TENANT & AUTOMATED LOGIN ACCOUNTS
+-- Includes Ezeako Samuel Chibueze, Jeremiah Idaghosa Clement, and default School setup.
 -- =====================================================================
 
--- 0. CLEANSE PRE-EXISTING SEED RECORDS TO PREVENT CONSTRAINT CONFLICTS
+-- 0. SEED DEFAULT MULTI-TENANT SCHOOL
+INSERT INTO public.school (
+  id,
+  name,
+  code,
+  location,
+  registeredclasses,
+  allowparents,
+  adminname,
+  adminphone,
+  adminemail,
+  paymentstatus,
+  createdat,
+  updatedat
+) VALUES (
+  'school-elgoodnews-001',
+  'EL GOODNEWS INT''L ACADEMY',
+  'EXCE-12345',
+  'Lagos, Nigeria',
+  '["Primary 3", "Primary 4", "Primary 5", "Primary 6", "JSS1", "JSS2", "JSS3", "SSS1", "SSS2", "SSS3"]'::jsonb,
+  true,
+  'Dr. Jane Doe',
+  '+234-800-ELGOOD',
+  'admin@school.com',
+  'PAID',
+  NOW(),
+  NOW()
+) ON CONFLICT (code) DO NOTHING;
+
+-- 1. CLEANSE PRE-EXISTING SEED RECORDS TO PREVENT CONSTRAINT CONFLICTS
 DELETE FROM public.student WHERE admissionnumber IN ('EGIA-S-00998', 'EGIA-S-00997');
 DELETE FROM public.user_role WHERE userid IN ('user-samuel-00998', 'user-jeremiah-00997');
 DELETE FROM public."user" WHERE email IN ('samuel012@gmail.com', 'sophieadesuwa6@gmail.com');
 
-DELETE FROM public.students WHERE admission_number IN ('EGIA-S-00998', 'EGIA-S-00997');
-DELETE FROM public.users WHERE email IN ('samuel012@gmail.com', 'sophieadesuwa6@gmail.com');
-
--- 1. EZEAKO SAMUEL CHIBUEZE SETUP (STUDENT: EGIA-S-00998)
--- Insert core lowercase user row
-INSERT INTO public."user" (id, email, name, createdat, updatedat)
+-- 2. EZEAKO SAMUEL CHIBUEZE SETUP (STUDENT: EGIA-S-00998)
+INSERT INTO public."user" (id, email, name, schoolid, createdat, updatedat)
 VALUES (
   'user-samuel-00998',
   'samuel012@gmail.com',
   'Ezeako Samuel Chibueze',
+  'school-elgoodnews-001',
   NOW(),
   NOW()
 );
 
--- Insert user role
 INSERT INTO public.user_role (id, userid, role)
 VALUES (
   'role-samuel-00998',
@@ -31,10 +55,10 @@ VALUES (
   'STUDENT'
 );
 
--- Insert student profile record with WhatsApp phone number & resume options
 INSERT INTO public.student (
   id,
   userid,
+  schoolid,
   firstname,
   lastname,
   dateofbirth,
@@ -49,6 +73,7 @@ INSERT INTO public.student (
 ) VALUES (
   'student-samuel-00998',
   'user-samuel-00998',
+  'school-elgoodnews-001',
   'Samuel',
   'Ezeako',
   '2011-04-20',
@@ -80,69 +105,17 @@ INSERT INTO public.student (
   NOW()
 );
 
--- Insert into advanced plural users table
-INSERT INTO public.users (
-  id,
-  email,
-  password_hash,
-  full_name,
-  role,
-  is_active,
-  is_verified,
-  created_at,
-  updated_at
-) VALUES (
-  '44c3be99-2a91-4433-875c-a71da8e11a91'::uuid,
-  'samuel012@gmail.com',
-  NULL,
-  'Ezeako Samuel Chibueze',
-  'STUDENT'::academy_user_role,
-  true,
-  true,
-  NOW(),
-  NOW()
-);
-
--- Insert into advanced plural students table
-INSERT INTO public.students (
-  id,
-  user_id,
-  admission_number,
-  first_name,
-  last_name,
-  date_of_birth,
-  gender,
-  current_class,
-  is_graduated,
-  created_at,
-  updated_at
-) VALUES (
-  '44c3be99-2a91-4433-875c-a71da8e11a92'::uuid,
-  '44c3be99-2a91-4433-875c-a71da8e11a91'::uuid,
-  'EGIA-S-00998',
-  'Samuel',
-  'Ezeako',
-  '2011-04-20'::date,
-  'MALE',
-  'SSS2',
-  false,
-  NOW(),
-  NOW()
-);
-
-
--- 2. JEREMIAH IDAGHOSA CLEMENT SETUP (STUDENT: EGIA-S-00997)
--- Insert core lowercase user row
-INSERT INTO public."user" (id, email, name, createdat, updatedat)
+-- 3. JEREMIAH IDAGHOSA CLEMENT SETUP (STUDENT: EGIA-S-00997)
+INSERT INTO public."user" (id, email, name, schoolid, createdat, updatedat)
 VALUES (
   'user-jeremiah-00997',
   'sophieadesuwa6@gmail.com',
   'Jeremiah Idaghosa Clement',
+  'school-elgoodnews-001',
   NOW(),
   NOW()
 );
 
--- Insert user role
 INSERT INTO public.user_role (id, userid, role)
 VALUES (
   'role-jeremiah-00997',
@@ -150,14 +123,15 @@ VALUES (
   'STUDENT'
 );
 
--- Insert student profile record with WhatsApp phone number & resume options
 INSERT INTO public.student (
   id,
   userid,
+  schoolid,
   firstname,
   lastname,
   dateofbirth,
   class,
+  department,
   admissionnumber,
   password,
   registrationstatus,
@@ -167,10 +141,12 @@ INSERT INTO public.student (
 ) VALUES (
   'student-jeremiah-00997',
   'user-jeremiah-00997',
+  'school-elgoodnews-001',
   'Jeremiah',
   'Clement',
   '2015-09-10',
   'JSS1',
+  'GENERAL',
   'EGIA-S-00997',
   'default',
   'ACTIVE',
@@ -189,56 +165,6 @@ INSERT INTO public.student (
     "Cultural and Creative Arts",
     "Physical and Health Education"
   ]'::jsonb,
-  NOW(),
-  NOW()
-);
-
--- Insert into advanced plural users table
-INSERT INTO public.users (
-  id,
-  email,
-  password_hash,
-  full_name,
-  role,
-  is_active,
-  is_verified,
-  created_at,
-  updated_at
-) VALUES (
-  '55d4cf99-3b92-5544-986d-b82ea9f22b91'::uuid,
-  'sophieadesuwa6@gmail.com',
-  NULL,
-  'Jeremiah Idaghosa Clement',
-  'STUDENT'::academy_user_role,
-  true,
-  true,
-  NOW(),
-  NOW()
-);
-
--- Insert into advanced plural students table
-INSERT INTO public.students (
-  id,
-  user_id,
-  admission_number,
-  first_name,
-  last_name,
-  date_of_birth,
-  gender,
-  current_class,
-  is_graduated,
-  created_at,
-  updated_at
-) VALUES (
-  '55d4cf99-3b92-5544-986d-b82ea9f22b92'::uuid,
-  '55d4cf99-3b92-5544-986d-b82ea9f22b91'::uuid,
-  'EGIA-S-00997',
-  'Jeremiah',
-  'Clement',
-  '2015-09-10'::date,
-  'MALE',
-  'JSS1',
-  false,
   NOW(),
   NOW()
 );
