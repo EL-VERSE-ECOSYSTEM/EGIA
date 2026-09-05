@@ -3,9 +3,10 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { RealtimeProvider } from '@/components/realtime/RealtimeProvider'
 import { TimeThemeProvider } from '@/components/TimeThemeProvider'
+import { FloatingSupportWidget } from '@/components/support/floating-support-widget'
 
 export const metadata: Metadata = {
-  title: "EL LEARNERS - Empowering Excellence",
+  title: "EL LEARNERS APP - Empowering Excellence",
   description: 'Complete school management system with CBT, assessments, and child monitoring.',
   generator: 'ELCODERS',
   icons: {
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: "EL LEARNERS",
+    title: "EL LEARNERS APP",
   }
 }
 
@@ -34,6 +35,7 @@ export default function RootLayout({
           <div className="flex-1">
             {children}
           </div>
+          <FloatingSupportWidget />
         </RealtimeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
         {/* Simple inline PWA registration block */}

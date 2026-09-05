@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/middleware'
 
 const publicRoutes = [
   '/',
+  '/school-registration',
   '/auth/signin',
   '/auth/signup',
   '/auth/verify-email',
