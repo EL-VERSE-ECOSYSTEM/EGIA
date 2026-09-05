@@ -72,21 +72,26 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
     }
   }, [selectedChat])
 
-  // Real-time table subscriptions to automatically sync messages and conversations
-  useRealtimeSubscription('message', () => {
-    if (selectedChat) {
-      fetchMessages(selectedChat.id)
+  const selectedChatRef = useRef(selectedChat)
+  useEffect(() => {
+    selectedChatRef.current = selectedChat
+  }, [selectedChat])
+
+  // Real-time table subscriptions with stable refs to prevent re-subscribe loops
+  const handleMessageRealtime = React.useCallback(() => {
+    if (selectedChatRef.current) {
+      fetchMessages(selectedChatRef.current.id)
     }
     fetchConversations()
-  })
+  }, [])
 
-  useRealtimeSubscription('conversation', () => {
+  const handleConversationRealtime = React.useCallback(() => {
     fetchConversations()
-  })
+  }, [])
 
-  useRealtimeSubscription('conversation_participant', () => {
-    fetchConversations()
-  })
+  useRealtimeSubscription('message', handleMessageRealtime)
+  useRealtimeSubscription('conversation', handleConversationRealtime)
+  useRealtimeSubscription('conversation_participant', handleConversationRealtime)
 
   const fetchConversations = async () => {
     try {

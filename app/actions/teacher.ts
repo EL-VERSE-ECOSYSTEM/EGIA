@@ -92,16 +92,14 @@ export async function createAssessment(data: any) {
 }
 
 export async function getTeacherProfile() {
-  const userId = await getUserId()
+  const session = await auth.getSession()
+  if (!session?.user) return null
+  const userId = session.user.id
 
   // Optimize performance using our custom caching system (caches for 2 minutes)
   return getCachedData(`teacher-profile:${userId}`, async () => {
     return db.query.teacher.findFirst({
-      where: eq(teacher.userId, userId),
-      with: {
-        classes: true,
-        subjects: true
-      }
+      where: eq(teacher.userId, userId)
     })
   }, 120)
 }

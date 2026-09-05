@@ -27,5 +27,5 @@ export function useRealtimeSubscription<T extends Record<string, unknown> = Reco
       },
     });
     return () => { void unsubscribeFromTable(channel); };
-  }, [table, options.event, options.filter, options.enabled, onChange]);
+  }, [table, options.event, options.filter, options.enabled]);
 }

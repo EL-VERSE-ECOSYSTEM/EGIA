@@ -173,7 +173,7 @@ export default function SignInPage() {
         <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-md border border-white/15">
           <GraduationCap className="text-white w-6 h-6" />
         </div>
-        <span className="font-black text-xl tracking-tight text-white uppercase">EL <span className={currentTheme.text}>LEARN APP</span></span>
+        <span className="font-black text-xl tracking-tight text-white uppercase">EL <span className={currentTheme.text}>LEARNERS APP</span></span>
       </div>
 
       <Card className="max-w-md w-full border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-slate-950 text-white transform transition-all duration-500 hover:scale-[1.01]">

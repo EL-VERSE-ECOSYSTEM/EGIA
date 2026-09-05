@@ -16,7 +16,6 @@ import {
   ArrowRight,
   GraduationCap,
   MessageSquare,
-  MapPin,
   Phone
 } from 'lucide-react'
 import {
@@ -40,7 +39,7 @@ export default async function LandingPage() {
             <div className="bg-amber-600 p-2 rounded-lg">
               <GraduationCap className="text-white w-6 h-6" />
             </div>
-            <span className="font-black text-xl tracking-tight text-slate-900 uppercase">EL LEARNERS <span className="text-amber-600">ACADEMY</span></span>
+            <span className="font-black text-xl tracking-tight text-slate-900 uppercase">EL LEARNERS <span className="text-amber-600">APP</span></span>
           </div>
           <nav className="hidden md:flex items-center gap-8">
             <Link href="#about" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">About</Link>
@@ -129,7 +128,7 @@ export default async function LandingPage() {
                 <div className="aspect-[3/4] bg-slate-100 rounded-[4rem] overflow-hidden shadow-2xl relative border-[16px] border-slate-50">
                    <img
                      src="https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1200"
-                     alt="EL LEARN Academy Classroom"
+                     alt="EL LEARNERS APP Classroom"
                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
                    />
                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent opacity-40" />
@@ -309,27 +308,25 @@ export default async function LandingPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-32">
                <div className="space-y-16">
                   <div className="space-y-8">
-                    <div className="inline-block px-8 py-2 rounded-full bg-blue-100 text-blue-700 text-xs font-black uppercase tracking-[0.3em]">Contact Us</div>
-                    <h2 className="text-6xl md:text-7xl font-black text-slate-900 leading-[0.95] tracking-tighter">Get in Touch with Admissions</h2>
-                    <p className="text-slate-500 text-2xl font-medium">Our team is available 24/7 to guide you through the enrollment process.</p>
+                    <div className="inline-block px-8 py-2 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black uppercase tracking-[0.3em]">Contact & Support</div>
+                    <h2 className="text-6xl md:text-7xl font-black text-slate-900 leading-[0.95] tracking-tighter">Get in Touch with Support</h2>
+                    <p className="text-slate-500 text-2xl font-medium">Our help and support team is available 24/7 to assist you.</p>
                   </div>
                   <div className="space-y-12">
                      <div className="flex gap-8 items-start group">
-                        <div className="w-20 h-20 rounded-3xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0 group-hover:bg-amber-600 group-hover:text-white transition-all duration-500 shadow-xl shadow-amber-100">
-                           <MapPin size={32} />
-                        </div>
-                        <div>
-                           <p className="font-black text-2xl text-slate-900 mb-2">Campus Location</p>
-                           <p className="text-slate-500 text-xl font-medium">NO 20, Dr Emmanuella Ville, Orita Ara, Ogun State, Nigeria</p>
-                        </div>
-                     </div>
-                     <div className="flex gap-8 items-start group">
-                        <div className="w-20 h-20 rounded-3xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500 shadow-xl shadow-blue-100">
+                        <div className="w-20 h-20 rounded-3xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-500 shadow-xl shadow-emerald-100">
                            <Phone size={32} />
                         </div>
                         <div>
-                           <p className="font-black text-2xl text-slate-900 mb-2">Direct Hotline</p>
-                           <p className="text-slate-500 text-xl font-medium">+2348108854279</p>
+                           <p className="font-black text-2xl text-slate-900 mb-2">WhatsApp Connect for Help and Support</p>
+                           <a
+                             href="https://wa.me/2348061908715"
+                             target="_blank"
+                             rel="noopener noreferrer"
+                             className="text-emerald-600 hover:underline text-2xl font-black"
+                           >
+                             (234)8061908715
+                           </a>
                         </div>
                      </div>
                   </div>

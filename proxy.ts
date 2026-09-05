@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/middleware'
 
 const publicRoutes = [
   '/',
+  '/school-registration',
   '/auth/signin',
   '/auth/signup',
   '/auth/verify-email',
@@ -128,9 +129,7 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const isAuthenticated = !!user
 
-  const isPDFBypass = pathname.startsWith('/dashboard/teacher/assessments/create/pdf')
-
-  if (!isAuthenticated && !isPublicRoute && !pathname.startsWith('/api/') && !isPDFBypass) {
+  if (!isAuthenticated && !isPublicRoute && !pathname.startsWith('/api/')) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/signin'
     return redirectWithSessionCookies(url, response)
