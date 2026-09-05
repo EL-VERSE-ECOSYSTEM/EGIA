@@ -213,11 +213,34 @@ export async function getLoggedInNotifications() {
   const session = await auth.getSession()
   if (!session?.user) return []
 
+  // Get user's schoolId to scope notifications by school
+  const userRecord = await db.query.user.findFirst({
+    where: eq(userTable.id, session.user.id)
+  })
+  const userSchoolId = userRecord?.schoolId
+
+  if (userSchoolId) {
+    const list = await db.select()
+      .from(notification)
+      .where(
+        or(
+          eq(notification.userId, session.user.id),
+          and(
+            eq(notification.schoolId, userSchoolId),
+            isNull(notification.userId)
+          )
+        )
+      )
+      .orderBy(desc(notification.createdAt))
+      .limit(25)
+    return list || []
+  }
+
   const list = await db.select()
     .from(notification)
     .where(eq(notification.userId, session.user.id))
     .orderBy(desc(notification.createdAt))
-    .limit(15)
+    .limit(25)
 
   return list || []
 }

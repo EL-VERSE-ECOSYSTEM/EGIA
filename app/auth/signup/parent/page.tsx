@@ -277,15 +277,17 @@ export default function ParentSignUpPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="schoolCode" className="text-[10px] font-black uppercase text-emerald-600 tracking-widest ml-1">School Code (Optional)</Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="schoolCode" className="text-[10px] font-black uppercase text-emerald-600 tracking-widest ml-1">School Registration Code (Optional)</Label>
+                </div>
                 <Input
                   id="schoolCode"
-                  placeholder="e.g. SCHO-12345"
+                  placeholder="e.g. EXCE-12345"
                   value={formData.schoolCode}
                   onChange={async e => {
                     const code = e.target.value.toUpperCase()
                     setFormData({...formData, schoolCode: code})
-                    if (code.length >= 6) {
+                    if (code.length >= 5) {
                       const { getSchoolByCodeAction } = await import('@/app/actions/school')
                       const res = await getSchoolByCodeAction(code)
                       if (res.success && res.school) {
@@ -297,11 +299,13 @@ export default function ParentSignUpPage() {
                           toast.success(`School verified: ${res.school.name}`)
                         }
                       } else {
-                        setError('Invalid School Code.')
+                        setError('Invalid School Code. Please verify with school admin.')
                       }
+                    } else {
+                      setError(null)
                     }
                   }}
-                  className="h-12 rounded-xl border-emerald-200 bg-emerald-50/30 font-bold uppercase tracking-wider focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
+                  className="h-12 rounded-xl border-emerald-200 bg-emerald-50/30 font-mono font-bold uppercase tracking-wider focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
                 />
               </div>
             </div>
