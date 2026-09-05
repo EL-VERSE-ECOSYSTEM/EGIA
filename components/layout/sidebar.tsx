@@ -30,7 +30,8 @@ import {
   BarChart3,
   MonitorPlay,
   FolderOpen,
-  HelpCircle
+  HelpCircle,
+  Bell
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
