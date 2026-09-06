@@ -1,5 +1,5 @@
 -- EL GOODNEWS ACADEMY: Canonical Complete Supabase SQL Schema
--- Full setup including multi-tenant school tenancy, adult education, realtime publications, and triggers.
+-- Full setup including multi-tenant school tenancy, RBAC, ABAC policies, CBT exam codes, support & disputes, adult education, realtime publications, and triggers.
 
 drop table if exists public.adult_education_payments cascade;
 drop table if exists public.adult_education_classes cascade;
@@ -18,20 +18,31 @@ drop table if exists public.book_tag_relations cascade;
 drop table if exists public.book_tags cascade;
 drop table if exists public.book_categories cascade;
 drop table if exists public.books cascade;
+drop table if exists public.library_books cascade;
 drop table if exists public.attendance_records cascade;
+drop table if exists public.attendance cascade;
 drop table if exists public.support_ticket_replies cascade;
+drop table if exists public.support_ticket cascade;
 drop table if exists public.support_tickets cascade;
+drop table if exists public.dispute_message cascade;
 drop table if exists public.dispute_messages cascade;
+drop table if exists public.dispute cascade;
 drop table if exists public.disputes cascade;
 drop table if exists public.announcements cascade;
 drop table if exists public.notification cascade;
 drop table if exists public.notifications cascade;
+drop table if exists public.user_fcm_tokens cascade;
+drop table if exists public.notification_history cascade;
 drop table if exists public.message cascade;
 drop table if exists public.messages cascade;
 drop table if exists public.conversation_participant cascade;
 drop table if exists public.conversation_participants cascade;
 drop table if exists public.conversation cascade;
 drop table if exists public.conversations cascade;
+drop table if exists public.study_video_reply cascade;
+drop table if exists public.study_video_question cascade;
+drop table if exists public.study_video cascade;
+drop table if exists public.transactions cascade;
 drop table if exists public.payment_webhook_logs cascade;
 drop table if exists public.payment_installment cascade;
 drop table if exists public.payment_installments cascade;
@@ -132,7 +143,7 @@ create table public."user" (
 create table public."user_role" (
   "id" text primary key,
   "userid" text not null unique references public."user"("id") on delete cascade,
-  "role" text not null,
+  "role" text not null, -- STUDENT, PUPIL, TEACHER, PARENT, SCHOOL_ADMIN, SUPER_ADMIN
   "createdat" timestamptz not null default now()
 );
 
@@ -263,7 +274,7 @@ create table public."promotion_history" (
   "createdAt" timestamptz not null default now()
 );
 
--- ASSESSMENTS & CBT ---------------------------------------------------------
+-- ASSESSMENTS & CBT EXAM CODES ---------------------------------------------------------
 create table public."assessment" (
   "id" text primary key,
   "schoolid" text references public."school"("id") on delete set null,
@@ -275,7 +286,7 @@ create table public."assessment" (
   "duration" integer not null,
   "type" text not null,
   "status" text default 'draft',
-  "accesscode" text,
+  "accesscode" text, -- Exam Code / Access Code required to launch test
   "adminComment" text,
   "passingScore" integer default 40,
   "totalPoints" integer default 100,
@@ -312,6 +323,26 @@ create table public."student_answer" (
   "answerText" text, "isCorrect" boolean, "pointsEarned" integer, "createdAt" timestamptz not null default now()
 );
 
+create table public."cbt_sessions" (
+  "id" text primary key,
+  "assessment_id" text not null references public."assessment"("id") on delete cascade,
+  "student_id" text not null references public."student"("id") on delete cascade,
+  "access_code" text not null,
+  "status" text not null default 'ONGOING',
+  "started_at" timestamptz not null default now(),
+  "ended_at" timestamptz,
+  "warning_count" integer default 0
+);
+
+create table public."cbt_attempts" (
+  "id" text primary key,
+  "session_id" text not null references public."cbt_sessions"("id") on delete cascade,
+  "student_id" text not null references public."student"("id") on delete cascade,
+  "answers" jsonb,
+  "score" numeric(5,2),
+  "completed_at" timestamptz
+);
+
 create table public."attendance" (
   "id" text primary key,
   "studentId" text not null references public."student"("id"),
@@ -343,7 +374,22 @@ create table public."payment_installment" (
   "createdAt" timestamptz not null default now()
 );
 
--- COMMUNICATION & NOTIFICATIONS ---------------------------------------------
+create table public."transactions" (
+  "id" text primary key,
+  "reference" text not null unique,
+  "amount" numeric(12,2) not null,
+  "currency" text not null default 'NGN',
+  "status" text not null default 'pending',
+  "customer_email" text not null,
+  "customer_name" text,
+  "description" text,
+  "checkout_url" text,
+  "metadata" jsonb,
+  "created_at" timestamptz not null default now(),
+  "updated_at" timestamptz not null default now()
+);
+
+-- COMMUNICATION, NOTIFICATIONS & FCM -----------------------------------------
 create table public."conversation" (
   "id" text primary key,
   "schoolid" text references public."school"("id") on delete cascade,
@@ -373,6 +419,94 @@ create table public."notification" (
   "schoolid" text references public."school"("id") on delete cascade,
   "title" text not null, "message" text not null, "type" text not null, "metadata" jsonb, "isRead" boolean default false,
   "actionUrl" text, "readAt" timestamptz, "createdAt" timestamptz not null default now()
+);
+
+create table public."user_fcm_tokens" (
+  "id" text primary key,
+  "user_id" text not null references public."user"("id") on delete cascade,
+  "token" text not null unique,
+  "device_name" text,
+  "device_type" text default 'web',
+  "browser" text,
+  "os" text,
+  "is_active" boolean not null default true,
+  "created_at" timestamptz not null default now(),
+  "updated_at" timestamptz not null default now()
+);
+
+create table public."notification_history" (
+  "id" text primary key,
+  "user_id" text references public."user"("id") on delete set null,
+  "title" text not null,
+  "body" text not null,
+  "type" text not null,
+  "data" jsonb,
+  "sent_at" timestamptz not null default now(),
+  "delivered" boolean not null default false,
+  "read_at" timestamptz,
+  "link" text,
+  "metadata" jsonb
+);
+
+-- DISPUTE AND SUPPORT TICKETS ------------------------------------------------
+create table public."dispute" (
+  "id" text primary key,
+  "ticketNumber" text not null unique,
+  "title" text not null,
+  "category" text not null,
+  "priority" text not null,
+  "status" text default 'OPEN',
+  "description" text not null,
+  "evidence" jsonb,
+  "raisedById" text not null references public."user"("id") on delete cascade,
+  "assignedToId" text,
+  "relatedStudentId" text,
+  "relatedPaymentId" text,
+  "relatedAssessmentId" text,
+  "resolution" text,
+  "resolvedBy" text,
+  "resolvedAt" timestamptz,
+  "escalatedAt" timestamptz,
+  "escalatedTo" text,
+  "createdAt" timestamptz not null default now(),
+  "updatedAt" timestamptz not null default now()
+);
+
+create table public."dispute_message" (
+  "id" text primary key,
+  "disputeId" text not null references public."dispute"("id") on delete cascade,
+  "senderId" text not null references public."user"("id") on delete cascade,
+  "message" text not null,
+  "attachments" jsonb,
+  "isInternal" boolean default false,
+  "createdAt" timestamp default now()
+);
+
+create table public."support_ticket" (
+  "id" text primary key,
+  "ticketNumber" text not null unique,
+  "title" text not null,
+  "category" text not null,
+  "priority" text not null,
+  "status" text default 'OPEN',
+  "description" text not null,
+  "screenshots" jsonb,
+  "userId" text not null references public."user"("id") on delete cascade,
+  "assignedAgentId" text,
+  "resolution" text,
+  "satisfaction" text,
+  "resolvedAt" timestamptz,
+  "createdAt" timestamptz not null default now(),
+  "updatedAt" timestamptz not null default now()
+);
+
+create table public."support_ticket_replies" (
+  "id" text primary key,
+  "ticket_id" text not null references public."support_ticket"("id") on delete cascade,
+  "sender_id" text not null references public."user"("id") on delete cascade,
+  "message" text not null,
+  "attachments" jsonb,
+  "created_at" timestamptz not null default now()
 );
 
 -- ADULT EDUCATION ------------------------------------------------------------
@@ -458,6 +592,32 @@ create table public."system_settings" (
   "updated_at" timestamp default now()
 );
 
+-- ABAC POLICIES & AUDIT LOGS -------------------------------------------------
+create table public."abac_policy" (
+  "id" text primary key,
+  "name" text not null unique,
+  "description" text,
+  "role" text not null, -- STUDENT, PUPIL, TEACHER, PARENT, SCHOOL_ADMIN, SUPER_ADMIN
+  "resource" text not null,
+  "action" text not null,
+  "conditions" jsonb not null,
+  "priority" integer default 0,
+  "effect" text not null default 'ALLOW',
+  "createdAt" timestamp default now()
+);
+
+create table public."audit_log" (
+  "id" text primary key,
+  "userId" text not null references public."user"("id") on delete cascade,
+  "action" text not null,
+  "resource" text not null,
+  "resourceId" text,
+  "details" jsonb,
+  "ipAddress" text,
+  "userAgent" text,
+  "createdAt" timestamptz not null default now()
+);
+
 -- SUPABASE REALTIME PUBLICATION SETUP -----------------------------------------
 do $$
 begin
@@ -476,7 +636,9 @@ alter publication supabase_realtime add table
   public."conversation",
   public."message",
   public."notification",
-  public."adult_education_enrollments";
+  public."adult_education_enrollments",
+  public."dispute",
+  public."support_ticket";
 
 -- SEED SUBJECTS ------------------------------------------------------------------
 insert into public."subject" ("id", "name", "code", "education_levels", "departments") values
@@ -510,6 +672,17 @@ insert into public."subject" ("id", "name", "code", "education_levels", "departm
   (gen_random_uuid()::text, 'Livestock Farming', 'LIVESTOCK', array['JUNIOR','SENIOR'], array['SCIENCE']),
   (gen_random_uuid()::text, 'Horticulture', 'HORT', array['JUNIOR','SENIOR'], array['SCIENCE'])
 on conflict (code) do nothing;
+
+-- SEED DEFAULT ABAC POLICIES ----------------------------------------------------
+insert into public."abac_policy" ("id", "name", "description", "role", "resource", "action", "conditions", "priority", "effect") values
+  (gen_random_uuid()::text, 'super_admin_full_access', 'Super Admin full access to all resources', 'SUPER_ADMIN', '*', '*', '{}'::jsonb, 100, 'ALLOW'),
+  (gen_random_uuid()::text, 'school_admin_school_access', 'School Admin access within school tenant', 'SCHOOL_ADMIN', '*', '*', '{"user.schoolId":"resource.schoolId"}'::jsonb, 90, 'ALLOW'),
+  (gen_random_uuid()::text, 'teacher_assessment_manage', 'Teachers manage CBT assessments', 'TEACHER', 'assessment', '*', '{}'::jsonb, 80, 'ALLOW'),
+  (gen_random_uuid()::text, 'teacher_results_grade', 'Teachers grade assessment results', 'TEACHER', 'result', 'grade', '{}'::jsonb, 80, 'ALLOW'),
+  (gen_random_uuid()::text, 'student_results_view', 'Students view their own assessment results', 'STUDENT', 'result', 'read', '{"user.id":"resource.userId"}'::jsonb, 70, 'ALLOW'),
+  (gen_random_uuid()::text, 'pupil_results_view', 'Pupils view their own assessment results', 'PUPIL', 'result', 'read', '{"user.id":"resource.userId"}'::jsonb, 70, 'ALLOW'),
+  (gen_random_uuid()::text, 'parent_children_results_view', 'Parents view their children results and payments', 'PARENT', 'result', 'read', '{}'::jsonb, 70, 'ALLOW')
+on conflict (name) do nothing;
 
 -- =====================================================================
 -- EL GOODNEWS INT'L ACADEMY - SEED DATA FOR MULTI-TENANT & AUTOMATED LOGIN ACCOUNTS
