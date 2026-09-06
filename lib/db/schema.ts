@@ -38,7 +38,7 @@ export const user = pgTable('user', {
 export const userRole = pgTable('user_role', {
   id: text('id').primaryKey(),
   userId: text('userid').notNull().unique(),
-  role: text('role').notNull(), // SUPER_ADMIN, SCHOOL_ADMIN, TEACHER, PARENT, STUDENT
+  role: text('role').notNull(), // SUPER_ADMIN, SCHOOL_ADMIN, TEACHER, PARENT, STUDENT, PUPIL
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
@@ -232,7 +232,7 @@ export const assessment = pgTable('assessment', {
   duration: integer('duration').notNull(),
   type: text('type').notNull(),
   status: text('status').default('draft'),
-  accessCode: text('accesscode'),
+  accessCode: text('accesscode'), // Exam Code / Access Code for CBT session
   adminComment: text('adminComment'),
   passingScore: integer('passingScore').default(40),
   totalPoints: integer('totalPoints').default(100),
@@ -288,6 +288,32 @@ export const studentAnswer = pgTable('student_answer', {
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.assessmentResultId], foreignColumns: [assessmentResult.id] }).onDelete('cascade'),
+])
+
+export const cbtSessions = pgTable('cbt_sessions', {
+  id: text('id').primaryKey(),
+  assessmentId: text('assessment_id').notNull(),
+  studentId: text('student_id').notNull(),
+  accessCode: text('access_code').notNull(),
+  status: text('status').notNull().default('ONGOING'), // ONGOING, COMPLETED, EXPIRED, TERMINATED
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  endedAt: timestamp('ended_at', { withTimezone: true }),
+  warningCount: integer('warning_count').default(0),
+}, (t) => [
+  foreignKey({ columns: [t.assessmentId], foreignColumns: [assessment.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }).onDelete('cascade'),
+])
+
+export const cbtAttempts = pgTable('cbt_attempts', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').notNull(),
+  studentId: text('student_id').notNull(),
+  answers: jsonb('answers'),
+  score: numeric('score', { precision: 5, scale: 2 }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+}, (t) => [
+  foreignKey({ columns: [t.sessionId], foreignColumns: [cbtSessions.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }).onDelete('cascade'),
 ])
 
 // ===== ATTENDANCE =====
@@ -524,11 +550,23 @@ export const supportTicket = pgTable('support_ticket', {
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }),
 ])
 
+export const supportTicketReply = pgTable('support_ticket_replies', {
+  id: text('id').primaryKey(),
+  ticketId: text('ticket_id').notNull(),
+  senderId: text('sender_id').notNull(),
+  message: text('message').notNull(),
+  attachments: jsonb('attachments'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.ticketId], foreignColumns: [supportTicket.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.senderId], foreignColumns: [user.id] }).onDelete('cascade'),
+])
+
 export const abacPolicy = pgTable('abac_policy', {
   id: text('id').primaryKey(),
   name: text('name').notNull().unique(),
   description: text('description'),
-  role: text('role').notNull(),
+  role: text('role').notNull(), // STUDENT, PUPIL, TEACHER, PARENT, SCHOOL_ADMIN, SUPER_ADMIN
   resource: text('resource').notNull(),
   action: text('action').notNull(),
   conditions: jsonb('conditions').notNull(),
