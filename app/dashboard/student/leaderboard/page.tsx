@@ -7,6 +7,7 @@ import { Trophy, Award, Medal, Zap, Star, Flame, Sparkles, TrendingUp, Search } 
 import { db } from '@/lib/db'
 import { student, assessmentResult } from '@/lib/db/schema'
 import { sql, eq, desc } from 'drizzle-orm'
+import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSync'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,6 +74,7 @@ export default async function LeaderboardPage() {
           </div>
         </div>
 
+        <DashboardRealtimeSync role="student" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Top 20 Leaderboard List */}
           <div className="lg:col-span-2 space-y-6">
