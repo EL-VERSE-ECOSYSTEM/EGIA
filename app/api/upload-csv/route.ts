@@ -95,6 +95,7 @@ export async function POST(req: NextRequest) {
         optionC: mapping.optionC || 'Option C',
         optionD: mapping.optionD || 'Option D',
         correctAnswer: mapping.correct || 'Correct',
+        imageUrl: mapping.imageUrl || mapping.image || 'Image_URL',
       })
 
       const questionInserts = mappedQuestions.map((q, idx) => ({
@@ -104,6 +105,7 @@ export async function POST(req: NextRequest) {
         questionType: 'MCQ_SINGLE',
         options: JSON.stringify([q.optionA, q.optionB, q.optionC, q.optionD].filter(Boolean)),
         correctAnswer: q.correctAnswer || q.optionA || '',
+        imageUrl: q.imageUrl || null,
         points: 1,
         order: idx + 1,
       }))

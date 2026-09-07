@@ -20,7 +20,7 @@ export default function CreateAssessmentPage() {
   const [duration, setDuration] = useState(60)
   const [subjects, setSubjects] = useState<any[]>([])
   const [type, setType] = useState('ASSESSMENT_CBT') // ASSESSMENT_CBT or EXAM_CBT
-  const [questions, setQuestions] = useState([{ questionText: '', options: ['', '', '', ''], correctAnswer: '', marks: 5 }])
+  const [questions, setQuestions] = useState([{ questionText: '', options: ['', '', '', ''], correctAnswer: '', imageUrl: '', marks: 5 }])
 
   useEffect(() => {
     async function loadSubjects() {
@@ -38,7 +38,7 @@ export default function CreateAssessmentPage() {
   }, [])
 
   const handleAddQuestion = () => {
-    setQuestions([...questions, { questionText: '', options: ['', '', '', ''], correctAnswer: '', marks: 5 }])
+    setQuestions([...questions, { questionText: '', options: ['', '', '', ''], correctAnswer: '', imageUrl: '', marks: 5 }])
   }
 
   const handleRemoveQuestion = (index: number) => {
@@ -167,6 +167,20 @@ export default function CreateAssessmentPage() {
                 }}
                 className="h-12 rounded-xl font-semibold text-slate-800"
               />
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-600">Question Image URL (Optional - Diagrams/Charts)</Label>
+                <Input
+                  placeholder="https://example.com/diagram.png"
+                  value={q.imageUrl || ''}
+                  onChange={e => {
+                    const newQs = [...questions]
+                    newQs[i].imageUrl = e.target.value
+                    setQuestions(newQs)
+                  }}
+                  className="h-11 rounded-xl text-xs font-mono"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 {q.options.map((opt, oi) => (
                   <Input

@@ -252,6 +252,7 @@ export const assessmentQuestion = pgTable('assessment_question', {
   questionType: text('questionType').notNull(),
   options: jsonb('options'),
   correctAnswer: text('correctAnswer'),
+  imageUrl: text('imageUrl'),
   points: integer('points').default(1),
   explanation: text('explanation'),
   order: integer('order').notNull(),
