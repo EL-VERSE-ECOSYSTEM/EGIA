@@ -136,6 +136,7 @@ create table public."user" (
   "name" text,
   "image" text,
   "schoolid" text references public."school"("id") on delete cascade,
+  "password" text,
   "createdat" timestamptz not null default now(),
   "updatedat" timestamptz not null default now()
 );
@@ -158,6 +159,7 @@ create table public."parent" (
   "profileimage" text,
   "facialverificationvideo" text,
   "occupation" text,
+  "password" text default 'default',
   "createdat" timestamptz not null default now(),
   "updatedat" timestamptz not null default now()
 );
@@ -186,6 +188,7 @@ create table public."teacher" (
   "specialization" text,
   "profileimage" text,
   "facialverificationvideo" text,
+  "password" text default 'default',
   "status" text default 'PENDING',
   "isactive" boolean default true,
   "createdat" timestamptz not null default now(),

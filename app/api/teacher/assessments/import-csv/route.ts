@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     }
 
     const questionsToInsert = data.map((row: any, index: number) => {
-      const marks = parseInt(row.marks, 10) || 1
+      const marks = parseInt(row.marks || row.points || '1', 10) || 1
       let parsedOptions = null
       if (row.options) {
         try {
@@ -90,16 +90,19 @@ export async function POST(req: Request) {
         } catch (e) {
           parsedOptions = [row.options]
         }
+      } else if (row.optionA || row.optionB) {
+        parsedOptions = [row.optionA, row.optionB, row.optionC, row.optionD].filter(Boolean)
       }
 
       return {
         id: uuidv4(),
         assessmentId,
-        questionText: row.questionText,
+        questionText: row.questionText || row.question || `Question ${index + 1}`,
         questionType: row.questionType || 'multiple_choice',
         points: marks,
         options: parsedOptions,
-        correctAnswer: row.correctAnswer || '',
+        correctAnswer: row.correctAnswer || row.answer || row.correct || '',
+        imageUrl: row.imageUrl || row.image || row.image_url || null,
         explanation: row.explanation || null,
         order: index + 1,
       }

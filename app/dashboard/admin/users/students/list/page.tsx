@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Search, Filter, MoreVertical, GraduationCap, ChevronRight, BookOpen, ArrowUpDown, School, LayoutGrid } from 'lucide-react'
 import { getAllStudents } from '@/app/actions/admin'
 import Link from 'next/link'
+import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSync'
 
 export default function StudentListPage() {
   const [students, setStudents] = useState<any[]>([])
@@ -108,6 +109,7 @@ export default function StudentListPage() {
           </div>
         </div>
 
+        <DashboardRealtimeSync role="admin" />
         {/* Dynamic Filters Bar */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="relative">

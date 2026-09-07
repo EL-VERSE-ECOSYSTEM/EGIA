@@ -1,30 +1,18 @@
 
-> my-project@0.1.0 start /app
+> my-project@0.1.0 start
 > next start
 
 ▲ Next.js 16.3.0
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
-✓ Ready in 241ms
-✓ Running next.config.mjs took 28ms
+✓ Ready in 220ms
+✓ Running next.config.mjs took 25ms
 MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
 MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
-⨯ Error: Unauthorized
-    at n (.next/server/app/dashboard/teacher/assessments/create/text/page.js:1:11369)
-    at async p (.next/server/app/dashboard/teacher/assessments/create/text/page.js:1:11645)
-    at async o (.next/server/chunks/3458.js:27:16469)
-    at async r (.next/server/chunks/3458.js:28:4523) {
-  digest: '611379963'
+⨯ Error: This payment reference was not found.
+    at q (.next/server/app/payment/return/page.js:1:3269)
+    at async o (.next/server/chunks/4745.js:140:41781)
+    at async r (.next/server/chunks/4745.js:141:4523)
+    at async Module.V (.next/server/chunks/4745.js:143:2628) {
+  digest: '1513091105'
 }
-MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
-⨯ Error: Event handlers cannot be passed to Client Component props.
-  {data-slot: "button", className: ..., onClick: function onClick, children: ...}
-                                                 ^^^^^^^^^^^^^^^^
-If you need interactivity, consider converting part of this to a Client Component.
-    at ignore-listed frames {
-  digest: '692732925'
-}
-The width(-1) and height(-1) of chart should be greater than 0,
-       please check the style of container, or the props width(100%) and height(100%),
-       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
-       height and width.

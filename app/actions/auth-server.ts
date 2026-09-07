@@ -247,7 +247,8 @@ export async function registerStudent(data: any) {
         email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null,
-        schoolId
+        schoolId,
+        password: password || null
       }).onConflictDoNothing()
 
       await tx.insert(userRole).values({
@@ -329,7 +330,8 @@ export async function registerParent(data: any) {
         email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null,
-        schoolId
+        schoolId,
+        password: password || null
       }).onConflictDoNothing()
 
       await tx.insert(userRole).values({
@@ -347,7 +349,8 @@ export async function registerParent(data: any) {
         phoneNumber: phone,
         occupation: occupation || null,
         profileImage: profileImage || null,
-        facialVerificationVideo: data.facialVerificationVideo || null
+        facialVerificationVideo: data.facialVerificationVideo || null,
+        password: password || 'default'
       })
 
       const wardsList = Array.isArray(data.wardAdmissionNumbers)
@@ -419,7 +422,8 @@ export async function registerTeacher(data: any) {
         email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null,
-        schoolId
+        schoolId,
+        password: password || null
       }).onConflictDoNothing()
 
       await tx.insert(userRole).values({
@@ -441,7 +445,8 @@ export async function registerTeacher(data: any) {
         teachingSubjects: Array.isArray(data.teachingSubjects) ? data.teachingSubjects : [],
         presentDays: Array.isArray(data.presentDays) ? data.presentDays : [],
         profileImage: profileImage || null,
-        facialVerificationVideo: data.facialVerificationVideo || null
+        facialVerificationVideo: data.facialVerificationVideo || null,
+        password: password || 'default'
       })
     })
 

@@ -29,6 +29,7 @@ export const user = pgTable('user', {
   name: text('name'),
   image: text('image'),
   schoolId: text('schoolid'),
+  password: text('password'),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
@@ -126,6 +127,7 @@ export const teacher = pgTable('teacher', {
   specialization: text('specialization'),
   profileImage: text('profileimage'),
   facialVerificationVideo: text('facialverificationvideo'),
+  password: text('password').default('default'),
   status: text('status').default('PENDING'),
   isActive: boolean('isactive').default(true),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
@@ -146,6 +148,7 @@ export const parent = pgTable('parent', {
   profileImage: text('profileimage'),
   facialVerificationVideo: text('facialverificationvideo'),
   occupation: text('occupation'),
+  password: text('password').default('default'),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
