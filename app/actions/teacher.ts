@@ -76,6 +76,7 @@ export async function createAssessment(data: any) {
         questionType: q.questionType || 'multiple_choice',
         options: q.options || null,
         correctAnswer: q.correctAnswer || '',
+        imageUrl: q.imageUrl || null,
         points: q.marks || 1,
         explanation: '',
         order: idx + 1
@@ -511,6 +512,7 @@ export async function updateAssessmentAndResubmit(data: {
         questionType: q.questionType || 'multiple_choice',
         options: q.options || null,
         correctAnswer: q.correctAnswer || '',
+        imageUrl: (q as any).imageUrl || null,
         points: q.marks || 1,
         explanation: '',
         order: idx + 1

@@ -301,6 +301,7 @@ create table public."assessment_question" (
   "questionType" text not null,
   "options" jsonb,
   "correctAnswer" text,
+  "imageUrl" text,
   "points" integer default 1,
   "explanation" text,
   "order" integer not null
@@ -633,6 +634,9 @@ alter publication supabase_realtime add table
   public."teacher",
   public."parent",
   public."assessment",
+  public."assessment_result",
+  public."payment",
+  public."report_card",
   public."conversation",
   public."message",
   public."notification",
