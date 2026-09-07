@@ -612,10 +612,11 @@ export async function loginRole(data: {
     try {
       const adminClient = authAdminClient()
       if (adminClient) {
-        const existingAuthUser = await findAuthUserByEmail(adminClient, email)
+        let existingAuthUser = await findAuthUserByEmail(adminClient, email)
         const dbUser = await db.query.user.findFirst({
           where: eq(userTable.email, email)
         })
+
         if (dbUser) {
           if (!existingAuthUser) {
             console.log(`[Auth] Auto-provisioning seeded ${selectedRole} ${email} in Supabase...`)
@@ -630,6 +631,18 @@ export async function loginRole(data: {
               }
             })
             if (!createError && created.user) {
+              signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
+            }
+          } else {
+            // Update password in Supabase Auth if user exists in local DB
+            const { error: updateError } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
+              password: data.password,
+              user_metadata: {
+                ...existingAuthUser.user_metadata,
+                role: selectedRole
+              }
+            })
+            if (!updateError) {
               signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
             }
           }
