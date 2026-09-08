@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm'
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const reference = searchParams.get('reference') || searchParams.get('payment_reference') || ''
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const returnUrl = new URL('/payment/return', siteUrl)
 
   if (!reference) {

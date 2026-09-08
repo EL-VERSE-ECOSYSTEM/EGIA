@@ -106,7 +106,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       role: 'ADMIN',
     }).onConflictDoNothing()
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://goodnews-app-mu.vercel.app/'
+    const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://goodnews-app-mu.vercel.app/'
     const secretKey = process.env.KORAPAY_SECRET_KEY
 
     let checkoutUrl = `${process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'}?reference=${encodeURIComponent(paymentReference)}&amount=30000&customer_email=${encodeURIComponent(adminEmail)}`
