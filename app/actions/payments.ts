@@ -29,7 +29,7 @@ async function requireLinkedChild(parentId: string, studentId: string) {
 function checkoutUrl(reference: string) {
   const url = new URL(KORAPAY_CHECKOUT_LINK)
   url.searchParams.set('reference', reference)
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
   if (siteUrl) {
     url.searchParams.set('redirect_url', `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`)
   }

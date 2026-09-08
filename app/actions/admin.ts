@@ -99,7 +99,7 @@ export async function createStudent(data: any) {
       })
       const checkout = new URL(process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW')
       checkout.searchParams.set('reference', reference)
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+      const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
       if (siteUrl) checkout.searchParams.set('redirect_url', `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`)
       checkoutUrl = checkout.toString()
     }

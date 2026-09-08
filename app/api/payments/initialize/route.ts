@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     const reference = `TRX-${Date.now()}-${randomUUID().slice(0, 8)}`
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     const notificationUrl = `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`
     const redirectUrl = `${siteUrl.replace(/\/$/, '')}/api/payments/callback`
 
