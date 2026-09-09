@@ -46,8 +46,11 @@ export default function AIConversionPage() {
         const response = await fetch('/api/teacher/assessments/convert-pdf', { method: 'POST', body: formData })
         const result = await response.json()
         if (!response.ok || !result.success) throw new Error(result.error || 'PDF conversion failed')
-        setQuestions((result.questions || []).map((question: any) => ({
-          ...question, question: question.text, answer: question.correctAnswer,
+        setQuestions((result.questions || []).map((question: any, idx: number) => ({
+          ...question,
+          id: question.id || `q-${idx}`,
+          question: question.text || question.question,
+          answer: question.correctAnswer || question.answer,
         })))
       } catch (err: any) {
         console.error(err)

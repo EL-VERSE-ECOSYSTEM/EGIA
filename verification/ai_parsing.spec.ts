@@ -4,18 +4,18 @@ const fs = require('fs');
 test('verify AI PDF parsing simulation', async ({ page }) => {
   page.on('dialog', dialog => dialog.dismiss());
 
-  await page.route('/api/teacher/assessments/convert-pdf', async route => {
+  await page.route('**/api/teacher/assessments/convert-pdf', async route => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         success: true,
         questions: [
-          { text: 'What is 2 + 2?', type: 'multiple_choice', options: ['2', '3', '4', '5'], correctAnswer: '4', confidence: 0.98 },
-          { text: 'Water boils at 100 degrees C.', type: 'true_false', options: ['True', 'False'], correctAnswer: 'True', confidence: 0.95 },
-          { text: 'Capital of France is Paris.', type: 'fill_in_the_gap', correctAnswer: 'Paris', confidence: 0.92 },
-          { text: 'Primary color among these is Blue.', type: 'multiple_choice', options: ['Green', 'Blue', 'Orange', 'Purple'], correctAnswer: 'Blue', confidence: 0.96 },
-          { text: 'The sun rises in the East.', type: 'true_false', options: ['True', 'False'], correctAnswer: 'True', confidence: 0.99 }
+          { id: 'q-1', text: 'What is 2 + 2?', type: 'multiple_choice', options: ['2', '3', '4', '5'], correctAnswer: '4', confidence: 0.98 },
+          { id: 'q-2', text: 'Water boils at 100 degrees C.', type: 'true_false', options: ['True', 'False'], correctAnswer: 'True', confidence: 0.95 },
+          { id: 'q-3', text: 'Capital of France is Paris.', type: 'fill_in_the_gap', correctAnswer: 'Paris', confidence: 0.92 },
+          { id: 'q-4', text: 'Primary color among these is Blue.', type: 'multiple_choice', options: ['Green', 'Blue', 'Orange', 'Purple'], correctAnswer: 'Blue', confidence: 0.96 },
+          { id: 'q-5', text: 'The sun rises in the East.', type: 'true_false', options: ['True', 'False'], correctAnswer: 'True', confidence: 0.99 }
         ]
       })
     });
@@ -48,9 +48,6 @@ test('verify AI PDF parsing simulation', async ({ page }) => {
   await page.screenshot({ path: 'verification/ai_pdf_results.png', fullPage: true });
 
   const content = await page.textContent('body');
-  if (content?.includes('Extracted 5 Questions')) {
-    console.log('SUCCESS: Questions extracted');
-  } else {
-    console.log('FAILURE: Questions NOT extracted. Body content length: ' + content?.length);
-  }
+  expect(content).toContain('Extracted 5 Questions');
+  console.log('SUCCESS: Questions extracted');
 });

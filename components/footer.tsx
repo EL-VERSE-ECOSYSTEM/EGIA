@@ -14,7 +14,7 @@ export function Footer() {
             </Link>
           </div>
           <div className="text-xs text-slate-400 font-medium text-center md:text-right leading-relaxed">
-            Made with 💕 from{' '}
+            Made with 💖 from{' '}
             <a
               href="https://x.com/EVE_Connect1"
               target="_blank"

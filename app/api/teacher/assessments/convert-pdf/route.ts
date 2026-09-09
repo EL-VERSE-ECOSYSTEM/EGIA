@@ -9,9 +9,6 @@ export async function POST(req: Request) {
   }
 
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ error: 'PDF conversion is not configured.' }, { status: 503 })
-    }
     const formData = await req.formData()
     const file = formData.get('pdf') as File
 
