@@ -21,7 +21,7 @@ export function useRealtimeSubscription<T extends Record<string, unknown> = Reco
       filter: options.filter,
       callback: (event) => callbackRef.current?.(event),
       statusCallback: (status) => {
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        if ((status === "CHANNEL_ERROR" || status === "TIMED_OUT") && (typeof navigator === "undefined" || navigator.onLine)) {
           toast.error("Live data connection interrupted", { description: `${table} updates will retry automatically.` });
         }
       },

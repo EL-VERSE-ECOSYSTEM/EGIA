@@ -25,7 +25,7 @@ export async function withCircuitBreaker<T>(
 ) {
   const failureThreshold = options.failureThreshold ?? 3;
   const recoveryTimeMs = options.recoveryTimeMs ?? 30_000;
-  const timeoutMs = options.timeoutMs ?? 20_000;
+  const timeoutMs = options.timeoutMs ?? 5_000;
   const state = circuitStates.get(name) ?? { failures: 0, openedUntil: 0 };
   const now = Date.now();
 
