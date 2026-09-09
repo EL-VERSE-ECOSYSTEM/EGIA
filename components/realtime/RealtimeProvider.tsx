@@ -18,10 +18,22 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<ConnectionStatus>("CONNECTING");
 
   useEffect(() => {
+    const handleOnline = () => {
+      toast.success("Back online", { description: "Reconnected to EL LEARN App services." });
+    };
+    const handleOffline = () => {
+      toast.warning("Network connection lost", { description: "App is running in offline mode." });
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
+    }
+
     const supabase = createClient();
     const channel: RealtimeChannel = supabase.channel("connection-health").subscribe((nextStatus) => {
       setStatus(nextStatus);
-      if (nextStatus === "CHANNEL_ERROR" || nextStatus === "TIMED_OUT") {
+      if ((nextStatus === "CHANNEL_ERROR" || nextStatus === "TIMED_OUT") && navigator.onLine) {
         toast.error("Realtime connection interrupted", { description: "Live updates will retry automatically." });
       }
     });
@@ -36,7 +48,9 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         });
       }).subscribe((nextStatus) => {
         if (nextStatus === "CHANNEL_ERROR" || nextStatus === "TIMED_OUT") {
-          toast.error("Notification stream interrupted", { description: "New notification alerts will retry automatically." });
+          if (navigator.onLine) {
+            toast.error("Notification stream interrupted", { description: "New notification alerts will retry automatically." });
+          }
         }
       });
     return () => { void supabase.removeChannel(channel); void supabase.removeChannel(notifications); };
