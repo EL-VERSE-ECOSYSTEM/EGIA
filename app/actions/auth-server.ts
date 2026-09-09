@@ -38,14 +38,13 @@ function isDuplicateSignup(user: SupabaseUser | null, error?: { message?: string
 async function findAuthUserByEmail(adminClient: ReturnType<typeof authAdminClient>, email: string) {
   if (!adminClient) return null
 
-  try {
-    const { data, error } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 200 })
-    if (!error && data?.users) {
-      const found = data.users.find((user) => user.email?.toLowerCase() === email)
-      if (found) return found
-    }
-  } catch (e) {
-    console.warn('[Auth] findAuthUserByEmail listUsers check error:', e)
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 })
+    if (error) throw error
+
+    const found = data.users.find((user) => user.email?.toLowerCase() === email)
+    if (found) return found
+    if (data.users.length < 1000) return null
   }
 
   return null
