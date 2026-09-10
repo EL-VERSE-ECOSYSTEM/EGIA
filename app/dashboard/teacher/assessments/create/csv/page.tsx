@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ import { Upload, FileText, CheckCircle, AlertCircle, Table, ArrowRight, Database
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AdvancedCSVUploader } from '@/components/csv/AdvancedCSVUploader'
 
-export default function CSVImportPage() {
+function CSVImportContent() {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
@@ -110,5 +110,13 @@ export default function CSVImportPage() {
         </div>
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function CSVImportPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center font-bold">Loading CSV Import...</div>}>
+      <CSVImportContent />
+    </Suspense>
   )
 }
