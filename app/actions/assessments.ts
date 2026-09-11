@@ -264,16 +264,24 @@ export async function getLoggedInStudentAndQuestions(assessmentId: string, provi
     throw new Error('This assessment is not available for your school.')
   }
 
-  const questionsList = dbAssessment.questions.map(q => ({
-    id: q.id,
-    text: q.questionText,
-    options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [],
-    answer: q.correctAnswer || ''
-  }))
+  const questionsList = dbAssessment.questions.map(q => {
+    const rawOptions = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : []
+    // Shuffle options for multiple choice questions
+    const shuffledOptions = Array.isArray(rawOptions) ? [...rawOptions].sort(() => Math.random() - 0.5) : rawOptions
+    return {
+      id: q.id,
+      text: q.questionText,
+      options: shuffledOptions,
+      answer: q.correctAnswer || ''
+    }
+  })
+
+  // Shuffle questions randomly for each student/pupil
+  const shuffledQuestions = [...questionsList].sort(() => Math.random() - 0.5)
 
   return {
     studentId: studentProfile.id,
-    questions: questionsList,
+    questions: shuffledQuestions,
     title: dbAssessment?.title || 'Assessment CBT'
   }
 }
