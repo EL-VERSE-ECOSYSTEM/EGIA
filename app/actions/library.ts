@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { libraryBooks, subject } from '@/lib/db/schema'
+import { libraryBooks, lessonNotes, subject } from '@/lib/db/schema'
 import { asc, eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
@@ -254,13 +254,38 @@ export async function createLessonNote(data: {
   content?: string
   description?: string
   fileUrl?: string
+  storagePath?: string
+  fileSize?: string
   pages?: number
+  isPdf?: boolean
   isDigital?: boolean
+  schoolId?: string
+  teacherId?: string
 }) {
   try {
     const id = `note-${randomUUID()}`
     const category = data.category || 'Lesson Notes'
 
+    // Insert into dedicated lesson_notes table
+    await db.insert(lessonNotes).values({
+      id,
+      schoolId: data.schoolId || null,
+      teacherId: data.teacherId || null,
+      title: data.title,
+      subject: data.subject,
+      classLevel: data.classLevel,
+      author: data.author,
+      category,
+      content: data.content || data.description || '',
+      description: data.description || data.content || '',
+      fileUrl: data.fileUrl || null,
+      storagePath: data.storagePath || null,
+      fileSize: data.fileSize || null,
+      isPdf: data.isPdf ?? false,
+      isDigital: data.isDigital ?? true
+    }).onConflictDoNothing()
+
+    // Insert into library_books table for unified search & browsing
     await db.insert(libraryBooks).values({
       id,
       title: data.title,
@@ -275,7 +300,7 @@ export async function createLessonNote(data: {
       isDigital: data.isDigital ?? true,
       isbn: `LN-${Math.floor(100000 + Math.random() * 900000)}`,
       location: 'EL LEARN App Digital Library'
-    })
+    }).onConflictDoNothing()
 
     return { success: true, id }
   } catch (error: any) {

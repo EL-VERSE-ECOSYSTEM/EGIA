@@ -14,6 +14,7 @@ drop table if exists public.book_reviews cascade;
 drop table if exists public.reading_history cascade;
 drop table if exists public.book_requests cascade;
 drop table if exists public.book_borrowings cascade;
+drop table if exists public.lesson_notes cascade;
 drop table if exists public.book_tag_relations cascade;
 drop table if exists public.book_tags cascade;
 drop table if exists public.book_categories cascade;
@@ -836,6 +837,31 @@ create table if not exists public.faq_articles (
   is_published boolean not null default true,
   created_at timestamp with time zone not null default now()
 );
+
+create table if not exists public.lesson_notes (
+  id text primary key,
+  school_id text references public.school(id) on delete set null,
+  teacher_id text,
+  title text not null,
+  subject text not null,
+  class_level text not null,
+  author text not null,
+  category text default 'Lesson Notes',
+  content text,
+  description text,
+  file_url text,
+  storage_path text,
+  file_size text,
+  is_pdf boolean default false,
+  is_digital boolean default true,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now()
+);
+
+-- Initialize lesson-notes Supabase Storage Bucket in SQL
+insert into storage.buckets (id, name, public)
+values ('lesson-notes', 'lesson-notes', true)
+on conflict (id) do nothing;
 
 INSERT INTO public.user_role (id, userid, role)
 VALUES (

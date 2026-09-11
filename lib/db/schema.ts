@@ -873,3 +873,26 @@ export const faqArticles = pgTable('faq_articles', {
   isPublished: boolean('is_published').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+// ===== LESSON NOTES TABLE =====
+export const lessonNotes = pgTable('lesson_notes', {
+  id: text('id').primaryKey(),
+  schoolId: text('school_id'),
+  teacherId: text('teacher_id'),
+  title: text('title').notNull(),
+  subject: text('subject').notNull(),
+  classLevel: text('class_level').notNull(),
+  author: text('author').notNull(),
+  category: text('category').default('Lesson Notes'),
+  content: text('content'), // For manual typing
+  description: text('description'),
+  fileUrl: text('file_url'), // Supabase Storage public bucket URL
+  storagePath: text('storage_path'), // Path inside Supabase Storage bucket
+  fileSize: text('file_size'),
+  isPdf: boolean('is_pdf').default(false),
+  isDigital: boolean('is_digital').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('set null'),
+])

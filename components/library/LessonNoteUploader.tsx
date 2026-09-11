@@ -105,21 +105,40 @@ export function LessonNoteUploader({ onSuccess, userRole = 'Teacher', defaultAut
 
     setLoading(true)
     try {
+      // 1. Upload PDF to Supabase Storage Bucket
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', pdfFile)
+
+      const uploadRes = await fetch('/api/library/lesson-notes/upload-pdf', {
+        method: 'POST',
+        body: uploadFormData
+      })
+
+      const uploadData = await uploadRes.json()
+      if (!uploadRes.ok || !uploadData.success) {
+        toast.error(uploadData.error || 'Failed to upload PDF to Supabase Storage bucket.')
+        setLoading(false)
+        return
+      }
+
+      // 2. Save Lesson Note Record to Supabase Tables
       const res = await createLessonNote({
         title: pdfTitle,
         subject: pdfSubject,
         classLevel: pdfClassLevel,
         author: pdfAuthor || defaultAuthor,
         category: 'Lesson Notes (PDF)',
-        content: pdfDescription || `PDF Document: ${pdfFile.name}`,
+        content: pdfDescription || `PDF Document Note: ${pdfFile.name}`,
         description: pdfDescription || `Uploaded PDF document note: ${pdfFile.name}`,
-        fileUrl: pdfBase64 || null,
-        pages: 10,
+        fileUrl: uploadData.fileUrl,
+        storagePath: uploadData.storagePath,
+        fileSize: uploadData.fileSize,
+        isPdf: true,
         isDigital: true
       })
 
       if (res.success) {
-        toast.success('PDF Lesson Note uploaded and synced to Library!')
+        toast.success('PDF Lesson Note uploaded to Supabase Storage and synced in real time!')
         setPdfFile(null)
         setPdfTitle('')
         setPdfSubject('')
@@ -131,7 +150,7 @@ export function LessonNoteUploader({ onSuccess, userRole = 'Teacher', defaultAut
         toast.error(res.error || 'Failed to upload PDF lesson note.')
       }
     } catch (err: any) {
-      toast.error('An unexpected error occurred uploading PDF.')
+      toast.error('An unexpected error occurred uploading PDF to storage bucket.')
     } finally {
       setLoading(false)
     }
