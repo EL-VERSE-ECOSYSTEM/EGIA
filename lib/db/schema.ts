@@ -338,6 +338,7 @@ export const attendance = pgTable('attendance', {
 // ===== FEES & PAYMENTS =====
 export const feeStructure = pgTable('fee_structure', {
   id: text('id').primaryKey(),
+  schoolId: text('schoolid'),
   class: text('class').notNull(),
   department: text('department'),
   feeType: text('feeType').notNull(),
@@ -348,7 +349,8 @@ export const feeStructure = pgTable('fee_structure', {
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  unique().on(t.class, t.department, t.feeType),
+  unique().on(t.schoolId, t.class, t.department, t.feeType),
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
 ])
 
 export const payment = pgTable('payment', {

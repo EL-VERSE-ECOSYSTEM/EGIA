@@ -356,10 +356,10 @@ create table public."attendance" (
 
 -- FEES & PAYMENTS -----------------------------------------------------------
 create table public."fee_structure" (
-  "id" text primary key, "class" text not null, "department" text, "feeType" text not null,
+  "id" text primary key, "schoolid" text references public.school(id) on delete cascade, "class" text not null, "department" text, "feeType" text not null,
   "amount" numeric(12,2) not null, "dueDate" date, "description" text, "isActive" boolean default true,
   "createdAt" timestamptz not null default now(), "updatedAt" timestamptz not null default now(),
-  unique ("class", "department", "feeType")
+  unique ("schoolid", "class", "department", "feeType")
 );
 
 create table public."payment" (
