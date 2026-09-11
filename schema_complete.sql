@@ -356,10 +356,10 @@ create table public."attendance" (
 
 -- FEES & PAYMENTS -----------------------------------------------------------
 create table public."fee_structure" (
-  "id" text primary key, "class" text not null, "department" text, "feeType" text not null,
+  "id" text primary key, "schoolid" text references public.school(id) on delete cascade, "class" text not null, "department" text, "feeType" text not null,
   "amount" numeric(12,2) not null, "dueDate" date, "description" text, "isActive" boolean default true,
   "createdAt" timestamptz not null default now(), "updatedAt" timestamptz not null default now(),
-  unique ("class", "department", "feeType")
+  unique ("schoolid", "class", "department", "feeType")
 );
 
 create table public."payment" (
@@ -738,6 +738,103 @@ VALUES (
   'school-elgoodnews-001',
   NOW(),
   NOW()
+);
+
+-- Additional developer tables
+create table if not exists public.invitations (
+  id text primary key,
+  school_id text not null references public.school(id) on delete cascade,
+  email text,
+  phone text,
+  role text not null,
+  token text not null unique,
+  status text not null default 'PENDING',
+  expires_at timestamp with time zone not null,
+  invited_by text,
+  created_at timestamp with time zone not null default now()
+);
+
+create table if not exists public.assessment_schedule (
+  id text primary key,
+  assessment_id text not null references public.assessment(id) on delete cascade,
+  start_time timestamp with time zone not null,
+  end_time timestamp with time zone not null,
+  class_id text,
+  created_at timestamp with time zone not null default now()
+);
+
+create table if not exists public.library_books (
+  id text primary key,
+  isbn text unique,
+  title text not null,
+  subtitle text,
+  authors jsonb,
+  author text,
+  publisher text,
+  publication_year integer,
+  edition text,
+  volume text,
+  language text default 'English',
+  pages integer,
+  category text,
+  sub_category text,
+  description text,
+  total_copies integer default 1,
+  available_copies integer default 1,
+  cover_image_url text,
+  file_url text,
+  location text,
+  content text,
+  subject text,
+  class_level text,
+  keywords jsonb,
+  is_digital boolean default false,
+  rating numeric,
+  rating_count integer default 0,
+  borrowed_count integer default 0,
+  deleted_at timestamp with time zone,
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists public.book_borrowings (
+  id text primary key,
+  book_id text not null references public.library_books(id) on delete cascade,
+  user_id text,
+  student_id text,
+  borrow_date timestamp with time zone not null default now(),
+  due_date timestamp with time zone not null,
+  return_date timestamp with time zone,
+  fine_amount numeric(12,2) default 0.00,
+  status text not null default 'BORROWED',
+  created_at timestamp with time zone not null default now()
+);
+
+create table if not exists public.student_badges (
+  id text primary key,
+  student_id text not null references public.student(id) on delete cascade,
+  badge_name text not null,
+  badge_type text not null,
+  reason text,
+  awarded_at timestamp with time zone not null default now()
+);
+
+create table if not exists public.payment_webhook_logs (
+  id text primary key,
+  reference text not null,
+  event_type text not null,
+  payload jsonb,
+  status text not null default 'PROCESSED',
+  created_at timestamp with time zone not null default now()
+);
+
+create table if not exists public.faq_articles (
+  id text primary key,
+  title text not null,
+  category text not null,
+  content text not null,
+  keywords jsonb,
+  is_published boolean not null default true,
+  created_at timestamp with time zone not null default now()
 );
 
 INSERT INTO public.user_role (id, userid, role)

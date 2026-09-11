@@ -338,6 +338,7 @@ export const attendance = pgTable('attendance', {
 // ===== FEES & PAYMENTS =====
 export const feeStructure = pgTable('fee_structure', {
   id: text('id').primaryKey(),
+  schoolId: text('schoolid'),
   class: text('class').notNull(),
   department: text('department'),
   feeType: text('feeType').notNull(),
@@ -348,7 +349,8 @@ export const feeStructure = pgTable('fee_structure', {
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  unique().on(t.class, t.department, t.feeType),
+  unique().on(t.schoolId, t.class, t.department, t.feeType),
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
 ])
 
 export const payment = pgTable('payment', {
@@ -793,4 +795,81 @@ export const systemSettings = pgTable('system_settings', {
   type: text('type'),
   description: text('description'),
   updatedAt: timestamp('updated_at').defaultNow()
+})
+
+// ===== INVITATIONS TABLE =====
+export const invitations = pgTable('invitations', {
+  id: text('id').primaryKey(),
+  schoolId: text('school_id').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  role: text('role').notNull(), // TEACHER, PARENT, STUDENT
+  token: text('token').notNull().unique(),
+  status: text('status').notNull().default('PENDING'), // PENDING, ACCEPTED, EXPIRED
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  invitedBy: text('invited_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+])
+
+// ===== ASSESSMENT SCHEDULE TABLE =====
+export const assessmentSchedule = pgTable('assessment_schedule', {
+  id: text('id').primaryKey(),
+  assessmentId: text('assessment_id').notNull(),
+  startTime: timestamp('start_time', { withTimezone: true }).notNull(),
+  endTime: timestamp('end_time', { withTimezone: true }).notNull(),
+  classId: text('class_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.assessmentId], foreignColumns: [assessment.id] }).onDelete('cascade'),
+])
+
+// ===== BOOK BORROWINGS TABLE =====
+export const bookBorrowings = pgTable('book_borrowings', {
+  id: text('id').primaryKey(),
+  bookId: text('book_id').notNull(),
+  userId: text('user_id'),
+  studentId: text('student_id'),
+  borrowDate: timestamp('borrow_date', { withTimezone: true }).notNull().defaultNow(),
+  dueDate: timestamp('due_date', { withTimezone: true }).notNull(),
+  returnDate: timestamp('return_date', { withTimezone: true }),
+  fineAmount: numeric('fine_amount', { precision: 12, scale: 2 }).default('0.00'),
+  status: text('status').notNull().default('BORROWED'), // BORROWED, RETURNED, OVERDUE
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.bookId], foreignColumns: [libraryBooks.id] }).onDelete('cascade'),
+])
+
+// ===== STUDENT BADGES TABLE =====
+export const studentBadges = pgTable('student_badges', {
+  id: text('id').primaryKey(),
+  studentId: text('student_id').notNull(),
+  badgeName: text('badge_name').notNull(),
+  badgeType: text('badge_type').notNull(), // GOLD, SILVER, BRONZE, SPECIAL
+  reason: text('reason'),
+  awardedAt: timestamp('awarded_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }).onDelete('cascade'),
+])
+
+// ===== PAYMENT WEBHOOK LOGS TABLE =====
+export const paymentWebhookLogs = pgTable('payment_webhook_logs', {
+  id: text('id').primaryKey(),
+  reference: text('reference').notNull(),
+  eventType: text('event_type').notNull(),
+  payload: jsonb('payload'),
+  status: text('status').notNull().default('PROCESSED'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// ===== FAQ ARTICLES TABLE =====
+export const faqArticles = pgTable('faq_articles', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  category: text('category').notNull(),
+  content: text('content').notNull(),
+  keywords: jsonb('keywords'),
+  isPublished: boolean('is_published').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
