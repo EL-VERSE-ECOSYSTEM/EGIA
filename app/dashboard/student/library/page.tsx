@@ -11,8 +11,11 @@ import {
   Search, BookOpen, FileText, Video,
   Download, Star, HelpCircle, Eye,
   BookMarked, Sparkles, X, ChevronLeft,
-  ChevronRight, ZoomIn, ZoomOut, RotateCcw
+  ChevronRight, ZoomIn, ZoomOut, RotateCcw, Plus, Upload
 } from 'lucide-react'
+import { LessonNoteUploader } from '@/components/library/LessonNoteUploader'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { toast } from 'sonner'
 
 // Realistic comprehensive academic resource library dataset for EL LEARN App
 const LIBRARY_RESOURCES = [
@@ -245,6 +248,26 @@ export default function StudentLibraryPage() {
   // Dynamic state loaded directly from SQL Database using searchLibraryBooks
   const [resources, setResources] = useState<any[]>([])
   const [dbLoading, setDbLoading] = useState(true)
+  const [showUploader, setShowUploader] = useState(false)
+
+  const loadBooks = async () => {
+    setDbLoading(true)
+    try {
+      const { searchLibraryBooks } = await import('@/app/actions/library')
+      const results = await searchLibraryBooks(searchQuery)
+      setResources(results)
+    } catch (err) {
+      console.error('Failed to load library books from server database:', err)
+    } finally {
+      setDbLoading(false)
+    }
+  }
+
+  // Real-time Supabase Database Sync
+  useRealtimeSubscription('library_books', () => {
+    loadBooks()
+    toast('Digital library catalogue updated in real time!')
+  })
 
   // Keep the library filter in sync with the active Supabase subject catalogue.
   React.useEffect(() => {
@@ -261,18 +284,6 @@ export default function StudentLibraryPage() {
   }, [])
 
   React.useEffect(() => {
-    async function loadBooks() {
-      setDbLoading(true)
-      try {
-        const { searchLibraryBooks } = await import('@/app/actions/library')
-        const results = await searchLibraryBooks(searchQuery)
-        setResources(results)
-      } catch (err) {
-        console.error('Failed to load library books from server database:', err)
-      } finally {
-        setDbLoading(false)
-      }
-    }
     const timer = setTimeout(() => {
       loadBooks()
     }, 300)
@@ -377,18 +388,40 @@ export default function StudentLibraryPage() {
                 </p>
               </div>
 
-              {/* Instant Search Bar */}
-              <div className="relative w-full md:max-w-xs shrink-0">
-                <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
-                <Input
-                  type="text"
-                  placeholder="Search title, author, topic..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="pl-12 h-12 rounded-xl border-slate-200 bg-white shadow-sm font-bold text-slate-700 text-xs focus:ring-orange-600 transition-all"
-                />
+              {/* Instant Search Bar & Uploader Toggle */}
+              <div className="flex items-center gap-3 w-full md:w-auto shrink-0">
+                <div className="relative flex-1 md:w-64">
+                  <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search title, author, topic..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="pl-12 h-12 rounded-xl border-slate-200 bg-white shadow-sm font-bold text-slate-700 text-xs focus:ring-orange-600 transition-all"
+                  />
+                </div>
+                <Button
+                  onClick={() => setShowUploader(!showUploader)}
+                  className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl h-12 px-5 font-black text-xs shadow-md shrink-0 flex items-center gap-2"
+                >
+                  {showUploader ? <X className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
+                  {showUploader ? 'Close' : 'Upload Note'}
+                </Button>
               </div>
             </div>
+
+            {showUploader && (
+              <div className="mb-8">
+                <LessonNoteUploader
+                  userRole="Student"
+                  defaultAuthor="Student Contributor"
+                  onSuccess={() => {
+                    loadBooks()
+                    setShowUploader(false)
+                  }}
+                />
+              </div>
+            )}
 
             {/* Quick Filters Panel */}
             <Card className="border-none shadow-xl shadow-slate-200/50 rounded-3xl bg-white p-6 space-y-4">

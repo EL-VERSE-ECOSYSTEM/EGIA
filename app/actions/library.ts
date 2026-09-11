@@ -226,10 +226,11 @@ export async function searchLibraryBooks(query: string = '') {
       subject: book.subject || 'Mathematics',
       classLevel: book.classLevel || 'SSS 1',
       author: book.author || 'EL LEARNERS APP AUTHOR',
-      pages: book.category === 'Video Tutorials' ? 1 : 210,
-      downloads: 85,
-      fileSize: '12.4 MB',
-      content: book.content || ''
+      pages: book.category === 'Video Tutorials' ? 1 : (book.pages || 210),
+      downloads: book.borrowedCount || 85,
+      fileSize: book.fileUrl ? 'PDF Document' : '12.4 MB',
+      content: book.content || book.description || '',
+      fileUrl: book.fileUrl || null
     }))
   } catch (error) {
     console.warn('Database library search fallback to resilient client catalog:', error)
@@ -241,5 +242,44 @@ export async function searchLibraryBooks(query: string = '') {
       if (text.includes(trimmedQuery)) return true
       return searchTerms.every(term => text.includes(term))
     })
+  }
+}
+
+export async function createLessonNote(data: {
+  title: string
+  subject: string
+  classLevel: string
+  author: string
+  category?: string
+  content?: string
+  description?: string
+  fileUrl?: string
+  pages?: number
+  isDigital?: boolean
+}) {
+  try {
+    const id = `note-${randomUUID()}`
+    const category = data.category || 'Lesson Notes'
+
+    await db.insert(libraryBooks).values({
+      id,
+      title: data.title,
+      subject: data.subject,
+      classLevel: data.classLevel,
+      author: data.author,
+      category,
+      content: data.content || data.description || '',
+      description: data.description || data.content || '',
+      fileUrl: data.fileUrl || null,
+      pages: data.pages || 1,
+      isDigital: data.isDigital ?? true,
+      isbn: `LN-${Math.floor(100000 + Math.random() * 900000)}`,
+      location: 'EL LEARN App Digital Library'
+    })
+
+    return { success: true, id }
+  } catch (error: any) {
+    console.error('Failed to create lesson note:', error)
+    return { success: false, error: error.message || 'Failed to save lesson note' }
   }
 }

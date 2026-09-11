@@ -54,32 +54,37 @@ export async function POST(req: NextRequest) {
     let insertedRecordsCount = 0
 
     // Database insertion handling depending on CSV mode
-    if (type === 'books') {
+    if (type === 'books' || type === 'lesson-notes') {
       const mappedBooks = mapCSVFields(parsed.rows, {
         title: mapping.title || 'Title',
         author: mapping.author || 'Author',
-        category: mapping.genre || mapping.category || 'Genre',
+        subject: mapping.subject || 'Subject',
+        classLevel: mapping.classLevel || mapping.class_level || 'Class',
+        category: mapping.category || mapping.genre || 'Category',
         isbn: mapping.isbn || 'ISBN',
         publicationYear: mapping.year || mapping.publicationYear || 'Year',
         description: mapping.description || mapping.content || 'Content/Description',
-        coverImageUrl: mapping.coverUrl || mapping.coverImageUrl || 'Cover_URL',
+        fileUrl: mapping.fileUrl || mapping.file_url || 'File_URL',
         pages: mapping.pages || 'Pages',
         content: mapping.content || mapping.description || 'Content/Description',
       })
 
       const bookInserts = mappedBooks.map(b => ({
         id: randomUUID(),
-        title: b.title || 'Untitled Book',
-        author: b.author || 'Unknown Author',
-        category: b.category || 'General',
-        isbn: b.isbn || `ISBN-${Math.floor(1000000000 + Math.random() * 9000000000)}`,
+        title: b.title || 'Untitled Lesson Note',
+        author: b.author || 'EL LEARNERS APP AUTHOR',
+        subject: b.subject || 'General Studies',
+        classLevel: b.classLevel || 'SSS 1',
+        category: b.category || (type === 'lesson-notes' ? 'Lesson Notes' : 'General'),
+        isbn: b.isbn || `LN-${Math.floor(100000 + Math.random() * 900000)}`,
         publicationYear: isNaN(Number(b.publicationYear)) ? 2026 : Number(b.publicationYear),
-        description: b.description || 'Book catalog item.',
-        content: b.content || b.description || '',
-        coverImageUrl: b.coverImageUrl || '/placeholder-book.png',
-        pages: isNaN(Number(b.pages)) ? 150 : Number(b.pages),
-        totalCopies: 5,
-        availableCopies: 5,
+        description: b.description || b.content || 'Lesson note resource material.',
+        content: b.content || b.description || 'Lesson note resource material.',
+        fileUrl: b.fileUrl || null,
+        pages: isNaN(Number(b.pages)) ? 1 : Number(b.pages),
+        isDigital: true,
+        totalCopies: 1,
+        availableCopies: 1,
         createdAt: new Date(),
       }))
 

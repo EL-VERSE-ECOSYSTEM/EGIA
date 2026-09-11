@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { toast } from 'sonner'
 import { AdvancedCSVUploader } from '@/components/csv/AdvancedCSVUploader'
+import { LessonNoteUploader } from '@/components/library/LessonNoteUploader'
 import {
   Upload,
   FileText,
@@ -38,7 +39,7 @@ interface ImportPreview {
 
 export default function LibraryBooksAdminPage() {
   const [file, setFile] = useState<File | null>(null)
-  const [activeTab, setActiveTab] = useState<'import' | 'history'>('import')
+  const [activeTab, setActiveTab] = useState<'lesson_notes' | 'import' | 'history'>('lesson_notes')
   const [updateExisting, setUpdateExisting] = useState(true)
   const [skipDuplicates, setSkipDuplicates] = useState(false)
 
@@ -211,12 +212,20 @@ export default function LibraryBooksAdminPage() {
 
         <div className="flex border-b border-slate-100">
           <button
+            onClick={() => setActiveTab('lesson_notes')}
+            className={`py-4 px-8 font-black text-sm uppercase tracking-wider border-b-2 transition-all ${
+              activeTab === 'lesson_notes' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Upload Lesson Notes
+          </button>
+          <button
             onClick={() => setActiveTab('import')}
             className={`py-4 px-8 font-black text-sm uppercase tracking-wider border-b-2 transition-all ${
               activeTab === 'import' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
-            Import Books
+            Import Books CSV
           </button>
           <button
             onClick={() => setActiveTab('history')}
@@ -228,7 +237,9 @@ export default function LibraryBooksAdminPage() {
           </button>
         </div>
 
-        {activeTab === 'import' ? (
+        {activeTab === 'lesson_notes' ? (
+          <LessonNoteUploader userRole="Admin" defaultAuthor="School Administrator" />
+        ) : activeTab === 'import' ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 space-y-8">
               <AdvancedCSVUploader mode="books" />
