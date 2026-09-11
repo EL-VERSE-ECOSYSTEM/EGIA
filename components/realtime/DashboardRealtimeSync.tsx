@@ -7,10 +7,10 @@ import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import type { RealtimeTable } from "@/types/database.types";
 
 const tablesByRole: Record<string, RealtimeTable[]> = {
-  student: ["assessment", "assessment_result", "notification", "attendance", "library_books", "book_borrowing", "message", "conversation", "conversation_participant"],
-  teacher: ["assessment", "assessment_result", "attendance", "message", "notification", "conversation", "conversation_participant"],
-  parent: ["assessment_result", "payment", "message", "notification", "attendance", "conversation", "conversation_participant"],
-  admin: ["student", "teacher", "parent", "assessment", "assessment_result", "payment", "notification", "library_books", "message", "conversation", "conversation_participant"],
+  student: ["assessment", "assessment_result", "notification", "attendance", "library_books", "message", "conversation", "conversation_participant", "assessment_schedule", "student_badges"],
+  teacher: ["assessment", "assessment_result", "attendance", "message", "notification", "conversation", "conversation_participant", "library_books", "assessment_schedule"],
+  parent: ["assessment_result", "payment", "message", "notification", "attendance", "conversation", "conversation_participant", "fee_structure", "library_books"],
+  admin: ["student", "teacher", "parent", "assessment", "assessment_result", "payment", "notification", "library_books", "message", "conversation", "conversation_participant", "invitations", "fee_structure"],
 };
 
 function TableSync({ table, refresh }: { table: RealtimeTable; refresh: () => void }) {
