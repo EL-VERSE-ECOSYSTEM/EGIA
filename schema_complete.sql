@@ -763,6 +763,39 @@ create table if not exists public.assessment_schedule (
   created_at timestamp with time zone not null default now()
 );
 
+create table if not exists public.library_books (
+  id text primary key,
+  isbn text unique,
+  title text not null,
+  subtitle text,
+  authors jsonb,
+  author text,
+  publisher text,
+  publication_year integer,
+  edition text,
+  volume text,
+  language text default 'English',
+  pages integer,
+  category text,
+  sub_category text,
+  description text,
+  total_copies integer default 1,
+  available_copies integer default 1,
+  cover_image_url text,
+  file_url text,
+  location text,
+  content text,
+  subject text,
+  class_level text,
+  keywords jsonb,
+  is_digital boolean default false,
+  rating numeric,
+  rating_count integer default 0,
+  borrowed_count integer default 0,
+  deleted_at timestamp with time zone,
+  created_at timestamp with time zone default now()
+);
+
 create table if not exists public.book_borrowings (
   id text primary key,
   book_id text not null references public.library_books(id) on delete cascade,
