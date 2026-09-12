@@ -12,6 +12,7 @@ import { registerStudent, getRegistrationSubjects } from '@/app/actions/auth-ser
 import { initializeStudentRegistrationPayment, getStudentIdByAdmissionNumber } from '@/app/actions/payments'
 import { getSchoolByCodeAction } from '@/app/actions/school'
 import { Badge } from '@/components/ui/badge'
+import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
 
 export default function StudentRegistrationPage() {
   const [formData, setFormData] = useState({
@@ -19,6 +20,7 @@ export default function StudentRegistrationPage() {
     firstName: '',
     middleName: '',
     lastName: '',
+    gender: 'Male',
     email: '',
     class: 'JSS1',
     department: 'SCIENCE',
@@ -338,9 +340,9 @@ export default function StudentRegistrationPage() {
                 ⚠️ CRITICAL: Enter student's first, middle, and last names exactly as printed on their Birth Certificate.
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="firstName" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">First Name</Label>
+                  <Label htmlFor="firstName" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">First Name *</Label>
                   <Input
                     id="firstName"
                     placeholder="John"
@@ -361,7 +363,7 @@ export default function StudentRegistrationPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="lastName" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Last Name</Label>
+                  <Label htmlFor="lastName" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Last Name *</Label>
                   <Input
                     id="lastName"
                     placeholder="Doe"
@@ -370,6 +372,18 @@ export default function StudentRegistrationPage() {
                     required
                     className="h-11 rounded-xl border-slate-800 bg-slate-950 text-white text-xs font-bold"
                   />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="gender" className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Gender *</Label>
+                  <select
+                    id="gender"
+                    value={formData.gender}
+                    onChange={e => setFormData({ ...formData, gender: e.target.value })}
+                    className="w-full h-11 rounded-xl border border-slate-800 bg-slate-950 px-3 text-xs font-bold text-white focus:outline-none"
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
                 </div>
               </div>
 
@@ -540,7 +554,7 @@ export default function StudentRegistrationPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Password</Label>
+                <Label htmlFor="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Password *</Label>
                 <Input
                   id="password"
                   type="password"
@@ -549,6 +563,7 @@ export default function StudentRegistrationPage() {
                   required
                   className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white"
                 />
+                <PasswordStrengthIndicator password={formData.password} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Confirm Password</Label>

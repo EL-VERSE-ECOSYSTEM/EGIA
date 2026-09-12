@@ -110,6 +110,7 @@ export const teacher = pgTable('teacher', {
   staffCode: text('staffcode').unique(),
   firstName: text('firstname').notNull(),
   lastName: text('lastname').notNull(),
+  gender: text('gender'),
   type: text('type').default('FULL_TIME'), // FULL_TIME, PART_TIME
   isClassTeacher: boolean('isclassteacher').default(false),
   isPartTime: boolean('isparttime').default(false),
@@ -143,6 +144,7 @@ export const parent = pgTable('parent', {
   schoolId: text('schoolid'),
   firstName: text('firstname').notNull(),
   lastName: text('lastName').notNull(),
+  gender: text('gender'),
   phoneNumber: text('phonenumber'),
   address: text('address'),
   profileImage: text('profileimage'),

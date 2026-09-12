@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Users, Loader2, AlertCircle, GraduationCap, User, Search, Link as LinkIcon, CheckCircle, Trash2 } from 'lucide-react'
+import { Users, Loader2, AlertCircle, GraduationCap, User, Search, Link as LinkIcon, CheckCircle, Trash2, Sparkles, Building2 } from 'lucide-react'
 import { registerParent } from '@/app/actions/auth-server'
 import { checkWardLinkingStatus } from '@/app/actions/user'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +18,7 @@ export default function ParentSignUpPage() {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    gender: 'Male',
     email: '',
     phone: '',
     occupation: '',
@@ -25,6 +26,23 @@ export default function ParentSignUpPage() {
     password: '',
     confirmPassword: ''
   })
+
+  // 3D Mouse Movement Tilt
+  const [rotateX, setRotateX] = useState(0)
+  const [rotateY, setRotateY] = useState(0)
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const card = e.currentTarget.getBoundingClientRect()
+    const cardX = e.clientX - card.left - card.width / 2
+    const cardY = e.clientY - card.top - card.height / 2
+    setRotateX(-cardY / 50)
+    setRotateY(cardX / 50)
+  }
+
+  const handleMouseLeave = () => {
+    setRotateX(0)
+    setRotateY(0)
+  }
 
   // Ward Search and Array states
   const [wardAdmissionNumber, setWardAdmissionNumber] = useState('')
@@ -49,7 +67,6 @@ export default function ParentSignUpPage() {
     }
   }
 
-  // Check linking status using parentid, sessionid, termid
   const handleSearchWard = async () => {
     if (!wardAdmissionNumber.trim()) {
       toast.error('Please enter an admission number')
@@ -72,7 +89,6 @@ export default function ParentSignUpPage() {
     }
   }
 
-  // Add ward to the list (up to 5)
   const handleAddWard = () => {
     if (!checkedWard) return
     if (addedWards.length >= 5) {
@@ -89,7 +105,6 @@ export default function ParentSignUpPage() {
     toast.success('Ward added to registration list!')
   }
 
-  // Remove ward from list
   const handleRemoveWard = (admNum: string) => {
     setAddedWards(addedWards.filter(w => w.admissionNumber !== admNum))
     toast.success('Ward removed from list')
@@ -147,289 +162,317 @@ export default function ParentSignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4 py-16">
-      <div className="mb-10 flex items-center gap-2">
-        <div className="bg-emerald-600 p-2 rounded-lg">
-          <GraduationCap className="text-white w-6 h-6" />
-        </div>
-        <span className="font-black text-xl tracking-tight text-slate-900">EL LEARNERS APP <span className="text-emerald-600">ACADEMY</span></span>
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-4 sm:p-8 relative overflow-hidden perspective-[1200px]">
+      {/* Dynamic Background Lights */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl animate-pulse"></div>
       </div>
 
-      <Card className="max-w-2xl w-full border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
-        <div className="h-2 bg-emerald-600 w-full" />
-        <CardHeader className="text-center pt-10">
-          <div className="mx-auto bg-emerald-100 p-4 rounded-2xl w-fit mb-4">
-            <Users className="w-8 h-8 text-emerald-600" />
+      <header className="relative max-w-5xl mx-auto w-full flex items-center justify-between py-4 border-b border-slate-800 z-10">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 backdrop-blur-md shadow-lg text-indigo-400">
+            <GraduationCap className="w-6 h-6" />
           </div>
-          <CardTitle className="text-3xl font-black text-slate-900">Parent Registration</CardTitle>
-          <CardDescription className="text-slate-500 font-bold mt-2">
-            Monitor up to 5 wards, pay fees, and track performance logs in real-time
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-4 sm:px-10 pb-12">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-black rounded-2xl flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 shrink-0" />
-                {error}
+          <span className="font-black text-xl tracking-tight text-white uppercase">
+            EL <span className="text-indigo-400">LEARNERS APP</span>
+          </span>
+        </div>
+        <Link href="/auth/signin" className="text-xs font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-wider transition bg-white/5 px-4 py-2 rounded-xl border border-white/10">
+          Already registered? Sign In
+        </Link>
+      </header>
+
+      <main
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
+          transition: 'transform 0.15s ease-out'
+        }}
+        className="relative max-w-3xl mx-auto w-full my-8 bg-slate-900/90 backdrop-blur-2xl border border-white/15 rounded-[2.5rem] p-6 sm:p-10 shadow-[0_30px_100px_rgba(0,0,0,0.5)] z-10"
+      >
+        <div className="mb-8 text-center sm:text-left space-y-2">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-black uppercase tracking-widest">
+            <Sparkles className="w-3.5 h-3.5" /> Guardian Portal Onboarding
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+            Parent & Guardian Registration
+          </h1>
+          <p className="text-slate-400 text-xs sm:text-sm font-bold leading-relaxed">
+            Monitor up to 5 wards, review report cards in real-time, pay school fees, and enroll in Adult Education programs.
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-black flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Passport picture Upload Block */}
+          <div className="flex flex-col items-center justify-center p-6 bg-slate-950 rounded-3xl border border-slate-800 space-y-4">
+            <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Passport Photograph *</Label>
+            {profileImage ? (
+              <div className="relative">
+                <img src={profileImage} alt="Profile" className="w-28 h-28 object-cover rounded-full border-4 border-indigo-500 shadow-lg" />
+                <button
+                  type="button"
+                  onClick={() => setProfileImage(null)}
+                  className="absolute -bottom-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-2 text-xs font-bold"
+                >
+                  Reset
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-slate-300">
+                <User className="w-16 h-16 bg-slate-900 p-3 rounded-full text-slate-400 border border-slate-800" />
               </div>
             )}
 
-            {/* Passport picture Upload Block */}
-            <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
-              <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Passport Photograph</Label>
-              {profileImage ? (
-                <div className="relative">
-                  <img src={profileImage} alt="Profile" className="w-28 h-28 object-cover rounded-full border-4 border-emerald-200 shadow-lg" />
-                  <button
-                    type="button"
-                    onClick={() => setProfileImage(null)}
-                    className="absolute -bottom-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-2 text-xs font-bold"
-                  >
-                    Reset
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center text-slate-300">
-                  <User className="w-16 h-16 bg-slate-100 p-3 rounded-full text-slate-400 border border-slate-200" />
-                </div>
-              )}
-
-              <div className="relative w-full text-center">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                  {profileImage ? 'Change passport photo:' : 'Upload a passport photograph (JPG or PNG):'}
-                </p>
-                <div className="relative inline-block mt-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
-                  />
-                  <Button type="button" variant="outline" className="border-slate-200 text-slate-700 font-bold text-xs h-10 px-4 rounded-xl">
-                    Select Passport Image
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">First Name</Label>
-                <Input
-                  id="firstName"
-                  placeholder="John"
-                  value={formData.firstName}
-                  onChange={e => setFormData({...formData, firstName: e.target.value})}
-                  required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
+            <div className="relative w-full text-center">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                {profileImage ? 'Change passport photo:' : 'Upload a passport photograph (JPG or PNG):'}
+              </p>
+              <div className="relative inline-block mt-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Last Name</Label>
-                <Input
-                  id="lastName"
-                  placeholder="Doe"
-                  value={formData.lastName}
-                  onChange={e => setFormData({...formData, lastName: e.target.value})}
-                  required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
-                />
-              </div>
-            </div>
-
-            <PasswordStrengthIndicator password={formData.password} />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="john.doe@example.com"
-                  value={formData.email}
-                  onChange={e => setFormData({...formData, email: e.target.value})}
-                  required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="+234..."
-                  value={formData.phone}
-                  onChange={e => setFormData({...formData, phone: e.target.value})}
-                  required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="occupation" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Occupation</Label>
-                <Input
-                  id="occupation"
-                  placeholder="e.g. Civil Servant, Engineer"
-                  value={formData.occupation}
-                  onChange={e => setFormData({...formData, occupation: e.target.value})}
-                  required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="schoolCode" className="text-[10px] font-black uppercase text-emerald-600 tracking-widest ml-1">School Registration Code (Optional)</Label>
-                </div>
-                <Input
-                  id="schoolCode"
-                  placeholder="e.g. EXCE-12345"
-                  value={formData.schoolCode}
-                  onChange={async e => {
-                    const code = e.target.value.toUpperCase()
-                    setFormData({...formData, schoolCode: code})
-                    if (code.length >= 5) {
-                      const { getSchoolByCodeAction } = await import('@/app/actions/school')
-                      const res = await getSchoolByCodeAction(code)
-                      if (res.success && res.school) {
-                        if (!res.school.allowParents) {
-                          setError(`Parent registration is toggled OFF for ${res.school.name}. Please contact school administration.`)
-                          toast.error(`Parent registration is disabled for ${res.school.name}`)
-                        } else {
-                          setError(null)
-                          toast.success(`School verified: ${res.school.name}`)
-                        }
-                      } else {
-                        setError('Invalid School Code. Please verify with school admin.')
-                      }
-                    } else {
-                      setError(null)
-                    }
-                  }}
-                  className="h-12 rounded-xl border-emerald-200 bg-emerald-50/30 font-mono font-bold uppercase tracking-wider focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
-                />
-              </div>
-            </div>
-
-            {/* Ward Search Panel */}
-            <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
-              <p className="text-xs font-black uppercase text-slate-400 tracking-widest">Search and Add Wards (Up to 5)</p>
-
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter ward's admission number (e.g. EGIA-S-123456)"
-                  value={wardAdmissionNumber}
-                  onChange={e => setWardAdmissionNumber(e.target.value.toUpperCase())}
-                  className="h-11 rounded-xl border-slate-200 bg-white text-xs font-bold uppercase tracking-wider focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
-                />
-                <Button type="button" onClick={handleSearchWard} disabled={searching} className="bg-emerald-600 hover:bg-emerald-700 h-11 px-4 rounded-xl shrink-0">
-                  {searching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                <Button type="button" variant="outline" className="border-slate-800 bg-slate-900 text-slate-300 font-bold text-xs h-10 px-4 rounded-xl">
+                  Select Passport Image
                 </Button>
               </div>
-
-              {/* Searched Ward Details */}
-              {checkedWard && (
-                <div className="p-4 bg-white border border-slate-200 rounded-2xl flex flex-col gap-3 animate-in fade-in duration-200">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs font-black text-slate-900">{checkedWard.name}</p>
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{checkedWard.admissionNumber} • {checkedWard.class}</p>
-                    </div>
-                    <Badge className={`border-none font-black text-[8px] px-2.5 py-0.5 tracking-wider uppercase ${
-                      checkedWard.status === 'NOT_LINKED'
-                        ? 'bg-amber-100 text-amber-700'
-                        : checkedWard.status === 'LINKED_TO_ME'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-red-100 text-red-700'
-                    }`}>
-                      {checkedWard.status.replaceAll('_', ' ')}
-                    </Badge>
-                  </div>
-
-                  <p className="text-[11px] font-semibold text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                    {checkedWard.message}
-                  </p>
-
-                  <div className="flex gap-2 justify-end">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setCheckedWard(null)} className="text-xs font-bold rounded-lg">Cancel</Button>
-                    {checkedWard.status === 'NOT_LINKED' && (
-                      <Button type="button" size="sm" onClick={handleAddWard} className="bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-bold rounded-lg flex items-center gap-1">
-                        <LinkIcon size={12} /> Add to Registration
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
-
-            {/* Added Wards List */}
-            <div className="space-y-3">
-              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Added Wards ({addedWards.length}/5)</Label>
-              {addedWards.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {addedWards.map(w => (
-                    <div key={w.admissionNumber} className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-black text-slate-900">{w.name}</p>
-                        <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">{w.admissionNumber} • {w.class}</p>
-                      </div>
-                      <button type="button" onClick={() => handleRemoveWard(w.admissionNumber)} className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-6 border-2 border-dashed border-slate-100 rounded-2xl text-center text-slate-400 font-bold text-xs">
-                  No wards added yet. Search and link up to 5 wards above to complete registration.
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="password" title="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={e => setFormData({...formData, password: e.target.value})}
-                  required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword" title="confirm-password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
-                  required
-                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all duration-300"
-                />
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-14 rounded-2xl font-black text-lg shadow-xl shadow-emerald-200 mt-6 transition-all"
-            >
-              {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 'Create Account'}
-            </Button>
-          </form>
-          <div className="mt-8 text-center text-sm font-bold text-slate-400">
-            Already have an account? <Link href="/auth/signin" className="text-emerald-600 font-black hover:underline ml-1">Sign In</Link>
           </div>
-        </CardContent>
-      </Card>
 
-      <p className="mt-10 text-xs text-slate-400 font-bold uppercase tracking-[0.2em]">
-        built by ELCODERS by E.V.E
-      </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="firstName" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">First Name *</Label>
+              <Input
+                id="firstName"
+                placeholder="John"
+                value={formData.firstName}
+                onChange={e => setFormData({ ...formData, firstName: e.target.value })}
+                required
+                className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white font-bold"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="lastName" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Last Name *</Label>
+              <Input
+                id="lastName"
+                placeholder="Doe"
+                value={formData.lastName}
+                onChange={e => setFormData({ ...formData, lastName: e.target.value })}
+                required
+                className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white font-bold"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="gender" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Gender *</Label>
+              <select
+                id="gender"
+                value={formData.gender}
+                onChange={e => setFormData({ ...formData, gender: e.target.value })}
+                className="w-full h-12 rounded-xl border border-slate-800 bg-slate-950 px-3 font-bold text-white focus:outline-none"
+              >
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Email Address *</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="john.doe@example.com"
+                value={formData.email}
+                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                required
+                className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white font-bold"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="phone" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Phone Number *</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="+234..."
+                value={formData.phone}
+                onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                required
+                className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white font-bold"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="occupation" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Occupation *</Label>
+              <Input
+                id="occupation"
+                placeholder="e.g. Civil Servant, Engineer"
+                value={formData.occupation}
+                onChange={e => setFormData({ ...formData, occupation: e.target.value })}
+                required
+                className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white font-bold"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="schoolCode" className="text-[10px] font-black uppercase text-indigo-400 tracking-widest">School Registration Code (Optional)</Label>
+              <Input
+                id="schoolCode"
+                placeholder="e.g. EXCE-12345"
+                value={formData.schoolCode}
+                onChange={async e => {
+                  const code = e.target.value.toUpperCase()
+                  setFormData({ ...formData, schoolCode: code })
+                  if (code.length >= 5) {
+                    const { getSchoolByCodeAction } = await import('@/app/actions/school')
+                    const res = await getSchoolByCodeAction(code)
+                    if (res.success && res.school) {
+                      if (!res.school.allowParents) {
+                        setError(`Parent registration is disabled for ${res.school.name}. Please contact school administration.`)
+                        toast.error(`Parent registration is disabled for ${res.school.name}`)
+                      } else {
+                        setError(null)
+                        toast.success(`School verified: ${res.school.name}`)
+                      }
+                    } else {
+                      setError('Invalid School Code. Please verify with school admin.')
+                    }
+                  } else {
+                    setError(null)
+                  }
+                }}
+                className="h-12 rounded-xl border-indigo-500/40 bg-slate-950 font-mono font-bold text-white uppercase tracking-wider focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Ward Search Panel */}
+          <div className="p-6 bg-slate-950 rounded-3xl border border-slate-800 space-y-4">
+            <p className="text-xs font-black uppercase text-indigo-400 tracking-widest flex items-center gap-1.5">
+              <Search className="w-4 h-4" /> Search and Add Wards (Up to 5)
+            </p>
+
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter ward's admission number (e.g. EGIA-S-123456)"
+                value={wardAdmissionNumber}
+                onChange={e => setWardAdmissionNumber(e.target.value.toUpperCase())}
+                className="h-11 rounded-xl border-slate-800 bg-slate-900 text-xs font-bold uppercase text-white tracking-wider"
+              />
+              <Button type="button" onClick={handleSearchWard} disabled={searching} className="bg-indigo-600 hover:bg-indigo-500 h-11 px-4 rounded-xl shrink-0 text-white">
+                {searching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+              </Button>
+            </div>
+
+            {/* Searched Ward Details */}
+            {checkedWard && (
+              <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col gap-3 animate-in fade-in duration-200">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-black text-white">{checkedWard.name}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{checkedWard.admissionNumber} • {checkedWard.class}</p>
+                  </div>
+                  <Badge className={`border-none font-black text-[8px] px-2.5 py-0.5 tracking-wider uppercase ${
+                    checkedWard.status === 'NOT_LINKED'
+                      ? 'bg-amber-500/20 text-amber-300'
+                      : checkedWard.status === 'LINKED_TO_ME'
+                      ? 'bg-emerald-500/20 text-emerald-300'
+                      : 'bg-red-500/20 text-red-300'
+                  }`}>
+                    {checkedWard.status.replaceAll('_', ' ')}
+                  </Badge>
+                </div>
+
+                <p className="text-[11px] font-semibold text-slate-400 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                  {checkedWard.message}
+                </p>
+
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setCheckedWard(null)} className="text-xs font-bold text-slate-400 rounded-lg">Cancel</Button>
+                  {checkedWard.status === 'NOT_LINKED' && (
+                    <Button type="button" size="sm" onClick={handleAddWard} className="bg-indigo-600 text-white hover:bg-indigo-500 text-xs font-bold rounded-lg flex items-center gap-1">
+                      <LinkIcon size={12} /> Add to Registration
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Added Wards List */}
+          <div className="space-y-3">
+            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Added Wards ({addedWards.length}/5) *</Label>
+            {addedWards.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {addedWards.map(w => (
+                  <div key={w.admissionNumber} className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-black text-white">{w.name}</p>
+                      <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">{w.admissionNumber} • {w.class}</p>
+                    </div>
+                    <button type="button" onClick={() => handleRemoveWard(w.admissionNumber)} className="text-red-400 hover:text-red-300 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-6 border-2 border-dashed border-slate-800 rounded-2xl text-center text-slate-500 font-bold text-xs">
+                No wards added yet. Search and link up to 5 wards above to complete registration.
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <Label htmlFor="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Password *</Label>
+            <Input
+              id="password"
+              type="password"
+              value={formData.password}
+              onChange={e => setFormData({ ...formData, password: e.target.value })}
+              required
+              className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white font-bold"
+            />
+            <PasswordStrengthIndicator password={formData.password} />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="confirmPassword" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Confirm Password *</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              value={formData.confirmPassword}
+              onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
+              required
+              className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white font-bold"
+            />
+          </div>
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-14 rounded-2xl font-black text-lg shadow-xl shadow-indigo-900/30 transition-all uppercase tracking-wider"
+          >
+            {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 'Register Parent Account'}
+          </Button>
+        </form>
+      </main>
+
+      <footer className="relative max-w-5xl mx-auto w-full text-center py-4 border-t border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest z-10">
+        &copy; {new Date().getFullYear()} EL LEARNERS APP • Guardian Portal
+      </footer>
     </div>
   )
 }
