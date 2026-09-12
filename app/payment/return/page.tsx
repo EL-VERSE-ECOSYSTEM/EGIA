@@ -14,7 +14,7 @@ function KorapayReturnContent() {
   const [message, setMessage] = useState('Confirming your payment securely with Korapay…')
   const [showModal, setShowModal] = useState(false)
   const [countdown, setCountdown] = useState(10)
-  const [paymentDetails, setPaymentDetails] = useState<{ amount?: string; feeType?: string } | null>(null)
+  const [paymentDetails, setPaymentDetails] = useState<{ amount?: string; feeType?: string; admissionNumber?: string; schoolCode?: string; schoolName?: string } | null>(null)
 
   useEffect(() => {
     if (!reference) {
@@ -26,7 +26,13 @@ function KorapayReturnContent() {
       .then(result => {
         setState(result.status)
         if (result.payment) {
-          setPaymentDetails({ amount: result.payment.amount, feeType: result.payment.feeType })
+          setPaymentDetails({
+            amount: result.payment.amount,
+            feeType: result.payment.feeType,
+            admissionNumber: result.admissionNumber,
+            schoolCode: result.schoolCode,
+            schoolName: result.schoolName
+          })
         }
         if (result.status === 'success') {
           setMessage('Payment confirmed. Your account and transaction history are updated in real time with Supabase Database.')
@@ -83,6 +89,15 @@ function KorapayReturnContent() {
             <div className="p-5 bg-slate-950 rounded-2xl border border-slate-800 text-left space-y-2.5 text-xs font-semibold text-slate-300 font-mono">
               <p className="flex justify-between border-b border-slate-800 pb-1.5"><span>Status:</span> <span className="text-emerald-400 font-black">PAID & VERIFIED</span></p>
               <p className="flex justify-between border-b border-slate-800 pb-1.5"><span>Amount Paid:</span> <span className="font-bold text-white">NGN {paymentDetails?.amount ? Number(paymentDetails.amount).toLocaleString('en-NG', { minimumFractionDigits: 2 }) : '2,161.25'}</span></p>
+              {paymentDetails?.admissionNumber && (
+                <p className="flex justify-between border-b border-slate-800 pb-1.5"><span className="text-orange-400 font-bold">Admission Number:</span> <span className="font-black text-orange-400 text-sm tracking-wider">{paymentDetails.admissionNumber}</span></p>
+              )}
+              {paymentDetails?.schoolCode && (
+                <p className="flex justify-between border-b border-slate-800 pb-1.5"><span className="text-blue-400 font-bold">School Registration Code:</span> <span className="font-black text-blue-400 text-sm tracking-wider">{paymentDetails.schoolCode}</span></p>
+              )}
+              {paymentDetails?.schoolName && (
+                <p className="flex justify-between border-b border-slate-800 pb-1.5"><span>School Name:</span> <span className="font-bold text-white">{paymentDetails.schoolName}</span></p>
+              )}
               <p className="flex justify-between border-b border-slate-800 pb-1.5"><span>Fee Type:</span> <span className="font-bold text-orange-400 uppercase">{paymentDetails?.feeType || 'registration'}</span></p>
               <p className="flex justify-between"><span>Payment Gateway:</span> <span className="font-bold text-blue-400">Korapay Checkout</span></p>
             </div>
