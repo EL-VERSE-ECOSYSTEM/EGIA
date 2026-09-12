@@ -6,6 +6,7 @@ import { Bell, Search, User, Download, X, Smartphone, CheckCircle, Menu } from '
 import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSync'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { PermissionRequest } from '@/components/notifications/PermissionRequest'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export default function DashboardLayout({
   children,
@@ -121,9 +122,10 @@ export default function DashboardLayout({
             <h1 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Dashboard / <span className="text-slate-900">{activeRole}</span></h1>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+            {mounted && <ThemeToggle />}
             {mounted && <NotificationBell />}
-            <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden sm:block"></div>
+            <div className="h-10 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
             <div className="flex items-center gap-3 pl-2">
               <div className="text-right hidden md:block">
                 <p className="text-xs font-black text-slate-900">EL LEARNERS</p>

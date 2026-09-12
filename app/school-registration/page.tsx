@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { registerSchoolAction, confirmSchoolPaymentAction } from '@/app/actions/school'
 import { CheckCircle2, Building2, Sparkles, CreditCard, Download, ShieldCheck, ArrowRight, BookOpen, ExternalLink, Key, Lock, GraduationCap } from 'lucide-react'
+import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
 
 const AVAILABLE_CLASSES = [
   'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
@@ -236,6 +237,7 @@ export default function SchoolRegistrationPage() {
                   />
                 </div>
               </div>
+              <PasswordStrengthIndicator password={formData.adminPassword} />
             </div>
 
             {/* Classes Selection */}

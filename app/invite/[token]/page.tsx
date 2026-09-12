@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GraduationCap, Loader2, CheckCircle2, AlertCircle, Sparkles, Lock, User } from 'lucide-react'
+import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
 
 export default function AcceptInvitePage() {
   const params = useParams()
@@ -186,6 +187,8 @@ export default function AcceptInvitePage() {
                   className="h-12 rounded-2xl border-slate-800 bg-slate-950 text-white text-xs font-bold"
                 />
               </div>
+
+              <PasswordStrengthIndicator password={password} />
 
               <Button
                 type="submit"

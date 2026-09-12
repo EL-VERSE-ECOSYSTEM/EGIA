@@ -11,6 +11,7 @@ import { Users, Loader2, AlertCircle, GraduationCap, User, Search, Link as LinkI
 import { registerParent } from '@/app/actions/auth-server'
 import { checkWardLinkingStatus } from '@/app/actions/user'
 import { Badge } from '@/components/ui/badge'
+import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
 import { toast } from 'sonner'
 
 export default function ParentSignUpPage() {
@@ -236,6 +237,8 @@ export default function ParentSignUpPage() {
                 />
               </div>
             </div>
+
+            <PasswordStrengthIndicator password={formData.password} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">

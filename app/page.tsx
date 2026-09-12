@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Footer } from '@/components/footer'
 import { Input } from '@/components/ui/input'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { Textarea } from '@/components/ui/textarea'
 import {
   CheckCircle2,
@@ -41,17 +42,18 @@ export default async function LandingPage() {
             </div>
             <span className="font-black text-xl tracking-tight text-slate-900 uppercase">EL LEARNERS <span className="text-amber-600">APP</span></span>
           </div>
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-6">
             <Link href="#about" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">About</Link>
             <Link href="#features" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">Features</Link>
             <Link href="#testimonials" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">Success</Link>
             <Link href="#faq" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">FAQ</Link>
+            <ThemeToggle />
             {user ? (
               <Link href="/dashboard-redirect">
                 <Button className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-6 font-black shadow-lg">DASHBOARD</Button>
               </Link>
             ) : (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <Link href="/auth/signin">
                   <Button variant="ghost" className="text-slate-600 font-black">LOGIN</Button>
                 </Link>
@@ -166,8 +168,8 @@ export default async function LandingPage() {
         </section>
 
         {/* Features Grid */}
-        <section id="features" className="py-40 bg-[#F8FAFC]">
-          <div className="container mx-auto px-4">
+        <section id="features" className="py-40 bg-[#F8FAFC] relative overflow-hidden perspective-[1200px]">
+          <div className="container mx-auto px-4 relative z-10">
             <div className="text-center mb-32 space-y-6">
                <div className="inline-block px-8 py-2 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.4em]">Technology</div>
               <h2 className="text-6xl md:text-7xl font-black text-slate-900 tracking-tighter">Advanced Infrastructure</h2>
@@ -199,9 +201,9 @@ export default async function LandingPage() {
                   color: "bg-emerald-600"
                 }
               ].map((f, i) => (
-                <Card key={i} className="border-none shadow-[0_40px_80px_-20px_rgba(0,0,0,0.05)] hover:shadow-2xl hover:-translate-y-4 transition-all duration-700 rounded-[3rem] bg-white group">
+                <Card key={i} className="border-none shadow-[0_30px_100px_rgba(0,0,0,0.08)] hover:shadow-[0_40px_120px_rgba(0,0,0,0.15)] hover:-translate-y-4 hover:rotate-1 transition-all duration-700 rounded-[3rem] bg-white group border-t border-l border-slate-100">
                   <CardContent className="p-14 space-y-8">
-                    <div className={`w-20 h-20 rounded-3xl flex items-center justify-center ${f.color} text-white shadow-2xl shadow-${f.color.split('-')[1]}-200 group-hover:scale-110 transition-transform duration-700`}>
+                    <div className={`w-20 h-20 rounded-3xl flex items-center justify-center ${f.color} text-white shadow-2xl group-hover:scale-110 transition-transform duration-700`}>
                       <f.icon size={36} />
                     </div>
                     <h3 className="text-3xl font-black text-slate-900 tracking-tight">{f.title}</h3>
