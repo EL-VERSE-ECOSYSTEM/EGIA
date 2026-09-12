@@ -23,7 +23,7 @@ import { eq, and, or, sql, desc, inArray } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 
 export async function getCurrentAdminSchool() {
-  const session = await auth.getSession()
+  const session = typeof auth === 'function' ? (auth.getSession ? await auth.getSession() : await (auth as any)()) : await (auth as any).getSession()
   if (!session?.user?.id) return null
   const u = await db.query.user.findFirst({
     where: eq(userTable.id, session.user.id),
@@ -105,6 +105,9 @@ export async function getAdminDashboardStats() {
     schoolName: schoolRecord?.name || 'EL LEARNERS ACADEMY',
     schoolCode: schoolRecord?.code || 'MAIN-001',
     paymentStatus: schoolRecord?.paymentStatus || 'PAID',
+    paymentReference: schoolRecord?.paymentReference || null,
+    adminEmail: schoolRecord?.adminEmail || '',
+    schoolId: schoolRecord?.id || null,
     totalStudents: Number(studentsCount?.count || 0),
     totalTeachers: Number(teachersCount?.count || 0),
     revenue: totalRevenue?.sum || '0',

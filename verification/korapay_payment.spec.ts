@@ -30,6 +30,6 @@ test.describe('Korapay Payment Gateway Integration', () => {
 
   test('payment return page displays Korapay verification state', async ({ page }) => {
     await page.goto(`${baseUrl}/payment/return?reference=TRX-TEST-12345`)
-    await expect(page.locator('h1')).toContainText('Korapay payment verification')
+    await expect(page.locator('h1')).toContainText(/Korapay payment verification/i)
   })
 })

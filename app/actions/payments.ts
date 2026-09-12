@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { payment, student, feeStructure, parent as parentTable } from '@/lib/db/schema'
+import { payment, student, feeStructure, parent as parentTable, school } from '@/lib/db/schema'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { eq, desc, and, or, isNull } from 'drizzle-orm'
@@ -89,7 +89,7 @@ export async function verifyKorapayPayment(reference: string) {
       }
     }
 
-    // Default return for school
+    // Dev environment or auto-confirm fallback for school
     await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schoolRecord.id))
     return {
       status: 'success' as const,
@@ -105,15 +105,30 @@ export async function verifyKorapayPayment(reference: string) {
   if (!record) throw new Error('This payment reference was not found.')
 
   let admissionNumber: string | undefined
+  let schoolCode: string | undefined
+  let schoolName: string | undefined
+
   if (record.studentId) {
     const studentRec = await db.query.student.findFirst({ where: eq(student.id, record.studentId) })
     if (studentRec?.admissionNumber) {
       admissionNumber = studentRec.admissionNumber
     }
+    if (studentRec?.schoolId) {
+      const schoolRec = await db.query.school.findFirst({ where: eq(school.id, studentRec.schoolId) })
+      if (schoolRec) {
+        schoolCode = schoolRec.code
+        schoolName = schoolRec.name
+      }
+    }
   }
 
+  const isRegistrationFee = Boolean(record.feeType?.toLowerCase().includes('registration'))
+
   if (record.status === 'success') {
-    return { status: 'success' as const, paymentId: record.id, payment: record, admissionNumber }
+    if (isRegistrationFee && record.studentId) {
+      await db.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: new Date() }).where(eq(student.id, record.studentId))
+    }
+    return { status: 'success' as const, paymentId: record.id, payment: record, admissionNumber, schoolCode, schoolName }
   }
 
   const secret = process.env.KORAPAY_SECRET_KEY
@@ -121,11 +136,11 @@ export async function verifyKorapayPayment(reference: string) {
     // If secret key is not set, auto-confirm for dev environment
     await db.transaction(async (tx) => {
       await tx.update(payment).set({ status: 'success', paidAt: new Date(), paymentDate: new Date(), updatedAt: new Date() }).where(eq(payment.id, record.id))
-      if (record.feeType === 'registration') {
+      if (isRegistrationFee && record.studentId) {
         await tx.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: new Date() }).where(eq(student.id, record.studentId))
       }
     })
-    return { status: 'success' as const, paymentId: record.id, payment: record, admissionNumber }
+    return { status: 'success' as const, paymentId: record.id, payment: record, admissionNumber, schoolCode, schoolName }
   }
 
   const response = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(normalizedReference)}`, {
@@ -141,19 +156,19 @@ export async function verifyKorapayPayment(reference: string) {
   if (gatewayStatus === 'success') {
     await db.transaction(async (tx) => {
       await tx.update(payment).set({ status: 'success', paidAt: new Date(), paymentDate: new Date(), updatedAt: new Date() }).where(eq(payment.id, record.id))
-      if (record.feeType === 'registration') {
+      if (isRegistrationFee && record.studentId) {
         await tx.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: new Date() }).where(eq(student.id, record.studentId))
       }
     })
     revalidatePath('/dashboard/parent/payments/history')
     revalidatePath('/dashboard/student/payments/history')
-    return { status: 'success' as const, paymentId: record.id, payment: record, admissionNumber }
+    return { status: 'success' as const, paymentId: record.id, payment: record, admissionNumber, schoolCode, schoolName }
   }
   if (gatewayStatus === 'failed') {
     await db.update(payment).set({ status: 'failed', updatedAt: new Date() }).where(eq(payment.id, record.id))
-    return { status: 'failed' as const, paymentId: record.id, payment: record, admissionNumber }
+    return { status: 'failed' as const, paymentId: record.id, payment: record, admissionNumber, schoolCode, schoolName }
   }
-  return { status: 'pending' as const, paymentId: record.id, payment: record, admissionNumber }
+  return { status: 'pending' as const, paymentId: record.id, payment: record, admissionNumber, schoolCode, schoolName }
 }
 
 export async function submitManualPayment(data: { studentId: string; amount: string; feeType: string; receiptUrl: string }) {
