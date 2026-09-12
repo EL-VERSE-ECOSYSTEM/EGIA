@@ -13,19 +13,16 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Clock,
-  Plus,
-  FileText,
-  PieChart,
   Activity,
   BookOpen,
   BookMarked,
-  ShieldCheck,
   CreditCard,
   MessageSquare,
   ArrowRight
 } from 'lucide-react'
 import { getAdminDashboardStats, getRecentAuditLogs, getUrgentAlerts } from '@/lib/api/queries'
 import { AdminRevenueChart } from '@/components/charts/admin-revenue-chart'
+import { SchoolPaymentLockModal } from '@/components/admin/SchoolPaymentLockModal'
 import Link from 'next/link'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 
@@ -119,62 +116,14 @@ export default async function AdminOverviewPage() {
   return (
     <DashboardLayout role="admin">
     <div className="p-4 sm:p-8 max-w-[1600px] mx-auto space-y-8 sm:space-y-10">
-      {/* School Registration Pending or Failed Payment Modal */}
+      {/* Non-Dismissible School Registration Pending or Failed Payment Lock Modal */}
       {(statsData.paymentStatus === 'PENDING' || statsData.paymentStatus === 'FAILED') && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border-2 border-red-500/60 rounded-[2.5rem] p-6 sm:p-10 max-w-lg w-full text-center space-y-6 shadow-2xl text-white relative overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="absolute top-0 left-0 h-3 bg-red-500 w-full" />
-            <div className="w-20 h-20 rounded-full bg-red-500/20 border border-red-500 flex items-center justify-center mx-auto text-red-400 shadow-lg">
-              <AlertTriangle className="w-10 h-10 animate-bounce" />
-            </div>
-            <div>
-              <span className="bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-black uppercase tracking-widest px-3.5 py-1 rounded-full">
-                Action Required • Registration Payment Pending
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-white mt-3">{statsData.schoolName}</h2>
-              <p className="text-slate-300 text-xs sm:text-sm font-medium mt-2 leading-relaxed">
-                Your school registration payment status is currently <strong className="text-red-400 uppercase font-mono">{statsData.paymentStatus}</strong> in Supabase Database. Please complete the registration payment immediately to activate all school features.
-              </p>
-            </div>
-
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl font-mono text-xs text-left space-y-2">
-              <div className="flex justify-between border-b border-slate-800 pb-1.5">
-                <span className="text-slate-400">Registration Fee:</span>
-                <span className="font-bold text-white">NGN 30,000.00</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-800 pb-1.5">
-                <span className="text-slate-400">Korapay Gateway Fee:</span>
-                <span className="font-bold text-white">NGN 161.25</span>
-              </div>
-              <div className="flex justify-between pt-1">
-                <span className="text-slate-400 font-bold">Total Amount Due:</span>
-                <span className="font-black text-emerald-400 text-sm">NGN 30,161.25</span>
-              </div>
-            </div>
-
-            <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-bold text-amber-300 leading-relaxed text-left">
-              ⚠️ <strong>Note:</strong> if payment was done before, please contact <strong>EL VERSE Support</strong> to confirm.
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <a
-                href="/school-registration"
-                className="flex-1 py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider text-center shadow-lg transition flex items-center justify-center gap-2"
-              >
-                <span>Pay NGN 30,161.25 Now</span>
-                <CreditCard className="w-4 h-4" />
-              </a>
-              <a
-                href="https://wa.me/2348061908715"
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 py-3.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs uppercase tracking-wider text-center transition border border-slate-700"
-              >
-                Contact EL VERSE Support
-              </a>
-            </div>
-          </div>
-        </div>
+        <SchoolPaymentLockModal
+          schoolName={statsData.schoolName}
+          paymentStatus={statsData.paymentStatus}
+          paymentReference={statsData.paymentReference}
+          adminEmail={statsData.adminEmail}
+        />
       )}
 
       <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-8 sm:p-12 text-white shadow-2xl">

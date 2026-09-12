@@ -93,12 +93,13 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       }
     }
 
-    // Insert user and role
+    // Insert user and role in real-time Supabase Database
     await db.insert(user).values({
       id: userId,
       email: adminEmail,
       name: input.adminName,
       schoolId: schoolId,
+      password: adminPassword,
     }).onConflictDoNothing()
 
     await db.insert(userRole).values({
