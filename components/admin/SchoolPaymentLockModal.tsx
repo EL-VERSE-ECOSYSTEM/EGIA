@@ -131,34 +131,37 @@ export function SchoolPaymentLockModal({
           </div>
         </div>
 
-        {verificationResult && (
+        {(verificationResult || confirmedSchoolCode) && (
           <div
             className={`p-3.5 rounded-xl text-xs font-bold leading-relaxed text-left border ${
-              verificationResult.status === 'success'
+              verificationResult?.status === 'success' || confirmedSchoolCode
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
                 : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
             }`}
           >
-            {verificationResult.status === 'success' ? (
+            {(verificationResult?.status === 'success' || confirmedSchoolCode) ? (
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>{verificationResult.message}</span>
+                  <span>{verificationResult?.message || 'Payment confirmed successfully!'}</span>
                 </div>
-                {verificationResult.schoolCode && (
-                  <p className="text-[11px] font-mono font-black text-emerald-400 mt-1">
-                    School Registration Code: {verificationResult.schoolCode}
-                  </p>
+                {(verificationResult?.schoolCode || confirmedSchoolCode) && (
+                  <div className="p-2.5 bg-slate-950 rounded-lg border border-emerald-500/40 mt-2">
+                    <p className="text-[10px] uppercase font-bold text-emerald-400/80">Your Official School Registration Code</p>
+                    <p className="text-base font-mono font-black text-emerald-400 tracking-wider">
+                      {verificationResult?.schoolCode || confirmedSchoolCode}
+                    </p>
+                  </div>
                 )}
               </div>
             ) : (
-              <span>{verificationResult.message}</span>
+              <span>{verificationResult?.message}</span>
             )}
           </div>
         )}
 
         <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-bold text-amber-300 leading-relaxed text-left">
-          ⚠️ <strong>Note:</strong> Modal cannot be closed until payment is completed or verified. Please proceed to Korapay Payment Gateway below.
+          ⚠️ <strong>Note:</strong> Modal cannot be closed until payment is completed or confirmed on Korapay Payment Gateway.
         </div>
 
         <div className="flex flex-col gap-3 pt-2">

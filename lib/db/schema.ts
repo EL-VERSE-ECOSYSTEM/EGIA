@@ -81,7 +81,7 @@ export const student = pgTable('student', {
   lastName: text('lastname').notNull(),
   dateOfBirth: date('dateofbirth'),
   dateOfResumption: date('dateofresumption'),
-  gender: text('gender'),
+  gender: text('gender'), // Male, Female, or Gender expression
   class: text('class').notNull(),
   arm: text('arm'),
   department: text('department'),

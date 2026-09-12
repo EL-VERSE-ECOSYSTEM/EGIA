@@ -204,16 +204,31 @@ export async function createTerm(sessionId: string, name: string, startDate: any
 
 export async function getAllStudents() {
   await checkAdminPermission('read', 'student')
+  const session = await auth.getSession()
+  const currentUser = await db.query.user.findFirst({ where: eq(userTable.id, session?.user?.id || '') })
+  if (currentUser?.schoolId) {
+    return db.query.student.findMany({ where: eq(student.schoolId, currentUser.schoolId) })
+  }
   return db.query.student.findMany()
 }
 
 export async function getAllTeachers() {
   await checkAdminPermission('read', 'teacher')
+  const session = await auth.getSession()
+  const currentUser = await db.query.user.findFirst({ where: eq(userTable.id, session?.user?.id || '') })
+  if (currentUser?.schoolId) {
+    return db.query.teacher.findMany({ where: eq(teacher.schoolId, currentUser.schoolId) })
+  }
   return db.query.teacher.findMany()
 }
 
 export async function getAllParents() {
   await checkAdminPermission('read', 'parent')
+  const session = await auth.getSession()
+  const currentUser = await db.query.user.findFirst({ where: eq(userTable.id, session?.user?.id || '') })
+  if (currentUser?.schoolId) {
+    return db.query.parent.findMany({ where: eq(parentTable.schoolId, currentUser.schoolId) })
+  }
   return db.query.parent.findMany()
 }
 
@@ -319,22 +334,92 @@ export async function createInstallmentPlan(paymentId: string, totalAmount: numb
 
 export async function createTeacher(data: any) {
   await checkAdminPermission('create', 'teacher')
-  return db.insert(teacher).values({
-    id: randomUUID(),
-    userId: data.userId,
-    firstName: data.firstName,
-    lastName: data.lastName,
-    gender: data.gender || 'Male',
-    staffCode: data.staffCode,
-    type: data.type,
-    isClassTeacher: data.isClassTeacher,
-    assignedClassId: data.assignedClassId,
-    daysPresent: data.daysPresent,
-    applicationLetterUrl: data.applicationLetterUrl,
-    cvUrl: data.cvUrl,
-    password: data.password || 'StaffPassword123!',
-    status: 'APPROVED'
-  } as any).returning()
+
+  const session = await auth.getSession()
+  const adminUser = await db.query.user.findFirst({
+    where: eq(userTable.id, session?.user?.id || ''),
+  })
+
+  const schoolId = adminUser?.schoolId || data.schoolId || null
+  const email = (data.email || '').trim().toLowerCase()
+  const password = data.password || 'StaffPassword123!'
+  const staffCode = data.staffCode || `ST-${Math.floor(10000 + Math.random() * 90000)}`
+
+  let userId = data.userId || randomUUID()
+
+  // Create user in Supabase Auth if secret key present
+  const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
+  if (secretKey && email) {
+    try {
+      const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
+      const adminClient = createSupabaseAdminClient(supabaseUrl, secretKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+      const authRes = await adminClient.auth.admin.createUser({
+        id: userId,
+        email: email,
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: `${data.firstName} ${data.lastName}`,
+          role: 'TEACHER',
+          staff_code: staffCode,
+          school_id: schoolId,
+        },
+      })
+      if (authRes.data?.user?.id) {
+        userId = authRes.data.user.id
+      }
+    } catch (err) {
+      console.warn('Could not create teacher in Supabase Auth:', err)
+    }
+  }
+
+  return await db.transaction(async (tx) => {
+    if (email) {
+      await tx.insert(userTable).values({
+        id: userId,
+        email: email,
+        name: `${data.firstName} ${data.lastName}`,
+        schoolId: schoolId,
+        password: password,
+      }).onConflictDoUpdate({
+        target: userTable.id,
+        set: { password: password, updatedAt: new Date() }
+      })
+
+      await tx.insert(userRole).values({
+        id: randomUUID(),
+        userId: userId,
+        role: 'TEACHER',
+      }).onConflictDoNothing()
+    }
+
+    const insertedTeacher = (await tx.insert(teacher).values({
+      id: randomUUID(),
+      userId: userId,
+      schoolId: schoolId,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      gender: data.gender || 'Male',
+      staffCode: staffCode,
+      type: data.type || 'FULL_TIME',
+      isClassTeacher: Boolean(data.isClassTeacher),
+      assignedClassId: data.assignedClassId || null,
+      daysPresent: Array.isArray(data.daysPresent) ? data.daysPresent : [],
+      applicationLetterUrl: data.applicationLetterUrl || null,
+      cvUrl: data.cvUrl || null,
+      qualification: data.qualification || null,
+      specialization: data.specialization || null,
+      password: password,
+      status: 'APPROVED',
+      isActive: true,
+    } as any).returning())[0]
+
+    revalidatePath('/dashboard/admin/users/teachers/list')
+    return insertedTeacher
+  })
 }
 
 export async function getAllClasses() {
