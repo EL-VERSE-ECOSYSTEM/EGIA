@@ -74,11 +74,12 @@ export async function createStudent(data: any) {
       lastName: data.lastName,
       class: data.class,
       admissionNumber: admissionNumber,
-      gender: data.gender,
+      gender: data.gender || 'Male',
       parentId: parentId,
       isActive: true,
       termId: data.termId,
-      sessionId: data.sessionId
+      sessionId: data.sessionId,
+      password: data.password || 'default'
     }).returning())[0]
 
     let checkoutUrl: string | undefined
@@ -323,6 +324,7 @@ export async function createTeacher(data: any) {
     userId: data.userId,
     firstName: data.firstName,
     lastName: data.lastName,
+    gender: data.gender || 'Male',
     staffCode: data.staffCode,
     type: data.type,
     isClassTeacher: data.isClassTeacher,
@@ -330,6 +332,7 @@ export async function createTeacher(data: any) {
     daysPresent: data.daysPresent,
     applicationLetterUrl: data.applicationLetterUrl,
     cvUrl: data.cvUrl,
+    password: data.password || 'StaffPassword123!',
     status: 'APPROVED'
   } as any).returning()
 }
@@ -357,4 +360,82 @@ export async function getAcademicSessions() {
 
 export async function getTerms() {
   return db.query.term.findMany()
+}
+
+export async function createSchoolAdmin(data: { name: string; email: string; phone?: string; password?: string }) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const currentUser = await db.query.user.findFirst({
+    where: eq(userTable.id, session.user.id),
+  })
+  if (!currentUser?.schoolId) throw new Error('School identity not found.')
+
+  const adminEmail = data.email.trim().toLowerCase()
+  const adminPassword = data.password || 'AdminPass123!'
+  const userId = randomUUID()
+
+  // Provision in Supabase Auth if secret key present
+  const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
+  if (secretKey) {
+    try {
+      const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
+      const adminClient = createSupabaseAdminClient(supabaseUrl, secretKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+      await adminClient.auth.admin.createUser({
+        id: userId,
+        email: adminEmail,
+        password: adminPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: data.name,
+          role: 'ADMIN',
+          school_id: currentUser.schoolId,
+        },
+      })
+    } catch (err) {
+      console.warn('Could not create admin user in Supabase Auth:', err)
+    }
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.insert(userTable).values({
+      id: userId,
+      email: adminEmail,
+      name: data.name,
+      schoolId: currentUser.schoolId,
+      password: adminPassword,
+    }).onConflictDoNothing()
+
+    await tx.insert(userRole).values({
+      id: randomUUID(),
+      userId: userId,
+      role: 'ADMIN',
+    }).onConflictDoNothing()
+  })
+
+  revalidatePath('/dashboard/admin/users/admins/list')
+  return { success: true, userId, email: adminEmail }
+}
+
+export async function getSchoolAdmins() {
+  const session = await auth.getSession()
+  if (!session?.user) return []
+
+  const currentUser = await db.query.user.findFirst({
+    where: eq(userTable.id, session.user.id),
+  })
+  if (!currentUser?.schoolId) return []
+
+  const usersInSchool = await db.query.user.findMany({
+    where: eq(userTable.schoolId, currentUser.schoolId),
+    with: {
+      userRole: true,
+    },
+    orderBy: (u, { desc }) => [desc(u.createdAt)],
+  })
+
+  return usersInSchool.filter(u => u.userRole?.role === 'ADMIN' || u.userRole?.role === 'SCHOOL_ADMIN' || u.userRole?.role === 'SUPER_ADMIN')
 }
