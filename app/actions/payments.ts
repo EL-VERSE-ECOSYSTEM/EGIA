@@ -7,7 +7,12 @@ import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { eq, desc, and, or, isNull } from 'drizzle-orm'
 
+const KORAPAY_GATEWAY_FEE = 161.25
 const REGISTRATION_FEE = 2000
+
+export async function getKorapayGatewayFee() {
+  return KORAPAY_GATEWAY_FEE
+}
 const KORAPAY_CHECKOUT_LINK = process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
 
 async function requireParent() {
@@ -46,7 +51,7 @@ export async function verifyKorapayPayment(reference: string) {
   if (!normalizedReference) throw new Error('A payment reference is required.')
   const record = await db.query.payment.findFirst({ where: eq(payment.transactionReference, normalizedReference) })
   if (!record) throw new Error('This payment reference was not found.')
-  if (record.status === 'success') return { status: 'success' as const, paymentId: record.id }
+  if (record.status === 'success') return { status: 'success' as const, paymentId: record.id, payment: record }
 
   const secret = process.env.KORAPAY_SECRET_KEY
   if (!secret) throw new Error('Korapay verification is not configured. Please contact support.')
@@ -69,13 +74,13 @@ export async function verifyKorapayPayment(reference: string) {
     })
     revalidatePath('/dashboard/parent/payments/history')
     revalidatePath('/dashboard/student/payments/history')
-    return { status: 'success' as const, paymentId: record.id }
+    return { status: 'success' as const, paymentId: record.id, payment: record }
   }
   if (gatewayStatus === 'failed') {
     await db.update(payment).set({ status: 'failed', updatedAt: new Date() }).where(eq(payment.id, record.id))
-    return { status: 'failed' as const, paymentId: record.id }
+    return { status: 'failed' as const, paymentId: record.id, payment: record }
   }
-  return { status: 'pending' as const, paymentId: record.id }
+  return { status: 'pending' as const, paymentId: record.id, payment: record }
 }
 
 export async function submitManualPayment(data: { studentId: string; amount: string; feeType: string; receiptUrl: string }) {
@@ -92,8 +97,6 @@ export async function submitManualPayment(data: { studentId: string; amount: str
 export async function initializeKorapayPayment(data: { studentId: string; amount: number; feeType: string; description?: string }) {
   const { profile } = await requireParent()
   const child = await requireLinkedChild(profile.id, data.studentId)
-  // Never trust an amount submitted by the browser. The current fee structure is
-  // the source of truth, preventing a parent from changing the amount in DevTools.
   const configuredFee = await db.query.feeStructure.findFirst({
     where: and(
       eq(feeStructure.class, child.class),
@@ -103,29 +106,73 @@ export async function initializeKorapayPayment(data: { studentId: string; amount
     ),
   })
   if (!configuredFee) throw new Error('This fee is not available for the selected learner.')
-  const amount = Number(configuredFee.amount)
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error('The configured fee amount is invalid.')
+  const baseAmount = Number(configuredFee.amount)
+  if (!Number.isFinite(baseAmount) || baseAmount <= 0) throw new Error('The configured fee amount is invalid.')
+  const totalAmount = baseAmount + KORAPAY_GATEWAY_FEE
   const reference = `EGIA-${Date.now()}-${randomUUID().slice(0, 8)}`
   const record = (await db.insert(payment).values({
-    id: randomUUID(), studentId: child.id, parentId: profile.id, amount: amount.toFixed(2),
+    id: randomUUID(), studentId: child.id, parentId: profile.id, amount: totalAmount.toFixed(2),
     feeType: data.feeType, paymentMethod: 'KORAPAY', transactionReference: reference,
-    status: 'pending', description: data.description || `Payment for ${data.feeType}`,
+    status: 'pending', description: data.description || `Payment for ${data.feeType} (includes NGN 161.25 gateway fee)`,
   }).returning())[0]
-  return { checkoutUrl: checkoutUrl(reference), reference, paymentId: record.id }
+  return { checkoutUrl: checkoutUrl(reference), reference, paymentId: record.id, totalAmount }
 }
 
-/** Creates a pending registration payment; success is recorded only by the signed Korapay webhook. */
+/** Creates a pending registration payment (NGN 2000 + NGN 161.25 fee = NGN 2161.25); success is recorded by Korapay verification/webhook. */
 export async function initializeStudentRegistrationPayment(studentId: string) {
   const child = await db.query.student.findFirst({ where: eq(student.id, studentId) })
   if (!child) throw new Error('Student registration record was not found.')
+  const totalAmount = REGISTRATION_FEE + KORAPAY_GATEWAY_FEE
   const reference = `EGIA-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
   const record = (await db.insert(payment).values({
-    id: randomUUID(), studentId, amount: REGISTRATION_FEE.toFixed(2), feeType: 'registration',
+    id: randomUUID(), studentId, amount: totalAmount.toFixed(2), feeType: 'registration',
     paymentMethod: 'KORAPAY', transactionReference: reference, status: 'pending',
-    description: `Session registration for ${child.firstName} ${child.lastName}`,
+    description: `Session registration for ${child.firstName} ${child.lastName} (NGN 2000 + NGN 161.25 gateway fee)`,
   }).returning())[0]
   await db.update(student).set({ registrationStatus: 'PENDING_PAYMENT', updatedAt: new Date() }).where(eq(student.id, studentId))
-  return { checkoutUrl: checkoutUrl(reference), reference, paymentId: record.id }
+
+  const secretKey = process.env.KORAPAY_SECRET_KEY
+  const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  let checkout = checkoutUrl(reference)
+
+  if (secretKey) {
+    try {
+      const payload = {
+        amount: totalAmount,
+        currency: 'NGN',
+        reference,
+        narration: `Student Registration Fee - ${child.firstName} ${child.lastName}`,
+        notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
+        redirect_url: `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`,
+        customer: {
+          email: child.email || `student_${child.admissionNumber}@ellearners.app`,
+          name: `${child.firstName} ${child.lastName}`,
+        },
+        metadata: {
+          studentId,
+          type: 'STUDENT_REGISTRATION',
+        },
+      }
+      const res = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) {
+        const koraData = await res.json()
+        if (koraData.status && koraData.data?.checkout_url) {
+          checkout = koraData.data.checkout_url
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to call Korapay initialize API for student registration:', e)
+    }
+  }
+
+  return { checkoutUrl: checkout, reference, paymentId: record.id, totalAmount }
 }
 
 export async function getPaymentSummary(studentId: string) {

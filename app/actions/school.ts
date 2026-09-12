@@ -52,6 +52,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     const schoolId = randomUUID()
     const schoolCode = await generateSchoolCode(input.name)
     const paymentReference = `SCH_PAY_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+    const totalAmount = 30000 + 161.25
 
     // Insert school record in PENDING state awaiting Korapay payment checkout
     await db.insert(school).values({
@@ -109,15 +110,15 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://goodnews-app-mu.vercel.app/'
     const secretKey = process.env.KORAPAY_SECRET_KEY
 
-    let checkoutUrl = `${process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'}?reference=${encodeURIComponent(paymentReference)}&amount=30000&customer_email=${encodeURIComponent(adminEmail)}`
+    let checkoutUrl = `${process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'}?reference=${encodeURIComponent(paymentReference)}&amount=${totalAmount}&customer_email=${encodeURIComponent(adminEmail)}`
 
     if (secretKey) {
       try {
         const payload = {
-          amount: 30000,
+          amount: totalAmount,
           currency: 'NGN',
           reference: paymentReference,
-          narration: `School Registration - ${input.name}`,
+          narration: `School Registration - ${input.name} (includes NGN 161.25 gateway fee)`,
           notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
           redirect_url: `${siteUrl.replace(/\/$/, '')}/api/payments/callback`,
           customer: {
@@ -156,7 +157,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       schoolId,
       schoolCode,
       paymentReference,
-      amount: 30000,
+      amount: totalAmount,
       adminEmail,
       adminName: input.adminName,
       schoolName: input.name,
@@ -189,7 +190,7 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
       schoolName: rec.name,
       adminEmail: rec.adminEmail,
       adminName: rec.adminName,
-      amount: 30000,
+      amount: 30161.25,
       paidAt: new Date().toISOString()
     }
   } catch (error: any) {

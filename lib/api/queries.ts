@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import {
+  user as userTable,
   student,
   parent,
   teacher,
@@ -15,9 +16,24 @@ import {
   notification,
   assessmentResult,
   studyVideo,
-  libraryBooks
+  libraryBooks,
+  school
 } from '@/lib/db/schema'
 import { eq, and, or, sql, desc, inArray } from 'drizzle-orm'
+import { auth } from '@/lib/auth'
+
+export async function getCurrentAdminSchool() {
+  const session = await auth.getSession()
+  if (!session?.user?.id) return null
+  const u = await db.query.user.findFirst({
+    where: eq(userTable.id, session.user.id),
+  })
+  if (!u?.schoolId) return null
+  const sch = await db.query.school.findFirst({
+    where: eq(school.id, u.schoolId),
+  })
+  return sch || null
+}
 
 export async function getStudentProfile(userId: string) {
   return await db.query.student.findFirst({
@@ -59,12 +75,36 @@ export async function getTeacherClasses(teacherId: string) {
 }
 
 export async function getAdminDashboardStats() {
-  const [studentsCount] = await db.select({ count: sql<number>`count(*)` }).from(student)
-  const [teachersCount] = await db.select({ count: sql<number>`count(*)` }).from(teacher)
-  const [totalRevenue] = await db.select({ sum: sql<string>`sum(amount)` }).from(payment).where(eq(payment.status, 'success'))
-  const [activeCBTs] = await db.select({ count: sql<number>`count(*)` }).from(assessment).where(or(eq(assessment.status, 'published'), eq(assessment.status, 'approved')))
+  const schoolRecord = await getCurrentAdminSchool()
+  const schoolId = schoolRecord?.id
+
+  const studentQuery = schoolId
+    ? db.select({ count: sql<number>`count(*)` }).from(student).where(eq(student.schoolId, schoolId))
+    : db.select({ count: sql<number>`count(*)` }).from(student)
+
+  const teacherQuery = schoolId
+    ? db.select({ count: sql<number>`count(*)` }).from(teacher).where(eq(teacher.schoolId, schoolId))
+    : db.select({ count: sql<number>`count(*)` }).from(teacher)
+
+  const revenueQuery = schoolId
+    ? db.select({ sum: sql<string>`sum(amount)` }).from(payment).innerJoin(student, eq(payment.studentId, student.id)).where(and(eq(payment.status, 'success'), eq(student.schoolId, schoolId)))
+    : db.select({ sum: sql<string>`sum(amount)` }).from(payment).where(eq(payment.status, 'success'))
+
+  const cbtQuery = schoolId
+    ? db.select({ count: sql<number>`count(*)` }).from(assessment).where(and(eq(assessment.schoolId, schoolId), or(eq(assessment.status, 'published'), eq(assessment.status, 'approved'))))
+    : db.select({ count: sql<number>`count(*)` }).from(assessment).where(or(eq(assessment.status, 'published'), eq(assessment.status, 'approved')))
+
+  const [[studentsCount], [teachersCount], [totalRevenue], [activeCBTs]] = await Promise.all([
+    studentQuery,
+    teacherQuery,
+    revenueQuery,
+    cbtQuery,
+  ])
 
   return {
+    schoolName: schoolRecord?.name || 'EL LEARNERS ACADEMY',
+    schoolCode: schoolRecord?.code || 'MAIN-001',
+    paymentStatus: schoolRecord?.paymentStatus || 'PAID',
     totalStudents: Number(studentsCount?.count || 0),
     totalTeachers: Number(teachersCount?.count || 0),
     revenue: totalRevenue?.sum || '0',

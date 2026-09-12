@@ -350,8 +350,8 @@ export default function SchoolRegistrationPage() {
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Subscription Fee</p>
-                  <p className="text-xl font-black text-white">NGN 30,000</p>
+                  <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Subscription Fee (NGN 30,000 + NGN 161.25 fee)</p>
+                  <p className="text-xl font-black text-white">NGN 30,161.25</p>
                 </div>
               </div>
               <span className="text-[10px] font-black px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 uppercase">
@@ -368,7 +368,7 @@ export default function SchoolRegistrationPage() {
                 <span>Generating Payment Order...</span>
               ) : (
                 <>
-                  <span>Pay NGN 30,000 & Register School</span>
+                  <span>Pay NGN 30,161.25 & Register School</span>
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}
