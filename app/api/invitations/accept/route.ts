@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { token, password, name, firstName, lastName } = body
+    const { token, password, name, firstName, lastName, gender } = body
 
     if (!token || !password) {
       return NextResponse.json({ error: 'Token and password are required.' }, { status: 400 })
@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
         schoolId: invitation.schoolId,
         firstName: firstName || 'Teacher',
         lastName: lastName || 'Staff',
+        gender: gender || 'Male',
         staffCode: `ST-${Math.floor(10000 + Math.random() * 90000)}`,
         password,
         status: 'ACTIVE'
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
         schoolId: invitation.schoolId,
         firstName: firstName || 'Parent',
         lastName: lastName || 'Guardian',
+        gender: gender || 'Male',
         phoneNumber: invitation.phone || null,
         password
       })
@@ -77,6 +79,7 @@ export async function POST(req: NextRequest) {
         schoolId: invitation.schoolId,
         firstName: firstName || 'Student',
         lastName: lastName || 'Pupil',
+        gender: gender || 'Male',
         class: 'JSS1',
         admissionNumber: `STU-${Math.floor(10000 + Math.random() * 90000)}`,
         password,

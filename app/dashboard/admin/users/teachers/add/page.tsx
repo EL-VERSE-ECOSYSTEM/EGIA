@@ -19,6 +19,7 @@ export default function AddTeacherPage() {
     firstName: '',
     lastName: '',
     email: '',
+    gender: 'Male',
     password: 'StaffPassword123!',
     qualification: '',
     specialization: '',
@@ -95,16 +96,30 @@ export default function AddTeacherPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Professional Email</Label>
-                    <Input
-                      type="email"
-                      required
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      placeholder="teacher@egia.com"
-                      className="h-14 rounded-2xl bg-slate-50 border-none font-bold focus:bg-white focus:ring-amber-600 transition-all"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Professional Email</Label>
+                      <Input
+                        type="email"
+                        required
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        placeholder="teacher@egia.com"
+                        className="h-14 rounded-2xl bg-slate-50 border-none font-bold focus:bg-white focus:ring-amber-600 transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Gender</Label>
+                      <Select value={formData.gender} onValueChange={(v) => setFormData({...formData, gender: v})}>
+                        <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none font-bold">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-2xl border-none shadow-2xl">
+                          <SelectItem value="Male" className="font-bold py-3">Male</SelectItem>
+                          <SelectItem value="Female" className="font-bold py-3">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
