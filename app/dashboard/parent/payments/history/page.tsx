@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,20 +16,15 @@ import {
   ShieldCheck,
   Loader2,
   X,
-  Printer,
-  Sparkles
+  Printer
 } from 'lucide-react'
 import { getParentPaymentHistory } from '@/app/actions/payments'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
 export default function PaymentHistoryPage() {
   const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [verifyingId, setVerifyingId] = useState<string | null>(null)
-
-  // Instant Reference Authentication State
-  const [instantRef, setInstantRef] = useState('')
-  const [authenticating, setAuthenticating] = useState(false)
 
   // Active Receipt Modal state
   const [activeReceipt, setActiveReceipt] = useState<any | null>(null)
@@ -50,6 +45,10 @@ export default function PaymentHistoryPage() {
     loadHistory()
   }, [])
 
+  // Real-time synchronization with Supabase Database payment table
+  useRealtimeSubscription('payment', () => {
+    loadHistory()
+  })
 
   const getStatusBadge = (status: string) => {
     const s = (status || 'pending').toLowerCase()
@@ -100,7 +99,7 @@ export default function PaymentHistoryPage() {
                   <span className="font-mono font-black text-slate-900 uppercase">{activeReceipt.receiptUrl || `REC-${activeReceipt.id.substring(0, 8)}`}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Pupil Name:</span>
+                  <span className="text-slate-400">Pupil/Ward:</span>
                   <span className="font-bold text-slate-900">{activeReceipt.childName}</span>
                 </div>
                 <div className="flex justify-between">
@@ -146,14 +145,13 @@ export default function PaymentHistoryPage() {
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Payment History</h1>
-            <p className="text-slate-500 font-medium">Track all your school fee payments and verify transaction receipts.</p>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Payment & Ward Registration History</h1>
+            <p className="text-slate-500 font-medium">Track all your school fee payments and ward registration fees in real-time with Supabase Database.</p>
           </div>
-          <Button className="bg-emerald-600 hover:bg-emerald-700 h-12 rounded-xl font-bold">
+          <Button onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700 h-12 rounded-xl font-bold">
             <Download className="w-4 h-4 mr-2" /> Export All (PDF)
           </Button>
         </div>
-
 
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
@@ -175,7 +173,7 @@ export default function PaymentHistoryPage() {
                   <tr className="bg-emerald-50/50 border-b border-emerald-100/50">
                     <th className="p-6 font-black text-[10px] text-emerald-950 uppercase tracking-wider">Date</th>
                     <th className="p-6 font-black text-[10px] text-emerald-950 uppercase tracking-wider">Transaction ID</th>
-                    <th className="p-6 font-black text-[10px] text-emerald-950 uppercase tracking-wider">Child Name</th>
+                    <th className="p-6 font-black text-[10px] text-emerald-950 uppercase tracking-wider">Child / Ward</th>
                     <th className="p-6 font-black text-[10px] text-emerald-950 uppercase tracking-wider">Category</th>
                     <th className="p-6 font-black text-[10px] text-emerald-950 uppercase tracking-wider">Amount</th>
                     <th className="p-6 font-black text-[10px] text-emerald-950 uppercase tracking-wider">Status</th>
@@ -187,7 +185,7 @@ export default function PaymentHistoryPage() {
                     <tr>
                       <td colSpan={7} className="p-24 text-center">
                         <Loader2 className="w-10 h-10 animate-spin text-emerald-600 mx-auto mb-4" />
-                        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Accessing ledger...</p>
+                        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Accessing real-time ledger...</p>
                       </td>
                     </tr>
                   ) : filteredPayments.length === 0 ? (
@@ -218,7 +216,7 @@ export default function PaymentHistoryPage() {
                       </td>
                       <td className="p-6 text-right">
                         {p.status?.toLowerCase() === 'pending' ? (
-                          <span className="text-xs font-bold text-amber-700">Awaiting gateway/admin confirmation</span>
+                          <span className="text-xs font-bold text-amber-700">Awaiting confirmation</span>
                         ) : (
                           <Button
                             onClick={() => setActiveReceipt(p)}

@@ -242,14 +242,18 @@ export async function registerStudent(data: any) {
 
   try {
     await db.transaction(async (tx) => {
+      // Real-time password saving to database user table
       await tx.insert(userTable).values({
         id: userId,
         email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null,
         schoolId,
-        password: password || null
-      }).onConflictDoNothing()
+        password: password || 'default'
+      }).onConflictDoUpdate({
+        target: userTable.id,
+        set: { password: password || 'default', updatedAt: new Date() }
+      })
 
       await tx.insert(userRole).values({
         id: randomUUID(),
@@ -257,6 +261,7 @@ export async function registerStudent(data: any) {
         role: 'STUDENT',
       }).onConflictDoNothing()
 
+      // Real-time password saving to student table
       await tx.insert(student).values({
         id: randomUUID(),
         userId: userId,
@@ -326,14 +331,18 @@ export async function registerParent(data: any) {
   try {
     await db.transaction(async (tx) => {
       const parentId = randomUUID()
+      // Real-time password saving to database user table
       await tx.insert(userTable).values({
         id: userId,
         email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null,
         schoolId,
-        password: password || null
-      }).onConflictDoNothing()
+        password: password || 'default'
+      }).onConflictDoUpdate({
+        target: userTable.id,
+        set: { password: password || 'default', updatedAt: new Date() }
+      })
 
       await tx.insert(userRole).values({
         id: randomUUID(),
@@ -341,6 +350,7 @@ export async function registerParent(data: any) {
         role: 'PARENT',
       }).onConflictDoNothing()
 
+      // Real-time password saving to parent table
       await tx.insert(parent).values({
         id: parentId,
         userId: userId,
@@ -419,14 +429,18 @@ export async function registerTeacher(data: any) {
 
   try {
     await db.transaction(async (tx) => {
+      // Real-time password saving to database user table
       await tx.insert(userTable).values({
         id: userId,
         email: emailAddress,
         name: `${firstName} ${lastName}`,
         image: profileImage || null,
         schoolId,
-        password: password || null
-      }).onConflictDoNothing()
+        password: password || 'default'
+      }).onConflictDoUpdate({
+        target: userTable.id,
+        set: { password: password || 'default', updatedAt: new Date() }
+      })
 
       await tx.insert(userRole).values({
         id: randomUUID(),
@@ -434,6 +448,7 @@ export async function registerTeacher(data: any) {
         role: 'TEACHER',
       }).onConflictDoNothing()
 
+      // Real-time password saving to teacher table
       await tx.insert(teacher).values({
         id: randomUUID(),
         userId: userId,

@@ -3,25 +3,54 @@
 import React, { useState } from 'react'
 import { AlertTriangle, CreditCard, CheckCircle2, Loader2, ExternalLink } from 'lucide-react'
 import { verifyKorapayPayment } from '@/app/actions/payments'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
 interface SchoolPaymentLockModalProps {
   schoolName: string
   paymentStatus: string
   paymentReference: string | null
   adminEmail: string
+  schoolCode?: string
 }
 
 export function SchoolPaymentLockModal({
   schoolName,
-  paymentStatus,
+  paymentStatus: initialStatus,
   paymentReference,
   adminEmail,
+  schoolCode: initialSchoolCode,
 }: SchoolPaymentLockModalProps) {
   const [loading, setLoading] = useState(false)
+  const [currentStatus, setCurrentStatus] = useState(initialStatus)
+  const [confirmedSchoolCode, setConfirmedSchoolCode] = useState<string | null>(initialSchoolCode || null)
   const [verificationResult, setVerificationResult] = useState<{
     status: string
     message: string
+    schoolCode?: string
   } | null>(null)
+
+  // Real-time synchronization with Supabase Database school table
+  useRealtimeSubscription('school', (payload: any) => {
+    if (payload.new && payload.new.paymentreference === paymentReference) {
+      if (payload.new.paymentstatus === 'PAID') {
+        setCurrentStatus('PAID')
+        if (payload.new.code) setConfirmedSchoolCode(payload.new.code)
+        setVerificationResult({
+          status: 'success',
+          message: 'Payment confirmed in real-time! Unlocking school admin portal…',
+          schoolCode: payload.new.code || confirmedSchoolCode || undefined,
+        })
+        setTimeout(() => {
+          window.location.reload()
+        }, 1500)
+      }
+    }
+  })
+
+  // If already paid in real time state, do not render modal
+  if (currentStatus === 'PAID') {
+    return null
+  }
 
   const defaultCheckoutLink = 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
   const reference = paymentReference || `SCH_PAY_${Date.now()}`
@@ -42,9 +71,12 @@ export function SchoolPaymentLockModal({
     try {
       const res = await verifyKorapayPayment(paymentReference)
       if (res.status === 'success') {
+        setCurrentStatus('PAID')
+        if (res.schoolCode) setConfirmedSchoolCode(res.schoolCode)
         setVerificationResult({
           status: 'success',
           message: 'Payment confirmed! Unlocking school admin portal…',
+          schoolCode: res.schoolCode,
         })
         setTimeout(() => {
           window.location.reload()
@@ -80,7 +112,7 @@ export function SchoolPaymentLockModal({
           <h2 className="text-2xl sm:text-3xl font-black text-white mt-3">{schoolName}</h2>
           <p className="text-slate-300 text-xs sm:text-sm font-medium mt-2 leading-relaxed">
             Your school registration payment status is currently{' '}
-            <strong className="text-red-400 uppercase font-mono">{paymentStatus}</strong> in Supabase Database. Please complete the registration payment immediately to activate all school features.
+            <strong className="text-red-400 uppercase font-mono">{currentStatus}</strong> in Supabase Database. Please complete the registration payment immediately to activate all school features.
           </p>
         </div>
 
@@ -108,9 +140,16 @@ export function SchoolPaymentLockModal({
             }`}
           >
             {verificationResult.status === 'success' ? (
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>{verificationResult.message}</span>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{verificationResult.message}</span>
+                </div>
+                {verificationResult.schoolCode && (
+                  <p className="text-[11px] font-mono font-black text-emerald-400 mt-1">
+                    School Registration Code: {verificationResult.schoolCode}
+                  </p>
+                )}
               </div>
             ) : (
               <span>{verificationResult.message}</span>
@@ -119,7 +158,7 @@ export function SchoolPaymentLockModal({
         )}
 
         <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-bold text-amber-300 leading-relaxed text-left">
-          ⚠️ <strong>Note:</strong> Modal cannot be closed until payment is completed or verified. If payment was made previously, click "Verify Completed Payment" below.
+          ⚠️ <strong>Note:</strong> Modal cannot be closed until payment is completed or verified. Please proceed to Korapay Payment Gateway below.
         </div>
 
         <div className="flex flex-col gap-3 pt-2">
