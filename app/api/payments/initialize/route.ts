@@ -20,16 +20,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Korapay secret key is not configured' }, { status: 500 })
     }
 
+    const gatewayFee = 161.25
+    const totalAmount = Number(amount) + gatewayFee
+
     const reference = `TRX-${Date.now()}-${randomUUID().slice(0, 8)}`
     const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     const notificationUrl = `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`
     const redirectUrl = `${siteUrl.replace(/\/$/, '')}/api/payments/callback`
 
     const payload = {
-      amount: Number(amount),
+      amount: totalAmount,
       currency,
       reference,
-      narration: description || 'Payment transaction',
+      narration: description ? `${description} (includes NGN 161.25 gateway fee)` : 'Payment transaction (includes NGN 161.25 gateway fee)',
       notification_url: notificationUrl,
       redirect_url: redirectUrl,
       customer: {
@@ -63,7 +66,7 @@ export async function POST(req: Request) {
     await db.insert(transactions).values({
       id: randomUUID(),
       reference,
-      amount: Number(amount).toFixed(2),
+      amount: totalAmount.toFixed(2),
       currency,
       status: 'pending',
       customerEmail,

@@ -82,10 +82,11 @@ export function KorapayCheckoutButton({
     }
   }
 
+  const totalWithFee = (amount || 0) + 161.25
   const formattedAmount = new Intl.NumberFormat('en-NG', {
     style: 'currency',
     currency: currency || 'NGN',
-  }).format(amount || 0)
+  }).format(totalWithFee)
 
   return (
     <div className="w-full space-y-2">

@@ -119,17 +119,85 @@ export default async function AdminOverviewPage() {
   return (
     <DashboardLayout role="admin">
     <div className="p-4 sm:p-8 max-w-[1600px] mx-auto space-y-8 sm:space-y-10">
+      {/* School Registration Pending or Failed Payment Modal */}
+      {(statsData.paymentStatus === 'PENDING' || statsData.paymentStatus === 'FAILED') && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border-2 border-red-500/60 rounded-[2.5rem] p-6 sm:p-10 max-w-lg w-full text-center space-y-6 shadow-2xl text-white relative overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="absolute top-0 left-0 h-3 bg-red-500 w-full" />
+            <div className="w-20 h-20 rounded-full bg-red-500/20 border border-red-500 flex items-center justify-center mx-auto text-red-400 shadow-lg">
+              <AlertTriangle className="w-10 h-10 animate-bounce" />
+            </div>
+            <div>
+              <span className="bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-black uppercase tracking-widest px-3.5 py-1 rounded-full">
+                Action Required • Registration Payment Pending
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-white mt-3">{statsData.schoolName}</h2>
+              <p className="text-slate-300 text-xs sm:text-sm font-medium mt-2 leading-relaxed">
+                Your school registration payment status is currently <strong className="text-red-400 uppercase font-mono">{statsData.paymentStatus}</strong> in Supabase Database. Please complete the registration payment immediately to activate all school features.
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl font-mono text-xs text-left space-y-2">
+              <div className="flex justify-between border-b border-slate-800 pb-1.5">
+                <span className="text-slate-400">Registration Fee:</span>
+                <span className="font-bold text-white">NGN 30,000.00</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800 pb-1.5">
+                <span className="text-slate-400">Korapay Gateway Fee:</span>
+                <span className="font-bold text-white">NGN 161.25</span>
+              </div>
+              <div className="flex justify-between pt-1">
+                <span className="text-slate-400 font-bold">Total Amount Due:</span>
+                <span className="font-black text-emerald-400 text-sm">NGN 30,161.25</span>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-bold text-amber-300 leading-relaxed text-left">
+              ⚠️ <strong>Note:</strong> if payment was done before, please contact <strong>EL VERSE Support</strong> to confirm.
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <a
+                href="/school-registration"
+                className="flex-1 py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider text-center shadow-lg transition flex items-center justify-center gap-2"
+              >
+                <span>Pay NGN 30,161.25 Now</span>
+                <CreditCard className="w-4 h-4" />
+              </a>
+              <a
+                href="https://wa.me/2348061908715"
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 py-3.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs uppercase tracking-wider text-center transition border border-slate-700"
+              >
+                Contact EL VERSE Support
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-8 sm:p-12 text-white shadow-2xl">
          <div className="absolute top-0 right-0 p-8 opacity-10">
             <Activity size={300} strokeWidth={1} />
          </div>
          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-amber-500 text-xs font-black uppercase tracking-widest mb-6">
-               <Calendar className="w-3.5 h-3.5" /> Live Administration Node
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-amber-400 text-xs font-black uppercase tracking-widest">
+                  <Calendar className="w-3.5 h-3.5" /> Live Administration Node
+               </div>
+               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-black uppercase tracking-widest font-mono">
+                  Code: {statsData.schoolCode}
+               </div>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-4 text-pretty">Welcome back, Administrator.</h1>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-2 text-pretty">
+               {statsData.schoolName}
+            </h1>
+            <p className="text-blue-400 font-bold text-sm sm:text-base uppercase tracking-wider mb-4">
+               School Admin Portal Dashboard
+            </p>
             <p className="text-slate-400 text-sm sm:text-lg font-medium max-w-xl leading-relaxed">
-               Monitor institutional performance and manage academy operations in real-time.
+               Monitor institutional performance and manage academy operations in real-time with Supabase Database.
             </p>
          </div>
       </div>
