@@ -1,6 +1,7 @@
 export function cleanSchoolPrefix(schoolNameOrCode?: string): string {
   if (!schoolNameOrCode) return 'SCHO'
   const clean = schoolNameOrCode.replace(/[^a-zA-Z]/g, '').toUpperCase()
+  if (clean.length >= 4) return clean.slice(0, 4)
   return (clean + 'SCHO').slice(0, 4)
 }
 

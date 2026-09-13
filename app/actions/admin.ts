@@ -447,7 +447,7 @@ export async function getTerms() {
   return db.query.term.findMany()
 }
 
-export async function createSchoolAdmin(data: { name: string; email: string; phone?: string; password?: string }) {
+export async function createSchoolAdmin(data: { name: string; email: string; phone?: string; password?: string; adminLevel?: string }) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -458,6 +458,7 @@ export async function createSchoolAdmin(data: { name: string; email: string; pho
 
   const adminEmail = data.email.trim().toLowerCase()
   const adminPassword = data.password || 'AdminPass123!'
+  const adminLevel = data.adminLevel || 'Vice Principal (Academics)'
   const userId = randomUUID()
 
   // Provision in Supabase Auth if secret key present
@@ -477,6 +478,7 @@ export async function createSchoolAdmin(data: { name: string; email: string; pho
         user_metadata: {
           full_name: data.name,
           role: 'ADMIN',
+          admin_level: adminLevel,
           school_id: currentUser.schoolId,
         },
       })
@@ -492,6 +494,7 @@ export async function createSchoolAdmin(data: { name: string; email: string; pho
       name: data.name,
       schoolId: currentUser.schoolId,
       password: adminPassword,
+      adminLevel: adminLevel,
     }).onConflictDoNothing()
 
     await tx.insert(userRole).values({
@@ -502,7 +505,7 @@ export async function createSchoolAdmin(data: { name: string; email: string; pho
   })
 
   revalidatePath('/dashboard/admin/users/admins/list')
-  return { success: true, userId, email: adminEmail }
+  return { success: true, userId, email: adminEmail, adminLevel }
 }
 
 export async function getSchoolAdmins() {

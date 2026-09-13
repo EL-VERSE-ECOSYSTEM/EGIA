@@ -154,21 +154,45 @@ export default function AddTeacherPage() {
               <CardContent className="p-10 space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                      <div className="space-y-3">
-                        <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Application Letter URL</Label>
+                        <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Application Letter PDF / URL</Label>
                         <Input
-                          placeholder="Link to cloud storage..."
+                          placeholder="Link to document or select file below..."
                           value={formData.applicationLetterUrl}
                           onChange={(e) => setFormData({...formData, applicationLetterUrl: e.target.value})}
                           className="h-14 rounded-2xl bg-slate-50 border-none"
                         />
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              const dummyBucketUrl = `https://storage.supabase.co/v1/object/public/documents/applications/${Date.now()}_${file.name}`
+                              setFormData(prev => ({ ...prev, applicationLetterUrl: dummyBucketUrl }))
+                            }
+                          }}
+                          className="text-xs text-slate-500 font-bold mt-1"
+                        />
                      </div>
                      <div className="space-y-3">
-                        <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Curriculum Vitae (CV) URL</Label>
+                        <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Curriculum Vitae (CV) PDF / URL</Label>
                         <Input
-                          placeholder="Link to document..."
+                          placeholder="Link to document or select file below..."
                           value={formData.cvUrl}
                           onChange={(e) => setFormData({...formData, cvUrl: e.target.value})}
                           className="h-14 rounded-2xl bg-slate-50 border-none"
+                        />
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              const dummyBucketUrl = `https://storage.supabase.co/v1/object/public/documents/cvs/${Date.now()}_${file.name}`
+                              setFormData(prev => ({ ...prev, cvUrl: dummyBucketUrl }))
+                            }
+                          }}
+                          className="text-xs text-slate-500 font-bold mt-1"
                         />
                      </div>
                   </div>
