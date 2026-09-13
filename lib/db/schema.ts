@@ -95,6 +95,9 @@ export const student = pgTable('student', {
   facialVerificationVideo: text('facialverificationvideo'),
   subjectsDone: jsonb('subjectsdone'),
   isActive: boolean('isactive').default(true),
+  registrationPaid: boolean('registration_paid').default(false),
+  registrationReference: text('registration_reference'),
+  enrollmentType: text('enrollment_type'), // ADMIN or SELF
   registrationStatus: text('registrationstatus').notNull().default('WAIVED'),
   password: text('password').default('default'),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
@@ -359,6 +362,7 @@ export const feeStructure = pgTable('fee_structure', {
 
 export const payment = pgTable('payment', {
   id: text('id').primaryKey(),
+  schoolId: text('schoolid'),
   studentId: text('studentid').notNull(),
   parentId: text('parentid'),
   termId: text('termid'),
@@ -368,6 +372,9 @@ export const payment = pgTable('payment', {
   transactionReference: text('transactionreference').unique(),
   korapayReference: text('korapayreference').unique(),
   receiptUrl: text('receipturl'),
+  reconciliationStatus: text('reconciliation_status').default('UNRECONCILED'), // UNRECONCILED, RECONCILED, DISPUTED
+  reconciledBy: text('reconciled_by'),
+  reconciledAt: timestamp('reconciled_at', { withTimezone: true }),
   status: text('status').default('pending'), // pending, approved, cleared, failed
   paymentDate: timestamp('paymentdate', { withTimezone: true }),
   paidAt: timestamp('paidat', { withTimezone: true }),
@@ -376,6 +383,97 @@ export const payment = pgTable('payment', {
   updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }),
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('set null'),
+])
+
+// ===== ADMISSION NUMBER SEQUENCES =====
+export const admissionNumberSequences = pgTable('admission_number_sequences', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid').notNull().unique(),
+  lastNumber: integer('last_number').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+])
+
+// ===== INSTITUTIONAL STAFF =====
+export const institutionalStaff = pgTable('institutional_staff', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid').notNull(),
+  userId: text('userid').unique(),
+  staffCode: text('staffcode').unique(),
+  firstName: text('firstname').notNull(),
+  lastName: text('lastname').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  gender: text('gender'),
+  role: text('role').notNull(), // ACCOUNTANT, LIBRARIAN, SECURITY, CLEANER, etc.
+  department: text('department'),
+  cvUrl: text('cvurl'),
+  applicationLetterUrl: text('applicationletterurl'),
+  password: text('password'),
+  status: text('status').default('ACTIVE'),
+  isActive: boolean('isactive').default(true),
+  createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('set null'),
+])
+
+// ===== ASSESSMENT LOGS =====
+export const assessmentLogs = pgTable('assessment_logs', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid').notNull(),
+  assessmentId: text('assessment_id'),
+  studentId: text('student_id'),
+  action: text('action').notNull(), // STARTED, SUBMITTED, WARNED, AUTO_SUBMITTED, GRADED
+  metadata: jsonb('metadata'),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.assessmentId], foreignColumns: [assessment.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }).onDelete('cascade'),
+])
+
+// ===== TRANSACTION LEDGER =====
+export const transactionLedger = pgTable('transaction_ledger', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid').notNull(),
+  userId: text('user_id'),
+  studentId: text('student_id'),
+  type: text('type').notNull(), // REGISTRATION_FEE, FEE_PAYMENT, SALARY, AIRTIME, DATA, CLEARANCE, REFUND
+  direction: text('direction').notNull(), // IN, OUT
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  currency: text('currency').default('NGN'),
+  reference: text('reference').unique(),
+  gateway: text('gateway'), // KORAPAY, SCHOOL_ACCOUNT, SYSTEM
+  status: text('status').default('PENDING'), // PENDING, SUCCESS, FAILED
+  description: text('description'),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.userId], foreignColumns: [user.id] }),
+  foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }),
+])
+
+// ===== SCHOOL ADMIN ROLES =====
+export const schoolAdminRoles = pgTable('school_admin_roles', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid').notNull(),
+  userId: text('userid').notNull(),
+  level: text('level').notNull(), // PRIMARY_ADMIN, VICE_PRINCIPAL_ACADEMICS, VICE_PRINCIPAL_ADMIN, HOD_SCIENCE, HOD_ARTS, HOD_COMMERCIAL
+  department: text('department'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique().on(t.schoolId, t.userId),
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
 ])
 
 export const paymentInstallment = pgTable('payment_installment', {

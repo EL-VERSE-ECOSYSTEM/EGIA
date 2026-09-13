@@ -10,8 +10,16 @@ import {
   payment,
   parent as parentTable,
   teacher as teacherTable,
-  notification
+  notification,
+  institutionalStaff,
+  assessmentLogs,
+  transactionLedger,
+  schoolAdminRoles,
+  school,
+  userRole
 } from '@/lib/db/schema'
+import bcrypt from 'bcryptjs'
+import { generateSequentialStaffCode } from '@/lib/admission'
 import { eq, and, sql, desc, inArray } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
@@ -239,4 +247,228 @@ export async function getParentsWithPendingFees() {
   }
 
   return result;
+}
+
+// ===== INSTITUTIONAL STAFF ACTIONS =====
+export async function registerInstitutionalStaffAction(data: {
+  schoolId: string
+  firstName: string
+  lastName: string
+  email?: string
+  phone?: string
+  gender?: string
+  role: string
+  department?: string
+  cvUrl?: string
+  applicationLetterUrl?: string
+  password?: string
+}) {
+  await requireAdmin()
+
+  const staffCode = await generateSequentialStaffCode(data.schoolId)
+  const plainPassword = data.password || 'StaffPass123!'
+  const hashedPassword = await bcrypt.hash(plainPassword, 10)
+  const staffId = randomUUID()
+  let userId: string | null = null
+
+  if (data.email && data.email.trim()) {
+    userId = randomUUID()
+    const cleanEmail = data.email.trim().toLowerCase()
+
+    await db.insert(userTable).values({
+      id: userId,
+      email: cleanEmail,
+      name: `${data.firstName} ${data.lastName}`,
+      schoolId: data.schoolId,
+      password: hashedPassword
+    }).onConflictDoNothing()
+
+    await db.insert(userRole).values({
+      id: randomUUID(),
+      userId: userId,
+      role: 'STAFF'
+    }).onConflictDoNothing()
+  }
+
+  await db.insert(institutionalStaff).values({
+    id: staffId,
+    schoolId: data.schoolId,
+    userId: userId,
+    staffCode: staffCode,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    email: data.email || null,
+    phone: data.phone || null,
+    gender: data.gender || 'Male',
+    role: data.role,
+    department: data.department || null,
+    cvUrl: data.cvUrl || null,
+    applicationLetterUrl: data.applicationLetterUrl || null,
+    password: hashedPassword,
+    status: 'ACTIVE',
+    isActive: true
+  })
+
+  revalidatePath('/dashboard/admin/users/staff')
+  return { success: true, staffCode, id: staffId }
+}
+
+export async function getInstitutionalStaffList(schoolId?: string) {
+  await requireAdmin()
+  if (schoolId) {
+    return db.select().from(institutionalStaff).where(eq(institutionalStaff.schoolId, schoolId)).orderBy(desc(institutionalStaff.createdAt))
+  }
+  return db.select().from(institutionalStaff).orderBy(desc(institutionalStaff.createdAt))
+}
+
+// ===== ASSESSMENT LOGS ACTIONS =====
+export async function getAdminAssessmentLogs(schoolId?: string) {
+  await requireAdmin()
+  if (schoolId) {
+    return db.select().from(assessmentLogs).where(eq(assessmentLogs.schoolId, schoolId)).orderBy(desc(assessmentLogs.createdAt)).limit(100)
+  }
+  return db.select().from(assessmentLogs).orderBy(desc(assessmentLogs.createdAt)).limit(100)
+}
+
+export async function logAssessmentAction(data: {
+  schoolId: string
+  assessmentId?: string
+  studentId?: string
+  action: string
+  metadata?: any
+  ipAddress?: string
+  userAgent?: string
+}) {
+  await db.insert(assessmentLogs).values({
+    id: randomUUID(),
+    schoolId: data.schoolId,
+    assessmentId: data.assessmentId || null,
+    studentId: data.studentId || null,
+    action: data.action,
+    metadata: data.metadata || null,
+    ipAddress: data.ipAddress || null,
+    userAgent: data.userAgent || null
+  })
+  revalidatePath('/dashboard/admin/assessments/logs')
+}
+
+// ===== TRANSACTION LEDGER ACTIONS =====
+export async function getTransactionLedger(schoolId?: string) {
+  await requireAdmin()
+  if (schoolId) {
+    return db.select().from(transactionLedger).where(eq(transactionLedger.schoolId, schoolId)).orderBy(desc(transactionLedger.createdAt))
+  }
+  return db.select().from(transactionLedger).orderBy(desc(transactionLedger.createdAt))
+}
+
+export async function getRevenueSummary(schoolId?: string) {
+  await requireAdmin()
+  const ledgerRows = schoolId
+    ? await db.select().from(transactionLedger).where(and(eq(transactionLedger.schoolId, schoolId), eq(transactionLedger.status, 'SUCCESS')))
+    : await db.select().from(transactionLedger).where(eq(transactionLedger.status, 'SUCCESS'))
+
+  let totalRevenueIn = 0
+  let totalRevenueOut = 0
+  const monthlyMap = new Map<string, { in: number; out: number }>()
+
+  for (const row of ledgerRows) {
+    const amt = parseFloat(row.amount || '0') || 0
+    const monthKey = row.createdAt ? new Date(row.createdAt).toISOString().slice(0, 7) : new Date().toISOString().slice(0, 7)
+
+    if (!monthlyMap.has(monthKey)) {
+      monthlyMap.set(monthKey, { in: 0, out: 0 })
+    }
+    const entry = monthlyMap.get(monthKey)!
+
+    if (row.direction === 'IN') {
+      totalRevenueIn += amt
+      entry.in += amt
+    } else {
+      totalRevenueOut += amt
+      entry.out += amt
+    }
+  }
+
+  const monthlyChartData = Array.from(monthlyMap.entries()).map(([month, data]) => ({
+    month,
+    revenue: data.in,
+    expenses: data.out,
+    net: data.in - data.out
+  })).sort((a, b) => a.month.localeCompare(b.month))
+
+  return {
+    totalRevenueIn,
+    totalRevenueOut,
+    netRevenue: totalRevenueIn - totalRevenueOut,
+    monthlyChartData
+  }
+}
+
+// ===== PAYMENT RECONCILIATION ACTIONS =====
+export async function reconcilePaymentAction(paymentId: string, status: 'RECONCILED' | 'DISPUTED') {
+  const session = await requireAdmin()
+
+  const paymentRecord = await db.query.payment.findFirst({ where: eq(payment.id, paymentId) })
+  if (!paymentRecord) throw new Error('Payment record not found')
+
+  await db.update(payment).set({
+    reconciliationStatus: status,
+    reconciledBy: session.user.id,
+    reconciledAt: new Date(),
+    status: status === 'RECONCILED' ? 'cleared' : 'failed',
+    updatedAt: new Date()
+  }).where(eq(payment.id, paymentId))
+
+  if (status === 'RECONCILED' && paymentRecord.schoolId) {
+    await db.insert(transactionLedger).values({
+      id: randomUUID(),
+      schoolId: paymentRecord.schoolId,
+      studentId: paymentRecord.studentId,
+      type: paymentRecord.feeType?.toUpperCase() || 'FEE_PAYMENT',
+      direction: 'IN',
+      amount: paymentRecord.amount,
+      reference: paymentRecord.transactionReference || `REC-${Date.now()}`,
+      gateway: 'SCHOOL_ACCOUNT',
+      status: 'SUCCESS',
+      description: `Reconciled payment: ${paymentRecord.description || 'Manual transfer'}`,
+    })
+  }
+
+  revalidatePath('/dashboard/admin/finance/ledger')
+  revalidatePath('/dashboard/admin/finance/reconciliation')
+  return { success: true }
+}
+
+// ===== SCHOOL ADMIN ROLES ACTIONS =====
+export async function assignSchoolAdminRole(data: {
+  schoolId: string
+  userId: string
+  level: 'PRIMARY_ADMIN' | 'VICE_PRINCIPAL_ACADEMICS' | 'VICE_PRINCIPAL_ADMIN' | 'HOD_SCIENCE' | 'HOD_ARTS' | 'HOD_COMMERCIAL'
+  department?: string
+}) {
+  await requireAdmin()
+
+  await db.insert(schoolAdminRoles).values({
+    id: randomUUID(),
+    schoolId: data.schoolId,
+    userId: data.userId,
+    level: data.level,
+    department: data.department || null,
+    isActive: true
+  }).onConflictDoUpdate({
+    target: [schoolAdminRoles.schoolId, schoolAdminRoles.userId],
+    set: {
+      level: data.level,
+      department: data.department || null,
+      isActive: true
+    }
+  })
+
+  revalidatePath('/dashboard/admin/settings/roles')
+  return { success: true }
+}
+
+export async function getSchoolAdminRoles(schoolId: string) {
+  await requireAdmin()
+  return db.select().from(schoolAdminRoles).where(and(eq(schoolAdminRoles.schoolId, schoolId), eq(schoolAdminRoles.isActive, true)))
 }

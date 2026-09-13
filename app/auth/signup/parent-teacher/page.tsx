@@ -35,7 +35,7 @@ export default function ParentTeacherSignUpPage() {
     childGender: 'Male',
     childClass: 'Primary 3',
     childDepartment: 'Science',
-    childSubjects: 'Mathematics, English, Basic Science',
+    childSubjects: '',
   })
 
   const [profileImage, setProfileImage] = useState<string | null>(null)

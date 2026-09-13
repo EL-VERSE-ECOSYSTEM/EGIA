@@ -940,8 +940,12 @@ create table if not exists public.lesson_notes (
 );
 
 -- Initialize lesson-notes Supabase Storage Bucket in SQL
+-- Initialize Supabase Storage Buckets in SQL
 insert into storage.buckets (id, name, public)
-values ('lesson-notes', 'lesson-notes', true)
+values
+  ('lesson-notes', 'lesson-notes', true),
+  ('school-cvs', 'school-cvs', false),
+  ('school-data', 'school-data', false)
 on conflict (id) do nothing;
 
 INSERT INTO public.user_role (id, userid, role)
