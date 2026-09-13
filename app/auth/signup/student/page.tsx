@@ -27,8 +27,8 @@ export default function StudentSignUpPage() {
     try {
       const result = await activateStudent(formData)
 
-      if (result.error) {
-        setError(result.error)
+      if ('error' in result && result.error) {
+        setError(result.error as string)
         alert(result.error)
         setLoading(false)
       } else {

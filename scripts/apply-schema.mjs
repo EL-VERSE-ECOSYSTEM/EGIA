@@ -6,11 +6,33 @@ import { setDefaultResultOrder } from 'node:dns'
 setDefaultResultOrder('ipv4first')
 
 function loadLocalEnvironment() {
-  for (const file of ['.env', '.env.local']) {
-    try {
-      process.loadEnvFile(file)
-    } catch (error) {
-      if (error?.code !== 'ENOENT') throw error
+  if (typeof process.loadEnvFile === 'function') {
+    for (const file of ['.env', '.env.local']) {
+      try {
+        process.loadEnvFile(file)
+      } catch (error) {
+        if (error?.code !== 'ENOENT') throw error
+      }
+    }
+  } else {
+    for (const file of ['.env', '.env.local']) {
+      try {
+        if (fs.existsSync(file)) {
+          const content = fs.readFileSync(file, 'utf8')
+          for (const line of content.split('\n')) {
+            const trimmed = line.trim()
+            if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+              const [key, ...vals] = trimmed.split('=')
+              const val = vals.join('=').replace(/^["']|["']$/g, '')
+              if (key && !process.env[key.trim()]) {
+                process.env[key.trim()] = val
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Could not read env file:', error)
+      }
     }
   }
 }

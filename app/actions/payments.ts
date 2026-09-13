@@ -233,7 +233,7 @@ export async function initializeStudentRegistrationPayment(studentId: string) {
         notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
         redirect_url: `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`,
         customer: {
-          email: child.email || `student_${child.admissionNumber}@ellearners.app`,
+          email: (child as any).email || `student_${child.admissionNumber || child.id}@ellearners.app`,
           name: `${child.firstName} ${child.lastName}`,
         },
         metadata: {

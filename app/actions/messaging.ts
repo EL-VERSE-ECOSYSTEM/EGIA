@@ -321,16 +321,16 @@ export async function broadcastMessage(content: string, recipientRole: string) {
   }
 
   // Get users for recipientRole filtered by school
-  const targetRoles = await db.query.userRole.findMany({
-    where: eq(userRole.role, recipientRole),
-    with: {
-      user: true
-    }
+  const targetRoles = await db.select().from(userRole).where(eq(userRole.role, recipientRole))
+  const targetUserIds = targetRoles.map(r => r.userId)
+
+  if (targetUserIds.length === 0) return
+
+  const targetUsersList = await db.query.user.findMany({
+    where: inArray(user.id, targetUserIds)
   })
 
-  const targetUsers = targetRoles
-    .map(r => r.user)
-    .filter((u): u is NonNullable<typeof u> => Boolean(u))
+  const targetUsers = targetUsersList
     .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || !u.schoolId || !currentUser.schoolId || u.schoolId === currentUser.schoolId)
 
   if (targetUsers.length === 0) return

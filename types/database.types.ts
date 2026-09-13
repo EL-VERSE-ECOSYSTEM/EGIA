@@ -31,7 +31,8 @@ export type RealtimeTable =
   | "payment" | "message" | "notification" | "library_books" | "attendance"
   | "dispute" | "support_ticket" | "fee_structure" | "cbt_attempt" | "book_borrowing"
   | "conversation" | "conversation_participant" | "invitations" | "assessment_schedule"
-  | "student_badges" | "faq_articles";
+  | "student_badges" | "faq_articles" | "school" | "audit_log" | "transaction_ledger"
+  | "assessment_logs" | "institutional_staff" | "school_admin_roles";
 
 type Tables = { [K in RealtimeTable]: PublicTable } & Record<string, PublicTable>;
 

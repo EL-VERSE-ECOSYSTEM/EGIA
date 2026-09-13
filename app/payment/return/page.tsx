@@ -28,7 +28,7 @@ function KorapayReturnContent() {
         if (result.payment) {
           setPaymentDetails({
             amount: result.payment.amount,
-            feeType: result.payment.feeType,
+            feeType: result.payment.feeType || undefined,
             admissionNumber: result.admissionNumber,
             schoolCode: result.schoolCode,
             schoolName: result.schoolName

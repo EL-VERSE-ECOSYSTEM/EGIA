@@ -241,10 +241,21 @@ create table public."student" (
   "facialverificationvideo" text,
   "subjectsdone" jsonb,
   "isactive" boolean default true,
+  "registration_paid" boolean default false,
+  "registration_reference" text,
+  "enrollment_type" text check (enrollment_type in ('ADMIN', 'SELF')),
   "registrationstatus" text not null default 'WAIVED',
   "password" text default 'default',
   "createdat" timestamptz not null default now(),
   "updatedat" timestamptz not null default now()
+);
+
+create table if not exists public.admission_number_sequences (
+  id text primary key default gen_random_uuid()::text,
+  schoolid text not null references public.school(id) on delete cascade,
+  last_number integer not null default 0,
+  created_at timestamptz not null default now(),
+  unique (schoolid)
 );
 
 -- SUBJECTS & ACADEMICS -------------------------------------------------------
@@ -365,11 +376,81 @@ create table public."fee_structure" (
 
 create table public."payment" (
   "id" text primary key,
+  "schoolid" text references public."school"("id") on delete set null,
   "studentid" text not null references public."student"("id"),
   "parentid" text, "termid" text, "amount" numeric(12,2) not null, "feetype" text, "paymentmethod" text not null,
-  "transactionreference" text unique, "korapayreference" text unique, "receipturl" text, "status" text default 'pending',
+  "transactionreference" text unique, "korapayreference" text unique, "receipturl" text,
+  "reconciliation_status" text default 'UNRECONCILED' check (reconciliation_status in ('UNRECONCILED', 'RECONCILED', 'DISPUTED')),
+  "reconciled_by" text references public."user"("id"),
+  "reconciled_at" timestamptz,
+  "status" text default 'pending',
   "paymentdate" timestamptz, "paidat" timestamptz, "description" text,
   "createdat" timestamptz not null default now(), "updatedat" timestamptz not null default now()
+);
+
+create table if not exists public.institutional_staff (
+  id text primary key default gen_random_uuid()::text,
+  schoolid text not null references public.school(id) on delete cascade,
+  userid text unique references public.user(id) on delete set null,
+  staffcode text unique,
+  firstname text not null,
+  lastname text not null,
+  email text,
+  phone text,
+  gender text,
+  role text not null,
+  department text,
+  cvurl text,
+  applicationletterurl text,
+  password text,
+  status text default 'ACTIVE',
+  isactive boolean default true,
+  createdat timestamptz not null default now(),
+  updatedat timestamptz not null default now()
+);
+
+create table if not exists public.assessment_logs (
+  id text primary key default gen_random_uuid()::text,
+  schoolid text not null references public.school(id) on delete cascade,
+  assessment_id text references public.assessment(id) on delete cascade,
+  student_id text references public.student(id) on delete cascade,
+  action text not null,
+  metadata jsonb,
+  ip_address text,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.transaction_ledger (
+  id text primary key default gen_random_uuid()::text,
+  schoolid text not null references public.school(id) on delete cascade,
+  user_id text references public.user(id),
+  student_id text references public.student(id),
+  type text not null,
+  direction text not null check (direction in ('IN', 'OUT')),
+  amount numeric(12,2) not null,
+  currency text default 'NGN',
+  reference text unique,
+  gateway text,
+  status text default 'PENDING',
+  description text,
+  metadata jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.school_admin_roles (
+  id text primary key default gen_random_uuid()::text,
+  schoolid text not null references public.school(id) on delete cascade,
+  userid text not null references public.user(id) on delete cascade,
+  level text not null check (level in (
+    'PRIMARY_ADMIN', 'VICE_PRINCIPAL_ACADEMICS', 'VICE_PRINCIPAL_ADMIN',
+    'HOD_SCIENCE', 'HOD_ARTS', 'HOD_COMMERCIAL'
+  )),
+  department text,
+  is_active boolean default true,
+  created_at timestamptz not null default now(),
+  unique (schoolid, userid)
 );
 
 create table public."payment_installment" (

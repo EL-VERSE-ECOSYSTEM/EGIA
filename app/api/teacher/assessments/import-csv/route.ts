@@ -81,7 +81,7 @@ export async function POST(req: Request) {
 
     const questionsToInsert = data.map((row: any, index: number) => {
       const marks = parseInt(row.marks || row.points || '1', 10) || 1
-      let parsedOptions = null
+      let parsedOptions: any = null
       if (row.options) {
         try {
           parsedOptions = typeof row.options === 'string' && row.options.startsWith('[')

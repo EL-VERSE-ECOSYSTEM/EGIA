@@ -390,7 +390,7 @@ export default function CBTExamTakingPage() {
                 The webcam has logged this distraction event to the school database. Please resolve and align your environment immediately. Warning count: <span className="font-black text-red-600">{warningCount} / 3</span>.
               </p>
               <Button
-                onClick={resolveViolation}
+                onClick={() => setActiveWarning(null)}
                 disabled={warningCount >= 3}
                 className="w-full bg-slate-900 hover:bg-slate-800 text-white h-14 rounded-2xl font-black text-sm uppercase tracking-wider shadow-xl shadow-slate-200"
               >

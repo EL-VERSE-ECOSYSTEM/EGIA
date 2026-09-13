@@ -72,7 +72,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       })
       .subscribe((nextStatus) => {
         if (nextStatus === "SUBSCRIBED") {
-          setStatus("SUBSCRIBED");
+          setStatus("SUBSCRIBED" as ConnectionStatus);
         } else if (nextStatus === "CLOSED" || nextStatus === "CHANNEL_ERROR" || nextStatus === "TIMED_OUT") {
           setStatus("CONNECTING");
           queryClient.invalidateQueries({ queryKey: ["notifications"] }).catch(() => {});
