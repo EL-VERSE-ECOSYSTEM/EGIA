@@ -3,7 +3,7 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { student, parent, userRole, teacher, user as userTable, notification, payment, academicSession, term } from '@/lib/db/schema'
-import { eq, and, desc, count, isNull, sql } from 'drizzle-orm'
+import { eq, and, desc, count, isNull, sql, or } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'crypto'
 import { cookies } from 'next/headers'
@@ -171,11 +171,11 @@ export async function checkWardLinkingStatus(admissionNumber: string) {
   }
 
   const session = await auth.getSession()
-  let parentProfile = null
+  let parentProfile: Awaited<ReturnType<typeof db.query.parent.findFirst>> | null = null
   if (session?.user?.id) {
-    parentProfile = await db.query.parent.findFirst({
+    parentProfile = (await db.query.parent.findFirst({
       where: eq(parent.userId, session.user.id)
-    })
+    })) ?? null
   }
 
   // Determine linkage state

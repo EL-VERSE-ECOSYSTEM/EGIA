@@ -1,18 +1,6 @@
-
-> my-project@0.1.0 start
-> next start
-
+$ next start
 ▲ Next.js 16.3.0
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
-✓ Ready in 220ms
-✓ Running next.config.mjs took 25ms
-MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
-MIDDLEWARE BYPASS DIAGNOSTIC: hostname = localhost isPlaywright = true isLocalHostName = true isTestingBypass = true
-⨯ Error: This payment reference was not found.
-    at q (.next/server/app/payment/return/page.js:1:3269)
-    at async o (.next/server/chunks/4745.js:140:41781)
-    at async r (.next/server/chunks/4745.js:141:4523)
-    at async Module.V (.next/server/chunks/4745.js:143:2628) {
-  digest: '1513091105'
-}
+✓ Ready in 189ms
+✓ Running next.config.mjs took 23ms

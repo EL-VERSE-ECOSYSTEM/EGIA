@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 
 interface AdvancedCSVUploaderProps {
-  mode?: 'quiz' | 'books' | 'flashcards' | 'content' | 'general'
+  mode?: 'quiz' | 'books' | 'flashcards' | 'content' | 'general' | 'lesson-notes'
   onDataLoaded?: (data: any) => void
   targetId?: string
 }

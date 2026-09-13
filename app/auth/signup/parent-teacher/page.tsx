@@ -89,7 +89,7 @@ export default function ParentTeacherSignUpPage() {
         alert(result.error)
         setLoading(false)
       } else {
-        if (result.checkoutUrl) {
+        if ('checkoutUrl' in result && typeof result.checkoutUrl === 'string') {
           window.location.assign(result.checkoutUrl)
           return
         }
