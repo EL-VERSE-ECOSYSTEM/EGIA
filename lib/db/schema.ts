@@ -18,6 +18,9 @@ export const school = pgTable('school', {
   customPaymentLink: text('custompaymentlink'),
   paymentStatus: text('paymentstatus').notNull().default('PENDING'), // PENDING, PAID
   paymentReference: text('paymentreference').unique(),
+  logoUrl: text('logo_url'),
+  logoPath: text('logo_path'),
+  logoUploadedAt: timestamp('logo_uploaded_at', { withTimezone: true }),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -396,30 +399,6 @@ export const admissionNumberSequences = pgTable('admission_number_sequences', {
   foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
 ])
 
-// ===== INSTITUTIONAL STAFF =====
-export const institutionalStaff = pgTable('institutional_staff', {
-  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
-  schoolId: text('schoolid').notNull(),
-  userId: text('userid').unique(),
-  staffCode: text('staffcode').unique(),
-  firstName: text('firstname').notNull(),
-  lastName: text('lastname').notNull(),
-  email: text('email'),
-  phone: text('phone'),
-  gender: text('gender'),
-  role: text('role').notNull(), // ACCOUNTANT, LIBRARIAN, SECURITY, CLEANER, etc.
-  department: text('department'),
-  cvUrl: text('cvurl'),
-  applicationLetterUrl: text('applicationletterurl'),
-  password: text('password'),
-  status: text('status').default('ACTIVE'),
-  isActive: boolean('isactive').default(true),
-  createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [
-  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
-  foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('set null'),
-])
 
 // ===== ASSESSMENT LOGS =====
 export const assessmentLogs = pgTable('assessment_logs', {
@@ -438,6 +417,55 @@ export const assessmentLogs = pgTable('assessment_logs', {
   foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }).onDelete('cascade'),
 ])
 
+// ===== SCHOOL PAYMENT CONFIGURATION & RECEIPT UPLOADS =====
+export const schoolPaymentConfig = pgTable('school_payment_config', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid').notNull().unique(),
+  useKorapay: boolean('use_korapay').notNull().default(true),
+  bankName: text('bank_name'),
+  accountNumber: text('account_number'),
+  accountName: text('account_name'),
+  customPaymentLink: text('custom_payment_link'),
+  instructions: text('instructions'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+])
+
+export const paymentReceiptUploads = pgTable('payment_receipt_uploads', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid').notNull(),
+  paymentId: text('payment_id'),
+  studentId: text('student_id'),
+  parentId: text('parent_id'),
+  uploadedBy: text('uploaded_by').notNull(),
+  uploadedByRole: text('uploaded_by_role').notNull(), // PARENT, SCHOOL_ADMIN
+  fileUrl: text('file_url').notNull(),
+  filePath: text('file_path').notNull(),
+  fileType: text('file_type').notNull(), // image/png, image/jpeg, application/pdf
+  fileSizeKb: integer('file_size_kb'),
+  amountClaimed: numeric('amount_claimed', { precision: 12, scale: 2 }),
+  paymentReference: text('payment_reference'),
+  status: text('status').notNull().default('PENDING'), // PENDING, APPROVED, REJECTED
+  reviewedBy: text('reviewed_by'),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  rejectionReason: text('rejection_reason'),
+  generatedReceiptUrl: text('generated_receipt_url'),
+  generatedReceiptPath: text('generated_receipt_path'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.paymentId], foreignColumns: [payment.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.parentId], foreignColumns: [parent.id] }).onDelete('set null'),
+  foreignKey({ columns: [t.uploadedBy], foreignColumns: [user.id] }),
+  foreignKey({ columns: [t.reviewedBy], foreignColumns: [user.id] }),
+])
+
 // ===== TRANSACTION LEDGER =====
 export const transactionLedger = pgTable('transaction_ledger', {
   id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
@@ -453,12 +481,15 @@ export const transactionLedger = pgTable('transaction_ledger', {
   status: text('status').default('PENDING'), // PENDING, SUCCESS, FAILED
   description: text('description'),
   metadata: jsonb('metadata'),
+  confirmationMethod: text('confirmation_method'), // KORAPAY_AUTO, MANUAL_UPLOAD, SCHOOL_ACCOUNT
+  receiptUploadId: text('receipt_upload_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }),
   foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }),
+  foreignKey({ columns: [t.receiptUploadId], foreignColumns: [paymentReceiptUploads.id] }).onDelete('set null'),
 ])
 
 // ===== SCHOOL ADMIN ROLES =====

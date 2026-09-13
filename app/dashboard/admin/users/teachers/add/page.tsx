@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { createTeacher } from '@/app/actions/admin'
 import { UserPlus, Briefcase, GraduationCap, FileText, Calendar } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
+import { CvUploadField } from '@/components/uploads/CvUploadField'
 
 export default function AddTeacherPage() {
   const router = useRouter()
@@ -153,48 +154,22 @@ export default function AddTeacherPage() {
               </CardHeader>
               <CardContent className="p-10 space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                     <div className="space-y-3">
-                        <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Application Letter PDF / URL</Label>
-                        <Input
-                          placeholder="Link to document or select file below..."
-                          value={formData.applicationLetterUrl}
-                          onChange={(e) => setFormData({...formData, applicationLetterUrl: e.target.value})}
-                          className="h-14 rounded-2xl bg-slate-50 border-none"
-                        />
-                        <input
-                          type="file"
-                          accept="application/pdf"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              const dummyBucketUrl = `https://storage.supabase.co/v1/object/public/documents/applications/${Date.now()}_${file.name}`
-                              setFormData(prev => ({ ...prev, applicationLetterUrl: dummyBucketUrl }))
-                            }
-                          }}
-                          className="text-xs text-slate-500 font-bold mt-1"
-                        />
-                     </div>
-                     <div className="space-y-3">
-                        <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Curriculum Vitae (CV) PDF / URL</Label>
-                        <Input
-                          placeholder="Link to document or select file below..."
-                          value={formData.cvUrl}
-                          onChange={(e) => setFormData({...formData, cvUrl: e.target.value})}
-                          className="h-14 rounded-2xl bg-slate-50 border-none"
-                        />
-                        <input
-                          type="file"
-                          accept="application/pdf"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              const dummyBucketUrl = `https://storage.supabase.co/v1/object/public/documents/cvs/${Date.now()}_${file.name}`
-                              setFormData(prev => ({ ...prev, cvUrl: dummyBucketUrl }))
-                            }
-                          }}
-                          className="text-xs text-slate-500 font-bold mt-1"
-                        />
-                     </div>
+                     <CvUploadField
+                       schoolId="school-elgoodnews-001"
+                       userId="temp"
+                       role="teachers"
+                       label="CV (PDF)"
+                       existingUrl={formData.cvUrl}
+                       onUploaded={(publicUrl) => setFormData(prev => ({ ...prev, cvUrl: publicUrl }))}
+                     />
+                     <CvUploadField
+                       schoolId="school-elgoodnews-001"
+                       userId="temp"
+                       role="teachers"
+                       label="Application Letter (PDF)"
+                       existingUrl={formData.applicationLetterUrl}
+                       onUploaded={(publicUrl) => setFormData(prev => ({ ...prev, applicationLetterUrl: publicUrl }))}
+                     />
                   </div>
               </CardContent>
             </Card>

@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import { getLinkedChildren } from '@/app/actions/user'
 import { initializeKorapayPayment, getFeeStructuresForClass } from '@/app/actions/payments'
+import { getSchoolPaymentConfigAction } from '@/app/actions/payment-config'
+import { ManualPaymentPanel } from '@/components/payments/ManualPaymentPanel'
 import { useRouter } from 'next/navigation'
 
 export default function MakePaymentPage() {
@@ -22,15 +24,17 @@ export default function MakePaymentPage() {
   const [childId, setChildId] = useState('')
   const [feeType, setFeeType] = useState('')
   const [amount, setAmount] = useState('')
-  const [method, setMethod] = useState<'KORAPAY' | 'MANUAL'>('KORAPAY')
-  const [receipt, setReceipt] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+
+  // Payment configuration state
+  const [paymentConfig, setPaymentConfig] = useState<any>(null)
 
   // Dynamic Admin Fee structures
   const [availableFees, setAvailableFees] = useState<any[]>([])
 
   useEffect(() => {
     getLinkedChildren().then(setChildren)
+    getSchoolPaymentConfigAction('school-elgoodnews-001').then(setPaymentConfig)
   }, [])
 
   // Fetch fees when a child is selected
@@ -137,62 +141,70 @@ export default function MakePaymentPage() {
               </CardContent>
             </Card>
 
-            <div className="space-y-6">
-              <h3 className="text-xl font-black text-slate-900 ml-2">Choose Payment Method</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div
-                  onClick={() => setMethod('KORAPAY')}
-                  className={`p-8 rounded-[2rem] border-4 transition-all cursor-pointer flex items-center gap-6 ${method === 'KORAPAY' ? 'border-emerald-600 bg-emerald-50' : 'border-slate-100 bg-white hover:border-emerald-200'}`}
-                >
-                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${method === 'KORAPAY' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+            {paymentConfig && !paymentConfig.useKorapay ? (
+              <ManualPaymentPanel
+                config={paymentConfig}
+                amount={parseFloat(amount || '0')}
+                schoolId="school-elgoodnews-001"
+                studentId={childId}
+                paymentId={`PAY-${Date.now()}`}
+                parentId="parent-demo-001"
+                onReceiptUploaded={() => alert('Receipt uploaded — awaiting admin confirmation')}
+              />
+            ) : (
+              <div className="space-y-6">
+                <h3 className="text-xl font-black text-slate-900 ml-2">Payment Method</h3>
+                <div className="p-8 rounded-[2rem] border-4 border-emerald-600 bg-emerald-50 flex items-center gap-6">
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-emerald-600 text-white">
                     <CreditCard size={32} />
                   </div>
                   <div>
-                    <p className="font-black text-slate-900">Instant Online</p>
+                    <p className="font-black text-slate-900">Instant Online Korapay Gateway</p>
                     <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Card/USSD/Transfer</p>
                   </div>
-                  {method === 'KORAPAY' && <CheckCircle2 className="ml-auto text-emerald-600 w-6 h-6" />}
+                  <CheckCircle2 className="ml-auto text-emerald-600 w-6 h-6" />
                 </div>
-
               </div>
-            </div>
+            )}
 
           </div>
 
           <div className="space-y-8">
-            <Card className="bg-slate-900 text-white border-none shadow-2xl rounded-[2.5rem] overflow-hidden sticky top-28">
-              <CardHeader className="p-10 pb-0">
-                <CardTitle className="text-amber-500 text-sm font-black uppercase tracking-[0.3em]">Checkout Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="p-10 space-y-6">
-                <div className="flex justify-between text-slate-400 font-bold">
-                  <span>Subtotal</span>
-                  <span className="text-white">₦{parseFloat(amount || '0').toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-slate-400 font-bold">
-                  <span>Processing Fee</span>
-                  <span className="text-white">₦0.00</span>
-                </div>
-                <div className="h-[1px] bg-white/10 my-6" />
-                <div className="flex justify-between text-2xl font-black">
-                  <span>Total</span>
-                  <span className="text-amber-500 font-mono">₦{parseFloat(amount || '0').toLocaleString()}</span>
-                </div>
-              </CardContent>
-              <CardFooter className="p-10 pt-0 flex flex-col gap-6">
-                <Button
-                  onClick={handlePayment}
-                  disabled={!amount || !childId || isUploading}
-                  className="w-full h-20 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-3xl text-xl shadow-[0_20px_40px_-10px_rgba(16,185,129,0.3)] transition-all hover:scale-105"
-                >
-                  {isUploading ? <Loader2 className="animate-spin w-8 h-8" /> : (method === 'MANUAL' ? 'SUBMIT RECEIPT' : 'COMPLETE PAYMENT')}
-                </Button>
-                <div className="flex items-center gap-2 text-[10px] text-slate-500 font-black uppercase tracking-widest justify-center">
-                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  Secured by Korapay & SSL
-                </div>
-              </CardFooter>
-            </Card>
+            {(!paymentConfig || paymentConfig.useKorapay) && (
+              <Card className="bg-slate-900 text-white border-none shadow-2xl rounded-[2.5rem] overflow-hidden sticky top-28">
+                <CardHeader className="p-10 pb-0">
+                  <CardTitle className="text-amber-500 text-sm font-black uppercase tracking-[0.3em]">Checkout Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="p-10 space-y-6">
+                  <div className="flex justify-between text-slate-400 font-bold">
+                    <span>Subtotal</span>
+                    <span className="text-white">₦{parseFloat(amount || '0').toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400 font-bold">
+                    <span>Processing Fee</span>
+                    <span className="text-white">₦0.00</span>
+                  </div>
+                  <div className="h-[1px] bg-white/10 my-6" />
+                  <div className="flex justify-between text-2xl font-black">
+                    <span>Total</span>
+                    <span className="text-amber-500 font-mono">₦{parseFloat(amount || '0').toLocaleString()}</span>
+                  </div>
+                </CardContent>
+                <CardFooter className="p-10 pt-0 flex flex-col gap-6">
+                  <Button
+                    onClick={handlePayment}
+                    disabled={!amount || !childId || isUploading}
+                    className="w-full h-20 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-3xl text-xl shadow-[0_20px_40px_-10px_rgba(16,185,129,0.3)] transition-all hover:scale-105"
+                  >
+                    {isUploading ? <Loader2 className="animate-spin w-8 h-8" /> : 'COMPLETE PAYMENT'}
+                  </Button>
+                  <div className="flex items-center gap-2 text-[10px] text-slate-500 font-black uppercase tracking-widest justify-center">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                    Secured by Korapay & SSL
+                  </div>
+                </CardFooter>
+              </Card>
+            )}
 
             <div className="p-10 bg-blue-50 rounded-[2.5rem] border border-blue-100 flex gap-6">
               <Info className="text-blue-600 shrink-0 w-8 h-8" />

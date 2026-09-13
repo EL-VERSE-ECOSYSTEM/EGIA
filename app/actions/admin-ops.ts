@@ -11,7 +11,6 @@ import {
   parent as parentTable,
   teacher as teacherTable,
   notification,
-  institutionalStaff,
   assessmentLogs,
   transactionLedger,
   schoolAdminRoles,
@@ -249,77 +248,6 @@ export async function getParentsWithPendingFees() {
   return result;
 }
 
-// ===== INSTITUTIONAL STAFF ACTIONS =====
-export async function registerInstitutionalStaffAction(data: {
-  schoolId: string
-  firstName: string
-  lastName: string
-  email?: string
-  phone?: string
-  gender?: string
-  role: string
-  department?: string
-  cvUrl?: string
-  applicationLetterUrl?: string
-  password?: string
-}) {
-  await requireAdmin()
-
-  const staffCode = await generateSequentialStaffCode(data.schoolId)
-  const plainPassword = data.password || 'StaffPass123!'
-  const hashedPassword = await bcrypt.hash(plainPassword, 10)
-  const staffId = randomUUID()
-  let userId: string | null = null
-
-  if (data.email && data.email.trim()) {
-    userId = randomUUID()
-    const cleanEmail = data.email.trim().toLowerCase()
-
-    await db.insert(userTable).values({
-      id: userId,
-      email: cleanEmail,
-      name: `${data.firstName} ${data.lastName}`,
-      schoolId: data.schoolId,
-      password: hashedPassword
-    }).onConflictDoNothing()
-
-    await db.insert(userRole).values({
-      id: randomUUID(),
-      userId: userId,
-      role: 'STAFF'
-    }).onConflictDoNothing()
-  }
-
-  await db.insert(institutionalStaff).values({
-    id: staffId,
-    schoolId: data.schoolId,
-    userId: userId,
-    staffCode: staffCode,
-    firstName: data.firstName,
-    lastName: data.lastName,
-    email: data.email || null,
-    phone: data.phone || null,
-    gender: data.gender || 'Male',
-    role: data.role,
-    department: data.department || null,
-    cvUrl: data.cvUrl || null,
-    applicationLetterUrl: data.applicationLetterUrl || null,
-    password: hashedPassword,
-    status: 'ACTIVE',
-    isActive: true
-  })
-
-  revalidatePath('/dashboard/admin/users/staff')
-  return { success: true, staffCode, id: staffId }
-}
-
-export async function getInstitutionalStaffList(schoolId?: string) {
-  await requireAdmin()
-  if (schoolId) {
-    return db.select().from(institutionalStaff).where(eq(institutionalStaff.schoolId, schoolId)).orderBy(desc(institutionalStaff.createdAt))
-  }
-  return db.select().from(institutionalStaff).orderBy(desc(institutionalStaff.createdAt))
-}
 
 // ===== ASSESSMENT LOGS ACTIONS =====
 export async function getAdminAssessmentLogs(schoolId?: string) {

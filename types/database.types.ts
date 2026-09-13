@@ -32,7 +32,7 @@ export type RealtimeTable =
   | "dispute" | "support_ticket" | "fee_structure" | "cbt_attempt" | "book_borrowing"
   | "conversation" | "conversation_participant" | "invitations" | "assessment_schedule"
   | "student_badges" | "faq_articles" | "school" | "audit_log" | "transaction_ledger"
-  | "assessment_logs" | "institutional_staff" | "school_admin_roles";
+  | "assessment_logs" | "school_admin_roles" | "school_payment_config" | "payment_receipt_uploads";
 
 type Tables = { [K in RealtimeTable]: PublicTable } & Record<string, PublicTable>;
 
