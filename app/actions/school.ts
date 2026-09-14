@@ -94,17 +94,30 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     }
 
     // Insert user and role in real-time Supabase Database
-    await db.insert(user).values({
-      id: userId,
-      email: adminEmail,
-      name: input.adminName,
-      schoolId: schoolId,
-      password: adminPassword,
-    }).onConflictDoNothing()
+    const existingUser = await db.select().from(user).where(eq(user.email, adminEmail as any))
+    let finalUserId = userId
+
+    if (existingUser.length > 0) {
+      finalUserId = existingUser[0].id
+      await db.update(user).set({
+        schoolId: schoolId,
+        password: adminPassword,
+        name: input.adminName,
+        updatedAt: new Date()
+      }).where(eq(user.id, finalUserId as any))
+    } else {
+      await db.insert(user).values({
+        id: userId,
+        email: adminEmail,
+        name: input.adminName,
+        schoolId: schoolId,
+        password: adminPassword,
+      }).onConflictDoNothing()
+    }
 
     await db.insert(userRole).values({
       id: randomUUID(),
-      userId: userId,
+      userId: finalUserId,
       role: 'ADMIN',
     }).onConflictDoNothing()
 
@@ -113,7 +126,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     await db.insert(schoolAdminRoles).values({
       id: randomUUID(),
       schoolId: schoolId,
-      userId: userId,
+      userId: finalUserId,
       level: 'PRIMARY_ADMIN',
       department: null,
       isActive: true,
