@@ -692,6 +692,11 @@ create table public."teacher_wallet" (
   "balance" numeric(12,2) default 0.00,
   "salaryAmount" numeric(12,2) default 150000.00,
   "salaryStatus" text default 'pending',
+  "daily_rate" numeric(12,2) default 0,
+  "hourly_rate" numeric(12,2) default 0,
+  "late_penalty_per_minute" numeric(12,2) default 0,
+  "early_exit_penalty_per_minute" numeric(12,2) default 0,
+  "absence_penalty_per_day" numeric(12,2) default 0,
   "updatedAt" timestamptz not null default now()
 );
 
@@ -874,6 +879,505 @@ VALUES (
   NOW(),
   NOW()
 );
+
+-- =====================================================================
+-- TEACHER ATTENDANCE, LEAVE MANAGEMENT, SALARY DEDUCTION & ADMIN CONFIG TABLES
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS public.teacher_attendance (
+  id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  schoolid text NOT NULL REFERENCES public.school(id) ON DELETE CASCADE,
+  teacherid text NOT NULL REFERENCES public.teacher(id) ON DELETE CASCADE,
+  work_date date NOT NULL,
+  clock_in_at timestamptz,
+  clock_out_at timestamptz,
+  clock_in_ip inet,
+  clock_out_ip inet,
+  clock_in_device text,
+  clock_out_device text,
+  clock_in_lat numeric(10,7),
+  clock_in_lng numeric(10,7),
+  clock_out_lat numeric(10,7),
+  clock_out_lng numeric(10,7),
+  total_minutes integer,
+  status text NOT NULL DEFAULT 'PRESENT'
+    CHECK (status IN ('PRESENT','LATE','ABSENT','HALF_DAY','ON_LEAVE','SUSPENDED')),
+  late_minutes integer DEFAULT 0,
+  early_exit_minutes integer DEFAULT 0,
+  overtime_minutes integer DEFAULT 0,
+  is_manual_override boolean DEFAULT false,
+  override_by text REFERENCES public.user(id),
+  override_reason text,
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (teacherid, work_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_teacher_attendance_school_date
+  ON public.teacher_attendance(schoolid, work_date DESC);
+CREATE INDEX IF NOT EXISTS idx_teacher_attendance_teacher
+  ON public.teacher_attendance(teacherid, work_date DESC);
+CREATE INDEX IF NOT EXISTS idx_teacher_attendance_status
+  ON public.teacher_attendance(schoolid, status);
+
+CREATE TABLE IF NOT EXISTS public.leave_types (
+  id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  schoolid text REFERENCES public.school(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  code text NOT NULL,
+  default_days_per_year integer NOT NULL DEFAULT 12,
+  is_paid boolean NOT NULL DEFAULT true,
+  requires_attachment boolean DEFAULT false,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (schoolid, code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_leave_types_school ON public.leave_types(schoolid);
+
+CREATE TABLE IF NOT EXISTS public.teacher_leave_requests (
+  id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  schoolid text NOT NULL REFERENCES public.school(id) ON DELETE CASCADE,
+  teacherid text NOT NULL REFERENCES public.teacher(id) ON DELETE CASCADE,
+  leave_type_id text NOT NULL REFERENCES public.leave_types(id),
+  start_date date NOT NULL,
+  end_date date NOT NULL,
+  total_days integer NOT NULL,
+  reason text NOT NULL,
+  attachment_url text,
+  attachment_path text,
+  status text NOT NULL DEFAULT 'PENDING'
+    CHECK (status IN ('PENDING','APPROVED','REJECTED','CANCELLED')),
+  reviewed_by text REFERENCES public.user(id),
+  reviewed_at timestamptz,
+  admin_comment text,
+  rejection_reason text,
+  is_paid boolean DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT leave_dates_valid CHECK (end_date >= start_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_leave_requests_school
+  ON public.teacher_leave_requests(schoolid, status, start_date DESC);
+CREATE INDEX IF NOT EXISTS idx_leave_requests_teacher
+  ON public.teacher_leave_requests(teacherid, status);
+
+CREATE TABLE IF NOT EXISTS public.teacher_leave_balance (
+  id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  schoolid text NOT NULL REFERENCES public.school(id) ON DELETE CASCADE,
+  teacherid text NOT NULL REFERENCES public.teacher(id) ON DELETE CASCADE,
+  leave_type_id text NOT NULL REFERENCES public.leave_types(id),
+  academic_year text NOT NULL,
+  allocated_days integer NOT NULL DEFAULT 0,
+  used_days integer NOT NULL DEFAULT 0,
+  pending_days integer NOT NULL DEFAULT 0,
+  remaining_days integer GENERATED ALWAYS AS
+    (allocated_days - used_days - pending_days) STORED,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (teacherid, leave_type_id, academic_year)
+);
+
+CREATE INDEX IF NOT EXISTS idx_leave_balance_teacher
+  ON public.teacher_leave_balance(teacherid, academic_year);
+
+CREATE TABLE IF NOT EXISTS public.teacher_salary_deductions (
+  id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  schoolid text NOT NULL REFERENCES public.school(id) ON DELETE CASCADE,
+  teacherid text NOT NULL REFERENCES public.teacher(id) ON DELETE CASCADE,
+  month text NOT NULL,
+  deduction_type text NOT NULL
+    CHECK (deduction_type IN ('ABSENCE','LATE','EARLY_EXIT','UNPAID_LEAVE','OTHER')),
+  reference_attendance_id text REFERENCES public.teacher_attendance(id),
+  reference_leave_id text REFERENCES public.teacher_leave_requests(id),
+  amount numeric(12,2) NOT NULL,
+  reason text,
+  applied_by text REFERENCES public.user(id),
+  applied_at timestamptz NOT NULL DEFAULT now(),
+  reversed boolean DEFAULT false,
+  reversed_by text REFERENCES public.user(id),
+  reversed_at timestamptz,
+  reversal_reason text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_salary_deductions_school_month
+  ON public.teacher_salary_deductions(schoolid, month DESC);
+CREATE INDEX IF NOT EXISTS idx_salary_deductions_teacher
+  ON public.teacher_salary_deductions(teacherid, month DESC);
+
+CREATE TABLE IF NOT EXISTS public.school_attendance_config (
+  id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  schoolid text NOT NULL UNIQUE REFERENCES public.school(id) ON DELETE CASCADE,
+  work_start_time time NOT NULL DEFAULT '08:00:00',
+  work_end_time time NOT NULL DEFAULT '16:00:00',
+  late_threshold_minutes integer NOT NULL DEFAULT 10,
+  early_exit_threshold_minutes integer NOT NULL DEFAULT 10,
+  half_day_minutes integer NOT NULL DEFAULT 180,
+  auto_absent_if_no_clockin boolean DEFAULT true,
+  require_selfie boolean DEFAULT false,
+  require_location boolean DEFAULT false,
+  auto_deduct_absence boolean DEFAULT false,
+  auto_deduct_late boolean DEFAULT false,
+  auto_deduct_early_exit boolean DEFAULT false,
+  unpaid_leave_deduction boolean DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- SEED DEFAULT LEAVE TYPES
+INSERT INTO public.leave_types (id, schoolid, name, code, default_days_per_year, is_paid, requires_attachment)
+VALUES
+  (gen_random_uuid()::text, NULL, 'Sick Leave',        'SICK',    12, true,  true),
+  (gen_random_uuid()::text, NULL, 'Annual Leave',      'ANNUAL',  20, true,  false),
+  (gen_random_uuid()::text, NULL, 'Maternity Leave',   'MATERNITY', 90, true, true),
+  (gen_random_uuid()::text, NULL, 'Paternity Leave',   'PATERNITY', 14, true, true),
+  (gen_random_uuid()::text, NULL, 'Casual Leave',      'CASUAL',   5, true,  false),
+  (gen_random_uuid()::text, NULL, 'Compassionate Leave','COMPASSIONATE', 7, true, true),
+  (gen_random_uuid()::text, NULL, 'Study Leave',       'STUDY',    30, false, true),
+  (gen_random_uuid()::text, NULL, 'Unpaid Leave',      'UNPAID',   30, false, false)
+ON CONFLICT (schoolid, code) DO NOTHING;
+
+-- RLS POLICIES FOR NEW TABLES
+ALTER TABLE public.teacher_attendance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leave_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.teacher_leave_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.teacher_leave_balance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.teacher_salary_deductions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.school_attendance_config ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS teacher_attendance_read ON public.teacher_attendance;
+CREATE POLICY teacher_attendance_read ON public.teacher_attendance
+FOR SELECT USING (
+  (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+  OR (schoolid = (auth.jwt() ->> 'school_id')
+      AND (
+        (auth.jwt() ->> 'role') = 'SCHOOL_ADMIN'
+        OR teacherid IN (
+          SELECT id FROM public.teacher WHERE userid = (auth.jwt() ->> 'sub')
+        )
+      ))
+);
+
+DROP POLICY IF EXISTS teacher_attendance_write ON public.teacher_attendance;
+CREATE POLICY teacher_attendance_write ON public.teacher_attendance
+FOR INSERT WITH CHECK (
+  schoolid = (auth.jwt() ->> 'school_id')
+  AND (
+    (auth.jwt() ->> 'role') = 'SCHOOL_ADMIN'
+    OR teacherid IN (
+      SELECT id FROM public.teacher WHERE userid = (auth.jwt() ->> 'sub')
+    )
+  )
+);
+
+DROP POLICY IF EXISTS teacher_attendance_update ON public.teacher_attendance;
+CREATE POLICY teacher_attendance_update ON public.teacher_attendance
+FOR UPDATE USING (
+  (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+  OR (schoolid = (auth.jwt() ->> 'school_id')
+      AND (auth.jwt() ->> 'admin_level') = 'PRIMARY_ADMIN')
+);
+
+DROP POLICY IF EXISTS leave_requests_read ON public.teacher_leave_requests;
+CREATE POLICY leave_requests_read ON public.teacher_leave_requests
+FOR SELECT USING (
+  (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+  OR (schoolid = (auth.jwt() ->> 'school_id')
+      AND (
+        (auth.jwt() ->> 'role') = 'SCHOOL_ADMIN'
+        OR teacherid IN (
+          SELECT id FROM public.teacher WHERE userid = (auth.jwt() ->> 'sub')
+        )
+      ))
+);
+
+DROP POLICY IF EXISTS leave_requests_teacher_insert ON public.teacher_leave_requests;
+CREATE POLICY leave_requests_teacher_insert ON public.teacher_leave_requests
+FOR INSERT WITH CHECK (
+  schoolid = (auth.jwt() ->> 'school_id')
+  AND teacherid IN (
+    SELECT id FROM public.teacher WHERE userid = (auth.jwt() ->> 'sub')
+  )
+);
+
+DROP POLICY IF EXISTS leave_requests_admin_review ON public.teacher_leave_requests;
+CREATE POLICY leave_requests_admin_review ON public.teacher_leave_requests
+FOR UPDATE USING (
+  (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+  OR (schoolid = (auth.jwt() ->> 'school_id')
+      AND (auth.jwt() ->> 'admin_level') IN ('PRIMARY_ADMIN', 'SCHOOL_ADMIN'))
+);
+
+DROP POLICY IF EXISTS salary_deductions_read ON public.teacher_salary_deductions;
+CREATE POLICY salary_deductions_read ON public.teacher_salary_deductions
+FOR SELECT USING (
+  (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+  OR (schoolid = (auth.jwt() ->> 'school_id')
+      AND (
+        (auth.jwt() ->> 'role') = 'SCHOOL_ADMIN'
+        OR teacherid IN (
+          SELECT id FROM public.teacher WHERE userid = (auth.jwt() ->> 'sub')
+        )
+      ))
+);
+
+DROP POLICY IF EXISTS salary_deductions_write ON public.teacher_salary_deductions;
+CREATE POLICY salary_deductions_write ON public.teacher_salary_deductions
+FOR ALL USING (
+  (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+  OR (schoolid = (auth.jwt() ->> 'school_id')
+      AND (auth.jwt() ->> 'admin_level') = 'PRIMARY_ADMIN')
+);
+
+DROP POLICY IF EXISTS leave_types_read ON public.leave_types;
+CREATE POLICY leave_types_read ON public.leave_types
+FOR SELECT USING (
+  schoolid IS NULL
+  OR (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+  OR schoolid = (auth.jwt() ->> 'school_id')
+);
+
+DROP POLICY IF EXISTS leave_types_write ON public.leave_types;
+CREATE POLICY leave_types_write ON public.leave_types
+FOR ALL USING (
+  (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+  OR (schoolid = (auth.jwt() ->> 'school_id')
+      AND (auth.jwt() ->> 'admin_level') = 'PRIMARY_ADMIN')
+);
+
+DROP POLICY IF EXISTS attendance_config_read ON public.school_attendance_config;
+CREATE POLICY attendance_config_read ON public.school_attendance_config
+FOR SELECT USING (
+  (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+  OR schoolid = (auth.jwt() ->> 'school_id')
+);
+
+DROP POLICY IF EXISTS attendance_config_write ON public.school_attendance_config;
+CREATE POLICY attendance_config_write ON public.school_attendance_config
+FOR ALL USING (
+  (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+  OR (schoolid = (auth.jwt() ->> 'school_id')
+      AND (auth.jwt() ->> 'admin_level') = 'PRIMARY_ADMIN')
+);
+
+DROP POLICY IF EXISTS leave_balance_read ON public.teacher_leave_balance;
+CREATE POLICY leave_balance_read ON public.teacher_leave_balance
+FOR SELECT USING (
+  (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+  OR (schoolid = (auth.jwt() ->> 'school_id')
+      AND (
+        (auth.jwt() ->> 'role') = 'SCHOOL_ADMIN'
+        OR teacherid IN (
+          SELECT id FROM public.teacher WHERE userid = (auth.jwt() ->> 'sub')
+        )
+      ))
+);
+
+DROP POLICY IF EXISTS leave_balance_write ON public.teacher_leave_balance;
+CREATE POLICY leave_balance_write ON public.teacher_leave_balance
+FOR ALL USING (
+  (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+  OR (schoolid = (auth.jwt() ->> 'school_id')
+      AND (auth.jwt() ->> 'admin_level') IN ('PRIMARY_ADMIN', 'SCHOOL_ADMIN'))
+);
+
+-- FUNCTIONS FOR LEAVE & AUTOMATION
+CREATE OR REPLACE FUNCTION public.auto_mark_absent_teachers()
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_today date := current_date;
+  v_teacher record;
+  v_school record;
+BEGIN
+  FOR v_school IN SELECT id FROM public.school LOOP
+    FOR v_teacher IN
+      SELECT id, schoolid FROM public.teacher
+      WHERE schoolid = v_school.id
+        AND isactive = true
+        AND NOT EXISTS (
+          SELECT 1 FROM public.teacher_attendance
+          WHERE teacherid = teacher.id AND work_date = v_today
+        )
+    LOOP
+      INSERT INTO public.teacher_attendance (
+        schoolid, teacherid, work_date, status
+      ) VALUES (
+        v_teacher.schoolid, v_teacher.id, v_today, 'ABSENT'
+      );
+    END LOOP;
+  END LOOP;
+END; $$;
+
+CREATE OR REPLACE FUNCTION public.increment_pending_leave(
+  p_teacher_id text, p_leave_type_id text, p_days integer
+) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE
+  v_school_id text;
+  v_year text;
+  v_default_days integer := 12;
+BEGIN
+  SELECT schoolid INTO v_school_id FROM public.teacher WHERE id = p_teacher_id;
+  v_year := to_char(now(), 'YYYY') || '/' || to_char(now() + interval '1 year', 'YYYY');
+
+  SELECT default_days_per_year INTO v_default_days FROM public.leave_types WHERE id = p_leave_type_id;
+  IF v_default_days IS NULL THEN v_default_days := 12; END IF;
+
+  INSERT INTO public.teacher_leave_balance (
+    schoolid, teacherid, leave_type_id, academic_year, allocated_days, used_days, pending_days
+  ) VALUES (
+    v_school_id, p_teacher_id, p_leave_type_id, v_year, v_default_days, 0, p_days
+  )
+  ON CONFLICT (teacherid, leave_type_id, academic_year)
+  DO UPDATE SET
+    pending_days = public.teacher_leave_balance.pending_days + p_days,
+    updated_at = now();
+END; $$;
+
+CREATE OR REPLACE FUNCTION public.finalize_approved_leave(
+  p_teacher_id text, p_leave_type_id text, p_days integer
+) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE
+  v_year text;
+BEGIN
+  v_year := to_char(now(), 'YYYY') || '/' || to_char(now() + interval '1 year', 'YYYY');
+  UPDATE public.teacher_leave_balance
+  SET pending_days = GREATEST(pending_days - p_days, 0),
+      used_days = used_days + p_days,
+      updated_at = now()
+  WHERE teacherid = p_teacher_id
+    AND leave_type_id = p_leave_type_id
+    AND academic_year = v_year;
+END; $$;
+
+CREATE OR REPLACE FUNCTION public.release_pending_leave(
+  p_teacher_id text, p_leave_type_id text, p_days integer
+) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE
+  v_year text;
+BEGIN
+  v_year := to_char(now(), 'YYYY') || '/' || to_char(now() + interval '1 year', 'YYYY');
+  UPDATE public.teacher_leave_balance
+  SET pending_days = GREATEST(pending_days - p_days, 0),
+      updated_at = now()
+  WHERE teacherid = p_teacher_id
+    AND leave_type_id = p_leave_type_id
+    AND academic_year = v_year;
+END; $$;
+
+CREATE OR REPLACE FUNCTION public.compute_monthly_deductions(
+  p_school_id text,
+  p_month text
+) RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_teacher record;
+  v_absent_count integer;
+  v_late_count integer;
+  v_early_count integer;
+  v_unpaid_leave_days integer;
+  v_wallet record;
+  v_deduction numeric(12,2);
+BEGIN
+  FOR v_teacher IN
+    SELECT id FROM public.teacher WHERE schoolid = p_school_id AND isactive = true
+  LOOP
+    SELECT * INTO v_wallet FROM public.teacher_wallet WHERE "teacherId" = v_teacher.id;
+    IF v_wallet IS NULL THEN CONTINUE; END IF;
+
+    SELECT count(*) INTO v_absent_count FROM public.teacher_attendance
+    WHERE teacherid = v_teacher.id
+      AND to_char(work_date, 'YYYY-MM') = p_month
+      AND status = 'ABSENT';
+
+    SELECT count(*) INTO v_late_count FROM public.teacher_attendance
+    WHERE teacherid = v_teacher.id
+      AND to_char(work_date, 'YYYY-MM') = p_month
+      AND status = 'LATE';
+
+    SELECT count(*) INTO v_early_count FROM public.teacher_attendance
+    WHERE teacherid = v_teacher.id
+      AND to_char(work_date, 'YYYY-MM') = p_month
+      AND early_exit_minutes > 0;
+
+    SELECT coalesce(sum(total_days), 0) INTO v_unpaid_leave_days
+    FROM public.teacher_leave_requests
+    WHERE teacherid = v_teacher.id
+      AND status = 'APPROVED'
+      AND is_paid = false
+      AND to_char(start_date, 'YYYY-MM') = p_month;
+
+    IF v_absent_count > 0 AND COALESCE(v_wallet.absence_penalty_per_day, 0) > 0 THEN
+      v_deduction := v_absent_count * v_wallet.absence_penalty_per_day;
+      INSERT INTO public.teacher_salary_deductions (
+        schoolid, teacherid, month, deduction_type, amount, reason
+      ) VALUES (
+        p_school_id, v_teacher.id, p_month, 'ABSENCE', v_deduction,
+        v_absent_count || ' day(s) absent'
+      );
+    END IF;
+
+    IF v_late_count > 0 AND COALESCE(v_wallet.late_penalty_per_minute, 0) > 0 THEN
+      v_deduction := v_late_count * v_wallet.late_penalty_per_minute * 10;
+      INSERT INTO public.teacher_salary_deductions (
+        schoolid, teacherid, month, deduction_type, amount, reason
+      ) VALUES (
+        p_school_id, v_teacher.id, p_month, 'LATE', v_deduction,
+        v_late_count || ' late arrival(s)'
+      );
+    END IF;
+
+    IF v_unpaid_leave_days > 0 AND COALESCE(v_wallet.daily_rate, 0) > 0 THEN
+      v_deduction := v_unpaid_leave_days * v_wallet.daily_rate;
+      INSERT INTO public.teacher_salary_deductions (
+        schoolid, teacherid, month, deduction_type, amount, reason
+      ) VALUES (
+        p_school_id, v_teacher.id, p_month, 'UNPAID_LEAVE', v_deduction,
+        v_unpaid_leave_days || ' unpaid leave day(s)'
+      );
+    END IF;
+
+  END LOOP;
+END; $$;
+
+CREATE OR REPLACE FUNCTION public.custom_access_token_hook(event jsonb)
+RETURNS jsonb LANGUAGE plpgsql AS $$
+DECLARE
+  claims jsonb;
+  v_school_id text;
+  v_role text;
+  v_admin_level text;
+  v_department text;
+BEGIN
+  SELECT schoolid INTO v_school_id
+    FROM public.user WHERE id = (event->>'user_id');
+
+  SELECT role INTO v_role
+    FROM public.user_role WHERE userid = (event->>'user_id');
+
+  SELECT level, department INTO v_admin_level, v_department
+    FROM public.school_admin_roles
+    WHERE userid = (event->>'user_id') AND is_active = true
+    LIMIT 1;
+
+  claims := event->'claims';
+  claims := jsonb_set(claims, '{school_id}',   to_jsonb(v_school_id));
+  claims := jsonb_set(claims, '{role}',        to_jsonb(v_role));
+  claims := jsonb_set(claims, '{admin_level}', to_jsonb(COALESCE(v_admin_level, 'NONE')));
+  claims := jsonb_set(claims, '{department}',  to_jsonb(COALESCE(v_department, 'NONE')));
+
+  RETURN jsonb_set(event, '{claims}', claims);
+END; $$;
+
+-- ADD ALL NEW TABLES TO SUPABASE REALTIME PUBLICATION
+ALTER PUBLICATION supabase_realtime ADD TABLE public.teacher_attendance;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.teacher_leave_requests;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.teacher_leave_balance;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.teacher_salary_deductions;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.school_attendance_config;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.leave_types;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.school_admin_roles;
 
 -- Additional developer tables
 create table if not exists public.invitations (
@@ -1067,8 +1571,19 @@ values
   ('school-data', 'school-data', false),
   ('school-logos', 'school-logos', true),
   ('school-receipts', 'school-receipts', false),
-  ('school-generated-receipts', 'school-generated-receipts', false)
+  ('school-generated-receipts', 'school-generated-receipts', false),
+  ('leave-attachments', 'leave-attachments', false)
 on conflict (id) do nothing;
+
+drop policy if exists leave_attachments_tenant on storage.objects;
+create policy leave_attachments_tenant on storage.objects
+for all using (
+  bucket_id = 'leave-attachments'
+  AND (
+    (auth.jwt() ->> 'role') = 'SUPER_ADMIN'
+    OR (storage.foldername(name))[1] = (auth.jwt() ->> 'school_id')
+  )
+);
 
 INSERT INTO public.user_role (id, userid, role)
 VALUES (

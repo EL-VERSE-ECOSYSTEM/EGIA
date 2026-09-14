@@ -130,6 +130,59 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
   const config = configMap[role]
   const [isAdultEnrolled, setIsAdultEnrolled] = React.useState(false)
   const [isAppointedTeacher, setIsAppointedTeacher] = React.useState(false)
+  const [schoolInfo, setSchoolInfo] = React.useState<{ name: string; logoUrl: string } | null>(null)
+  const [adminRoleInfo, setAdminRoleInfo] = React.useState<{ level: string; department?: string | null } | null>(null)
+
+  React.useEffect(() => {
+    const supabase = createClient()
+    async function loadSchoolBranding() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Fetch user's school
+      const { data: userRec } = await supabase
+        .from('user')
+        .select('schoolid')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      const schoolId = userRec?.schoolid || user.user_metadata?.school_id
+
+      if (schoolId) {
+        const { data: sch } = await supabase
+          .from('school')
+          .select('name, logo_url')
+          .eq('id', schoolId)
+          .maybeSingle()
+
+        if (sch) {
+          setSchoolInfo({
+            name: String(sch.name || 'EL LEARNERS'),
+            logoUrl: String(sch.logo_url || '/app-logo.png')
+          })
+        }
+      }
+
+      // Fetch admin role level if role is admin
+      if (role === 'admin') {
+        const { data: roleRec } = await supabase
+          .from('school_admin_roles')
+          .select('level, department')
+          .eq('userid', user.id)
+          .eq('is_active', true)
+          .maybeSingle()
+
+        if (roleRec) {
+          setAdminRoleInfo({
+            level: String(roleRec.level || 'PRIMARY_ADMIN'),
+            department: roleRec.department ? String(roleRec.department) : null,
+          })
+        }
+      }
+    }
+
+    loadSchoolBranding()
+  }, [role])
 
   React.useEffect(() => {
     if (role === 'parent') {
@@ -190,12 +243,34 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       <div className="p-8">
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shadow-lg shadow-amber-600/20">
-              <GraduationCap className="text-white w-7 h-7" />
+            <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shadow-lg shadow-amber-600/10 shrink-0">
+              {schoolInfo?.logoUrl ? (
+                <img
+                  src={schoolInfo.logoUrl}
+                  alt={schoolInfo.name || 'School Logo'}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/app-logo.png'
+                  }}
+                />
+              ) : (
+                <GraduationCap className="text-amber-500 w-7 h-7" />
+              )}
             </div>
-            <div className="leading-tight">
-              <h2 className="font-black text-white text-base tracking-tighter uppercase">EL LEARNERS</h2>
-              <p className="text-[10px] text-amber-500 font-black uppercase tracking-[0.2em]">ACADEMY</p>
+            <div className="leading-tight overflow-hidden">
+              <h2 className="font-black text-white text-sm tracking-tighter uppercase truncate">
+                {schoolInfo?.name || 'EL LEARNERS'}
+              </h2>
+              <p className="text-[10px] text-amber-500 font-black uppercase tracking-[0.15em] truncate">
+                {role === 'admin' ? (
+                  adminRoleInfo?.level === 'PRIMARY_ADMIN' ? 'Primary Admin' :
+                  adminRoleInfo?.level === 'VICE_PRINCIPAL_ACADEMICS' ? 'VP Academics' :
+                  adminRoleInfo?.level === 'VICE_PRINCIPAL_ADMIN' ? 'VP Admin' :
+                  adminRoleInfo?.level === 'HOD_SCIENCE' ? 'HOD Science' :
+                  adminRoleInfo?.level === 'HOD_ARTS' ? 'HOD Arts' :
+                  adminRoleInfo?.level === 'HOD_COMMERCIAL' ? 'HOD Commercial' : 'School Admin'
+                ) : 'ACADEMY'}
+              </p>
             </div>
           </div>
 
