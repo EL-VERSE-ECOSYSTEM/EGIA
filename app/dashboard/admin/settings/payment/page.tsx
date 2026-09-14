@@ -3,10 +3,12 @@
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { getSchoolPaymentConfigAction, saveSchoolPaymentConfigAction } from '@/app/actions/payment-config'
+import { useNigerianBanks } from '@/hooks/useNigerianBanks'
 import { CreditCard, Building, Link as LinkIcon, FileText, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function AdminPaymentSettingsPage() {
+  const { banks, loading: loadingBanks } = useNigerianBanks()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [schoolId, setSchoolId] = useState<string>('')
@@ -146,14 +148,19 @@ export default function AdminPaymentSettingsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-black uppercase text-slate-600 mb-1">Bank Name *</label>
-                    <input
-                      type="text"
+                    <select
                       required={!useKorapay}
-                      placeholder="e.g. Zenith Bank"
                       value={bankName}
                       onChange={(e) => setBankName(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
-                    />
+                    >
+                      <option value="">Select Bank...</option>
+                      {banks.map((b) => (
+                        <option key={b.code} value={b.name}>
+                          {b.name} ({b.code})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
