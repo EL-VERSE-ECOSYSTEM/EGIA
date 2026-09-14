@@ -131,3 +131,24 @@ If you want to write it to the DOM, pass a string instead: collapsible="true" or
   └─ ƒ getSchoolPaymentConfigAction("school-elgoodnews-001") in 221ms actions/payment-config.ts
  POST /dashboard/parent/payments/make-payment 200 in 55ms (next.js: 8ms, proxy.ts: 19ms, application-code: 29ms)
   └─ ƒ checkWeeklyPaymentStatus() in 2ms actions/adult-education.ts
+ GET /school-registration 200 in 473ms (next.js: 86ms, proxy.ts: 78ms, application-code: 309ms)
+ GET / 200 in 514ms (next.js: 31ms, proxy.ts: 15ms, application-code: 468ms)
+ GET /dashboard/admin/settings/payment 200 in 166ms (next.js: 23ms, proxy.ts: 4ms, application-code: 140ms)
+ POST /dashboard/admin/settings/payment 200 in 1133ms (next.js: 7ms, proxy.ts: 16ms, application-code: 1110ms)
+ GET /dashboard/admin/payments/pending-receipts 200 in 181ms (next.js: 15ms, proxy.ts: 5ms, application-code: 161ms)
+⨯ Error: aborted
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+ GET /api/fcm/notifications 401 in 171ms (next.js: 34ms, proxy.ts: 7ms, application-code: 130ms)
+ GET /api/fcm/notifications 401 in 365ms (next.js: 101ms, proxy.ts: 101ms, application-code: 163ms)
+○ Compiling /_error ...
+ GET /dashboard/parent/payments/make-payment 200 in 1049ms (next.js: 586ms, proxy.ts: 73ms, application-code: 390ms)
+ POST /dashboard/parent/payments/make-payment 200 in 82ms (next.js: 29ms, proxy.ts: 14ms, application-code: 39ms)
+  └─ ƒ getLinkedChildren() in 4ms actions/user.ts
+ POST /dashboard/parent/payments/make-payment 200 in 322ms (next.js: 34ms, proxy.ts: 6ms, application-code: 282ms)
+  └─ ƒ getSchoolPaymentConfigAction("school-elgoodnews-001") in 251ms actions/payment-config.ts
+ POST /dashboard/parent/payments/make-payment 200 in 94ms (next.js: 31ms, proxy.ts: 10ms, application-code: 53ms)
+  └─ ƒ getLinkedChildren() in 4ms actions/user.ts
+ POST /dashboard/parent/payments/make-payment 200 in 597ms (next.js: 24ms, proxy.ts: 15ms, application-code: 559ms)
+  └─ ƒ getSchoolPaymentConfigAction("school-elgoodnews-001") in 528ms actions/payment-config.ts

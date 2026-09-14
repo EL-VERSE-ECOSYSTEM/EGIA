@@ -997,6 +997,16 @@ export const paymentWebhookLogs = pgTable('payment_webhook_logs', {
 })
 
 // ===== FAQ ARTICLES TABLE =====
+export const nigerianBanks = pgTable('nigerian_banks', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  name: text('name').notNull(),
+  code: text('code').notNull().unique(),
+  slug: text('slug'),
+  nibssCode: text('nibss_code'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const faqArticles = pgTable('faq_articles', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),

@@ -994,6 +994,72 @@ create table if not exists public.lesson_notes (
 
 -- Initialize lesson-notes Supabase Storage Bucket in SQL
 -- Initialize Supabase Storage Buckets in SQL
+create table if not exists public.nigerian_banks (
+  id text primary key default gen_random_uuid()::text,
+  name text not null,
+  code text not null unique,
+  slug text,
+  nibss_code text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_nigerian_banks_code on public.nigerian_banks(code);
+create index if not exists idx_nigerian_banks_name on public.nigerian_banks(name);
+
+alter table public.nigerian_banks enable row level security;
+
+drop policy if exists nigerian_banks_read on public.nigerian_banks;
+create policy nigerian_banks_read on public.nigerian_banks for select using (true);
+
+drop policy if exists nigerian_banks_write on public.nigerian_banks;
+create policy nigerian_banks_write on public.nigerian_banks for all using ((auth.jwt() ->> 'role') = 'SUPER_ADMIN');
+
+insert into public.nigerian_banks (name, code, slug, nibss_code) values
+('Access Bank',                        '044', 'access-bank',                  '000014'),
+('Citibank Nigeria',                   '023', 'citibank-nigeria',             '000009'),
+('Ecobank Nigeria',                    '050', 'ecobank-nigeria',              '000010'),
+('Fidelity Bank',                      '070', 'fidelity-bank',                '000007'),
+('First Bank of Nigeria',              '011', 'first-bank-of-nigeria',        '000016'),
+('First City Monument Bank (FCMB)',    '214', 'fcmb',                         '000003'),
+('Guaranty Trust Bank (GTBank)',       '058', 'guaranty-trust-bank',          '000013'),
+('Heritage Bank',                      '030', 'heritage-bank',                '000020'),
+('Keystone Bank',                      '082', 'keystone-bank',                '000002'),
+('Polaris Bank',                       '076', 'polaris-bank',                 '000008'),
+('Providus Bank',                      '101', 'providus-bank',                '000023'),
+('Stanbic IBTC Bank',                  '221', 'stanbic-ibtc-bank',            '000012'),
+('Standard Chartered Bank',            '068', 'standard-chartered-bank',      '000021'),
+('Sterling Bank',                      '232', 'sterling-bank',                '000001'),
+('SunTrust Bank',                      '100', 'suntrust-bank',                '000022'),
+('Union Bank of Nigeria',              '032', 'union-bank',                   '000018'),
+('United Bank for Africa (UBA)',       '033', 'uba',                          '000004'),
+('Unity Bank',                         '215', 'unity-bank',                   '000011'),
+('Wema Bank',                          '035', 'wema-bank',                    '000017'),
+('Zenith Bank',                        '057', 'zenith-bank',                  '000015'),
+('Jaiz Bank',                          '301', 'jaiz-bank',                    '000006'),
+('Taj Bank',                           '302', 'taj-bank',                     '000026'),
+('Lotus Bank',                         '303', 'lotus-bank',                   '000029'),
+('Premium Trust Bank',                 '105', 'premium-trust-bank',           '000031'),
+('Signature Bank',                     '106', 'signature-bank',               '000034'),
+('Globus Bank',                        '103', 'globus-bank',                  '000027'),
+('Parallex Bank',                      '104', 'parallex-bank',                '000030'),
+('Optimus Bank',                       '107', 'optimus-bank',                 '000036'),
+('Kuda Bank',                          '50211', 'kuda-bank',                  '090267'),
+('OPay',                               '999992', 'opay',                      '100004'),
+('PalmPay',                            '999991', 'palmpay',                   '100033'),
+('Moniepoint MFB',                     '50515', 'moniepoint',                 '090405'),
+('Carbon',                             '565', 'carbon',                       '100026'),
+('V Bank',                             '566', 'v-bank',                       '100030'),
+('Rubies MFB',                         '125', 'rubies-mfb',                   '090175'),
+('Sparkle Microfinance Bank',          '51310', 'sparkle',                    '090328'),
+('Fairmoney Microfinance Bank',        '51318', 'fairmoney',                  '090551'),
+('Mintyn Bank',                        '50304', 'mintyn-bank',                '090281'),
+('9 Payment Service Bank (9PSB)',      '120001', '9psb',                      '120001'),
+('MoMo Payment Service Bank',          '120003', 'momo-psb',                  '120003'),
+('SmartCash Payment Service Bank',     '120004', 'smartcash-psb',             '120004'),
+('Hope Payment Service Bank',          '120002', 'hope-psb',                  '120002')
+on conflict (code) do update set name = excluded.name, slug = excluded.slug, nibss_code = excluded.nibss_code, is_active = true;
+
 insert into storage.buckets (id, name, public)
 values
   ('lesson-notes', 'lesson-notes', true),
