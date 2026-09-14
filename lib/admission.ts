@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { admissionNumberSequences, school, teacher, institutionalStaff } from '@/lib/db/schema'
+import { admissionNumberSequences, school, teacher } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
 
 export async function generateSequentialAdmissionNumber(schoolId: string | null, className: string): Promise<string> {
@@ -56,8 +56,7 @@ export async function generateSequentialStaffCode(schoolId: string | null): Prom
 
   try {
     const existingTeachers = await db.select().from(teacher).where(eq(teacher.schoolId, schoolId))
-    const existingStaff = await db.select().from(institutionalStaff).where(eq(institutionalStaff.schoolId, schoolId))
-    const total = existingTeachers.length + existingStaff.length + 1
+    const total = existingTeachers.length + 1
     const suffix = total.toString().padStart(6, '0')
     return `${schoolCode}-ST-${suffix}`
   } catch (err) {

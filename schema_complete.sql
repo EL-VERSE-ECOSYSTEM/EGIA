@@ -126,6 +126,9 @@ create table public."school" (
   "custompaymentlink" text,
   "paymentstatus" text not null default 'PENDING',
   "paymentreference" text unique,
+  "logo_url" text,
+  "logo_path" text,
+  "logo_uploaded_at" timestamptz,
   "createdat" timestamptz not null default now(),
   "updatedat" timestamptz not null default now()
 );
@@ -388,26 +391,6 @@ create table public."payment" (
   "createdat" timestamptz not null default now(), "updatedat" timestamptz not null default now()
 );
 
-create table if not exists public.institutional_staff (
-  id text primary key default gen_random_uuid()::text,
-  schoolid text not null references public.school(id) on delete cascade,
-  userid text unique references public.user(id) on delete set null,
-  staffcode text unique,
-  firstname text not null,
-  lastname text not null,
-  email text,
-  phone text,
-  gender text,
-  role text not null,
-  department text,
-  cvurl text,
-  applicationletterurl text,
-  password text,
-  status text default 'ACTIVE',
-  isactive boolean default true,
-  createdat timestamptz not null default now(),
-  updatedat timestamptz not null default now()
-);
 
 create table if not exists public.assessment_logs (
   id text primary key default gen_random_uuid()::text,
@@ -435,9 +418,79 @@ create table if not exists public.transaction_ledger (
   status text default 'PENDING',
   description text,
   metadata jsonb,
+  confirmation_method text check (confirmation_method in ('KORAPAY_AUTO','MANUAL_UPLOAD','SCHOOL_ACCOUNT')),
+  receipt_upload_id text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- SCHOOL PAYMENT CONFIGURATION & RECEIPT UPLOADS
+create table if not exists public.school_payment_config (
+  id text primary key default gen_random_uuid()::text,
+  schoolid text not null unique references public.school(id) on delete cascade,
+  use_korapay boolean not null default true,
+  bank_name text,
+  account_number text,
+  account_name text,
+  custom_payment_link text,
+  instructions text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint bank_required_if_not_korapay check (
+    use_korapay = true
+    or (use_korapay = false and account_number is not null and account_name is not null)
+  )
+);
+create index if not exists idx_school_payment_config_school on public.school_payment_config(schoolid);
+
+create table if not exists public.payment_receipt_uploads (
+  id text primary key default gen_random_uuid()::text,
+  schoolid text not null references public.school(id) on delete cascade,
+  payment_id text references public.payment(id) on delete cascade,
+  student_id text references public.student(id) on delete cascade,
+  parent_id text references public.parent(id) on delete set null,
+  uploaded_by text not null references public.user(id),
+  uploaded_by_role text not null check (uploaded_by_role in ('PARENT','SCHOOL_ADMIN')),
+  file_url text not null,
+  file_path text not null,
+  file_type text not null check (file_type in ('image/png','image/jpeg','application/pdf')),
+  file_size_kb integer,
+  amount_claimed numeric(12,2),
+  payment_reference text,
+  status text not null default 'PENDING' check (status in ('PENDING','APPROVED','REJECTED')),
+  reviewed_by text references public.user(id),
+  reviewed_at timestamptz,
+  rejection_reason text,
+  generated_receipt_url text,
+  generated_receipt_path text,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_receipt_uploads_school on public.payment_receipt_uploads(schoolid, status);
+create index if not exists idx_receipt_uploads_student on public.payment_receipt_uploads(student_id);
+
+alter table public.transaction_ledger
+  add constraint fk_transaction_ledger_receipt_upload
+  foreign key (receipt_upload_id) references public.payment_receipt_uploads(id) on delete set null;
+
+create or replace view public.payment_receipt_chain as
+select
+  p.id as payment_id,
+  p.schoolid,
+  p.studentid,
+  p.amount,
+  p.status as payment_status,
+  r.id as receipt_id,
+  r.file_url as uploaded_file_url,
+  r.status as receipt_status,
+  r.generated_receipt_url as official_receipt_url,
+  t.id as ledger_id,
+  t.confirmation_method
+from public.payment p
+left join public.payment_receipt_uploads r on r.payment_id = p.id
+left join public.transaction_ledger t on t.receipt_upload_id = r.id;
 
 create table if not exists public.school_admin_roles (
   id text primary key default gen_random_uuid()::text,
@@ -945,7 +998,10 @@ insert into storage.buckets (id, name, public)
 values
   ('lesson-notes', 'lesson-notes', true),
   ('school-cvs', 'school-cvs', false),
-  ('school-data', 'school-data', false)
+  ('school-data', 'school-data', false),
+  ('school-logos', 'school-logos', true),
+  ('school-receipts', 'school-receipts', false),
+  ('school-generated-receipts', 'school-generated-receipts', false)
 on conflict (id) do nothing;
 
 INSERT INTO public.user_role (id, userid, role)

@@ -77,7 +77,7 @@ export default async function AdminOverviewPage() {
     },
     {
       title: 'Faculty & Directory',
-      description: 'Manage institutional faculty, review performance logs, and process payroll.',
+      description: 'Manage teaching staff, review performance logs, and process payroll.',
       link: '/dashboard/admin/users/teachers/list',
       icon: UserCheck,
       badge: 'Faculty',

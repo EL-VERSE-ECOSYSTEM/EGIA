@@ -303,3 +303,113 @@ export async function getFeeStructuresForClass(className: string, department?: s
     ),
   })
 }
+
+import { generatePdfReceipt } from '@/lib/pdf/generateReceipt'
+import { paymentReceiptUploads, transactionLedger } from '@/lib/db/schema'
+import { createClient } from '@/utils/supabase/server'
+import { cookies } from 'next/headers'
+
+export async function approveReceipt(uploadId: string) {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role !== 'ADMIN') throw new Error('Unauthorized')
+
+  const upload = await db.query.paymentReceiptUploads.findFirst({
+    where: eq(paymentReceiptUploads.id, uploadId)
+  })
+  if (!upload) throw new Error('Upload record not found')
+
+  // Generate PDF receipt
+  const pdfBuffer = await generatePdfReceipt({
+    schoolId: upload.schoolId,
+    studentId: upload.studentId || '',
+    amount: parseFloat(upload.amountClaimed || '0'),
+    reference: upload.paymentReference || upload.id,
+    confirmedBy: session.user.name || session.user.id,
+    date: new Date(),
+  })
+
+  // Upload PDF to Supabase Storage
+  const pdfPath = `${upload.schoolId}/${upload.studentId}/${upload.paymentId || 'payment'}-receipt.pdf`
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  const { error: upErr } = await supabase.storage.from('school-generated-receipts')
+    .upload(pdfPath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
+
+  const { data: { publicUrl } } = supabase.storage.from('school-generated-receipts').getPublicUrl(pdfPath)
+
+  // Update payment_receipt_uploads row
+  await db.update(paymentReceiptUploads).set({
+    status: 'APPROVED',
+    reviewedBy: session.user.id,
+    reviewedAt: new Date(),
+    generatedReceiptUrl: publicUrl,
+    generatedReceiptPath: pdfPath,
+    updatedAt: new Date()
+  }).where(eq(paymentReceiptUploads.id, uploadId))
+
+  // Update payment row
+  if (upload.paymentId) {
+    await db.update(payment).set({
+      status: 'success',
+      reconciliationStatus: 'RECONCILED',
+      reconciledBy: session.user.id,
+      reconciledAt: new Date(),
+      paidAt: new Date(),
+      updatedAt: new Date()
+    }).where(eq(payment.id, upload.paymentId))
+  }
+
+  // Insert Transaction Ledger
+  await db.insert(transactionLedger).values({
+    schoolId: upload.schoolId,
+    studentId: upload.studentId,
+    userId: upload.uploadedBy,
+    type: 'FEE_PAYMENT',
+    direction: 'IN',
+    amount: upload.amountClaimed || '0.00',
+    reference: upload.paymentReference || upload.id,
+    gateway: 'SCHOOL_ACCOUNT',
+    status: 'SUCCESS',
+    confirmationMethod: 'MANUAL_UPLOAD',
+    receiptUploadId: uploadId,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  })
+
+  revalidatePath('/dashboard/admin/payments/pending-receipts')
+  revalidatePath('/dashboard/parent/payments/history')
+  return { success: true, receiptUrl: publicUrl }
+}
+
+export async function rejectReceipt(uploadId: string, reason: string) {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role !== 'ADMIN') throw new Error('Unauthorized')
+
+  if (!reason || !reason.trim()) throw new Error('Rejection reason is required')
+
+  await db.update(paymentReceiptUploads).set({
+    status: 'REJECTED',
+    reviewedBy: session.user.id,
+    reviewedAt: new Date(),
+    rejectionReason: reason.trim(),
+    updatedAt: new Date()
+  }).where(eq(paymentReceiptUploads.id, uploadId))
+
+  revalidatePath('/dashboard/admin/payments/pending-receipts')
+  revalidatePath('/dashboard/parent/payments/history')
+  return { success: true }
+}
+
+export async function getReceiptDownloadUrl(uploadId: string) {
+  const upload = await db.query.paymentReceiptUploads.findFirst({
+    where: eq(paymentReceiptUploads.id, uploadId)
+  })
+  if (!upload?.generatedReceiptPath) return null
+
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  const { data } = await supabase.storage.from('school-generated-receipts')
+    .createSignedUrl(upload.generatedReceiptPath, 3600)
+
+  return data?.signedUrl || upload.generatedReceiptUrl || null
+}

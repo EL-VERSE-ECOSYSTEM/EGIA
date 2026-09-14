@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { registerSchoolAction, confirmSchoolPaymentAction } from '@/app/actions/school'
 import { CheckCircle2, Building2, Sparkles, CreditCard, Download, ShieldCheck, ArrowRight, BookOpen, ExternalLink, Key, Lock, GraduationCap } from 'lucide-react'
 import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
+import { LogoUploadField } from '@/components/uploads/LogoUploadField'
 
 const AVAILABLE_CLASSES = [
   'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
@@ -20,6 +21,8 @@ export default function SchoolRegistrationPage() {
     adminEmail: '',
     adminPassword: '',
     allowParents: true,
+    logo_url: '',
+    logo_path: '',
   })
 
   const [selectedClasses, setSelectedClasses] = useState<string[]>([...AVAILABLE_CLASSES])
@@ -211,8 +214,13 @@ export default function SchoolRegistrationPage() {
             {/* School Details */}
             <div className="space-y-4">
               <h2 className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-2">
-                <Building2 className="w-4 h-4" /> School Profile
+                <Building2 className="w-4 h-4" /> School Profile & Branding
               </h2>
+              <LogoUploadField
+                schoolId=""
+                existingUrl={formData.logo_url}
+                onUploaded={(url, path) => setFormData(prev => ({ ...prev, logo_url: url, logo_path: path }))}
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-black uppercase text-slate-400 mb-1">Name of School *</label>

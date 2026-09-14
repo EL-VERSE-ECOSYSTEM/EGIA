@@ -8,25 +8,26 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { School, BookOpen, Users, Check, AlertCircle, Loader2 } from 'lucide-react'
 import { updateTeacherSubjects, getStudentsBySubject } from '@/app/actions/teacher'
+import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 interface SubjectConfigProps {
   initialSubjects: string[]
 }
 
-const AVAILABLE_SUBJECTS = [
-  'Mathematics',
-  'English Language',
-  'Basic Science',
-  'Chemistry',
-  'Physics',
-  'Biology',
-  'Civic Education',
-  'Agricultural Science',
-  'Social Studies'
-]
-
 export function SubjectConfig({ initialSubjects = [] }: SubjectConfigProps) {
+  const [dbSubjects, setDbSubjects] = useState<string[]>([])
+
+  useEffect(() => {
+    async function loadSubjects() {
+      const supabase = createClient()
+      const { data } = await supabase.from('subject').select('name').eq('is_active', true).order('name')
+      if (data && data.length > 0) {
+        setDbSubjects(data.map(s => String(s.name || '')))
+      }
+    }
+    loadSubjects()
+  }, [])
   const router = useRouter()
   const [isSubjectTeacher, setIsSubjectTeacher] = useState(initialSubjects.length > 0)
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(initialSubjects)
@@ -116,7 +117,7 @@ export function SubjectConfig({ initialSubjects = [] }: SubjectConfigProps) {
             <div className="space-y-4 animate-in fade-in duration-300">
               <Label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Select Subjects You Are Taking</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {AVAILABLE_SUBJECTS.map((sub) => {
+                {dbSubjects.map((sub) => {
                   const isChecked = selectedSubjects.includes(sub)
                   return (
                     <div

@@ -7,7 +7,7 @@ import { FileText, Upload, CheckCircle2, Loader2, AlertCircle, ExternalLink } fr
 export interface CvUploadFieldProps {
   schoolId: string
   userId: string
-  role: 'teachers' | 'institutional-staff' | 'admins'
+  role: 'teachers' | 'admins'
   label?: string
   existingUrl?: string | null
   onUploaded: (publicUrl: string, path: string) => void
