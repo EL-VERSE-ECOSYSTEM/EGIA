@@ -108,6 +108,17 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       role: 'ADMIN',
     }).onConflictDoNothing()
 
+    // Assign PRIMARY_ADMIN level to registering administrator
+    const { schoolAdminRoles } = await import('@/lib/db/schema')
+    await db.insert(schoolAdminRoles).values({
+      id: randomUUID(),
+      schoolId: schoolId,
+      userId: userId,
+      level: 'PRIMARY_ADMIN',
+      department: null,
+      isActive: true,
+    }).onConflictDoNothing()
+
     const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://goodnews-app-mu.vercel.app/'
     const secretKey = process.env.KORAPAY_SECRET_KEY
 

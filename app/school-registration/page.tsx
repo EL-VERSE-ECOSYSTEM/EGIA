@@ -303,6 +303,18 @@ export default function SchoolRegistrationPage() {
               <h2 className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-2">
                 <Building2 className="w-4 h-4" /> School Administrator Credentials
               </h2>
+              <div className="space-y-1 bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                <label className="block text-xs font-black uppercase text-slate-400">Your Role</label>
+                <input
+                  type="text"
+                  value="Primary Admin (Full School Control)"
+                  readOnly
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs font-bold text-blue-400 cursor-not-allowed"
+                />
+                <p className="text-[11px] text-slate-500 font-medium pt-1">
+                  You are registering as the Primary Admin. You can add Vice Principals and Head of Departments (HODs) later from your dashboard.
+                </p>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-black uppercase text-slate-400 mb-1">Name of Admin *</label>

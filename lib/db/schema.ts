@@ -812,6 +812,11 @@ export const teacherWallet = pgTable('teacher_wallet', {
   balance: numeric('balance', { precision: 12, scale: 2 }).default('0.00'),
   salaryAmount: numeric('salaryAmount', { precision: 12, scale: 2 }).default('150000.00'),
   salaryStatus: text('salaryStatus').default('pending'), // pending, paid
+  dailyRate: numeric('daily_rate', { precision: 12, scale: 2 }).default('0'),
+  hourlyRate: numeric('hourly_rate', { precision: 12, scale: 2 }).default('0'),
+  latePenaltyPerMinute: numeric('late_penalty_per_minute', { precision: 12, scale: 2 }).default('0'),
+  earlyExitPenaltyPerMinute: numeric('early_exit_penalty_per_minute', { precision: 12, scale: 2 }).default('0'),
+  absencePenaltyPerDay: numeric('absence_penalty_per_day', { precision: 12, scale: 2 }).default('0'),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -897,6 +902,146 @@ export const adultEducationEnrollment = pgTable('adult_education_enrollments', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 }, (t) => [
   foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('set null'),
+])
+
+// ===== TEACHER ATTENDANCE & LEAVE TABLES =====
+export const teacherAttendance = pgTable('teacher_attendance', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid').notNull(),
+  teacherId: text('teacherid').notNull(),
+  workDate: date('work_date').notNull(),
+  clockInAt: timestamp('clock_in_at', { withTimezone: true }),
+  clockOutAt: timestamp('clock_out_at', { withTimezone: true }),
+  clockInIp: text('clock_in_ip'),
+  clockOutIp: text('clock_out_ip'),
+  clockInDevice: text('clock_in_device'),
+  clockOutDevice: text('clock_out_device'),
+  clockInLat: numeric('clock_in_lat', { precision: 10, scale: 7 }),
+  clockInLng: numeric('clock_in_lng', { precision: 10, scale: 7 }),
+  clockOutLat: numeric('clock_out_lat', { precision: 10, scale: 7 }),
+  clockOutLng: numeric('clock_out_lng', { precision: 10, scale: 7 }),
+  totalMinutes: integer('total_minutes'),
+  status: text('status').notNull().default('PRESENT'), // PRESENT, LATE, ABSENT, HALF_DAY, ON_LEAVE, SUSPENDED
+  lateMinutes: integer('late_minutes').default(0),
+  earlyExitMinutes: integer('early_exit_minutes').default(0),
+  overtimeMinutes: integer('overtime_minutes').default(0),
+  isManualOverride: boolean('is_manual_override').default(false),
+  overrideBy: text('override_by'),
+  overrideReason: text('override_reason'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique().on(t.teacherId, t.workDate),
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.teacherId], foreignColumns: [teacher.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.overrideBy], foreignColumns: [user.id] }),
+])
+
+export const leaveTypes = pgTable('leave_types', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid'),
+  name: text('name').notNull(),
+  code: text('code').notNull(),
+  defaultDaysPerYear: integer('default_days_per_year').notNull().default(12),
+  isPaid: boolean('is_paid').notNull().default(true),
+  requiresAttachment: boolean('requires_attachment').default(false),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique().on(t.schoolId, t.code),
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+])
+
+export const teacherLeaveRequests = pgTable('teacher_leave_requests', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid').notNull(),
+  teacherId: text('teacherid').notNull(),
+  leaveTypeId: text('leave_type_id').notNull(),
+  startDate: date('start_date').notNull(),
+  endDate: date('end_date').notNull(),
+  totalDays: integer('total_days').notNull(),
+  reason: text('reason').notNull(),
+  attachmentUrl: text('attachment_url'),
+  attachmentPath: text('attachment_path'),
+  status: text('status').notNull().default('PENDING'), // PENDING, APPROVED, REJECTED, CANCELLED
+  reviewedBy: text('reviewed_by'),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  adminComment: text('admin_comment'),
+  rejectionReason: text('rejection_reason'),
+  isPaid: boolean('is_paid').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.teacherId], foreignColumns: [teacher.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.leaveTypeId], foreignColumns: [leaveTypes.id] }),
+  foreignKey({ columns: [t.reviewedBy], foreignColumns: [user.id] }),
+])
+
+export const teacherLeaveBalance = pgTable('teacher_leave_balance', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid').notNull(),
+  teacherId: text('teacherid').notNull(),
+  leaveTypeId: text('leave_type_id').notNull(),
+  academicYear: text('academic_year').notNull(),
+  allocatedDays: integer('allocated_days').notNull().default(0),
+  usedDays: integer('used_days').notNull().default(0),
+  pendingDays: integer('pending_days').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique().on(t.teacherId, t.leaveTypeId, t.academicYear),
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.teacherId], foreignColumns: [teacher.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.leaveTypeId], foreignColumns: [leaveTypes.id] }),
+])
+
+export const teacherSalaryDeductions = pgTable('teacher_salary_deductions', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid').notNull(),
+  teacherId: text('teacherid').notNull(),
+  month: text('month').notNull(),
+  deductionType: text('deduction_type').notNull(), // ABSENCE, LATE, EARLY_EXIT, UNPAID_LEAVE, OTHER
+  referenceAttendanceId: text('reference_attendance_id'),
+  referenceLeaveId: text('reference_leave_id'),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  reason: text('reason'),
+  appliedBy: text('applied_by'),
+  appliedAt: timestamp('applied_at', { withTimezone: true }).notNull().defaultNow(),
+  reversed: boolean('reversed').default(false),
+  reversedBy: text('reversed_by'),
+  reversedAt: timestamp('reversed_at', { withTimezone: true }),
+  reversalReason: text('reversal_reason'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.teacherId], foreignColumns: [teacher.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.referenceAttendanceId], foreignColumns: [teacherAttendance.id] }),
+  foreignKey({ columns: [t.referenceLeaveId], foreignColumns: [teacherLeaveRequests.id] }),
+  foreignKey({ columns: [t.appliedBy], foreignColumns: [user.id] }),
+  foreignKey({ columns: [t.reversedBy], foreignColumns: [user.id] }),
+])
+
+export const schoolAttendanceConfig = pgTable('school_attendance_config', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid').notNull().unique(),
+  workStartTime: text('work_start_time').notNull().default('08:00:00'),
+  workEndTime: text('work_end_time').notNull().default('16:00:00'),
+  lateThresholdMinutes: integer('late_threshold_minutes').notNull().default(10),
+  earlyExitThresholdMinutes: integer('early_exit_threshold_minutes').notNull().default(10),
+  halfDayMinutes: integer('half_day_minutes').notNull().default(180),
+  autoAbsentIfNoClockin: boolean('auto_absent_if_no_clockin').default(true),
+  requireSelfie: boolean('require_selfie').default(false),
+  requireLocation: boolean('require_location').default(false),
+  autoDeductAbsence: boolean('auto_deduct_absence').default(false),
+  autoDeductLate: boolean('auto_deduct_late').default(false),
+  autoDeductEarlyExit: boolean('auto_deduct_early_exit').default(false),
+  unpaidLeaveDeduction: boolean('unpaid_leave_deduction').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
 ])
 
 export const adultEducationPayment = pgTable('adult_education_payments', {

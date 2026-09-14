@@ -24,7 +24,10 @@ async function getSessionImpl() {
     .where(eq(userRole.userId, user.id))
     .limit(1)
 
+  const dbUser = await db.select({ schoolId: userTable.schoolId }).from(userTable).where(eq(userTable.id, user.id)).limit(1)
+
   const finalRole = (metadataRole || roleRecord?.[0]?.role || null)?.toUpperCase()
+  const schoolId = dbUser?.[0]?.schoolId || user.user_metadata?.school_id || null
 
   return {
     ...session,
@@ -33,7 +36,8 @@ async function getSessionImpl() {
       id: user.id,
       email: user.email || '',
       name: user.user_metadata?.full_name || user.user_metadata?.name || '',
-      role: finalRole
+      role: finalRole,
+      schoolId,
     }
   }
 }
@@ -53,11 +57,15 @@ async function getUserImpl() {
     .where(eq(userRole.userId, user.id))
     .limit(1)
 
+  const dbUser = await db.select({ schoolId: userTable.schoolId }).from(userTable).where(eq(userTable.id, user.id)).limit(1)
+
   const finalRole = (metadataRole || roleRecord?.[0]?.role || null)?.toUpperCase()
+  const schoolId = dbUser?.[0]?.schoolId || user.user_metadata?.school_id || null
 
   return {
     ...user,
-    role: finalRole
+    role: finalRole,
+    schoolId,
   }
 }
 
