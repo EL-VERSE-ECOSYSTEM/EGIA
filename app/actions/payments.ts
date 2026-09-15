@@ -183,7 +183,7 @@ export async function submitManualPayment(data: { studentId: string; amount: str
 }
 
 export async function initializeKorapayPayment(data: { studentId: string; amount: number; feeType: string; description?: string }) {
-  const { profile } = await requireParent()
+  const { session, profile } = await requireParent()
   const child = await requireLinkedChild(profile.id, data.studentId)
   const configuredFee = await db.query.feeStructure.findFirst({
     where: and(
@@ -203,7 +203,51 @@ export async function initializeKorapayPayment(data: { studentId: string; amount
     feeType: data.feeType, paymentMethod: 'KORAPAY', transactionReference: reference,
     status: 'pending', description: data.description || `Payment for ${data.feeType} (includes NGN 161.25 gateway fee)`,
   }).returning())[0]
-  return { checkoutUrl: checkoutUrl(reference), reference, paymentId: record.id, totalAmount }
+
+  const secretKey = process.env.KORAPAY_SECRET_KEY
+  const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  let checkout = checkoutUrl(reference)
+
+  if (secretKey) {
+    try {
+      const payload = {
+        amount: totalAmount,
+        currency: 'NGN',
+        reference,
+        narration: `Fee Payment (${data.feeType}) - ${child.firstName} ${child.lastName}`,
+        notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
+        redirect_url: `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`,
+        customer: {
+          email: session.user.email || profile.userId || 'parent@ellearners.app',
+          name: `${profile.firstName} ${profile.lastName}`,
+        },
+        metadata: {
+          studentId: child.id,
+          parentId: profile.id,
+          feeType: data.feeType,
+          type: 'STUDENT_FEE',
+        },
+      }
+      const res = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) {
+        const koraData = await res.json()
+        if (koraData.status && koraData.data?.checkout_url) {
+          checkout = koraData.data.checkout_url
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to call Korapay initialize API for fee payment:', e)
+    }
+  }
+
+  return { checkoutUrl: checkout, reference, paymentId: record.id, totalAmount }
 }
 
 /** Creates a pending registration payment (NGN 2000 + NGN 161.25 fee = NGN 2161.25); success is recorded by Korapay verification/webhook. */

@@ -772,5 +772,27 @@ export async function loginRole(data: {
     }).onConflictDoNothing()
   }
 
+  // Update or insert schoolAdminRoles level if adminLevel is supplied
+  if (data.adminLevel && (targetRoleName === 'ADMIN' || selectedRole === 'SCHOOL_ADMIN')) {
+    try {
+      const userRec = await db.query.user.findFirst({ where: eq(userTable.id, userId) })
+      if (userRec?.schoolId) {
+        const { schoolAdminRoles } = await import('@/lib/db/schema')
+        await db.insert(schoolAdminRoles).values({
+          id: randomUUID(),
+          schoolId: userRec.schoolId,
+          userId: userId,
+          level: data.adminLevel,
+          isActive: true,
+        }).onConflictDoUpdate({
+          target: [schoolAdminRoles.schoolId, schoolAdminRoles.userId],
+          set: { level: data.adminLevel }
+        })
+      }
+    } catch (err) {
+      console.warn('[Auth] Could not update schoolAdminRoles level on login:', err)
+    }
+  }
+
   return { success: true }
 }
