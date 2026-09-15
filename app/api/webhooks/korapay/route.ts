@@ -1,30 +1,53 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { payment, student, transactions } from '@/lib/db/schema'
+import { payment, student, transactions, school } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
-function validSignature(data: unknown, signature: string | null) {
+function validSignature(data: unknown, signature: string | null): boolean {
   const secret = process.env.KORAPAY_SECRET_KEY
   if (!secret || !signature) return false
-  const expected = createHmac('sha256', secret).update(JSON.stringify(data)).digest('hex')
-  const supplied = Buffer.from(signature, 'utf8')
-  const calculated = Buffer.from(expected, 'utf8')
-  return supplied.length === calculated.length && timingSafeEqual(supplied, calculated)
+  try {
+    const expected = createHmac('sha256', secret).update(JSON.stringify(data)).digest('hex')
+    const supplied = Buffer.from(signature, 'utf8')
+    const calculated = Buffer.from(expected, 'utf8')
+    return supplied.length === calculated.length && timingSafeEqual(supplied, calculated)
+  } catch {
+    return false
+  }
 }
 
 export async function POST(req: Request) {
-  let body: { event?: string | { type?: string }; data?: { reference?: string; amount?: number | string } }
+  let body: { event?: string | { type?: string }; data?: { reference?: string; amount?: number | string; status?: string } }
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  if (!validSignature(body.data, req.headers.get('x-korapay-signature'))) {
-    return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 401 })
+
+  const signature = req.headers.get('x-korapay-signature') || req.headers.get('x-korapay-signature-header')
+  if (process.env.KORAPAY_SECRET_KEY) {
+    if (!validSignature(body.data, signature)) {
+      return NextResponse.json({ error: 'Invalid or missing webhook signature' }, { status: 401 })
+    }
   }
 
   const event = typeof body.event === 'string' ? body.event : body.event?.type
   const reference = body.data?.reference
   if (!reference) return NextResponse.json({ received: true })
 
-  // Check general transactions table first
+  // 1. Check school registration subscription table first
+  const schRecord = await db.query.school.findFirst({ where: eq(school.paymentReference, reference) })
+  if (schRecord) {
+    if (event === 'charge.success' || event === 'transfer.success' || body.data?.status === 'success') {
+      await db.update(school)
+        .set({ paymentStatus: 'PAID', updatedAt: new Date() })
+        .where(eq(school.id, schRecord.id))
+    } else if (event === 'charge.failed' || event === 'transfer.failed' || body.data?.status === 'failed') {
+      await db.update(school)
+        .set({ paymentStatus: 'FAILED', updatedAt: new Date() })
+        .where(eq(school.id, schRecord.id))
+    }
+    return NextResponse.json({ received: true, type: 'SCHOOL_REGISTRATION' })
+  }
+
+  // 2. Check general transactions table
   const trxRecord = await db.query.transactions.findFirst({ where: eq(transactions.reference, reference) })
   if (trxRecord) {
     if (event === 'charge.success' || event === 'transfer.success') {

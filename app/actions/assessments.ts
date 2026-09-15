@@ -132,7 +132,7 @@ export async function saveProctoredAssessmentResult(data: {
     status: data.status,
     assessmentVideo: data.assessmentVideo || null,
     warningCount: data.warningCount,
-    proctorLogs: data.proctorLogs || null,
+    proctorLogs: typeof data.proctorLogs === 'string' ? data.proctorLogs : JSON.stringify(data.proctorLogs || []),
     createdAt: new Date()
   } as any)
 

@@ -65,7 +65,13 @@ export async function getAllAdminAssessments() {
   )
 }
 
-export async function handleCBTDecision(assessmentId: string, action: 'approve' | 'reject', comment: string) {
+export async function handleCBTDecision(
+  assessmentId: string,
+  action: 'approve' | 'reject',
+  comment: string,
+  scheduledDate?: string,
+  scheduledTime?: string
+) {
   const session = await auth.getSession()
   if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'admin')) {
     throw new Error('Unauthorized')
@@ -92,6 +98,8 @@ export async function handleCBTDecision(assessmentId: string, action: 'approve' 
       status: finalStatus,
       adminComment: comment || '',
       accessCode: accessCode,
+      scheduledDate: scheduledDate || record.scheduledDate || null,
+      scheduledTime: scheduledTime || record.scheduledTime || null,
       updatedAt: new Date()
     })
     .where(eq(assessment.id, assessmentId))
@@ -99,4 +107,21 @@ export async function handleCBTDecision(assessmentId: string, action: 'approve' 
   revalidatePath('/dashboard/admin/assessments/pending')
   revalidatePath('/dashboard/teacher/assessments')
   return { success: true, accessCode }
+}
+
+export async function scheduleCBTExam(assessmentId: string, scheduledDate: string, scheduledTime: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  await db.update(assessment)
+    .set({
+      scheduledDate,
+      scheduledTime,
+      updatedAt: new Date()
+    })
+    .where(eq(assessment.id, assessmentId))
+
+  revalidatePath('/dashboard/admin/assessments')
+  revalidatePath('/dashboard/teacher/assessments')
+  return { success: true }
 }

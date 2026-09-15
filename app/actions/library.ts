@@ -160,7 +160,7 @@ export async function getLibrarySubjects() {
     .orderBy(asc(subject.name))
 }
 
-export async function searchLibraryBooks(query: string = '') {
+export async function searchLibraryBooks(query: string = '', schoolId?: string) {
   try {
     // Try to retrieve existing library books from local database
     let results = await db.select().from(libraryBooks)
@@ -203,6 +203,12 @@ export async function searchLibraryBooks(query: string = '') {
     const searchTerms = trimmedQuery.split(/\s+/).filter(Boolean)
 
     const filtered = results.filter(book => {
+      // Books are viewable across schools, but Lesson Notes / Syllabus are scoped strictly to the school
+      const isLessonNoteOrSyllabus = book.category === 'Lesson Notes' || book.category === 'Syllabus' || book.category === 'Scheme of Work'
+      if (isLessonNoteOrSyllabus && schoolId && (book as any).schoolId && (book as any).schoolId !== schoolId) {
+        return false
+      }
+
       const fullText = `
         ${book.title || ''}
         ${book.author || ''}
@@ -212,8 +218,8 @@ export async function searchLibraryBooks(query: string = '') {
         ${book.content || ''}
       `.toLowerCase()
 
-      // Full phrase matches first, or all individual keywords must match (Google behavior)
-      if (fullText.includes(trimmedQuery)) {
+      // Full phrase matches first, or all individual keywords must match
+      if (!trimmedQuery || fullText.includes(trimmedQuery)) {
         return true
       }
       return searchTerms.every(term => fullText.includes(term))

@@ -14,6 +14,7 @@ export default function SignInPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [schoolCode, setSchoolCode] = useState('')
+  const [adminLevel, setAdminLevel] = useState('PRIMARY_ADMIN')
   const [selectedRole, setSelectedRole] = useState<'STUDENT' | 'TEACHER' | 'PARENT' | 'SCHOOL_ADMIN' | 'SUPER_ADMIN'>('SCHOOL_ADMIN')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -118,6 +119,7 @@ export default function SignInPage() {
         identifier: email,
         password,
         role: selectedRole as any,
+        adminLevel: selectedRole === 'SCHOOL_ADMIN' ? adminLevel : undefined,
       })
 
       if (result.error) {
@@ -262,20 +264,41 @@ export default function SignInPage() {
               </div>
 
               {selectedRole === 'SCHOOL_ADMIN' && (
-                <div className="space-y-2">
-                  <Label htmlFor="schoolCode" className="text-[11px] font-black uppercase text-blue-400 tracking-wider ml-1 flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5" /> School Registration Code *
-                  </Label>
-                  <Input
-                    id="schoolCode"
-                    type="text"
-                    placeholder="e.g. EXCE-12345"
-                    value={schoolCode}
-                    onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
-                    required
-                    className={`h-12 rounded-2xl border-slate-800 bg-slate-900 text-white font-mono uppercase focus:ring-2 ${currentTheme.focusRing} transition-all duration-300 shadow-inner`}
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="schoolCode" className="text-[11px] font-black uppercase text-blue-400 tracking-wider ml-1 flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5" /> School Registration Code *
+                    </Label>
+                    <Input
+                      id="schoolCode"
+                      type="text"
+                      placeholder="e.g. EXCE-12345"
+                      value={schoolCode}
+                      onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
+                      required
+                      className={`h-12 rounded-2xl border-slate-800 bg-slate-900 text-white font-mono uppercase focus:ring-2 ${currentTheme.focusRing} transition-all duration-300 shadow-inner`}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="adminLevel" className="text-[11px] font-black uppercase text-blue-400 tracking-wider ml-1 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5" /> School Admin Level *
+                    </Label>
+                    <select
+                      id="adminLevel"
+                      value={adminLevel}
+                      onChange={(e) => setAdminLevel(e.target.value)}
+                      className={`w-full h-12 rounded-2xl border border-slate-800 bg-slate-900/90 px-4 font-bold text-xs text-white focus:ring-2 ${currentTheme.focusRing} focus:outline-none transition-all duration-300 shadow-inner`}
+                    >
+                      <option value="PRIMARY_ADMIN">Primary Admin / Principal (Full Control)</option>
+                      <option value="VICE_PRINCIPAL_ACADEMICS">Vice Principal (Academics)</option>
+                      <option value="VICE_PRINCIPAL_ADMIN">Vice Principal (Administration)</option>
+                      <option value="HOD_SCIENCE">Head of Department - Science</option>
+                      <option value="HOD_ARTS">Head of Department - Arts & Humanities</option>
+                      <option value="HOD_COMMERCIAL">Head of Department - Commercial</option>
+                    </select>
+                  </div>
+                </>
               )}
 
               <div className="space-y-2">

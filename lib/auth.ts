@@ -2,7 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from './db'
 import { userRole, user as userTable } from './db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, or } from 'drizzle-orm'
 
 async function getSessionImpl() {
   const cookieStore = await cookies()
@@ -25,7 +25,10 @@ async function getSessionImpl() {
 
   const metadataRole = user.user_metadata?.role || null
 
-  const dbUser = await db.select({ schoolId: userTable.schoolId }).from(userTable).where(eq(userTable.id, user.id)).limit(1)
+  const dbUser = await db.select({ schoolId: userTable.schoolId })
+    .from(userTable)
+    .where(or(eq(userTable.id, user.id), eq(userTable.email, user.email || '')))
+    .limit(1)
 
   const finalRole = (roleRecord?.[0]?.role || metadataRole || null)?.toUpperCase()
   const schoolId = dbUser?.[0]?.schoolId || user.user_metadata?.school_id || null
@@ -59,7 +62,10 @@ async function getUserImpl() {
 
   const metadataRole = user.user_metadata?.role || null
 
-  const dbUser = await db.select({ schoolId: userTable.schoolId }).from(userTable).where(eq(userTable.id, user.id)).limit(1)
+  const dbUser = await db.select({ schoolId: userTable.schoolId })
+    .from(userTable)
+    .where(or(eq(userTable.id, user.id), eq(userTable.email, user.email || '')))
+    .limit(1)
 
   const finalRole = (roleRecord?.[0]?.role || metadataRole || null)?.toUpperCase()
   const schoolId = dbUser?.[0]?.schoolId || user.user_metadata?.school_id || null

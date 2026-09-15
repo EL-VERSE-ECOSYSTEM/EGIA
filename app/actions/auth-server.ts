@@ -531,7 +531,7 @@ export async function loginStudent(data: any) {
   }
 
   if (userPassword && existingStudent.password && userPassword !== existingStudent.password) {
-    return { error: 'Invalid login credentials.' }
+    return { error: 'Incorrect password for this student account.' }
   }
 
   const loginPassword = userPassword || existingStudent.password || 'default'
@@ -732,6 +732,27 @@ export async function loginRole(data: {
   const userId = signInResult.data.user.id
   const metadataRole = signInResult.data.user.user_metadata?.role?.toUpperCase()
 
+  // Synchronize user record in Supabase Database with password update if necessary
+  try {
+    const existingLocalUser = await db.query.user.findFirst({
+      where: or(eq(userTable.id, userId), eq(userTable.email, email))
+    })
+    if (existingLocalUser) {
+      await db.update(userTable)
+        .set({ password: data.password, updatedAt: new Date() })
+        .where(eq(userTable.id, existingLocalUser.id))
+    } else {
+      await db.insert(userTable).values({
+        id: userId,
+        email: email,
+        name: signInResult.data.user.user_metadata?.full_name || 'User',
+        password: data.password
+      }).onConflictDoNothing()
+    }
+  } catch (syncErr) {
+    console.warn('[Auth] User sync warning on login:', syncErr)
+  }
+
   // Verify user's assigned role from database userRole table
   const existingRole = await db.query.userRole.findFirst({
     where: eq(userRole.userId, userId),
@@ -740,7 +761,7 @@ export async function loginRole(data: {
   const targetRoleName = selectedRole === 'SCHOOL_ADMIN' ? 'ADMIN' : selectedRole
 
   if (existingRole && existingRole.role !== targetRoleName && existingRole.role !== 'SUPER_ADMIN') {
-    return { error: `Unauthorized login attempt for role '${selectedRole}'.` }
+    return { error: `This account is registered as '${existingRole.role}' and cannot access the '${selectedRole}' portal.` }
   }
 
   if (!existingRole) {
@@ -749,6 +770,28 @@ export async function loginRole(data: {
       userId: userId,
       role: targetRoleName
     }).onConflictDoNothing()
+  }
+
+  // Update or insert schoolAdminRoles level if adminLevel is supplied
+  if (data.adminLevel && (targetRoleName === 'ADMIN' || selectedRole === 'SCHOOL_ADMIN')) {
+    try {
+      const userRec = await db.query.user.findFirst({ where: eq(userTable.id, userId) })
+      if (userRec?.schoolId) {
+        const { schoolAdminRoles } = await import('@/lib/db/schema')
+        await db.insert(schoolAdminRoles).values({
+          id: randomUUID(),
+          schoolId: userRec.schoolId,
+          userId: userId,
+          level: data.adminLevel,
+          isActive: true,
+        }).onConflictDoUpdate({
+          target: [schoolAdminRoles.schoolId, schoolAdminRoles.userId],
+          set: { level: data.adminLevel }
+        })
+      }
+    } catch (err) {
+      console.warn('[Auth] Could not update schoolAdminRoles level on login:', err)
+    }
   }
 
   return { success: true }
