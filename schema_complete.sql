@@ -1575,6 +1575,14 @@ values
   ('leave-attachments', 'leave-attachments', false)
 on conflict (id) do nothing;
 
+drop policy if exists school_logos_public_select on storage.objects;
+create policy school_logos_public_select on storage.objects
+for select using (bucket_id = 'school-logos');
+
+drop policy if exists school_logos_public_insert on storage.objects;
+create policy school_logos_public_insert on storage.objects
+for insert with check (bucket_id = 'school-logos');
+
 drop policy if exists leave_attachments_tenant on storage.objects;
 create policy leave_attachments_tenant on storage.objects
 for all using (

@@ -732,39 +732,23 @@ export async function loginRole(data: {
   const userId = signInResult.data.user.id
   const metadataRole = signInResult.data.user.user_metadata?.role?.toUpperCase()
 
-  // Verify role permission against database user_role & Supabase Auth metadata
-  const targetRoleName = selectedRole === 'SCHOOL_ADMIN' ? 'ADMIN' : selectedRole
-
-  await db.insert(userRole).values({
-    id: randomUUID(),
-    userId: userId,
-    role: targetRoleName
-  }).onConflictDoUpdate({
-    target: userRole.userId,
-    set: { role: targetRoleName }
+  // Verify user's assigned role from database userRole table
+  const existingRole = await db.query.userRole.findFirst({
+    where: eq(userRole.userId, userId),
   })
 
-  // Ensure schoolAdminRoles record exists/updates if logging in as SCHOOL_ADMIN
-  if (selectedRole === 'SCHOOL_ADMIN') {
-    const { schoolAdminRoles } = await import('@/lib/db/schema')
-    const dbUser = await db.query.user.findFirst({
-      where: eq(userTable.id, userId)
-    })
-    const userSchoolId = dbUser?.schoolId
+  const targetRoleName = selectedRole === 'SCHOOL_ADMIN' ? 'ADMIN' : selectedRole
 
-    if (userSchoolId) {
-      const assignedLevel = data.adminLevel || 'PRIMARY_ADMIN'
-      await db.insert(schoolAdminRoles).values({
-        id: randomUUID(),
-        schoolId: userSchoolId,
-        userId: userId,
-        level: assignedLevel as any,
-        isActive: true
-      }).onConflictDoUpdate({
-        target: [schoolAdminRoles.schoolId, schoolAdminRoles.userId],
-        set: { level: assignedLevel as any, isActive: true }
-      })
-    }
+  if (existingRole && existingRole.role !== targetRoleName && existingRole.role !== 'SUPER_ADMIN') {
+    return { error: `Unauthorized login attempt for role '${selectedRole}'.` }
+  }
+
+  if (!existingRole) {
+    await db.insert(userRole).values({
+      id: randomUUID(),
+      userId: userId,
+      role: targetRoleName
+    }).onConflictDoNothing()
   }
 
   return { success: true }

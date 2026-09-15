@@ -1,5 +1,63 @@
 'use client'
 
+import { toast } from 'sonner'
+
+export interface MultiChannelNotificationPayload {
+  title: string
+  body: string
+  type?: 'PAYMENT' | 'ASSESSMENT' | 'ANNOUNCEMENT' | 'GENERAL' | string
+  data?: Record<string, any>
+  link?: string
+  showToast?: boolean
+  showPopup?: boolean
+  sendDevicePush?: boolean
+}
+
+/**
+ * Dispatches notification across multiple channels simultaneously:
+ * 1. Toast Notification (Sonner)
+ * 2. Pop-up Modal / Alert Notification
+ * 3. Native Device Push Notification (FCM / Web Notification)
+ */
+export async function dispatchMultiChannelNotification(payload: MultiChannelNotificationPayload) {
+  const {
+    title,
+    body,
+    type = 'GENERAL',
+    link,
+    showToast = true,
+    showPopup = false,
+    sendDevicePush = true,
+  } = payload
+
+  // 1. Toast Notification Channel (Sonner)
+  if (showToast && typeof window !== 'undefined') {
+    toast(title, {
+      description: body,
+      action: link ? {
+        label: 'View',
+        onClick: () => { window.location.href = link }
+      } : undefined,
+    })
+  }
+
+  // 2. Pop-up Modal Channel (Custom Event for Global Listener)
+  if (showPopup && typeof window !== 'undefined') {
+    const popupEvent = new CustomEvent('el_app_notification_popup', {
+      detail: { title, body, type, link, timestamp: new Date().toISOString() }
+    })
+    window.dispatchEvent(popupEvent)
+  }
+
+  // 3. Native Device Notification Channel
+  if (sendDevicePush && typeof window !== 'undefined') {
+    await sendDeviceNotification(title, {
+      body,
+      data: { link: link || '/dashboard', type }
+    })
+  }
+}
+
 /**
  * Requests browser permission for showing native device/system notifications.
  */

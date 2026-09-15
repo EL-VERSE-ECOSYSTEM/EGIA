@@ -38,7 +38,24 @@ export function useFCM() {
   useEffect(() => { if (supported) setPermission(Notification.permission); }, [supported]);
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
-    void listenForForegroundMessages((payload) => toast(payload.notification?.title || "New notification", { description: payload.notification?.body })).then((fn) => { unsubscribe = fn; });
+    void listenForForegroundMessages((payload) => {
+      const title = payload.notification?.title || "New Notification";
+      const body = payload.notification?.body || "";
+      const type = payload.data?.type || "GENERAL";
+      const link = payload.data?.link || "/dashboard";
+
+      import("@/lib/notifications").then(({ dispatchMultiChannelNotification }) => {
+        dispatchMultiChannelNotification({
+          title,
+          body,
+          type,
+          link,
+          showToast: true,
+          showPopup: true,
+          sendDevicePush: false // Foreground already visible
+        });
+      });
+    }).then((fn) => { unsubscribe = fn; });
     return () => unsubscribe?.();
   }, []);
   // Once permission has already been granted, refresh the registration after
