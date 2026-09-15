@@ -59,6 +59,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         { label: 'Disciplinary Records', icon: ShieldAlert, href: '/dashboard/admin/disciplinary' },
         { label: 'Pending Fees', icon: Clock, href: '/dashboard/admin/finance/fees/pending' },
         { label: 'Fees Structure', icon: CreditCard, href: '/dashboard/admin/finance/fees/structure' },
+        { label: 'School Wallet', icon: Wallet, href: '/dashboard/admin/wallet' },
         { label: 'Teacher Utility & Payroll', icon: Wallet, href: '/dashboard/admin/finance/teacher-requests' },
         { label: 'Communication Hub', icon: MessageSquare, href: '/dashboard/admin/communication' },
         { label: 'Notifications', icon: Bell, href: '/dashboard/admin/communication/notifications/history' },
@@ -94,6 +95,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       links: [
         { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/parent/overview' },
         { label: 'My Children Profile', icon: Users, href: '/dashboard/parent/children/list' },
+        { label: 'Parent Wallet', icon: Wallet, href: '/dashboard/parent/wallet' },
         { label: 'Payments History', icon: CreditCard, href: '/dashboard/parent/payments/history' },
         { label: 'Library Catalog', icon: BookOpen, href: '/dashboard/parent/library/available' },
         { label: 'Report Cards Desk', icon: FileText, href: '/dashboard/parent/results/report-card' },
@@ -110,6 +112,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       hoverColor: 'hover:bg-white/10',
       links: [
         { label: 'Dashboard Overview', icon: LayoutDashboard, href: '/dashboard/student/overview' },
+        { label: 'Learner Wallet', icon: Wallet, href: '/dashboard/student/wallet' },
         { label: 'Digital Library Desk', icon: BookOpen, href: '/dashboard/student/library' },
         { label: 'Video Lecture Rooms', icon: Video, href: '/dashboard/student/video-sessions' },
         { label: 'E-Books & Materials', icon: FolderOpen, href: '/dashboard/student/materials/e-books' },

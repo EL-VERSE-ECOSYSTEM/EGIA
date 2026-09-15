@@ -53,7 +53,7 @@ export default function StudentRegistrationPage() {
 
   useEffect(() => {
     const now = new Date()
-    const deadline = new Date('2026-09-30T23:59:59')
+    const deadline = new Date(`${now.getFullYear() + 5}-09-30T23:59:59`)
     setIsValidDate(now <= deadline)
 
     // Pull subjects from Supabase DB in real-time / on load
@@ -179,7 +179,11 @@ export default function StudentRegistrationPage() {
       setGeneratedAdmissionNumber(admissionNum)
       localStorage.setItem('pending_student_admission', admissionNum)
 
-      const studentId = await getStudentIdByAdmissionNumber(admissionNum)
+      let studentId: `${string}-${string}-${string}-${string}-${string}` | undefined = result.studentId as any
+      if (!studentId) {
+        const fetchedId = await getStudentIdByAdmissionNumber(admissionNum)
+        if (fetchedId) studentId = fetchedId as any
+      }
       if (!studentId) throw new Error('Registration record could not be loaded for payment.')
       const payment = await initializeStudentRegistrationPayment(studentId)
       alert(`Your admission number is ${admissionNum}. Continue to Korapay to pay the ₦2,000 registration fee.`)

@@ -433,10 +433,26 @@ export async function processBulkPromotion(data: any) {
 
 export async function setFees(data: { class: string, department?: string, feeType: string, amount: string, dueDate: string }) {
   await checkAdminPermission('create', 'payment')
-  return db.insert(feeStructure).values({
+  const inserted = await db.insert(feeStructure).values({
     id: randomUUID(),
     ...data
   }).returning()
+  revalidatePath('/dashboard/admin/finance/fees/structure')
+  return inserted[0]
+}
+
+export async function getFeeStructuresAction() {
+  await checkAdminPermission('read', 'payment')
+  return db.query.feeStructure.findMany({
+    orderBy: (f, { desc }) => [desc(f.createdAt)]
+  })
+}
+
+export async function deleteFeeStructureAction(id: string) {
+  await checkAdminPermission('update', 'payment')
+  await db.delete(feeStructure).where(eq(feeStructure.id, id))
+  revalidatePath('/dashboard/admin/finance/fees/structure')
+  return { success: true }
 }
 
 export async function getAcademicSessions() {
