@@ -39,25 +39,34 @@ export function LogoUploadField({
     reader.readAsDataURL(file);
 
     setBusy(true);
-    const ext = file.name.split(".").pop() || "png";
-    const path = `${schoolId || "temp"}/logo-${Date.now()}.${ext}`;
-    const supabase = createClient();
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const folder = schoolId ? schoolId : "registration";
+      const path = `${folder}/logo-${Date.now()}.${ext}`;
+      const supabase = createClient();
 
-    const { error: upErr } = await supabase.storage
-      .from("school-logos")
-      .upload(path, file, {
-        contentType: file.type,
-        upsert: false,
-      });
+      const { error: upErr } = await supabase.storage
+        .from("school-logos")
+        .upload(path, file, {
+          contentType: file.type,
+          upsert: false,
+        });
 
-    setBusy(false);
-    if (upErr) return setError(upErr.message);
+      if (upErr) {
+        setBusy(false);
+        return setError(upErr.message);
+      }
 
-    const { data: { publicUrl } } = supabase.storage.from("school-logos").getPublicUrl(path);
+      const { data: { publicUrl } } = supabase.storage.from("school-logos").getPublicUrl(path);
 
-    setPreview(publicUrl);
-    setProgress(100);
-    onUploaded(publicUrl, path);
+      setPreview(publicUrl);
+      setProgress(100);
+      onUploaded(publicUrl, path);
+    } catch (err: any) {
+      setError(err?.message || "An unexpected error occurred during logo upload");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function removeLogo() {

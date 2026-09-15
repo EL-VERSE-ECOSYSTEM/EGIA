@@ -16,6 +16,8 @@ export interface SchoolRegistrationInput {
   adminPhone: string
   adminEmail: string
   adminPassword?: string
+  logoUrl?: string
+  logoPath?: string
 }
 
 function authAdminClient() {
@@ -67,6 +69,9 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       adminEmail: input.adminEmail,
       paymentStatus: 'PENDING',
       paymentReference: paymentReference,
+      logoUrl: input.logoUrl || null,
+      logoPath: input.logoPath || null,
+      logoUploadedAt: input.logoUrl ? new Date() : null,
     })
 
     const adminEmail = input.adminEmail.trim().toLowerCase()
