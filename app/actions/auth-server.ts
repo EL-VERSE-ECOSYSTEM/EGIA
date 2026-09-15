@@ -242,29 +242,39 @@ export async function registerStudent(data: any) {
 
   try {
     await db.transaction(async (tx) => {
-      // Real-time password saving to database user table
-      await tx.insert(userTable).values({
-        id: userId,
-        email: emailAddress,
-        name: `${firstName} ${lastName}`,
-        image: profileImage || null,
-        schoolId,
-        password: password || 'default'
-      }).onConflictDoUpdate({
-        target: userTable.id,
-        set: { password: password || 'default', updatedAt: new Date() }
-      })
+      const existingDbUser = await tx.query.user.findFirst({ where: eq(userTable.email, emailAddress) })
+      let finalUserId = userId
+
+      if (existingDbUser) {
+        finalUserId = existingDbUser.id
+        await tx.update(userTable).set({
+          name: `${firstName} ${lastName}`,
+          image: profileImage || existingDbUser.image,
+          schoolId: schoolId || existingDbUser.schoolId,
+          password: password || existingDbUser.password,
+          updatedAt: new Date()
+        }).where(eq(userTable.id, finalUserId))
+      } else {
+        await tx.insert(userTable).values({
+          id: userId,
+          email: emailAddress,
+          name: `${firstName} ${lastName}`,
+          image: profileImage || null,
+          schoolId,
+          password: password || 'default'
+        }).onConflictDoNothing()
+      }
 
       await tx.insert(userRole).values({
         id: randomUUID(),
-        userId: userId,
+        userId: finalUserId,
         role: 'STUDENT',
       }).onConflictDoNothing()
 
       // Real-time password saving to student table
       await tx.insert(student).values({
         id: randomUUID(),
-        userId: userId,
+        userId: finalUserId,
         schoolId,
         firstName,
         middleName: middleName || null,
@@ -330,30 +340,41 @@ export async function registerParent(data: any) {
 
   try {
     await db.transaction(async (tx) => {
+      const existingDbUser = await tx.query.user.findFirst({ where: eq(userTable.email, emailAddress) })
+      let finalUserId = userId
+
+      if (existingDbUser) {
+        finalUserId = existingDbUser.id
+        await tx.update(userTable).set({
+          name: `${firstName} ${lastName}`,
+          image: profileImage || existingDbUser.image,
+          schoolId: schoolId || existingDbUser.schoolId,
+          password: password || existingDbUser.password,
+          updatedAt: new Date()
+        }).where(eq(userTable.id, finalUserId))
+      } else {
+        await tx.insert(userTable).values({
+          id: userId,
+          email: emailAddress,
+          name: `${firstName} ${lastName}`,
+          image: profileImage || null,
+          schoolId,
+          password: password || 'default'
+        }).onConflictDoNothing()
+      }
+
       const parentId = randomUUID()
-      // Real-time password saving to database user table
-      await tx.insert(userTable).values({
-        id: userId,
-        email: emailAddress,
-        name: `${firstName} ${lastName}`,
-        image: profileImage || null,
-        schoolId,
-        password: password || 'default'
-      }).onConflictDoUpdate({
-        target: userTable.id,
-        set: { password: password || 'default', updatedAt: new Date() }
-      })
 
       await tx.insert(userRole).values({
         id: randomUUID(),
-        userId: userId,
+        userId: finalUserId,
         role: 'PARENT',
       }).onConflictDoNothing()
 
       // Real-time password saving to parent table
       await tx.insert(parent).values({
         id: parentId,
-        userId: userId,
+        userId: finalUserId,
         schoolId,
         firstName,
         lastName,
@@ -429,29 +450,39 @@ export async function registerTeacher(data: any) {
 
   try {
     await db.transaction(async (tx) => {
-      // Real-time password saving to database user table
-      await tx.insert(userTable).values({
-        id: userId,
-        email: emailAddress,
-        name: `${firstName} ${lastName}`,
-        image: profileImage || null,
-        schoolId,
-        password: password || 'default'
-      }).onConflictDoUpdate({
-        target: userTable.id,
-        set: { password: password || 'default', updatedAt: new Date() }
-      })
+      const existingDbUser = await tx.query.user.findFirst({ where: eq(userTable.email, emailAddress) })
+      let finalUserId = userId
+
+      if (existingDbUser) {
+        finalUserId = existingDbUser.id
+        await tx.update(userTable).set({
+          name: `${firstName} ${lastName}`,
+          image: profileImage || existingDbUser.image,
+          schoolId: schoolId || existingDbUser.schoolId,
+          password: password || existingDbUser.password,
+          updatedAt: new Date()
+        }).where(eq(userTable.id, finalUserId))
+      } else {
+        await tx.insert(userTable).values({
+          id: userId,
+          email: emailAddress,
+          name: `${firstName} ${lastName}`,
+          image: profileImage || null,
+          schoolId,
+          password: password || 'default'
+        }).onConflictDoNothing()
+      }
 
       await tx.insert(userRole).values({
         id: randomUUID(),
-        userId: userId,
+        userId: finalUserId,
         role: 'TEACHER',
       }).onConflictDoNothing()
 
       // Real-time password saving to teacher table
       await tx.insert(teacher).values({
         id: randomUUID(),
-        userId: userId,
+        userId: finalUserId,
         schoolId,
         staffCode,
         firstName,

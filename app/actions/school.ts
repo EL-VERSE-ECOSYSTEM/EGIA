@@ -95,7 +95,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
 
     // Insert user and role in real-time Supabase Database
     const existingUser = await db.select().from(user).where(eq(user.email, adminEmail as any))
-    let finalUserId = userId
+    let finalUserId: any = userId
 
     if (existingUser.length > 0) {
       finalUserId = existingUser[0].id
@@ -104,7 +104,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
         password: adminPassword,
         name: input.adminName,
         updatedAt: new Date()
-      }).where(eq(user.id, finalUserId as any))
+      } as any).where((eq as any)(user.id, finalUserId))
     } else {
       await db.insert(user).values({
         id: userId,
@@ -112,14 +112,14 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
         name: input.adminName,
         schoolId: schoolId,
         password: adminPassword,
-      }).onConflictDoNothing()
+      } as any).onConflictDoNothing()
     }
 
     await db.insert(userRole).values({
       id: randomUUID(),
       userId: finalUserId,
       role: 'ADMIN',
-    }).onConflictDoNothing()
+    } as any).onConflictDoNothing()
 
     // Assign PRIMARY_ADMIN level to registering administrator
     const { schoolAdminRoles } = await import('@/lib/db/schema')
@@ -130,7 +130,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       level: 'PRIMARY_ADMIN',
       department: null,
       isActive: true,
-    }).onConflictDoNothing()
+    } as any).onConflictDoNothing()
 
     const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://goodnews-app-mu.vercel.app/'
     const secretKey = process.env.KORAPAY_SECRET_KEY
