@@ -627,6 +627,7 @@ export async function loginRole(data: {
   identifier: string
   password: string
   role: Exclude<AuthRole, 'STUDENT'> | 'SCHOOL_ADMIN' | 'SUPER_ADMIN'
+  adminLevel?: string
 }) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
@@ -731,24 +732,23 @@ export async function loginRole(data: {
   const userId = signInResult.data.user.id
   const metadataRole = signInResult.data.user.user_metadata?.role?.toUpperCase()
 
-  // Verify role permission against database user_role & Supabase Auth metadata
-  const targetRoleName = (selectedRole === 'SCHOOL_ADMIN' || selectedRole === 'SUPER_ADMIN') ? 'ADMIN' : selectedRole
-  const roleData = await db.query.userRole.findFirst({
-    where: and(eq(userRole.userId, userId), eq(userRole.role, targetRoleName)),
+  // Verify user's assigned role from database userRole table
+  const existingRole = await db.query.userRole.findFirst({
+    where: eq(userRole.userId, userId),
   })
 
-  // Ensure role record exists in database if auth user logged in
-  if (!roleData) {
-    const anyUserRole = await db.query.userRole.findFirst({
-      where: eq(userRole.userId, userId)
-    })
-    if (!anyUserRole) {
-      await db.insert(userRole).values({
-        id: randomUUID(),
-        userId: userId,
-        role: targetRoleName
-      }).onConflictDoNothing()
-    }
+  const targetRoleName = selectedRole === 'SCHOOL_ADMIN' ? 'ADMIN' : selectedRole
+
+  if (existingRole && existingRole.role !== targetRoleName && existingRole.role !== 'SUPER_ADMIN') {
+    return { error: `Unauthorized login attempt for role '${selectedRole}'.` }
+  }
+
+  if (!existingRole) {
+    await db.insert(userRole).values({
+      id: randomUUID(),
+      userId: userId,
+      role: targetRoleName
+    }).onConflictDoNothing()
   }
 
   return { success: true }

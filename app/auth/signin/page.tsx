@@ -117,7 +117,7 @@ export default function SignInPage() {
       const result = await loginRole({
         identifier: email,
         password,
-        role: 'ADMIN' as any,
+        role: selectedRole as any,
       })
 
       if (result.error) {
@@ -135,7 +135,7 @@ export default function SignInPage() {
       const result = await loginRole({
         identifier: email,
         password,
-        role: 'ADMIN' as any,
+        role: selectedRole as any,
       })
 
       if (result.error) {

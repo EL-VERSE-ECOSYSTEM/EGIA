@@ -1,11 +1,13 @@
 {
   "name": "EL LEARNERS Portal",
   "short_name": "EL LEARNERS",
-  "description": "Complete school management system with CBT, assessments, and child monitoring.",
+  "description": "Complete school management system with CBT, assessments, and real-time monitoring.",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#f97316",
+  "orientation": "portrait",
+  "background_color": "#020617",
+  "theme_color": "#1e3a8a",
   "icons": [
     {
       "src": "/apple-icon.png",
@@ -17,6 +19,15 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": [
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "form_factor": "wide"
     }
   ]
 }

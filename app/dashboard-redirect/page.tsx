@@ -10,6 +10,7 @@ export default async function DashboardRedirect() {
   if (!session?.user) redirect('/auth/signin?error=Please sign in to continue')
 
   switch (session.user.role?.toUpperCase()) {
+    case 'SUPER_ADMIN': redirect('/dashboard/super-admin/overview')
     case 'ADMIN': redirect('/dashboard/admin/overview')
     case 'TEACHER': {
       const profile = await getTeacherProfile(session.user.id)
