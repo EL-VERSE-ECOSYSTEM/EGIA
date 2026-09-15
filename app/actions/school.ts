@@ -79,10 +79,11 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     const userId = randomUUID()
 
     // Provision admin in Supabase Auth
+    let finalUserId: string = userId
     const adminClient = authAdminClient()
     if (adminClient) {
       try {
-        await adminClient.auth.admin.createUser({
+        const createRes = await adminClient.auth.admin.createUser({
           id: userId,
           email: adminEmail,
           password: adminPassword,
@@ -91,28 +92,49 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
             full_name: input.adminName,
             role: 'ADMIN',
             school_code: schoolCode,
+            school_id: schoolId,
           }
         })
+        if (createRes.data?.user?.id) {
+          finalUserId = createRes.data.user.id
+        } else if (createRes.error) {
+          // If already exists in Supabase Auth, list users to find ID
+          const listRes = await adminClient.auth.admin.listUsers()
+          const found = listRes.data?.users?.find(u => u.email?.toLowerCase() === adminEmail)
+          if (found) {
+            finalUserId = found.id
+            await adminClient.auth.admin.updateUserById(found.id, {
+              password: adminPassword,
+              user_metadata: {
+                ...found.user_metadata,
+                full_name: input.adminName,
+                role: 'ADMIN',
+                school_code: schoolCode,
+                school_id: schoolId,
+              }
+            })
+          }
+        }
       } catch (err) {
-        console.warn('Could not create admin auth user:', err)
+        console.warn('Could not create/update admin auth user:', err)
       }
     }
 
-    // Insert user and role in real-time Supabase Database
+    // Insert or update user and role in real-time Supabase Database
     const existingUser = await db.select().from(user).where(eq(user.email, adminEmail as any))
-    let finalUserId: any = userId
+    let recordUserId = finalUserId
 
     if (existingUser.length > 0) {
-      finalUserId = existingUser[0].id
+      recordUserId = existingUser[0].id
       await db.update(user).set({
         schoolId: schoolId,
         password: adminPassword,
         name: input.adminName,
         updatedAt: new Date()
-      } as any).where((eq as any)(user.id, finalUserId))
+      } as any).where(eq(user.id, recordUserId))
     } else {
       await db.insert(user).values({
-        id: userId,
+        id: finalUserId,
         email: adminEmail,
         name: input.adminName,
         schoolId: schoolId,
@@ -122,7 +144,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
 
     await db.insert(userRole).values({
       id: randomUUID(),
-      userId: finalUserId,
+      userId: recordUserId,
       role: 'ADMIN',
     } as any).onConflictDoNothing()
 
@@ -131,7 +153,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     await db.insert(schoolAdminRoles).values({
       id: randomUUID(),
       schoolId: schoolId,
-      userId: finalUserId,
+      userId: recordUserId,
       level: 'PRIMARY_ADMIN',
       department: null,
       isActive: true,

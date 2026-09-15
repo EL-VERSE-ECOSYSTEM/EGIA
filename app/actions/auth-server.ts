@@ -732,6 +732,27 @@ export async function loginRole(data: {
   const userId = signInResult.data.user.id
   const metadataRole = signInResult.data.user.user_metadata?.role?.toUpperCase()
 
+  // Synchronize user record in Supabase Database with password update if necessary
+  try {
+    const existingLocalUser = await db.query.user.findFirst({
+      where: or(eq(userTable.id, userId), eq(userTable.email, email))
+    })
+    if (existingLocalUser) {
+      await db.update(userTable)
+        .set({ password: data.password, updatedAt: new Date() })
+        .where(eq(userTable.id, existingLocalUser.id))
+    } else {
+      await db.insert(userTable).values({
+        id: userId,
+        email: email,
+        name: signInResult.data.user.user_metadata?.full_name || 'User',
+        password: data.password
+      }).onConflictDoNothing()
+    }
+  } catch (syncErr) {
+    console.warn('[Auth] User sync warning on login:', syncErr)
+  }
+
   // Verify user's assigned role from database userRole table
   const existingRole = await db.query.userRole.findFirst({
     where: eq(userRole.userId, userId),

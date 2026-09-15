@@ -23,16 +23,34 @@ import { eq, and, or, sql, desc, inArray } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 
 export async function getCurrentAdminSchool() {
-  const session = typeof auth === 'function' ? (auth.getSession ? await auth.getSession() : await (auth as any)()) : await (auth as any).getSession()
-  if (!session?.user?.id) return null
-  const u = await db.query.user.findFirst({
-    where: eq(userTable.id, session.user.id),
-  })
-  if (!u?.schoolId) return null
-  const sch = await db.query.school.findFirst({
-    where: eq(school.id, u.schoolId),
-  })
-  return sch || null
+  try {
+    const session = typeof auth === 'function' ? (auth.getSession ? await auth.getSession() : await (auth as any)()) : await (auth as any).getSession()
+    if (!session?.user?.id) return null
+
+    const userEmail = session.user.email || ''
+    const u = await db.query.user.findFirst({
+      where: or(eq(userTable.id, session.user.id), eq(userTable.email, userEmail)),
+    })
+
+    let targetSchoolId = u?.schoolId || (session.user as any)?.schoolId || session.user?.user_metadata?.school_id || null
+
+    if (!targetSchoolId && session.user?.user_metadata?.school_code) {
+      const schByCode = await db.query.school.findFirst({
+        where: eq(school.code, session.user.user_metadata.school_code),
+      })
+      if (schByCode) return schByCode
+    }
+
+    if (!targetSchoolId) return null
+
+    const sch = await db.query.school.findFirst({
+      where: eq(school.id, targetSchoolId),
+    })
+    return sch || null
+  } catch (err) {
+    console.warn('getCurrentAdminSchool error:', err)
+    return null
+  }
 }
 
 export async function getStudentProfile(userId: string) {

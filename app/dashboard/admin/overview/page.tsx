@@ -29,10 +29,45 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import { getReportCards } from '@/app/actions/report-cards'
 
 export default async function AdminOverviewPage() {
-  const statsData = await getAdminDashboardStats()
-  const auditLogs = await getRecentAuditLogs()
-  const alerts = await getUrgentAlerts()
-  const reportCards = await getReportCards()
+  let statsData = {
+    schoolName: 'EL LEARNERS ACADEMY',
+    schoolCode: 'MAIN-001',
+    paymentStatus: 'PAID',
+    paymentReference: null as string | null,
+    adminEmail: '',
+    schoolId: null as string | null,
+    totalStudents: 0,
+    totalTeachers: 0,
+    revenue: '0',
+    activeCBTs: 0
+  }
+  let auditLogs: any[] = []
+  let alerts: any[] = []
+  let reportCards: any[] = []
+
+  try {
+    const results = await Promise.allSettled([
+      getAdminDashboardStats(),
+      getRecentAuditLogs(),
+      getUrgentAlerts(),
+      getReportCards()
+    ])
+
+    if (results[0].status === 'fulfilled' && results[0].value) {
+      statsData = results[0].value
+    }
+    if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
+      auditLogs = results[1].value
+    }
+    if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) {
+      alerts = results[2].value
+    }
+    if (results[3].status === 'fulfilled' && Array.isArray(results[3].value)) {
+      reportCards = results[3].value
+    }
+  } catch (err) {
+    console.warn('AdminOverviewPage: error loading dashboard metrics:', err)
+  }
 
   const pendingCardsCount = reportCards.filter(c => c.status === 'PENDING').length
 
