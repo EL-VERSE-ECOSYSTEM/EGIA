@@ -531,7 +531,7 @@ export async function loginStudent(data: any) {
   }
 
   if (userPassword && existingStudent.password && userPassword !== existingStudent.password) {
-    return { error: 'Invalid login credentials.' }
+    return { error: 'Incorrect password for this student account.' }
   }
 
   const loginPassword = userPassword || existingStudent.password || 'default'
@@ -761,7 +761,7 @@ export async function loginRole(data: {
   const targetRoleName = selectedRole === 'SCHOOL_ADMIN' ? 'ADMIN' : selectedRole
 
   if (existingRole && existingRole.role !== targetRoleName && existingRole.role !== 'SUPER_ADMIN') {
-    return { error: `Unauthorized login attempt for role '${selectedRole}'.` }
+    return { error: `This account is registered as '${existingRole.role}' and cannot access the '${selectedRole}' portal.` }
   }
 
   if (!existingRole) {
