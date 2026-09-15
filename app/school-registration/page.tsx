@@ -80,8 +80,6 @@ export default function SchoolRegistrationPage() {
       const res = await registerSchoolAction({
         ...formData,
         registeredClasses: selectedClasses,
-        logoUrl: formData.logo_url,
-        logoPath: formData.logo_path,
       })
 
       if (!res.success || !res.schoolCode) {

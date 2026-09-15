@@ -627,6 +627,7 @@ export async function loginRole(data: {
   identifier: string
   password: string
   role: Exclude<AuthRole, 'STUDENT'> | 'SCHOOL_ADMIN' | 'SUPER_ADMIN'
+  adminLevel?: string
 }) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
@@ -732,22 +733,37 @@ export async function loginRole(data: {
   const metadataRole = signInResult.data.user.user_metadata?.role?.toUpperCase()
 
   // Verify role permission against database user_role & Supabase Auth metadata
-  const targetRoleName = (selectedRole === 'SCHOOL_ADMIN' || selectedRole === 'SUPER_ADMIN') ? 'ADMIN' : selectedRole
-  const roleData = await db.query.userRole.findFirst({
-    where: and(eq(userRole.userId, userId), eq(userRole.role, targetRoleName)),
+  const targetRoleName = selectedRole === 'SCHOOL_ADMIN' ? 'ADMIN' : selectedRole
+
+  await db.insert(userRole).values({
+    id: randomUUID(),
+    userId: userId,
+    role: targetRoleName
+  }).onConflictDoUpdate({
+    target: userRole.userId,
+    set: { role: targetRoleName }
   })
 
-  // Ensure role record exists in database if auth user logged in
-  if (!roleData) {
-    const anyUserRole = await db.query.userRole.findFirst({
-      where: eq(userRole.userId, userId)
+  // Ensure schoolAdminRoles record exists/updates if logging in as SCHOOL_ADMIN
+  if (selectedRole === 'SCHOOL_ADMIN') {
+    const { schoolAdminRoles } = await import('@/lib/db/schema')
+    const dbUser = await db.query.user.findFirst({
+      where: eq(userTable.id, userId)
     })
-    if (!anyUserRole) {
-      await db.insert(userRole).values({
+    const userSchoolId = dbUser?.schoolId
+
+    if (userSchoolId) {
+      const assignedLevel = data.adminLevel || 'PRIMARY_ADMIN'
+      await db.insert(schoolAdminRoles).values({
         id: randomUUID(),
+        schoolId: userSchoolId,
         userId: userId,
-        role: targetRoleName
-      }).onConflictDoNothing()
+        level: assignedLevel as any,
+        isActive: true
+      }).onConflictDoUpdate({
+        target: [schoolAdminRoles.schoolId, schoolAdminRoles.userId],
+        set: { level: assignedLevel as any, isActive: true }
+      })
     }
   }
 

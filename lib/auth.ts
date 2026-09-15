@@ -18,15 +18,16 @@ async function getSessionImpl() {
     return null
   }
 
-  const metadataRole = user.user_metadata?.role || null
-  const roleRecord = metadataRole ? null : await db.select()
+  const roleRecord = await db.select()
     .from(userRole)
     .where(eq(userRole.userId, user.id))
     .limit(1)
 
+  const metadataRole = user.user_metadata?.role || null
+
   const dbUser = await db.select({ schoolId: userTable.schoolId }).from(userTable).where(eq(userTable.id, user.id)).limit(1)
 
-  const finalRole = (metadataRole || roleRecord?.[0]?.role || null)?.toUpperCase()
+  const finalRole = (roleRecord?.[0]?.role || metadataRole || null)?.toUpperCase()
   const schoolId = dbUser?.[0]?.schoolId || user.user_metadata?.school_id || null
 
   return {
@@ -51,15 +52,16 @@ async function getUserImpl() {
     return null
   }
 
-  const metadataRole = user.user_metadata?.role || null
-  const roleRecord = metadataRole ? null : await db.select()
+  const roleRecord = await db.select()
     .from(userRole)
     .where(eq(userRole.userId, user.id))
     .limit(1)
 
+  const metadataRole = user.user_metadata?.role || null
+
   const dbUser = await db.select({ schoolId: userTable.schoolId }).from(userTable).where(eq(userTable.id, user.id)).limit(1)
 
-  const finalRole = (metadataRole || roleRecord?.[0]?.role || null)?.toUpperCase()
+  const finalRole = (roleRecord?.[0]?.role || metadataRole || null)?.toUpperCase()
   const schoolId = dbUser?.[0]?.schoolId || user.user_metadata?.school_id || null
 
   return {
