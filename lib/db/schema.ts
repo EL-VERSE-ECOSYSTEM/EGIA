@@ -33,8 +33,6 @@ export const user = pgTable('user', {
   image: text('image'),
   schoolId: text('schoolid'),
   password: text('password'),
-  adminLevel: text('adminlevel'),
-  gender: text('gender'),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

@@ -154,9 +154,10 @@ export default function ParentSignUpPage() {
         toast.success('Parent account registered successfully! Proceeding to Sign In.')
         router.push('/auth/signin')
       }
-    } catch (err) {
-      setError('Account failed to create')
-      toast.error('Account failed to create')
+    } catch (err: any) {
+      const msg = err?.message || 'Account failed to create. Please try again.'
+      setError(msg)
+      toast.error(msg)
       setLoading(false)
     }
   }
