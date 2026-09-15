@@ -906,6 +906,24 @@ export const adultEducationEnrollment = pgTable('adult_education_enrollments', {
   foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('set null'),
 ])
 
+// ===== STUDENT GIFTS & LEADERBOARD REWARDS =====
+export const studentGifts = pgTable('student_gifts', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('schoolid'),
+  studentId: text('student_id').notNull(),
+  title: text('title').notNull(),
+  reason: text('reason'),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull().default('0.00'),
+  giftType: text('gift_type').notNull().default('CASH_OR_FEE'), // CASH, FEE_CREDIT, CASH_OR_FEE
+  status: text('status').notNull().default('AVAILABLE'), // AVAILABLE, REDEEMED_CASH, APPLIED_TO_FEES, EXPIRED
+  receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('set null'),
+])
+
 // ===== TEACHER ATTENDANCE & LEAVE TABLES =====
 export const teacherAttendance = pgTable('teacher_attendance', {
   id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
