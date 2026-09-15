@@ -5,7 +5,7 @@ import { getSiteUrl, getSupabaseSecretKey, getSupabaseUrl, isSupabaseConfigured 
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { user as userTable, userRole, parent, teacher, student, payment, subject, school } from '@/lib/db/schema'
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, or, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
 import { createClient as createSupabaseAdminClient, type User as SupabaseUser } from '@supabase/supabase-js'
@@ -239,6 +239,7 @@ export async function registerStudent(data: any) {
   if (authUser.error || !authUser.userId) return { error: authUser.error || 'Could not create the Supabase account. Please try again.' }
 
   const userId = authUser.userId
+  let createdStudentId = randomUUID()
 
   try {
     await db.transaction(async (tx) => {
@@ -273,7 +274,7 @@ export async function registerStudent(data: any) {
 
       // Real-time password saving to student table
       await tx.insert(student).values({
-        id: randomUUID(),
+        id: createdStudentId,
         userId: finalUserId,
         schoolId,
         firstName,
@@ -293,7 +294,7 @@ export async function registerStudent(data: any) {
       })
     })
 
-    return { success: true, admissionNumber }
+    return { success: true, admissionNumber, studentId: createdStudentId }
   } catch (dbError: any) {
     console.error('DB Error:', dbError)
     await deleteAuthUserIfCreated(userId, authUser.created === true)

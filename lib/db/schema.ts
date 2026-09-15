@@ -249,6 +249,8 @@ export const assessment = pgTable('assessment', {
   adminComment: text('adminComment'),
   passingScore: integer('passingScore').default(40),
   totalPoints: integer('totalPoints').default(100),
+  scheduledDate: text('scheduled_date'),
+  scheduledTime: text('scheduled_time'),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

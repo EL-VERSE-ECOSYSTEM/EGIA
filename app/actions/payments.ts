@@ -251,7 +251,7 @@ export async function initializeKorapayPayment(data: { studentId: string; amount
 }
 
 /** Creates a pending registration payment (NGN 2000 + NGN 161.25 fee = NGN 2161.25); success is recorded by Korapay verification/webhook. */
-export async function initializeStudentRegistrationPayment(studentId: string) {
+export async function initializeStudentRegistrationPayment(studentId: string | `${string}-${string}-${string}-${string}-${string}`) {
   const child = await db.query.student.findFirst({ where: eq(student.id, studentId) })
   if (!child) throw new Error('Student registration record was not found.')
   const totalAmount = REGISTRATION_FEE + KORAPAY_GATEWAY_FEE
