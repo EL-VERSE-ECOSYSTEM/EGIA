@@ -13,6 +13,7 @@ export default function TeacherSetupPage() {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    phoneNumber: '',
     staffCode: '',
     qualification: '',
     specialization: '',
@@ -26,6 +27,7 @@ export default function TeacherSetupPage() {
       await createTeacherProfile({
         firstName: formData.firstName,
         lastName: formData.lastName,
+        phoneNumber: formData.phoneNumber,
         staffCode: formData.staffCode,
         type: 'SUBJECT',
       })
@@ -82,6 +84,18 @@ export default function TeacherSetupPage() {
                   placeholder="Smith"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-purple-100">Phone Number</label>
+              <Input
+                required
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                className="border-slate-700 bg-slate-800 text-white h-12 focus:border-purple-500"
+                placeholder="e.g. 08012345678"
+              />
             </div>
 
             <div className="space-y-2">
