@@ -180,6 +180,7 @@ create table public."teacher" (
   "staffcode" text unique,
   "firstname" text not null,
   "lastname" text not null,
+  "phonenumber" text,
   "gender" text,
   "type" text default 'FULL_TIME',
   "isclassteacher" boolean default false,

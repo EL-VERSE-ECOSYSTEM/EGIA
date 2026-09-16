@@ -409,6 +409,7 @@ export async function createStudentProfile(data: {
 export async function createTeacherProfile(data: {
   firstName: string
   lastName: string
+  phoneNumber?: string
   staffCode: string
   type?: 'CLASS' | 'SUBJECT'
 }) {
@@ -429,6 +430,7 @@ export async function createTeacherProfile(data: {
       userId: session.user.id,
       firstName: data.firstName,
       lastName: data.lastName,
+      phoneNumber: data.phoneNumber,
       staffCode: data.staffCode,
       type: data.type || 'SUBJECT',
     })

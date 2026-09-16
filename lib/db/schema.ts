@@ -120,6 +120,7 @@ export const teacher = pgTable('teacher', {
   staffCode: text('staffcode').unique(),
   firstName: text('firstname').notNull(),
   lastName: text('lastname').notNull(),
+  phoneNumber: text('phonenumber'),
   gender: text('gender'),
   type: text('type').default('FULL_TIME'), // FULL_TIME, PART_TIME
   isClassTeacher: boolean('isclassteacher').default(false),

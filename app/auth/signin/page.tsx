@@ -198,6 +198,28 @@ export default function SignInPage() {
                 )}
               </Button>
             </form>
+
+            {/* Registration Navigation Links */}
+            <div className="pt-4 border-t border-slate-800/80 space-y-3 text-center">
+              <p className="text-xs font-medium text-slate-400">
+                Don't have a User Account?{' '}
+                <Link
+                  href="/sign-up"
+                  className="font-bold text-blue-400 hover:text-blue-300 transition-colors underline underline-offset-4"
+                >
+                  Create User Account
+                </Link>
+              </p>
+              <p className="text-xs font-medium text-slate-400">
+                Don't have a School Account?{' '}
+                <Link
+                  href="/school-registration"
+                  className="font-bold text-emerald-400 hover:text-emerald-300 transition-colors underline underline-offset-4"
+                >
+                  Create School Account
+                </Link>
+              </p>
+            </div>
           </CardContent>
         </Card>
 
