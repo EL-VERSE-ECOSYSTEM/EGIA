@@ -141,6 +141,10 @@ create table public."user" (
   "image" text,
   "schoolid" text references public."school"("id") on delete cascade,
   "password" text,
+  "last_identity_id" text,
+  "last_identity_at" timestamptz,
+  "gender" text,
+  "adminlevel" text,
   "createdat" timestamptz not null default now(),
   "updatedat" timestamptz not null default now()
 );
@@ -158,6 +162,7 @@ create table public."parent" (
   "schoolid" text references public."school"("id") on delete set null,
   "firstname" text not null,
   "lastname" text not null,
+  "gender" text,
   "phonenumber" text,
   "address" text,
   "profileimage" text,
@@ -175,6 +180,7 @@ create table public."teacher" (
   "staffcode" text unique,
   "firstname" text not null,
   "lastname" text not null,
+  "gender" text,
   "type" text default 'FULL_TIME',
   "isclassteacher" boolean default false,
   "isparttime" boolean default false,
