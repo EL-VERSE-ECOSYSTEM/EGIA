@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   getSuperAdminOverviewStats,
   toggleSchoolParentRegistrationAction,
@@ -10,7 +10,10 @@ import {
   updateUserRoleAction,
   deleteUserAccountAction,
   getAllCBTsForSuperAdmin,
-  approveCBTAssessmentAction
+  approveCBTAssessmentAction,
+  awardStudentGiftAction,
+  toggleUserSuspensionAction,
+  recordDisciplinaryAction,
 } from '@/app/actions/super-admin'
 import {
   Building2,
@@ -23,14 +26,17 @@ import {
   Send,
   XCircle,
   RefreshCw,
+  Gift,
+  ShieldAlert,
+  Ban,
   CheckCircle,
   Trash2,
-  Edit,
-  ShieldAlert
+  Award
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function SuperAdminOverviewPage() {
-  const [activeTab, setActiveTab] = useState<'SCHOOLS' | 'USERS' | 'CBTS'>('SCHOOLS')
+  const [activeTab, setActiveTab] = useState<'SCHOOLS' | 'USERS' | 'CBTS' | 'GIFTS'>('SCHOOLS')
   const [data, setData] = useState<any>(null)
   const [usersData, setUsersData] = useState<any[]>([])
   const [cbtsData, setCbtsData] = useState<any[]>([])
@@ -43,6 +49,23 @@ export default function SuperAdminOverviewPage() {
   const [broadcastMessage, setBroadcastMessage] = useState('')
   const [selectedSchoolForNotif, setSelectedSchoolForNotif] = useState('')
   const [sendingNotif, setSendingNotif] = useState(false)
+
+  // Student Gift Modal State
+  const [showGiftModal, setShowGiftModal] = useState(false)
+  const [selectedStudentForGift, setSelectedStudentForGift] = useState<any | null>(null)
+  const [giftTitle, setGiftTitle] = useState('Top Academic Award')
+  const [giftReason, setGiftReason] = useState('Excellence in CBT assessment')
+  const [giftAmount, setGiftAmount] = useState('5000')
+  const [giftType, setGiftType] = useState<'CASH' | 'FEE_CREDIT' | 'CASH_OR_FEE'>('CASH_OR_FEE')
+  const [submittingGift, setSubmittingGift] = useState(false)
+
+  // Disciplinary Modal State
+  const [showDiscModal, setShowDiscModal] = useState(false)
+  const [selectedUserForDisc, setSelectedUserForDisc] = useState<any | null>(null)
+  const [discTitle, setDiscTitle] = useState('Account Conduct Notice')
+  const [discDescription, setDiscDescription] = useState('Breach of platform guidelines.')
+  const [discType, setDiscType] = useState<'WARNING' | 'SUSPENSION' | 'PROBATION' | 'EXPULSION'>('WARNING')
+  const [submittingDisc, setSubmittingDisc] = useState(false)
 
   const loadData = async () => {
     setLoading(true)
@@ -90,6 +113,63 @@ export default function SuperAdminOverviewPage() {
     loadData()
   }
 
+  const handleToggleSuspension = async (userId: string, currentSuspended: boolean) => {
+    const res = await toggleUserSuspensionAction(userId, !currentSuspended)
+    if (res.success) {
+      toast.success(currentSuspended ? 'User unsuspended successfully!' : 'User suspended successfully!')
+      loadData()
+    } else {
+      toast.error(res.error || 'Failed to update user suspension state.')
+    }
+  }
+
+  const handleAwardGiftSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedStudentForGift) return
+
+    setSubmittingGift(true)
+    const res = await awardStudentGiftAction({
+      studentId: selectedStudentForGift.student?.id || selectedStudentForGift.id,
+      title: giftTitle,
+      reason: giftReason,
+      amount: parseFloat(giftAmount) || 0,
+      giftType,
+      expirationHours: 48,
+    })
+
+    if (res.success) {
+      toast.success('Gift awarded in real time! Award is now visible on student leaderboard.')
+      setShowGiftModal(false)
+      setSelectedStudentForGift(null)
+    } else {
+      toast.error(res.error || 'Failed to award gift.')
+    }
+    setSubmittingGift(false)
+  }
+
+  const handleDisciplinarySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedUserForDisc) return
+
+    setSubmittingDisc(true)
+    const res = await recordDisciplinaryAction({
+      userId: selectedUserForDisc.id,
+      title: discTitle,
+      description: discDescription,
+      actionType: discType,
+    })
+
+    if (res.success) {
+      toast.success(`Disciplinary action (${discType}) executed in real time!`)
+      setShowDiscModal(false)
+      setSelectedUserForDisc(null)
+      loadData()
+    } else {
+      toast.error(res.error || 'Failed to record disciplinary action.')
+    }
+    setSubmittingDisc(false)
+  }
+
   const handleApproveCBT = async (cbtId: string, approved: boolean) => {
     const comment = prompt('Optional comment for this CBT approval/rejection:')
     await approveCBTAssessmentAction(cbtId, approved, comment || undefined)
@@ -128,6 +208,8 @@ export default function SuperAdminOverviewPage() {
     (u.school?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const studentUsers = usersData.filter((u: any) => Boolean(u.student))
+
   const filteredCBTs = cbtsData.filter((c: any) =>
     (c.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (c.subject?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -148,7 +230,7 @@ export default function SuperAdminOverviewPage() {
   const stats = data?.stats || {}
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-4 sm:p-8">
+    <div className="min-h-screen bg-slate-950 text-white p-4 sm:p-8 font-sans">
       {/* Header */}
       <header className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
         <div>
@@ -159,7 +241,7 @@ export default function SuperAdminOverviewPage() {
             Super Admin Dashboard <span className="text-emerald-400">EL LEARNERS APP</span>
           </h1>
           <p className="text-slate-400 text-sm">
-            Control, manage, verify, approve, manipulate, and broadcast to all registered schools and users in real time.
+            Control, manage, verify, gift, suspend, and broadcast to all registered schools and users in real time.
           </p>
         </div>
 
@@ -239,13 +321,23 @@ export default function SuperAdminOverviewPage() {
                 : 'text-slate-400 hover:bg-slate-900'
             }`}
           >
-            <Users className="w-4 h-4" /> User Management ({filteredUsers.length})
+            <Users className="w-4 h-4" /> User Management & Suspensions ({filteredUsers.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('GIFTS')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+              activeTab === 'GIFTS'
+                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                : 'text-slate-400 hover:bg-slate-900'
+            }`}
+          >
+            <Gift className="w-4 h-4" /> Student Gifting ({studentUsers.length})
           </button>
           <button
             onClick={() => setActiveTab('CBTS')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
               activeTab === 'CBTS'
-                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
                 : 'text-slate-400 hover:bg-slate-900'
             }`}
           >
@@ -353,42 +445,125 @@ export default function SuperAdminOverviewPage() {
                     <th className="p-3">Email</th>
                     <th className="p-3">Role</th>
                     <th className="p-3">School Name</th>
+                    <th className="p-3">Status</th>
                     <th className="p-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 font-medium">
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-500 font-bold">
+                      <td colSpan={6} className="p-8 text-center text-slate-500 font-bold">
                         No users found.
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.map((u: any) => (
+                    filteredUsers.map((u: any) => {
+                      const isSuspended = u.teacher?.isActive === false || u.student?.isActive === false
+                      return (
+                        <tr key={u.id} className="hover:bg-slate-800/40 transition">
+                          <td className="p-3 font-bold text-white">{u.name || 'User'}</td>
+                          <td className="p-3 text-slate-400">{u.email}</td>
+                          <td className="p-3">
+                            <select
+                              value={u.userRole?.role || 'STUDENT'}
+                              onChange={e => handleUpdateRole(u.id, e.target.value)}
+                              className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-[10px] font-bold text-emerald-400"
+                            >
+                              <option value="STUDENT">STUDENT</option>
+                              <option value="TEACHER">TEACHER</option>
+                              <option value="PARENT">PARENT</option>
+                              <option value="ADMIN">ADMIN</option>
+                              <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                            </select>
+                          </td>
+                          <td className="p-3 text-slate-400">{u.school?.name || 'Platform Wide'}</td>
+                          <td className="p-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isSuspended ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-400'
+                            }`}>
+                              {isSuspended ? 'SUSPENDED' : 'ACTIVE'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right space-x-2">
+                            <button
+                              onClick={() => handleToggleSuspension(u.id, isSuspended)}
+                              className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition ${
+                                isSuspended ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30' : 'bg-amber-600/20 text-amber-400 hover:bg-amber-600/30'
+                              }`}
+                            >
+                              {isSuspended ? 'Unsuspend' : 'Suspend'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedUserForDisc(u)
+                                setShowDiscModal(true)
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 font-bold text-[10px] transition"
+                            >
+                              Discipline
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(u.id)}
+                              className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition inline-block align-middle"
+                              title="Delete user account"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* STUDENT GIFTS TAB */}
+        {activeTab === 'GIFTS' && (
+          <section className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black text-amber-400 flex items-center gap-2">
+                <Gift className="w-5 h-5" /> Award Reward Gifts to Students/Pupils
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">Gifts expire after 48 hours and are visible on the Student Leaderboard.</p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase font-black tracking-wider">
+                  <tr>
+                    <th className="p-3">Student Name</th>
+                    <th className="p-3">Admission Number</th>
+                    <th className="p-3">Class</th>
+                    <th className="p-3">School Name</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-medium">
+                  {studentUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-slate-500 font-bold">
+                        No registered students found.
+                      </td>
+                    </tr>
+                  ) : (
+                    studentUsers.map((u: any) => (
                       <tr key={u.id} className="hover:bg-slate-800/40 transition">
-                        <td className="p-3 font-bold text-white">{u.name || 'User'}</td>
-                        <td className="p-3 text-slate-400">{u.email}</td>
-                        <td className="p-3">
-                          <select
-                            value={u.userRole?.role || 'STUDENT'}
-                            onChange={e => handleUpdateRole(u.id, e.target.value)}
-                            className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-[10px] font-bold text-emerald-400"
-                          >
-                            <option value="STUDENT">STUDENT</option>
-                            <option value="TEACHER">TEACHER</option>
-                            <option value="PARENT">PARENT</option>
-                            <option value="ADMIN">ADMIN</option>
-                            <option value="SUPER_ADMIN">SUPER_ADMIN</option>
-                          </select>
-                        </td>
+                        <td className="p-3 font-bold text-white">{u.name || `${u.student?.firstName} ${u.student?.lastName}`}</td>
+                        <td className="p-3 font-mono font-bold text-amber-400">{u.student?.admissionNumber || 'N/A'}</td>
+                        <td className="p-3 text-slate-400">{u.student?.class || 'Primary'}</td>
                         <td className="p-3 text-slate-400">{u.school?.name || 'Platform Wide'}</td>
                         <td className="p-3 text-right">
                           <button
-                            onClick={() => handleDeleteUser(u.id)}
-                            className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition"
-                            title="Delete user account"
+                            onClick={() => {
+                              setSelectedStudentForGift(u)
+                              setShowGiftModal(true)
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5 ml-auto"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Gift className="w-3.5 h-3.5" /> Award Gift
                           </button>
                         </td>
                       </tr>
@@ -437,7 +612,7 @@ export default function SuperAdminOverviewPage() {
                             c.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
                             'bg-amber-500/20 text-amber-400'
                           }`}>
-                            {c.status.toUpperCase()}
+                            {c.status?.toUpperCase()}
                           </span>
                         </td>
                         <td className="p-3 text-right space-x-2">
@@ -463,6 +638,182 @@ export default function SuperAdminOverviewPage() {
           </section>
         )}
       </main>
+
+      {/* STUDENT GIFT MODAL */}
+      {showGiftModal && selectedStudentForGift && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-950 border border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-5 text-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-black text-amber-400 flex items-center gap-2">
+                <Gift className="w-5 h-5" /> Award Reward Gift to Learner
+              </h3>
+              <button onClick={() => setShowGiftModal(false)} className="text-slate-400 hover:text-white">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAwardGiftSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Student / Pupil Name</label>
+                <input
+                  type="text"
+                  disabled
+                  value={selectedStudentForGift.name || `${selectedStudentForGift.student?.firstName} ${selectedStudentForGift.student?.lastName}`}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Gift / Award Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={giftTitle}
+                  onChange={e => setGiftTitle(e.target.value)}
+                  placeholder="e.g. Star Learner Excellence Award"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Gift Amount (NGN) *</label>
+                <input
+                  type="number"
+                  required
+                  value={giftAmount}
+                  onChange={e => setGiftAmount(e.target.value)}
+                  placeholder="e.g. 5000"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white font-bold text-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Gift Redemption Type</label>
+                <select
+                  value={giftType}
+                  onChange={e => setGiftType(e.target.value as any)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white font-bold"
+                >
+                  <option value="CASH_OR_FEE">Cash Payout or School Fee Credit</option>
+                  <option value="CASH">Cash Payout Only</option>
+                  <option value="FEE_CREDIT">School Fee Credit Only</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Reason / Citation</label>
+                <textarea
+                  rows={2}
+                  value={giftReason}
+                  onChange={e => setGiftReason(e.target.value)}
+                  placeholder="Citation explaining this reward..."
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowGiftModal(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingGift}
+                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs"
+                >
+                  {submittingGift ? 'Awarding...' : 'Award Gift Now'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DISCIPLINARY MODAL */}
+      {showDiscModal && selectedUserForDisc && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-950 border border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-5 text-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-black text-rose-400 flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5" /> Record Disciplinary Action
+              </h3>
+              <button onClick={() => setShowDiscModal(false)} className="text-slate-400 hover:text-white">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleDisciplinarySubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Target Account</label>
+                <input
+                  type="text"
+                  disabled
+                  value={`${selectedUserForDisc.name} (${selectedUserForDisc.email})`}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Action Type *</label>
+                <select
+                  value={discType}
+                  onChange={e => setDiscType(e.target.value as any)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs text-rose-400 font-black"
+                >
+                  <option value="WARNING">FORMAL WARNING</option>
+                  <option value="SUSPENSION">TEMPORARY SUSPENSION</option>
+                  <option value="PROBATION">PROBATION</option>
+                  <option value="EXPULSION">PERMANENT EXPULSION / DISMISSAL</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Title / Violation *</label>
+                <input
+                  type="text"
+                  required
+                  value={discTitle}
+                  onChange={e => setDiscTitle(e.target.value)}
+                  placeholder="e.g. Conduct Infraction / Examination Malpractice"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Detailed Description *</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={discDescription}
+                  onChange={e => setDiscDescription(e.target.value)}
+                  placeholder="Detailed breakdown of the action..."
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDiscModal(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingDisc}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs"
+                >
+                  {submittingDisc ? 'Recording...' : 'Execute Action'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* SYSTEM-WIDE BROADCAST MODAL */}
       {showBroadcastModal && (

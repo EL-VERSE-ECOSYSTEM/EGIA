@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Search, MoreVertical, Edit2, Trash2, Mail, X, Check, Loader2 } from 'lucide-react'
-import { getAllTeachers } from '@/app/actions/admin'
+import { getAllTeachers, promoteTeacherAction } from '@/app/actions/admin'
 import { adminUpdateTeacherClassAndSubjects } from '@/app/actions/teacher'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -21,6 +21,11 @@ export default function TeacherListPage() {
   const [selectedClasses, setSelectedClasses] = useState<string[]>([])
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+
+  // Promotion state
+  const [promotionLevel, setPromotionLevel] = useState<string>('NONE')
+  const [contractType, setContractType] = useState<string>('FULL_TIME')
+  const [isClassTeacher, setIsClassTeacher] = useState<boolean>(false)
 
   const availableClasses = ['Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3']
   const availableSubjects = [
@@ -48,6 +53,9 @@ export default function TeacherListPage() {
     setEditingTeacher(t)
     setSelectedClasses(Array.isArray(t.handlingClasses) ? t.handlingClasses : [])
     setSelectedSubjects(Array.isArray(t.teachingSubjects) ? t.teachingSubjects : [])
+    setContractType(t.type || 'FULL_TIME')
+    setIsClassTeacher(Boolean(t.isClassTeacher))
+    setPromotionLevel('NONE')
   }
 
   const handleToggleClass = (cls: string) => {
@@ -71,7 +79,15 @@ export default function TeacherListPage() {
     setSaving(true)
     try {
       await adminUpdateTeacherClassAndSubjects(editingTeacher.id, selectedClasses, selectedSubjects)
-      toast.success('Teacher class/subject allocations updated in real-time!')
+      if (promotionLevel !== 'NONE' || contractType !== editingTeacher.type || isClassTeacher !== Boolean(editingTeacher.isClassTeacher)) {
+        await promoteTeacherAction({
+          teacherId: editingTeacher.id,
+          newType: contractType as any,
+          isClassTeacher: isClassTeacher,
+          adminLevel: promotionLevel as any
+        })
+      }
+      toast.success('Teacher allocations & promotions updated in real-time!')
       setEditingTeacher(null)
       await loadData()
     } catch (err: any) {
@@ -203,6 +219,41 @@ export default function TeacherListPage() {
                         </button>
                       )
                     })}
+                  </div>
+                </div>
+
+                {/* Staff Promotion / Elevation Block */}
+                <div className="space-y-3 pt-4 border-t border-slate-100">
+                  <h4 className="text-xs font-black uppercase text-amber-600 tracking-wider">Staff Elevation & Administrative Promotion</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-slate-500">Contract Type</label>
+                      <select
+                        value={contractType}
+                        onChange={(e) => setContractType(e.target.value)}
+                        className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 font-bold text-xs"
+                      >
+                        <option value="FULL_TIME">Full-Time Staff</option>
+                        <option value="PART_TIME">Part-Time Instructor</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-slate-500">Promote to Admin Level</label>
+                      <select
+                        value={promotionLevel}
+                        onChange={(e) => setPromotionLevel(e.target.value)}
+                        className="w-full h-11 rounded-xl border border-amber-200 bg-amber-50/50 px-3 font-bold text-xs text-amber-900"
+                      >
+                        <option value="NONE">No Administrative Elevation</option>
+                        <option value="PRIMARY_ADMIN">Primary School Administrator</option>
+                        <option value="VICE_PRINCIPAL_ACADEMICS">Vice Principal (Academics)</option>
+                        <option value="VICE_PRINCIPAL_ADMIN">Vice Principal (Administration)</option>
+                        <option value="HOD_SCIENCE">HOD - Science Department</option>
+                        <option value="HOD_ARTS">HOD - Arts Department</option>
+                        <option value="HOD_COMMERCIAL">HOD - Commercial Department</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 

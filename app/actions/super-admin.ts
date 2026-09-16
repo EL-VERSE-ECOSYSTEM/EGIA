@@ -56,6 +56,100 @@ export async function getSuperAdminOverviewStats() {
   }
 }
 
+export async function awardStudentGiftAction(data: {
+  studentId: string
+  title: string
+  reason?: string
+  amount: number
+  giftType?: 'CASH' | 'FEE_CREDIT' | 'CASH_OR_FEE'
+  expirationHours?: number
+}) {
+  try {
+    await checkSuperAdminPermission()
+
+    const studentRecord = await db.query.student.findFirst({
+      where: eq(student.id, data.studentId)
+    })
+
+    if (!studentRecord) throw new Error('Student record not found.')
+
+    const { studentGifts } = await import('@/lib/db/schema')
+    const giftId = `gift_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+    const expiresAt = new Date(Date.now() + (data.expirationHours || 48) * 60 * 60 * 1000)
+
+    await db.insert(studentGifts).values({
+      id: giftId,
+      schoolId: studentRecord.schoolId,
+      studentId: data.studentId,
+      title: data.title,
+      reason: data.reason || null,
+      amount: data.amount.toFixed(2),
+      giftType: data.giftType || 'CASH_OR_FEE',
+      status: 'AVAILABLE',
+      receivedAt: new Date(),
+      expiresAt: expiresAt,
+      createdAt: new Date()
+    })
+
+    revalidatePath('/dashboard/super-admin')
+    revalidatePath('/dashboard/student/leaderboard')
+    return { success: true, giftId }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
+export async function toggleUserSuspensionAction(userId: string, suspend: boolean, reason?: string) {
+  try {
+    await checkSuperAdminPermission()
+
+    // 1. Update user active status in teacher table
+    await db.update(teacher)
+      .set({ isActive: !suspend, status: suspend ? 'SUSPENDED' : 'APPROVED', updatedAt: new Date() })
+      .where(eq(teacher.userId, userId))
+
+    // 2. Update user active status in student table
+    await db.update(student)
+      .set({ isActive: !suspend, registrationStatus: suspend ? 'SUSPENDED' : 'ACTIVE', updatedAt: new Date() })
+      .where(eq(student.userId, userId))
+
+    revalidatePath('/dashboard/super-admin')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
+export async function recordDisciplinaryAction(data: {
+  userId: string
+  title: string
+  description: string
+  actionType: 'WARNING' | 'SUSPENSION' | 'PROBATION' | 'EXPULSION'
+}) {
+  try {
+    await checkSuperAdminPermission()
+
+    // Record system notification for user
+    await db.insert(notification).values({
+      id: `disc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      userId: data.userId,
+      title: `DISCIPLINARY NOTICE: ${data.actionType}`,
+      message: `${data.title}: ${data.description}`,
+      type: 'DISCIPLINARY',
+      createdAt: new Date()
+    })
+
+    if (data.actionType === 'SUSPENSION' || data.actionType === 'EXPULSION') {
+      await toggleUserSuspensionAction(data.userId, true, data.description)
+    }
+
+    revalidatePath('/dashboard/super-admin')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
 export async function toggleSchoolParentRegistrationAction(schoolId: string, allowParents: boolean) {
   try {
     await checkSuperAdminPermission()
