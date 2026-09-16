@@ -137,16 +137,14 @@ export default function TeacherSignUpPage() {
 
       if (result.error) {
         setError(result.error)
-        alert(result.error)
         setLoading(false)
       } else {
         setGeneratedStaffId(result.staffCode || null)
         setShowSuccessModal(true)
         setLoading(false)
       }
-    } catch (err) {
-      setError('Account failed to create')
-      alert('Account failed to create')
+    } catch (err: any) {
+      setError(err?.message || 'Account failed to create. Please try again.')
       setLoading(false)
     }
   }

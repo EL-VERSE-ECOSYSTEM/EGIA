@@ -220,7 +220,7 @@ export async function registerStudent(data: any) {
   })
 
   if (existingUser) {
-    return { error: 'Account already exists. An account with this email is already registered.' }
+    return { error: 'An account with this email is already registered. Please sign in instead.' }
   }
 
   const admissionNumber = generateAdmissionNumber(studentClass, schoolName || schoolCode)
@@ -296,9 +296,9 @@ export async function registerStudent(data: any) {
 
     return { success: true, admissionNumber, studentId: createdStudentId }
   } catch (dbError: any) {
-    console.error('DB Error:', dbError)
+    console.error('DB Error during student registration:', dbError)
     await deleteAuthUserIfCreated(userId, authUser.created === true)
-    return { error: 'Account creation failed in local database. Please contact support.' }
+    return { error: dbError?.message || 'Student registration failed in database. Please try again or contact support.' }
   }
 }
 
@@ -325,7 +325,7 @@ export async function registerParent(data: any) {
   })
 
   if (existingUser) {
-    return { error: 'Account already exists. An account with this email is already registered.' }
+    return { error: 'An account with this email is already registered. Please sign in instead.' }
   }
 
   const authUser = await provisionAuthUser({
@@ -405,9 +405,9 @@ export async function registerParent(data: any) {
 
     return { success: true }
   } catch (dbError: any) {
-    console.error('DB Error:', dbError)
+    console.error('DB Error during parent registration:', dbError)
     await deleteAuthUserIfCreated(userId, authUser.created === true)
-    return { error: 'Account creation failed in local database. Please contact support.' }
+    return { error: dbError?.message || 'Parent registration failed in database. Please try again or contact support.' }
   }
 }
 
@@ -433,7 +433,7 @@ export async function registerTeacher(data: any) {
   })
 
   if (existingUser) {
-    return { error: 'Account already exists. An account with this email is already registered.' }
+    return { error: 'An account with this email is already registered. Please sign in instead.' }
   }
 
   const staffCode = generateStaffId(schoolName || schoolCode)
@@ -502,9 +502,9 @@ export async function registerTeacher(data: any) {
 
     return { success: true, staffCode }
   } catch (dbError: any) {
-    console.error('DB Error:', dbError)
+    console.error('DB Error during teacher registration:', dbError)
     await deleteAuthUserIfCreated(userId, authUser.created === true)
-    return { error: 'Account creation failed in local database. Please contact support.' }
+    return { error: dbError?.message || 'Teacher registration failed in database. Please try again or contact support.' }
   }
 }
 

@@ -148,11 +148,13 @@ export default function StudentRegistrationPage() {
     }
 
     if (!passportImage) {
-      return alert('Please upload a passport photo.')
+      setError('Please upload a passport photo.')
+      return
     }
 
     if (subjectsDone.length === 0) {
-      return alert('Please select or add at least one subject done.')
+      setError('Please select or add at least one subject done.')
+      return
     }
 
     setLoading(true)
@@ -186,11 +188,10 @@ export default function StudentRegistrationPage() {
       }
       if (!studentId) throw new Error('Registration record could not be loaded for payment.')
       const payment = await initializeStudentRegistrationPayment(studentId)
-      alert(`Your admission number is ${admissionNum}. Continue to Korapay to pay the ₦2,000 registration fee.`)
       window.location.assign(payment.checkoutUrl)
     } catch (err: any) {
       console.warn('Unexpected registration redirect handling failed:', err)
-      setError('An unexpected error occurred during registration. Please refresh and try again.')
+      setError(err?.message || 'An unexpected error occurred during registration. Please refresh and try again.')
       setLoading(false)
     }
   }

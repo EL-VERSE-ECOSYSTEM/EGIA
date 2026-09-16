@@ -20,6 +20,7 @@ export default function SchoolRegistrationPage() {
     adminPhone: '',
     adminEmail: '',
     adminPassword: '',
+    adminLevel: 'PRIMARY_ADMIN',
     allowParents: true,
     logo_url: '',
     logo_path: '',
@@ -306,15 +307,21 @@ export default function SchoolRegistrationPage() {
                 <Building2 className="w-4 h-4" /> School Administrator Credentials
               </h2>
               <div className="space-y-1 bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                <label className="block text-xs font-black uppercase text-slate-400">Your Role</label>
-                <input
-                  type="text"
-                  value="Primary Admin (Full School Control)"
-                  readOnly
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs font-bold text-blue-400 cursor-not-allowed"
-                />
+                <label className="block text-xs font-black uppercase text-slate-400 mb-1">School Admin Level *</label>
+                <select
+                  value={formData.adminLevel}
+                  onChange={e => setFormData({ ...formData, adminLevel: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-blue-400 focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="PRIMARY_ADMIN">Primary Admin / Principal (Full Control)</option>
+                  <option value="VICE_PRINCIPAL_ACADEMICS">Vice Principal (Academics)</option>
+                  <option value="VICE_PRINCIPAL_ADMIN">Vice Principal (Administration)</option>
+                  <option value="HOD_SCIENCE">Head of Department (HOD) — Science</option>
+                  <option value="HOD_ARTS">Head of Department (HOD) — Arts</option>
+                  <option value="HOD_COMMERCIAL">Head of Department (HOD) — Commercial</option>
+                </select>
                 <p className="text-[11px] text-slate-500 font-medium pt-1">
-                  You are registering as the Primary Admin. You can add Vice Principals and Head of Departments (HODs) later from your dashboard.
+                  Select your assigned administrative level for this institution.
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
