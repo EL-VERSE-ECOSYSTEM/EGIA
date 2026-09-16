@@ -402,6 +402,7 @@ export async function createTeacher(data: any) {
       schoolId: schoolId,
       firstName: data.firstName,
       lastName: data.lastName,
+      phoneNumber: data.phoneNumber || data.phone || null,
       gender: data.gender || 'Male',
       staffCode: staffCode,
       type: data.type || 'FULL_TIME',
