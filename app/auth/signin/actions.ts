@@ -69,25 +69,37 @@ export async function activateIdentityAction(identityId: string, remember: boole
     return { success: false, error: 'Invalid identity selection.' }
   }
 
+  const newMetadata = {
+    ...user.user_metadata,
+    active_identity_id: matchedIdentity.id,
+    role: matchedIdentity.role,
+    school_id: matchedIdentity.schoolId,
+    admin_level: matchedIdentity.adminLevel || null,
+    department: matchedIdentity.department || null,
+  }
+
+  // 1. Update user metadata via Supabase client to trigger session cookie update
+  try {
+    await supabase.auth.updateUser({
+      data: newMetadata,
+    })
+  } catch (updateErr) {
+    console.warn('Failed to update user session metadata via user client:', updateErr)
+  }
+
+  // 2. Also update via Admin API to guarantee real-time persistence across devices
   const adminClient = authAdminClient()
   if (adminClient) {
     try {
       await adminClient.auth.admin.updateUserById(user.id, {
-        user_metadata: {
-          ...user.user_metadata,
-          active_identity_id: matchedIdentity.id,
-          role: matchedIdentity.role,
-          school_id: matchedIdentity.schoolId,
-          admin_level: matchedIdentity.adminLevel || null,
-          department: matchedIdentity.department || null,
-        },
+        user_metadata: newMetadata,
       })
     } catch (adminErr) {
       console.warn('Failed to update active identity in Supabase Auth Admin:', adminErr)
     }
   }
 
-  // Update public.user last_identity_id
+  // 3. Update public.user last_identity_id
   if (remember) {
     try {
       await db

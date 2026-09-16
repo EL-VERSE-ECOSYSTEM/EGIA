@@ -16,6 +16,7 @@ export interface SchoolRegistrationInput {
   adminPhone: string
   adminEmail: string
   adminPassword?: string
+  adminLevel?: string
   logoUrl?: string
   logoPath?: string
 }
@@ -148,13 +149,14 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       role: 'ADMIN',
     } as any).onConflictDoNothing()
 
-    // Assign PRIMARY_ADMIN level to registering administrator
+    // Assign designated admin level to registering administrator
+    const assignedLevel = input.adminLevel || 'PRIMARY_ADMIN'
     const { schoolAdminRoles } = await import('@/lib/db/schema')
     await db.insert(schoolAdminRoles).values({
       id: randomUUID(),
       schoolId: schoolId,
       userId: recordUserId,
-      level: 'PRIMARY_ADMIN',
+      level: assignedLevel,
       department: null,
       isActive: true,
     } as any).onConflictDoNothing()
