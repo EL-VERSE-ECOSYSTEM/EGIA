@@ -203,7 +203,7 @@ export default function SignInPage() {
 
         {/* Footer info */}
         <div className="text-center text-xs font-bold text-slate-500">
-          <p>© {new Date().getFullYear()} EL GOODNEWS INT'L ACADEMY. All rights reserved.</p>
+          <p>© 2026 EL LEARNERS APP. Made with 💕 by E. V. E</p>
         </div>
       </div>
 
