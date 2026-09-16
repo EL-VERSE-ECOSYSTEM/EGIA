@@ -526,3 +526,28 @@ export async function updateAssessmentAndResubmit(data: {
   revalidatePath('/dashboard/admin/assessments/pending')
   return { success: true }
 }
+
+export async function updateTeacherApplicationLetterAction(data: {
+  teacherId: string
+  applicationLetterUrl?: string | null
+  applicationLetterText?: string | null
+}) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  try {
+    await db.update(teacher)
+      .set({
+        applicationLetterUrl: data.applicationLetterUrl || null,
+        bio: data.applicationLetterText ? data.applicationLetterText : undefined,
+        updatedAt: new Date()
+      })
+      .where(eq(teacher.id, data.teacherId))
+
+    revalidatePath('/dashboard/teacher/overview')
+    return { success: true }
+  } catch (err: any) {
+    console.error('Failed to update application letter:', err)
+    return { success: false, error: err.message || 'Database update failed.' }
+  }
+}

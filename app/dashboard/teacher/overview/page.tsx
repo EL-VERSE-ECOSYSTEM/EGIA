@@ -22,6 +22,7 @@ import Link from 'next/link'
 import { SubjectConfig } from '@/components/teacher/subject-config'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { PrintButton } from '@/components/ui/print-button'
+import { ApplicationLetterModal } from '@/components/teacher/ApplicationLetterModal'
 
 export default async function TeacherOverviewPage() {
   const session = await auth.getSession()
@@ -213,6 +214,14 @@ export default async function TeacherOverviewPage() {
          </Card>
       </div>
     </div>
+
+    {/* Application Letter Pop-up Notification Modal */}
+    <ApplicationLetterModal
+      teacherId={teacherProfile.id}
+      schoolId={teacherProfile.schoolId || 'school-elgoodnews-001'}
+      existingLetterUrl={teacherProfile.applicationLetterUrl}
+      existingLetterText={teacherProfile.bio}
+    />
     </DashboardLayout>
   )
 }

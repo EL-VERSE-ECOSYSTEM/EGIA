@@ -412,8 +412,9 @@ export async function registerParent(data: any) {
 }
 
 export async function registerTeacher(data: any) {
-  const { firstName, lastName, email, profileImage, password, schoolCode } = data
+  const { firstName, lastName, email, phone, phoneNumber, profileImage, password, schoolCode } = data
   const emailAddress = normalizeEmail(email)
+  const teacherPhone = phoneNumber || phone || null
 
   let schoolId: string | null = null
   let schoolName: string | null = null
@@ -488,6 +489,7 @@ export async function registerTeacher(data: any) {
         staffCode,
         firstName,
         lastName,
+        phoneNumber: teacherPhone,
         gender: data.gender || 'Male',
         type: data.type || 'FULL_TIME',
         isPartTime: data.type === 'PART_TIME',

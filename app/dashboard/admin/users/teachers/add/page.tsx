@@ -20,6 +20,7 @@ export default function AddTeacherPage() {
     firstName: '',
     lastName: '',
     email: '',
+    phoneNumber: '',
     gender: 'Male',
     password: 'StaffPassword123!',
     qualification: '',
@@ -110,6 +111,20 @@ export default function AddTeacherPage() {
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Phone Number</Label>
+                      <Input
+                        type="tel"
+                        required
+                        value={formData.phoneNumber}
+                        onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+                        placeholder="e.g. 08012345678"
+                        className="h-14 rounded-2xl bg-slate-50 border-none font-bold focus:bg-white focus:ring-amber-600 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
                       <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Gender</Label>
                       <Select value={formData.gender} onValueChange={(v) => setFormData({...formData, gender: v})}>
                         <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none font-bold">
@@ -120,6 +135,15 @@ export default function AddTeacherPage() {
                           <SelectItem value="Female" className="font-bold py-3">Female</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Qualification</Label>
+                      <Input
+                        value={formData.qualification}
+                        onChange={(e) => setFormData({...formData, qualification: e.target.value})}
+                        placeholder="e.g. B.Ed, M.Sc"
+                        className="h-14 rounded-2xl bg-slate-50 border-none transition-all"
+                      />
                     </div>
                   </div>
 

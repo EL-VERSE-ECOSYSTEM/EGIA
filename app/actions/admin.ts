@@ -402,6 +402,7 @@ export async function createTeacher(data: any) {
       schoolId: schoolId,
       firstName: data.firstName,
       lastName: data.lastName,
+      phoneNumber: data.phoneNumber || data.phone || null,
       gender: data.gender || 'Male',
       staffCode: staffCode,
       type: data.type || 'FULL_TIME',
@@ -522,6 +523,66 @@ export async function createSchoolAdmin(data: { name: string; email: string; pho
 
   revalidatePath('/dashboard/admin/users/admins/list')
   return { success: true, userId, email: adminEmail, adminLevel }
+}
+
+export async function promoteTeacherAction(data: {
+  teacherId: string
+  newType?: 'FULL_TIME' | 'PART_TIME'
+  isClassTeacher?: boolean
+  adminLevel?: 'PRIMARY_ADMIN' | 'VICE_PRINCIPAL_ACADEMICS' | 'VICE_PRINCIPAL_ADMIN' | 'HOD_SCIENCE' | 'HOD_ARTS' | 'HOD_COMMERCIAL' | 'NONE'
+}) {
+  const session = await auth.getSession()
+  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
+    throw new Error('Unauthorized: School Admin permissions required.')
+  }
+
+  const teacherRecord = await db.query.teacher.findFirst({
+    where: eq(teacher.id, data.teacherId)
+  })
+
+  if (!teacherRecord) throw new Error('Teacher record not found.')
+
+  return await db.transaction(async (tx) => {
+    // 1. Update contract type or class teacher status
+    await tx.update(teacher)
+      .set({
+        type: data.newType || teacherRecord.type,
+        isClassTeacher: data.isClassTeacher !== undefined ? data.isClassTeacher : teacherRecord.isClassTeacher,
+        updatedAt: new Date()
+      })
+      .where(eq(teacher.id, data.teacherId))
+
+    // 2. If promoted to Admin level (Vice Principal / HOD), assign in school_admin_roles
+    if (data.adminLevel && data.adminLevel !== 'NONE' && teacherRecord.schoolId && teacherRecord.userId) {
+      const { schoolAdminRoles } = await import('@/lib/db/schema')
+
+      // Update role in userRole table to ADMIN if not already
+      await tx.insert(userRole).values({
+        id: randomUUID(),
+        userId: teacherRecord.userId,
+        role: 'ADMIN'
+      }).onConflictDoUpdate({
+        target: userRole.userId,
+        set: { role: 'ADMIN' }
+      })
+
+      // Insert or update school_admin_roles
+      await tx.insert(schoolAdminRoles).values({
+        id: randomUUID(),
+        schoolId: teacherRecord.schoolId,
+        userId: teacherRecord.userId,
+        level: data.adminLevel,
+        isActive: true
+      }).onConflictDoUpdate({
+        target: [schoolAdminRoles.schoolId, schoolAdminRoles.userId],
+        set: { level: data.adminLevel, isActive: true }
+      })
+    }
+
+    revalidatePath('/dashboard/admin/users/teachers/list')
+    revalidatePath('/dashboard/admin/users/teachers')
+    return { success: true }
+  })
 }
 
 export async function getSchoolAdmins() {

@@ -15,6 +15,7 @@ export default function TeacherSignUpPage() {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    phoneNumber: '',
     gender: 'Male',
     email: '',
     password: '',
@@ -275,7 +276,7 @@ export default function TeacherSignUpPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1">
               <Label htmlFor="email" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Work Email Address *</Label>
               <Input
@@ -284,6 +285,18 @@ export default function TeacherSignUpPage() {
                 placeholder="jane@school.edu.ng"
                 value={formData.email}
                 onChange={e => setFormData({ ...formData, email: e.target.value })}
+                required
+                className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white font-bold"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="phoneNumber" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Phone Number *</Label>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                placeholder="e.g. 08012345678"
+                value={formData.phoneNumber}
+                onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })}
                 required
                 className="h-12 rounded-xl border-slate-800 bg-slate-950 text-white font-bold"
               />
