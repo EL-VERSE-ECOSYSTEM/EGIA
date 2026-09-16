@@ -83,6 +83,7 @@ export async function activateIdentityAction(identityId: string, remember: boole
     await supabase.auth.updateUser({
       data: newMetadata,
     })
+    await supabase.auth.refreshSession()
   } catch (updateErr) {
     console.warn('Failed to update user session metadata via user client:', updateErr)
   }
