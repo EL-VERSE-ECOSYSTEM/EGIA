@@ -23,7 +23,9 @@ export default function TeacherSignUpPage() {
     resumptionDate: '',
     resumptionTime: '',
     schoolCode: '',
-    bio: ''
+    bio: '',
+    isAlsoParent: false,
+    wardAdmissionNumber: ''
   })
 
   // 3D Mouse Movement Tilt
@@ -479,6 +481,37 @@ export default function TeacherSignUpPage() {
               </div>
             </div>
           )}
+
+          {/* Dual Role Teacher + Parent Setup Checkbox */}
+          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="isAlsoParent"
+                checked={formData.isAlsoParent}
+                onChange={e => setFormData({ ...formData, isAlsoParent: e.target.checked })}
+                className="w-5 h-5 rounded border-slate-800 bg-slate-900 text-teal-500 focus:ring-teal-500"
+              />
+              <label htmlFor="isAlsoParent" className="text-xs font-black text-white cursor-pointer select-none">
+                Are you also a Parent/Guardian of a student at this institution?
+              </label>
+            </div>
+
+            {formData.isAlsoParent && (
+              <div className="pt-2 space-y-1 animate-in fade-in duration-200">
+                <Label htmlFor="wardAdmissionNumber" className="text-[10px] font-black uppercase text-teal-400 tracking-widest">
+                  Ward Admission Number (Optional)
+                </Label>
+                <Input
+                  id="wardAdmissionNumber"
+                  placeholder="e.g. ELGO-S-00998"
+                  value={formData.wardAdmissionNumber}
+                  onChange={e => setFormData({ ...formData, wardAdmissionNumber: e.target.value })}
+                  className="h-11 rounded-xl border-slate-800 bg-slate-900 text-white font-mono text-xs uppercase"
+                />
+              </div>
+            )}
+          </div>
 
           <div className="space-y-1">
             <Label htmlFor="bio" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Professional Bio *</Label>

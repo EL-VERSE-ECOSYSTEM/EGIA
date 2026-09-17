@@ -1409,6 +1409,23 @@ create table if not exists public.assessment_schedule (
   created_at timestamp with time zone not null default now()
 );
 
+create table if not exists public.timetables (
+  id text primary key default gen_random_uuid()::text,
+  school_id text references public.school(id) on delete cascade,
+  class_id text,
+  class_name text not null,
+  day_of_week text not null,
+  period_number integer not null default 1,
+  start_time text not null,
+  end_time text not null,
+  subject_name text not null,
+  teacher_name text,
+  room text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_timetables_class on public.timetables(class_name, day_of_week);
+
 create table if not exists public.library_books (
   id text primary key,
   isbn text unique,

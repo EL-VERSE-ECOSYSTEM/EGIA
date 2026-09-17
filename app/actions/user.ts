@@ -145,6 +145,44 @@ export async function createAdminProfile() {
   return { success: true }
 }
 
+export async function updateStudentProfileSettingsAction(data: {
+  firstName: string
+  lastName: string
+  gender?: string
+  profileImage?: string
+}) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const studentRecord = await db.query.student.findFirst({
+    where: eq(student.userId, session.user.id)
+  })
+
+  if (!studentRecord) throw new Error('Student record not found.')
+
+  await db.update(student)
+    .set({
+      firstName: data.firstName,
+      lastName: data.lastName,
+      gender: data.gender || studentRecord.gender,
+      profileImage: data.profileImage || studentRecord.profileImage,
+      updatedAt: new Date()
+    })
+    .where(eq(student.id, studentRecord.id))
+
+  await db.update(userTable)
+    .set({
+      name: `${data.firstName} ${data.lastName}`,
+      image: data.profileImage || studentRecord.profileImage,
+      updatedAt: new Date()
+    })
+    .where(eq(userTable.id, session.user.id))
+
+  revalidatePath('/dashboard/student/profile/settings')
+  revalidatePath('/dashboard/student/profile')
+  return { success: true }
+}
+
 export async function getStudentByAdmissionNumber(admissionNumber: string) {
   const s = await db.query.student.findFirst({
     where: eq(student.admissionNumber, admissionNumber)

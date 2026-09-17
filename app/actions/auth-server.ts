@@ -298,7 +298,11 @@ export async function registerStudent(data: any) {
   } catch (dbError: any) {
     console.error('DB Error during student registration:', dbError)
     await deleteAuthUserIfCreated(userId, authUser.created === true)
-    return { error: dbError?.message || 'Student registration failed in database. Please try again or contact support.' }
+    const rawMsg = dbError?.message || ''
+    const friendlyMsg = rawMsg.includes('unique') || rawMsg.includes('duplicate')
+      ? 'A student with this admission number or details is already registered.'
+      : 'Student registration failed. Please check your details and try again.'
+    return { error: friendlyMsg }
   }
 }
 
@@ -407,12 +411,16 @@ export async function registerParent(data: any) {
   } catch (dbError: any) {
     console.error('DB Error during parent registration:', dbError)
     await deleteAuthUserIfCreated(userId, authUser.created === true)
-    return { error: dbError?.message || 'Parent registration failed in database. Please try again or contact support.' }
+    const rawMsg = dbError?.message || ''
+    const friendlyMsg = rawMsg.includes('unique') || rawMsg.includes('duplicate')
+      ? 'An account with these profile details already exists.'
+      : 'Parent registration failed. Please check your details and try again.'
+    return { error: friendlyMsg }
   }
 }
 
 export async function registerTeacher(data: any) {
-  const { firstName, lastName, email, phone, phoneNumber, profileImage, password, schoolCode } = data
+  const { firstName, lastName, email, phone, phoneNumber, profileImage, password, schoolCode, isAlsoParent, wardAdmissionNumber } = data
   const emailAddress = normalizeEmail(email)
   const teacherPhone = phoneNumber || phone || null
 
@@ -500,13 +508,48 @@ export async function registerTeacher(data: any) {
         facialVerificationVideo: data.facialVerificationVideo || null,
         password: password || 'default'
       })
+
+      // If teacher indicated they are also a Parent, seamlessly create Parent profile and link ward
+      if (isAlsoParent) {
+        const parentId = randomUUID()
+        await tx.insert(userRole).values({
+          id: randomUUID(),
+          userId: finalUserId,
+          role: 'PARENT',
+        }).onConflictDoNothing()
+
+        await tx.insert(parent).values({
+          id: parentId,
+          userId: finalUserId,
+          schoolId,
+          firstName,
+          lastName,
+          gender: data.gender || 'Male',
+          phoneNumber: teacherPhone,
+          profileImage: profileImage || null,
+          password: password || 'default'
+        }).onConflictDoNothing()
+
+        if (wardAdmissionNumber) {
+          const ward = await tx.query.student.findFirst({
+            where: eq(student.admissionNumber, wardAdmissionNumber.trim().toUpperCase())
+          })
+          if (ward) {
+            await tx.update(student).set({ parentId }).where(eq(student.id, ward.id))
+          }
+        }
+      }
     })
 
     return { success: true, staffCode }
   } catch (dbError: any) {
     console.error('DB Error during teacher registration:', dbError)
     await deleteAuthUserIfCreated(userId, authUser.created === true)
-    return { error: dbError?.message || 'Teacher registration failed in database. Please try again or contact support.' }
+    const rawMsg = dbError?.message || ''
+    const friendlyMsg = rawMsg.includes('unique') || rawMsg.includes('duplicate')
+      ? 'A staff member with these profile details is already registered.'
+      : 'Teacher registration failed. Please check your details and try again.'
+    return { error: friendlyMsg }
   }
 }
 

@@ -22,9 +22,41 @@ export async function signInAction(emailInput: string, passwordInput: string) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const email = emailInput.trim().toLowerCase()
+  let inputIdentifier = emailInput.trim()
+  let resolvedEmail = inputIdentifier.toLowerCase()
+
+  // Support login via Staff ID (e.g., ST-12345) or Admission Number (e.g., ELGO-S-00998)
+  if (!resolvedEmail.includes('@')) {
+    const cleanId = inputIdentifier.toUpperCase()
+    const { teacher, student } = await import('@/lib/db/schema')
+
+    // Check teacher staff code
+    const teacherProfile = await db.query.teacher.findFirst({
+      where: eq(teacher.staffCode, cleanId),
+      with: { user: true }
+    })
+
+    if (teacherProfile?.user?.email) {
+      resolvedEmail = teacherProfile.user.email
+    } else {
+      // Check student admission number
+      const studentProfile = await db.query.student.findFirst({
+        where: eq(student.admissionNumber, cleanId),
+        with: { user: true }
+      })
+      if (studentProfile?.user?.email) {
+        resolvedEmail = studentProfile.user.email
+      } else {
+        return {
+          success: false,
+          error: `No registered user account found for Staff ID or Admission Number '${cleanId}'.`
+        }
+      }
+    }
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({
-    email,
+    email: resolvedEmail,
     password: passwordInput,
   })
 

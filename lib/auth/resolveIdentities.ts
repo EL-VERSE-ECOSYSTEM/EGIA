@@ -36,13 +36,38 @@ export interface LoginContext {
 }
 
 export async function resolveIdentities(userId: string): Promise<LoginContext> {
+  let targetUserId = userId
+
   const userRecord = await db.query.user.findFirst({
-    where: eq(userTable.id, userId),
+    where: eq(userTable.id, targetUserId),
   })
+
+  if (!userRecord) {
+    // Attempt lookup by Staff ID or Admission Number
+    const teacherRecord = await db.query.teacher.findFirst({
+      where: eq(teacher.staffCode, userId.trim().toUpperCase())
+    })
+    if (teacherRecord?.userId) {
+      targetUserId = teacherRecord.userId
+    } else {
+      const studentRecord = await db.query.student.findFirst({
+        where: eq(student.admissionNumber, userId.trim().toUpperCase())
+      })
+      if (studentRecord?.userId) {
+        targetUserId = studentRecord.userId
+      }
+    }
+
+    userRecord = await db.query.user.findFirst({
+      where: eq(userTable.id, targetUserId),
+    })
+  }
 
   if (!userRecord) {
     throw new Error('User record not found in database.')
   }
+
+  userId = targetUserId
 
   const email = userRecord.email
   const fullName = userRecord.name || 'User'

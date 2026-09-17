@@ -7,6 +7,7 @@ import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSy
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { PermissionRequest } from '@/components/notifications/PermissionRequest'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { FloatingSupportWidget } from '@/components/support/FloatingSupportWidget'
 
 export default function DashboardLayout({
   children,
@@ -141,6 +142,9 @@ export default function DashboardLayout({
         <main className="flex-1 overflow-y-auto bg-slate-50/50 relative">
           {mounted && <PermissionRequest />}
           {children}
+
+          {/* Global Floating Support Widget */}
+          <FloatingSupportWidget />
 
           {/* Floating interactive PWA Download / Install App Prompt Widget */}
           {showInstallBtn && (
