@@ -25,31 +25,36 @@ export async function signInAction(emailInput: string, passwordInput: string) {
   let inputIdentifier = emailInput.trim()
   let resolvedEmail = inputIdentifier.toLowerCase()
 
-  // Support login via Staff ID (e.g., ST-12345) or Admission Number (e.g., ELGO-S-00998)
+  // Support login via Staff ID or Admission Number (unrestricted format)
   if (!resolvedEmail.includes('@')) {
     const cleanId = inputIdentifier.toUpperCase()
-    const { teacher, student } = await import('@/lib/db/schema')
+    const { teacher, student, user: userTable } = await import('@/lib/db/schema')
 
-    // Check teacher staff code
-    const teacherProfile = await db.query.teacher.findFirst({
-      where: eq(teacher.staffCode, cleanId),
-      with: { user: true }
-    })
+    // Check teacher staff code with inner join
+    const teacherMatch = await db
+      .select({ email: userTable.email })
+      .from(teacher)
+      .innerJoin(userTable, eq(teacher.userId, userTable.id))
+      .where(eq(teacher.staffCode, cleanId))
+      .limit(1)
 
-    if (teacherProfile?.user?.email) {
-      resolvedEmail = teacherProfile.user.email
+    if (teacherMatch[0]?.email) {
+      resolvedEmail = teacherMatch[0].email
     } else {
-      // Check student admission number
-      const studentProfile = await db.query.student.findFirst({
-        where: eq(student.admissionNumber, cleanId),
-        with: { user: true }
-      })
-      if (studentProfile?.user?.email) {
-        resolvedEmail = studentProfile.user.email
+      // Check student admission number with inner join
+      const studentMatch = await db
+        .select({ email: userTable.email })
+        .from(student)
+        .innerJoin(userTable, eq(student.userId, userTable.id))
+        .where(eq(student.admissionNumber, cleanId))
+        .limit(1)
+
+      if (studentMatch[0]?.email) {
+        resolvedEmail = studentMatch[0].email
       } else {
         return {
           success: false,
-          error: `No registered user account found for Staff ID or Admission Number '${cleanId}'.`
+          error: `No registered user account found for Staff ID or Admission Number '${cleanId}'. Please verify your credentials or email address.`
         }
       }
     }

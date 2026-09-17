@@ -32,7 +32,7 @@ export default async function LandingPage() {
   const { data: { user } } = await supabase.auth.getUser()
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] font-sans">
       {/* Navigation */}
       <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-20 flex items-center justify-between">
@@ -68,7 +68,7 @@ export default async function LandingPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative pt-24 pb-32 overflow-hidden bg-white">
+        <section className="relative pt-24 pb-32 overflow-hidden bg-gradient-to-br from-amber-500/10 via-blue-500/10 to-purple-500/10 animate-gradient-x">
           <div className="container mx-auto px-4 relative z-10 text-center max-w-5xl">
             <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-amber-50 border border-amber-100 text-amber-700 text-sm font-black mb-10 tracking-widest uppercase">
               <Trophy className="w-4 h-4" /> Academic Excellence in Nigeria

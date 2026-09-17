@@ -556,15 +556,22 @@ export async function promoteTeacherAction(data: {
     if (data.adminLevel && data.adminLevel !== 'NONE' && teacherRecord.schoolId && teacherRecord.userId) {
       const { schoolAdminRoles } = await import('@/lib/db/schema')
 
-      // Update role in userRole table to ADMIN if not already
-      await tx.insert(userRole).values({
-        id: randomUUID(),
-        userId: teacherRecord.userId,
-        role: 'ADMIN'
-      }).onConflictDoUpdate({
-        target: userRole.userId,
-        set: { role: 'ADMIN' }
+      // Update or insert role in userRole table for user
+      const existingRole = await tx.query.userRole.findFirst({
+        where: eq(userRole.userId, teacherRecord.userId)
       })
+
+      if (existingRole) {
+        await tx.update(userRole)
+          .set({ role: 'ADMIN' })
+          .where(eq(userRole.userId, teacherRecord.userId))
+      } else {
+        await tx.insert(userRole).values({
+          id: randomUUID(),
+          userId: teacherRecord.userId,
+          role: 'ADMIN'
+        })
+      }
 
       // Insert or update school_admin_roles
       await tx.insert(schoolAdminRoles).values({
