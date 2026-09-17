@@ -95,9 +95,9 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950/80 to-purple-950/80 animate-gradient-x text-white flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
       {/* Background Decor */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/10 blur-[140px] rounded-full pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/20 blur-[140px] rounded-full pointer-events-none animate-pulse" />
 
       <div className="w-full max-w-md space-y-6 relative z-10">
         {/* Header */}
@@ -107,8 +107,8 @@ export default function SignInPage() {
             <span>EL LEARNERS APP</span>
           </div>
           <h1 className="text-3xl font-black tracking-tight">Welcome Back</h1>
-          <p className="text-sm font-medium text-slate-400">
-            Sign in with your email address and password to access your portal.
+          <p className="text-xs font-bold text-slate-300">
+            Sign in using Email Address, Staff ID (Teacher), or Admission Number (Student).
           </p>
         </div>
 
@@ -125,18 +125,18 @@ export default function SignInPage() {
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-xs font-black uppercase tracking-wider text-slate-300">
-                  Email Address
+                  Email / Staff ID / Admission Number
                 </Label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
                   <Input
                     id="email"
-                    type="email"
-                    placeholder="e.g. user@academy.edu"
+                    type="text"
+                    placeholder="e.g. user@academy.edu, ST-10023, or ELGO-S-00998"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="bg-slate-950/60 border-slate-800 text-white placeholder:text-slate-600 pl-11 rounded-2xl h-12 text-sm focus:border-blue-500 font-medium"
+                    className="bg-slate-950/60 border-slate-800 text-white placeholder:text-slate-500 pl-11 rounded-2xl h-12 text-xs focus:border-blue-500 font-bold"
                   />
                 </div>
               </div>
