@@ -19,6 +19,7 @@ export default function SchoolRegistrationPage() {
     adminName: '',
     adminPhone: '',
     adminEmail: '',
+    adminGender: 'Male',
     adminPassword: '',
     adminLevel: 'PRIMARY_ADMIN',
     allowParents: true,
@@ -324,7 +325,7 @@ export default function SchoolRegistrationPage() {
                   Select your assigned administrative level for this institution.
                 </p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-black uppercase text-slate-400 mb-1">Name of Admin *</label>
                   <input
@@ -335,6 +336,17 @@ export default function SchoolRegistrationPage() {
                     onChange={e => setFormData({ ...formData, adminName: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Gender *</label>
+                  <select
+                    value={formData.adminGender}
+                    onChange={e => setFormData({ ...formData, adminGender: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition cursor-pointer"
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-black uppercase text-slate-400 mb-1">Phone Number of Admin *</label>
@@ -358,7 +370,7 @@ export default function SchoolRegistrationPage() {
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
                   />
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-black uppercase text-slate-400 mb-1">Set Admin Password *</label>
                   <input
                     type="password"

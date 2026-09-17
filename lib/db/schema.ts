@@ -278,6 +278,24 @@ export const assessmentQuestion = pgTable('assessment_question', {
   foreignKey({ columns: [t.assessmentId], foreignColumns: [assessment.id] }).onDelete('cascade'),
 ])
 
+export const timetables = pgTable('timetables', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('school_id'),
+  classId: text('class_id'),
+  className: text('class_name').notNull(),
+  dayOfWeek: text('day_of_week').notNull(),
+  periodNumber: integer('period_number').notNull().default(1),
+  startTime: text('start_time').notNull(),
+  endTime: text('end_time').notNull(),
+  subjectName: text('subject_name').notNull(),
+  teacherName: text('teacher_name'),
+  room: text('room'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+])
+
 export const assessmentResult = pgTable('assessment_result', {
   id: text('id').primaryKey(),
   assessmentId: text('assessmentId').notNull(),

@@ -8,9 +8,44 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { ShieldAlert, Trash2, AlertCircle, Loader2 } from 'lucide-react'
-import { deleteUserAccount } from '@/app/actions/user'
+import { deleteUserAccount, updateStudentProfileSettingsAction, getStudentProfile } from '@/app/actions/user'
+import { User, Save, CheckCircle2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function StudentSettingsPage() {
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [gender, setGender] = useState('Male')
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+
+  React.useEffect(() => {
+    getStudentProfile().then(p => {
+      if (p) {
+        setFirstName(p.firstName || '')
+        setLastName(p.lastName || '')
+        setGender(p.gender || 'Male')
+      }
+    }).catch(console.error)
+  }, [])
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSavingProfile(true)
+    try {
+      const res = await updateStudentProfileSettingsAction({
+        firstName,
+        lastName,
+        gender
+      })
+      if (res.success) {
+        toast.success('Student profile settings updated in real time!')
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update profile settings.')
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
@@ -42,6 +77,61 @@ export default function StudentSettingsPage() {
           <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Account Settings</h1>
           <p className="text-slate-500 text-lg font-medium">Manage your security options and student credentials.</p>
         </div>
+
+        {/* Personal Profile Settings Form */}
+        <Card className="border-none shadow-xl rounded-[2.5rem] bg-white overflow-hidden">
+          <CardHeader className="p-10 pb-4">
+            <CardTitle className="text-2xl font-black text-slate-900 flex items-center gap-3">
+              <User className="w-6 h-6 text-amber-500" /> Learner Profile Information
+            </CardTitle>
+            <CardDescription className="text-slate-400 font-bold">Update personal details synced in real time with Supabase DB</CardDescription>
+          </CardHeader>
+          <CardContent className="p-10">
+            <form onSubmit={handleSaveProfile} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase text-slate-500">First Name</Label>
+                  <Input
+                    required
+                    value={firstName}
+                    onChange={e => setFirstName(e.target.value)}
+                    className="h-12 rounded-xl border-slate-200 bg-slate-50 font-bold text-slate-900"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase text-slate-500">Last Name</Label>
+                  <Input
+                    required
+                    value={lastName}
+                    onChange={e => setLastName(e.target.value)}
+                    className="h-12 rounded-xl border-slate-200 bg-slate-50 font-bold text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase text-slate-500">Gender</Label>
+                <select
+                  value={gender}
+                  onChange={e => setGender(e.target.value)}
+                  className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 font-bold text-slate-900 focus:outline-none"
+                >
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isSavingProfile}
+                className="bg-amber-500 hover:bg-amber-600 text-amber-950 font-black h-12 px-8 rounded-xl shadow-md flex items-center gap-2"
+              >
+                {isSavingProfile ? <Loader2 className="animate-spin w-4 h-4" /> : <Save className="w-4 h-4" />}
+                <span>SAVE REAL-TIME CHANGES</span>
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         <Card className="border-none shadow-xl rounded-[2.5rem] bg-white overflow-hidden">
           <CardHeader className="p-10 pb-4">

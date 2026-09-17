@@ -46,9 +46,9 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
 
   const configMap = {
     admin: {
-      color: 'bg-slate-900',
-      activeColor: 'bg-amber-600 text-white',
-      hoverColor: 'hover:bg-white/10',
+      color: 'bg-slate-900 border-r border-amber-500/20',
+      activeColor: 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-amber-500/20',
+      hoverColor: 'hover:bg-amber-500/10 hover:text-amber-300',
       links: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/admin/overview' },
         { label: 'Students List', icon: Users, href: '/dashboard/admin/users/students/list' },
@@ -68,9 +68,9 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       ]
     },
     teacher: {
-      color: 'bg-slate-900',
-      activeColor: 'bg-purple-600 text-white',
-      hoverColor: 'hover:bg-white/10',
+      color: 'bg-slate-950 border-r border-purple-500/20',
+      activeColor: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-purple-600/20',
+      hoverColor: 'hover:bg-purple-500/10 hover:text-purple-300',
       links: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/teacher/overview' },
         { label: 'My Classes', icon: School, href: '/dashboard/teacher/my-classes' },
@@ -89,9 +89,9 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       ]
     },
     parent: {
-      color: 'bg-slate-900',
-      activeColor: 'bg-emerald-600 text-white',
-      hoverColor: 'hover:bg-white/10',
+      color: 'bg-slate-950 border-r border-emerald-500/20',
+      activeColor: 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-emerald-600/20',
+      hoverColor: 'hover:bg-emerald-500/10 hover:text-emerald-300',
       links: [
         { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/parent/overview' },
         { label: 'My Children Profile', icon: Users, href: '/dashboard/parent/children/list' },
@@ -107,9 +107,9 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       ]
     },
     student: {
-      color: 'bg-slate-900',
-      activeColor: 'bg-orange-600 text-white',
-      hoverColor: 'hover:bg-white/10',
+      color: 'bg-slate-950 border-r border-orange-500/20',
+      activeColor: 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black shadow-orange-500/20',
+      hoverColor: 'hover:bg-orange-500/10 hover:text-orange-300',
       links: [
         { label: 'Dashboard Overview', icon: LayoutDashboard, href: '/dashboard/student/overview' },
         { label: 'Learner Wallet', icon: Wallet, href: '/dashboard/student/wallet' },
