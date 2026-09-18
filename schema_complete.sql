@@ -1755,3 +1755,17 @@ INSERT INTO public.student (
   NOW(),
   NOW()
 );
+
+CREATE TABLE IF NOT EXISTS public.class_comments (
+    id text DEFAULT gen_random_uuid()::text NOT NULL PRIMARY KEY,
+    resource_type text NOT NULL,
+    resource_id text NOT NULL,
+    user_id text NOT NULL REFERENCES public.user(id) ON DELETE CASCADE,
+    user_name text NOT NULL,
+    user_role text NOT NULL,
+    user_image text,
+    content text NOT NULL,
+    parent_id text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);

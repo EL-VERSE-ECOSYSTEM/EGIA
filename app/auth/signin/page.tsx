@@ -11,6 +11,7 @@ import { Shield, Mail, Lock, Loader2, ArrowRight, CheckCircle2, GraduationCap } 
 import { signInAction, activateIdentityAction } from './actions'
 import { RolePickerModal } from '@/components/auth/RolePickerModal'
 import { LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
+import { toast } from 'sonner'
 
 export default function SignInPage() {
   const router = useRouter()
@@ -50,6 +51,7 @@ export default function SignInPage() {
         const singleIdentity = identities[0]
         const activateRes = await activateIdentityAction(singleIdentity.id, rememberMe)
         if (activateRes.success && activateRes.redirectTo) {
+          toast.success('Welcome to EL LEARNERS APP...')
           router.push(activateRes.redirectTo)
           return
         }
@@ -61,6 +63,7 @@ export default function SignInPage() {
         if (rememberedIdentity) {
           const activateRes = await activateIdentityAction(rememberedIdentity.id, true)
           if (activateRes.success && activateRes.redirectTo) {
+            toast.success('Welcome to EL LEARNERS APP...')
             router.push(activateRes.redirectTo)
             return
           }
@@ -82,6 +85,7 @@ export default function SignInPage() {
     try {
       const res = await activateIdentityAction(identity.id, remember)
       if (res.success && res.redirectTo) {
+        toast.success('Welcome to EL LEARNERS APP...')
         setIsModalOpen(false)
         router.push(res.redirectTo)
       } else {
@@ -132,7 +136,7 @@ export default function SignInPage() {
                   <Input
                     id="email"
                     type="text"
-                    placeholder="e.g. user@academy.edu, ST-10023, or ELGO-S-00998"
+                    placeholder="e.g. user@academy.edu, ST-10001, or ADM-10001"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required

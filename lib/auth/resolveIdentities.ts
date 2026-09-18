@@ -8,7 +8,7 @@ import {
   student,
   school,
 } from '@/lib/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { eq, ilike, sql } from 'drizzle-orm'
 import { getRedirectUrlForIdentity, RoleType } from './redirectMap'
 
 export interface UserIdentity {
@@ -43,16 +43,16 @@ export async function resolveIdentities(userId: string): Promise<LoginContext> {
   })
 
   if (!userRecord) {
-    // Attempt lookup by Staff ID or Admission Number
+    // Attempt lookup by Staff ID or Admission Number (case-insensitive)
     const cleanIdentifier = userId.trim().toUpperCase()
     const teacherRecord = await db.query.teacher.findFirst({
-      where: eq(teacher.staffCode, cleanIdentifier)
+      where: ilike(teacher.staffCode, cleanIdentifier)
     })
     if (teacherRecord?.userId) {
       targetUserId = teacherRecord.userId
     } else {
       const studentRecord = await db.query.student.findFirst({
-        where: eq(student.admissionNumber, cleanIdentifier)
+        where: ilike(student.admissionNumber, cleanIdentifier)
       })
       if (studentRecord?.userId) {
         targetUserId = studentRecord.userId

@@ -3,8 +3,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
-import { user as userTable } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { user as userTable, teacher, student } from '@/lib/db/schema'
+import { eq, ilike, sql } from 'drizzle-orm'
 import { resolveIdentities, LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
@@ -25,36 +25,74 @@ export async function signInAction(emailInput: string, passwordInput: string) {
   let inputIdentifier = emailInput.trim()
   let resolvedEmail = inputIdentifier.toLowerCase()
 
-  // Support login via Staff ID or Admission Number (unrestricted format)
+  // Support real-time login via Staff ID or Admission Number in Supabase Database
   if (!resolvedEmail.includes('@')) {
-    const cleanId = inputIdentifier.toUpperCase()
-    const { teacher, student, user: userTable } = await import('@/lib/db/schema')
+    const cleanId = inputIdentifier.trim().toUpperCase()
 
-    // Check teacher staff code with inner join
+    // 1. Check teacher staff code with inner join or case-insensitive ilike query
     const teacherMatch = await db
-      .select({ email: userTable.email })
+      .select({ email: userTable.email, userId: teacher.userId })
       .from(teacher)
       .innerJoin(userTable, eq(teacher.userId, userTable.id))
-      .where(eq(teacher.staffCode, cleanId))
+      .where(ilike(teacher.staffCode, cleanId))
       .limit(1)
 
     if (teacherMatch[0]?.email) {
       resolvedEmail = teacherMatch[0].email
     } else {
-      // Check student admission number with inner join
+      // Check teacher staff code directly if inner join missed
+      const directTeacher = await db
+        .select({ userId: teacher.userId, staffCode: teacher.staffCode })
+        .from(teacher)
+        .where(ilike(teacher.staffCode, cleanId))
+        .limit(1)
+
+      if (directTeacher[0]?.userId) {
+        const uRec = await db.select({ email: userTable.email }).from(userTable).where(eq(userTable.id, directTeacher[0].userId)).limit(1)
+        if (uRec[0]?.email) resolvedEmail = uRec[0].email
+      }
+    }
+
+    if (!resolvedEmail || !resolvedEmail.includes('@')) {
+      // 2. Check student admission number with inner join or case-insensitive ilike query
       const studentMatch = await db
-        .select({ email: userTable.email })
+        .select({ email: userTable.email, userId: student.userId })
         .from(student)
         .innerJoin(userTable, eq(student.userId, userTable.id))
-        .where(eq(student.admissionNumber, cleanId))
+        .where(ilike(student.admissionNumber, cleanId))
         .limit(1)
 
       if (studentMatch[0]?.email) {
         resolvedEmail = studentMatch[0].email
       } else {
-        return {
-          success: false,
-          error: `No registered user account found for Staff ID or Admission Number '${cleanId}'. Please verify your credentials or email address.`
+        // Direct student check if inner join missed
+        const directStudent = await db
+          .select({ userId: student.userId, admissionNumber: student.admissionNumber })
+          .from(student)
+          .where(ilike(student.admissionNumber, cleanId))
+          .limit(1)
+
+        if (directStudent[0]?.userId) {
+          const uRec = await db.select({ email: userTable.email }).from(userTable).where(eq(userTable.id, directStudent[0].userId)).limit(1)
+          if (uRec[0]?.email) resolvedEmail = uRec[0].email
+        } else {
+          // Fallback check for user table email pattern matching student identifier
+          const fallbackUser = await db
+            .select({ email: userTable.email })
+            .from(userTable)
+            .where(
+              sql`LOWER(${userTable.email}) LIKE LOWER(${'%' + cleanId.toLowerCase() + '%'})`
+            )
+            .limit(1)
+
+          if (fallbackUser[0]?.email) {
+            resolvedEmail = fallbackUser[0].email
+          } else {
+            return {
+              success: false,
+              error: `No registered user account found for Staff ID or Admission Number '${cleanId}'. Please verify your credentials or email address.`
+            }
+          }
         }
       }
     }
