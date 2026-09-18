@@ -504,7 +504,7 @@ export default function TeacherSignUpPage() {
                 </Label>
                 <Input
                   id="wardAdmissionNumber"
-                  placeholder="e.g. ELGO-S-00998"
+                  placeholder="e.g. ADM-10001"
                   value={formData.wardAdmissionNumber}
                   onChange={e => setFormData({ ...formData, wardAdmissionNumber: e.target.value })}
                   className="h-11 rounded-xl border-slate-800 bg-slate-900 text-white font-mono text-xs uppercase"

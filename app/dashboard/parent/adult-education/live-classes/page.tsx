@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Loader2, Video, Calendar, ExternalLink } from 'lucide-react'
 import { checkWeeklyPaymentStatus, getAdultClasses } from '@/app/actions/adult-education'
 import PaymentLock from '@/components/adult-education/payment-lock'
+import { ClassCommentsSection } from '@/components/comments/ClassCommentsSection'
 
 export default function AdultLiveClassesPage() {
   const [loading, setLoading] = useState(true)
@@ -51,7 +52,7 @@ export default function AdultLiveClassesPage() {
         ) : !isPaid ? (
           <PaymentLock reason={lockReason} />
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {classes.length === 0 ? (
               <div className="p-20 bg-white rounded-[2.5rem] border border-slate-100 text-center text-slate-400">
                 <Video className="w-12 h-12 text-slate-300 mx-auto mb-4 animate-pulse" />
@@ -60,35 +61,48 @@ export default function AdultLiveClassesPage() {
               </div>
             ) : (
               classes.map((cls) => (
-                <Card key={cls.id} className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-white p-8">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                    <div className="space-y-3">
-                      <Badge className="bg-red-100 text-red-800 border-none font-black text-[10px] tracking-wide rounded uppercase px-2.5 py-1">
-                        LIVE LECTURE
-                      </Badge>
-                      <h3 className="text-xl font-black text-slate-900">{cls.title}</h3>
-                      <p className="text-slate-500 text-sm font-semibold leading-relaxed">{cls.description}</p>
+                <div key={cls.id} className="space-y-4">
+                  <Card className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-white p-8">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+                      <div className="space-y-3">
+                        <Badge className="bg-red-100 text-red-800 border-none font-black text-[10px] tracking-wide rounded uppercase px-2.5 py-1">
+                          LIVE LECTURE
+                        </Badge>
+                        <h3 className="text-xl font-black text-slate-900">{cls.title}</h3>
+                        <p className="text-slate-500 text-sm font-semibold leading-relaxed">{cls.description}</p>
 
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold">
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span>Scheduled: {new Date(cls.createdAt).toLocaleDateString()} at {new Date(cls.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>
+                            Scheduled: {new Date(cls.createdAt).toLocaleDateString()} at{' '}
+                            {new Date(cls.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
-                    {cls.url && (
-                      <a
-                        href={cls.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full sm:w-auto"
-                      >
-                        <Button className="w-full sm:w-auto h-12 px-6 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs flex items-center gap-2">
-                          <ExternalLink className="w-4 h-4" /> JOIN LIVE ROOM
-                        </Button>
-                      </a>
-                    )}
-                  </div>
-                </Card>
+                      {cls.url && (
+                        <a
+                          href={cls.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full sm:w-auto"
+                        >
+                          <Button className="w-full sm:w-auto h-12 px-6 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-red-500/20">
+                            <ExternalLink className="w-4 h-4" /> JOIN LIVE ROOM
+                          </Button>
+                        </a>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Comment Section for Live Session */}
+                  <ClassCommentsSection
+                    resourceType="ADULT_LIVE"
+                    resourceId={cls.id}
+                    title={`Live Room Chat & Q&A — ${cls.title}`}
+                    currentUserRole="PARENT"
+                  />
+                </div>
               ))
             )}
           </div>

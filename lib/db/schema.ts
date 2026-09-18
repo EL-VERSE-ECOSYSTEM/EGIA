@@ -927,6 +927,23 @@ export const adultEducationEnrollment = pgTable('adult_education_enrollments', {
   foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('set null'),
 ])
 
+// ===== CLASS COMMENTS TABLE (For Video Classes & Live Sessions) =====
+export const classComments = pgTable('class_comments', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  resourceType: text('resource_type').notNull(), // 'STUDY_VIDEO' | 'ADULT_VIDEO' | 'ADULT_LIVE'
+  resourceId: text('resource_id').notNull(),
+  userId: text('user_id').notNull(),
+  userName: text('user_name').notNull(),
+  userRole: text('user_role').notNull(), // 'STUDENT' | 'TEACHER' | 'PARENT' | 'SCHOOL_ADMIN' | 'SUPER_ADMIN'
+  userImage: text('user_image'),
+  content: text('content').notNull(),
+  parentId: text('parent_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
+])
+
 // ===== STUDENT GIFTS & LEADERBOARD REWARDS =====
 export const studentGifts = pgTable('student_gifts', {
   id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),

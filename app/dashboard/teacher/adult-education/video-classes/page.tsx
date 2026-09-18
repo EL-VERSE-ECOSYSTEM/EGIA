@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, MonitorPlay, Plus, Save, Trash2, Calendar, Link as LinkIcon } from 'lucide-react'
+import { Loader2, MonitorPlay, Plus, Calendar, Link as LinkIcon } from 'lucide-react'
 import { createAdultClass, getAdultClasses, getCurrentUserRole } from '@/app/actions/adult-education'
 import { toast } from 'sonner'
+import { ClassCommentsSection } from '@/components/comments/ClassCommentsSection'
 
 export default function TeacherManageVideosPage() {
   const [loading, setLoading] = useState(true)
@@ -26,7 +27,6 @@ export default function TeacherManageVideosPage() {
     try {
       const r = await getCurrentUserRole()
       setUserRole(r)
-      // Direct call since the teacher has bypassed the gating checks
       const list = await getAdultClasses('VIDEO').catch(() => [])
       setClasses(list || [])
     } catch (err) {
@@ -50,7 +50,7 @@ export default function TeacherManageVideosPage() {
         title,
         description,
         type: 'VIDEO',
-        url
+        url,
       })
       toast.success('Adult Education video class uploaded successfully!')
       setTitle('')
@@ -140,31 +140,45 @@ export default function TeacherManageVideosPage() {
                 <p className="text-sm font-medium mt-1">Use the upload panel to post your first video class.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-6">
                 {classes.map((cls) => (
-                  <Card key={cls.id} className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-white overflow-hidden p-6 space-y-3">
-                    <Badge className="bg-amber-100 text-amber-800 border-none font-black text-[9px] tracking-wide rounded uppercase px-2 py-0.5">
-                      VIDEO LESSON
-                    </Badge>
-                    <div>
-                      <h4 className="font-black text-slate-900 leading-snug">{cls.title}</h4>
-                      <p className="text-slate-500 text-xs font-semibold leading-relaxed mt-1 truncate">{cls.description || 'No description.'}</p>
-                    </div>
-                    {cls.url && (
-                      <a
-                        href={cls.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-700 underline uppercase"
-                      >
-                        <LinkIcon className="w-3.5 h-3.5" /> Watch Video
-                      </a>
-                    )}
-                    <div className="flex items-center gap-2 pt-2 border-t border-slate-50 text-[9px] text-slate-400 font-bold">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>{new Date(cls.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </Card>
+                  <div key={cls.id} className="space-y-3">
+                    <Card className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-white overflow-hidden p-6 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Badge className="bg-amber-100 text-amber-800 border-none font-black text-[9px] tracking-wide rounded uppercase px-2 py-0.5">
+                          VIDEO LESSON
+                        </Badge>
+                        <div className="flex items-center gap-2 text-[9px] text-slate-400 font-bold">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>{new Date(cls.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="font-black text-slate-900 leading-snug">{cls.title}</h4>
+                        <p className="text-slate-500 text-xs font-semibold leading-relaxed mt-1">{cls.description || 'No description.'}</p>
+                      </div>
+
+                      {cls.url && (
+                        <a
+                          href={cls.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-700 underline uppercase"
+                        >
+                          <LinkIcon className="w-3.5 h-3.5" /> Watch Video
+                        </a>
+                      )}
+                    </Card>
+
+                    {/* Teacher Comment Management */}
+                    <ClassCommentsSection
+                      resourceType="ADULT_VIDEO"
+                      resourceId={cls.id}
+                      title={`Comments & Student Q&A — ${cls.title}`}
+                      currentUserRole="TEACHER"
+                    />
+                  </div>
                 ))}
               </div>
             )}

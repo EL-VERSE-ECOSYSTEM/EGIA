@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, Video, Plus, Calendar, Link as LinkIcon } from 'lucide-react'
 import { createAdultClass, getAdultClasses, getCurrentUserRole } from '@/app/actions/adult-education'
 import { toast } from 'sonner'
+import { ClassCommentsSection } from '@/components/comments/ClassCommentsSection'
 
 export default function TeacherManageLiveClassesPage() {
   const [loading, setLoading] = useState(true)
@@ -49,7 +50,7 @@ export default function TeacherManageLiveClassesPage() {
         title,
         description,
         type: 'LIVE',
-        url
+        url,
       })
       toast.success('Adult Education Live Class scheduled successfully!')
       setTitle('')
@@ -139,32 +140,42 @@ export default function TeacherManageLiveClassesPage() {
                 <p className="text-sm font-medium mt-1">Use the scheduler panel to create your first live online class.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {classes.map((cls) => (
-                  <Card key={cls.id} className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-white p-6">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div className="space-y-2 flex-1">
-                        <Badge className="bg-red-100 text-red-800 border-none font-black text-[9px] tracking-wide rounded uppercase px-2 py-0.5">
-                          LIVE ROOM
-                        </Badge>
-                        <h4 className="font-black text-slate-900 leading-snug">{cls.title}</h4>
-                        <p className="text-slate-500 text-xs font-semibold leading-relaxed">{cls.description}</p>
-                      </div>
+                  <div key={cls.id} className="space-y-3">
+                    <Card className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-white p-6">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="space-y-2 flex-1">
+                          <Badge className="bg-red-100 text-red-800 border-none font-black text-[9px] tracking-wide rounded uppercase px-2 py-0.5">
+                            LIVE ROOM
+                          </Badge>
+                          <h4 className="font-black text-slate-900 leading-snug">{cls.title}</h4>
+                          <p className="text-slate-500 text-xs font-semibold leading-relaxed">{cls.description}</p>
+                        </div>
 
-                      {cls.url && (
-                        <a
-                          href={cls.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full sm:w-auto"
-                        >
-                          <Button className="w-full sm:w-auto h-11 px-5 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-red-100">
-                            <LinkIcon className="w-3.5 h-3.5" /> JOIN ROOM
-                          </Button>
-                        </a>
-                      )}
-                    </div>
-                  </Card>
+                        {cls.url && (
+                          <a
+                            href={cls.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full sm:w-auto"
+                          >
+                            <Button className="w-full sm:w-auto h-11 px-5 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-red-100">
+                              <LinkIcon className="w-3.5 h-3.5" /> JOIN ROOM
+                            </Button>
+                          </a>
+                        )}
+                      </div>
+                    </Card>
+
+                    {/* Teacher Live Room Comments */}
+                    <ClassCommentsSection
+                      resourceType="ADULT_LIVE"
+                      resourceId={cls.id}
+                      title={`Live Session Q&A — ${cls.title}`}
+                      currentUserRole="TEACHER"
+                    />
+                  </div>
                 ))}
               </div>
             )}
