@@ -253,6 +253,9 @@ export async function registerStudent(data: any) {
           image: profileImage || existingDbUser.image,
           schoolId: schoolId || existingDbUser.schoolId,
           password: password || existingDbUser.password,
+          gender: data.gender || existingDbUser.gender || 'Male',
+          lastIdentityId: createdStudentId,
+          lastIdentityAt: new Date(),
           updatedAt: new Date()
         }).where(eq(userTable.id, finalUserId))
       } else {
@@ -262,7 +265,10 @@ export async function registerStudent(data: any) {
           name: `${firstName} ${lastName}`,
           image: profileImage || null,
           schoolId,
-          password: password || 'default'
+          password: password || 'default',
+          gender: data.gender || 'Male',
+          lastIdentityId: createdStudentId,
+          lastIdentityAt: new Date(),
         }).onConflictDoNothing()
       }
 
@@ -348,6 +354,8 @@ export async function registerParent(data: any) {
       const existingDbUser = await tx.query.user.findFirst({ where: eq(userTable.email, emailAddress) })
       let finalUserId = userId
 
+      const parentId = randomUUID()
+
       if (existingDbUser) {
         finalUserId = existingDbUser.id
         await tx.update(userTable).set({
@@ -355,6 +363,9 @@ export async function registerParent(data: any) {
           image: profileImage || existingDbUser.image,
           schoolId: schoolId || existingDbUser.schoolId,
           password: password || existingDbUser.password,
+          gender: data.gender || existingDbUser.gender || 'Male',
+          lastIdentityId: parentId,
+          lastIdentityAt: new Date(),
           updatedAt: new Date()
         }).where(eq(userTable.id, finalUserId))
       } else {
@@ -364,11 +375,12 @@ export async function registerParent(data: any) {
           name: `${firstName} ${lastName}`,
           image: profileImage || null,
           schoolId,
-          password: password || 'default'
+          password: password || 'default',
+          gender: data.gender || 'Male',
+          lastIdentityId: parentId,
+          lastIdentityAt: new Date(),
         }).onConflictDoNothing()
       }
-
-      const parentId = randomUUID()
 
       await tx.insert(userRole).values({
         id: randomUUID(),
@@ -463,6 +475,8 @@ export async function registerTeacher(data: any) {
       const existingDbUser = await tx.query.user.findFirst({ where: eq(userTable.email, emailAddress) })
       let finalUserId = userId
 
+      const teacherId = randomUUID()
+
       if (existingDbUser) {
         finalUserId = existingDbUser.id
         await tx.update(userTable).set({
@@ -470,6 +484,9 @@ export async function registerTeacher(data: any) {
           image: profileImage || existingDbUser.image,
           schoolId: schoolId || existingDbUser.schoolId,
           password: password || existingDbUser.password,
+          gender: data.gender || existingDbUser.gender || 'Male',
+          lastIdentityId: teacherId,
+          lastIdentityAt: new Date(),
           updatedAt: new Date()
         }).where(eq(userTable.id, finalUserId))
       } else {
@@ -479,7 +496,10 @@ export async function registerTeacher(data: any) {
           name: `${firstName} ${lastName}`,
           image: profileImage || null,
           schoolId,
-          password: password || 'default'
+          password: password || 'default',
+          gender: data.gender || 'Male',
+          lastIdentityId: teacherId,
+          lastIdentityAt: new Date(),
         }).onConflictDoNothing()
       }
 

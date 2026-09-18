@@ -512,6 +512,8 @@ export async function createSchoolAdmin(data: { name: string; email: string; pho
       schoolId: currentUser.schoolId,
       password: adminPassword,
       adminLevel: adminLevel,
+      lastIdentityId: currentUser.schoolId,
+      lastIdentityAt: new Date(),
     }).onConflictDoNothing()
 
     await tx.insert(userRole).values({

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { getSchoolPaymentConfigAction, saveSchoolPaymentConfigAction } from '@/app/actions/payment-config'
 import { useNigerianBanks } from '@/hooks/useNigerianBanks'
+import { createClient } from '@/lib/supabase/client'
 import { CreditCard, Building, Link as LinkIcon, FileText, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -20,25 +21,38 @@ export default function AdminPaymentSettingsPage() {
   const [customLink, setCustomLink] = useState('')
   const [instructions, setInstructions] = useState('')
 
-  useEffect(() => {
-    async function fetchConfig() {
-      try {
-        const config = await getSchoolPaymentConfigAction(schoolId)
-        if (config) {
-          setUseKorapay(config.useKorapay)
-          setBankName(config.bankName || '')
-          setAccountNumber(config.accountNumber || '')
-          setAccountName(config.accountName || '')
-          setCustomLink(config.customPaymentLink || '')
-          setInstructions(config.instructions || '')
-        }
-      } catch (err: any) {
-        toast.error('Could not load payment configuration')
-      } finally {
-        setLoading(false)
+  const fetchConfig = async () => {
+    try {
+      const config = await getSchoolPaymentConfigAction(schoolId)
+      if (config) {
+        setUseKorapay(config.useKorapay)
+        setBankName(config.bankName || '')
+        setAccountNumber(config.accountNumber || '')
+        setAccountName(config.accountName || '')
+        setCustomLink(config.customPaymentLink || '')
+        setInstructions(config.instructions || '')
       }
+    } catch (err: any) {
+      toast.error('Could not load payment configuration')
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchConfig()
+
+    const supabase = createClient()
+    const configChannel = supabase
+      .channel('realtime-payment-config-settings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'school_payment_config' }, () => {
+        fetchConfig()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(configChannel)
+    }
   }, [schoolId])
 
   const handleSave = async (e: React.FormEvent) => {

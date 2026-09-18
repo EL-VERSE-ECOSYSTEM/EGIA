@@ -124,6 +124,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     // Insert or update user and role in real-time Supabase Database
     const existingUser = await db.select().from(user).where(eq(user.email, adminEmail as any))
     let recordUserId = finalUserId
+    const assignedLevel = input.adminLevel || 'PRIMARY_ADMIN'
 
     if (existingUser.length > 0) {
       recordUserId = existingUser[0].id
@@ -131,6 +132,9 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
         schoolId: schoolId,
         password: adminPassword,
         name: input.adminName,
+        adminLevel: assignedLevel,
+        lastIdentityId: schoolId,
+        lastIdentityAt: new Date(),
         updatedAt: new Date()
       } as any).where(eq(user.id, recordUserId))
     } else {
@@ -140,6 +144,9 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
         name: input.adminName,
         schoolId: schoolId,
         password: adminPassword,
+        adminLevel: assignedLevel,
+        lastIdentityId: schoolId,
+        lastIdentityAt: new Date(),
       } as any).onConflictDoNothing()
     }
 
@@ -150,7 +157,6 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     } as any).onConflictDoNothing()
 
     // Assign designated admin level to registering administrator
-    const assignedLevel = input.adminLevel || 'PRIMARY_ADMIN'
     const { schoolAdminRoles } = await import('@/lib/db/schema')
     await db.insert(schoolAdminRoles).values({
       id: randomUUID(),

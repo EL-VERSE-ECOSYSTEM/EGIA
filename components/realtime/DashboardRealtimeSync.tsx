@@ -16,9 +16,6 @@ const tablesByRole: Record<string, RealtimeTable[]> = {
 function TableSync({ table, refresh }: { table: RealtimeTable; refresh: () => void }) {
   useRealtimeSubscription(table, (event) => {
     refresh();
-    if (event.eventType === "INSERT" && ["assessment_result", "payment", "message"].includes(table)) {
-      toast("Dashboard updated", { description: `A new ${table.replaceAll("_", " ")} is available.` });
-    }
   });
   return null;
 }
