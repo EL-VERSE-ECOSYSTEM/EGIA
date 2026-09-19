@@ -24,20 +24,21 @@ function KorapayReturnContent() {
     }
     verifyKorapayPayment(reference)
       .then(result => {
-        setState(result.status)
+        const resStatus = result.status as 'loading' | 'success' | 'pending' | 'failed' | 'error'
+        setState(resStatus || 'failed')
         if (result.payment) {
           setPaymentDetails({
             amount: result.payment.amount,
             feeType: result.payment.feeType || undefined,
-            admissionNumber: result.admissionNumber,
-            schoolCode: result.schoolCode,
-            schoolName: result.schoolName
+            admissionNumber: (result as any).admissionNumber,
+            schoolCode: (result as any).schoolCode,
+            schoolName: (result as any).schoolName
           })
         }
-        if (result.status === 'success') {
+        if (resStatus === 'success') {
           setMessage('Payment confirmed. Your account and transaction history are updated in real time with Supabase Database.')
           setShowModal(true)
-        } else if (result.status === 'pending') {
+        } else if (resStatus === 'pending') {
           setMessage('Your payment is still processing. Please check again shortly.')
         } else {
           setMessage('Korapay reported that this payment was unsuccessful.')

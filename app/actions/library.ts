@@ -105,75 +105,80 @@ export async function createLessonNote(data: {
   pages?: number
   isPdf?: boolean
   isDigital?: boolean
-}) {
-  const session = await auth.getSession()
-  if (!session?.user) throw new Error('Unauthorized session')
+}): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const session = await auth.getSession()
+    if (!session?.user) return { success: false, error: 'Unauthorized session' }
 
-  const role = (session.user.role || '').toUpperCase()
-  if (!['TEACHER', 'ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(role)) {
-    throw new Error('Forbidden: Insufficient permissions to create lesson notes.')
-  }
+    const role = (session.user.role || '').toUpperCase()
+    if (!['TEACHER', 'ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(role)) {
+      return { success: false, error: 'Forbidden: Insufficient permissions to create lesson notes.' }
+    }
 
-  let schoolId = session.user.schoolId || null
-  let teacherId: string | null = null
+    let schoolId = session.user.schoolId || null
+    let teacherId: string | null = null
 
-  if (role === 'TEACHER') {
-    const tProfile = await db.query.teacher.findFirst({
-      where: eq(teacherTable.userId, session.user.id)
-    })
-    if (!tProfile) throw new Error('Teacher record not found')
-    teacherId = tProfile.id
-    schoolId = tProfile.schoolId || schoolId
-  } else {
-    const uRec = await db.query.user.findFirst({
-      where: eq(userTable.id, session.user.id)
-    })
-    if (uRec?.schoolId) schoolId = uRec.schoolId
-  }
+    if (role === 'TEACHER') {
+      const tProfile = await db.query.teacher.findFirst({
+        where: eq(teacherTable.userId, session.user.id)
+      })
+      if (!tProfile) return { success: false, error: 'Teacher record not found' }
+      teacherId = tProfile.id
+      schoolId = tProfile.schoolId || schoolId
+    } else {
+      const uRec = await db.query.user.findFirst({
+        where: eq(userTable.id, session.user.id)
+      })
+      if (uRec?.schoolId) schoolId = uRec.schoolId
+    }
 
-  if (!data.title || !data.title.trim()) {
-    throw new Error('Lesson note title is required.')
-  }
+    if (!data.title || !data.title.trim()) {
+      return { success: false, error: 'Lesson note title is required.' }
+    }
 
-  return await db.transaction(async (tx) => {
     const id = `note-${randomUUID()}`
     const category = data.category || 'Lesson Notes'
     const authorName = data.author || session.user.name || 'Academy Educator'
 
-    await tx.insert(lessonNotes).values({
-      id,
-      schoolId: schoolId || null,
-      teacherId: teacherId || null,
-      title: data.title.trim(),
-      subject: data.subject,
-      classLevel: data.classLevel,
-      author: authorName,
-      category,
-      content: data.content || data.description || '',
-      description: data.description || data.content || '',
-      fileUrl: data.fileUrl || null,
-      storagePath: data.storagePath || null,
-      fileSize: data.fileSize || null,
-      isPdf: data.isPdf ?? false,
-      isDigital: data.isDigital ?? true
-    }).onConflictDoNothing()
+    await db.transaction(async (tx) => {
+      await tx.insert(lessonNotes).values({
+        id,
+        schoolId: schoolId || null,
+        teacherId: teacherId || null,
+        title: data.title.trim(),
+        subject: data.subject,
+        classLevel: data.classLevel,
+        author: authorName,
+        category,
+        content: data.content || data.description || '',
+        description: data.description || data.content || '',
+        fileUrl: data.fileUrl || null,
+        storagePath: data.storagePath || null,
+        fileSize: data.fileSize || null,
+        isPdf: data.isPdf ?? false,
+        isDigital: data.isDigital ?? true
+      }).onConflictDoNothing()
 
-    await tx.insert(libraryBooks).values({
-      id,
-      title: data.title.trim(),
-      subject: data.subject,
-      classLevel: data.classLevel,
-      author: authorName,
-      category,
-      content: data.content || data.description || '',
-      description: data.description || data.content || '',
-      fileUrl: data.fileUrl || null,
-      pages: data.pages || 1,
-      isDigital: data.isDigital ?? true,
-      isbn: null,
-      location: 'EL LEARN App Digital Library'
-    }).onConflictDoNothing()
+      await tx.insert(libraryBooks).values({
+        id,
+        title: data.title.trim(),
+        subject: data.subject,
+        classLevel: data.classLevel,
+        author: authorName,
+        category,
+        content: data.content || data.description || '',
+        description: data.description || data.content || '',
+        fileUrl: data.fileUrl || null,
+        pages: data.pages || 1,
+        isDigital: data.isDigital ?? true,
+        isbn: null,
+        location: 'EL LEARN App Digital Library'
+      }).onConflictDoNothing()
+    })
 
     return { success: true, id }
-  })
+  } catch (error: any) {
+    console.error('Failed to create lesson note:', error)
+    return { success: false, error: error.message || 'Failed to save lesson note' }
+  }
 }

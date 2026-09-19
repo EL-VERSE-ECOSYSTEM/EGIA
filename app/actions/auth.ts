@@ -53,7 +53,6 @@ export async function signUpAsParent(formData: unknown) {
       id: userId,
       email,
       name: fullName,
-      phone,
       createdAt: new Date(),
       updatedAt: new Date(),
     }).onConflictDoNothing()
@@ -64,10 +63,10 @@ export async function signUpAsParent(formData: unknown) {
       id: parentId,
       userId,
       schoolId: schoolId || null,
-      phonenumber: phone,
+      phoneNumber: phone,
       createdAt: new Date(),
       updatedAt: new Date(),
-    }).onConflictDoNothing()
+    } as any).onConflictDoNothing()
 
     // 4. Assign PARENT user role
     await db.insert(userRoleTable).values({

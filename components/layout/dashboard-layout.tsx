@@ -34,7 +34,6 @@ export default function DashboardLayout({
 
   useEffect(() => {
     setMounted(true)
-    // Check standalone state (already installed)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
                           (window.navigator as any).standalone === true
 
@@ -50,8 +49,7 @@ export default function DashboardLayout({
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 
-    // Detect if running on Apple/iOS device
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
+    const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !(window as any).MSStream
     if (isIOS) {
       setShowInstallBtn(true)
     }
@@ -117,6 +115,8 @@ export default function DashboardLayout({
               onClick={() => setIsSidebarOpen(true)}
               className="lg:hidden p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
               aria-label="Open Navigation"
+              aria-expanded={isSidebarOpen}
+              aria-controls="mobile-sidebar-drawer"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -130,7 +130,7 @@ export default function DashboardLayout({
             <div className="flex items-center gap-3 pl-2">
               <div className="text-right hidden md:block">
                 <p className="text-xs font-black text-slate-900">EL LEARNERS</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{activeRole} Portal</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userEmail || `${activeRole} Portal`}</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-lg">
                 <User className="w-5 h-5" />

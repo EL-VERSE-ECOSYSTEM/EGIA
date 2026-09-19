@@ -67,7 +67,8 @@ export async function linkChild(admissionNumber: string) {
     if (updated.length === 0) throw new Error('Child link failed due to concurrent update.')
 
     revalidatePath('/dashboard/parent/children')
-    return { success: true, student: updated[0] }
+    const studentName = `${updated[0].firstName} ${updated[0].lastName}`
+    return { success: true, student: updated[0], name: studentName }
   })
 }
 
@@ -88,16 +89,16 @@ export async function getLinkedChildren() {
 
 export async function checkWardLinkingStatus(admissionNumber: string) {
   const session = await auth.getSession()
-  if (!session?.user) return { isLinked: false, canLink: false }
+  if (!session?.user) return { found: false, isLinked: false, canLink: false, message: 'Unauthorized session' }
 
   const child = await db.query.student.findFirst({
     where: eq(student.admissionNumber, admissionNumber.trim().toUpperCase())
   })
 
-  if (!child) return { isLinked: false, canLink: false, error: 'Student not found' }
-  if (child.parentId) return { isLinked: true, canLink: false, error: 'Already linked to a parent' }
+  if (!child) return { found: false, isLinked: false, canLink: false, message: 'Student with this admission number not found' }
+  if (child.parentId) return { found: true, isLinked: true, canLink: false, message: 'Student is already linked to a parent account', studentName: `${child.firstName} ${child.lastName}`, studentClass: child.class }
 
-  return { isLinked: false, canLink: true, student: child }
+  return { found: true, isLinked: false, canLink: true, student: child, studentName: `${child.firstName} ${child.lastName}`, studentClass: child.class }
 }
 
 export async function createAdminProfile() {
@@ -125,6 +126,8 @@ export async function updateParentProfile(data: {
   lastName?: string
   phoneNumber?: string
   address?: string
+  occupation?: string
+  profileImage?: string
 }) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
@@ -140,6 +143,8 @@ export async function updateParentProfile(data: {
       lastName: data.lastName || parentProfile.lastName,
       phoneNumber: data.phoneNumber || parentProfile.phoneNumber,
       address: data.address || parentProfile.address,
+      occupation: data.occupation || parentProfile.occupation,
+      profileImage: data.profileImage || parentProfile.profileImage,
       updatedAt: new Date(),
     })
     .where(eq(parentTable.id, parentProfile.id))
@@ -246,6 +251,8 @@ export async function createTeacherProfile(data: any) {
 
 export async function updateStudentProfileSettingsAction(data: {
   fullName?: string
+  firstName?: string
+  lastName?: string
   phone?: string
   gender?: string
 }) {
@@ -254,9 +261,26 @@ export async function updateStudentProfileSettingsAction(data: {
     throw new Error('Unauthorized')
   }
 
+  const studentRec = await db.query.student.findFirst({
+    where: eq(student.userId, session.user.id)
+  })
+
+  if (studentRec && (data.firstName || data.lastName)) {
+    await db.update(student)
+      .set({
+        firstName: data.firstName || studentRec.firstName,
+        lastName: data.lastName || studentRec.lastName,
+        gender: data.gender || studentRec.gender,
+        updatedAt: new Date()
+      })
+      .where(eq(student.id, studentRec.id))
+  }
+
+  const nameVal = data.fullName || (data.firstName && data.lastName ? `${data.firstName} ${data.lastName}` : undefined)
+
   await db.update(userTable)
     .set({
-      name: data.fullName || undefined,
+      name: nameVal || undefined,
       gender: data.gender || undefined,
       updatedAt: new Date()
     })

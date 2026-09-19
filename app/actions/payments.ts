@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { payment, student, paymentReceiptUploads, transactionLedger, studentGifts, user as userTable, parent as parentTable } from '@/lib/db/schema'
+import { payment, student, paymentReceiptUploads, transactionLedger, studentGifts, user as userTable, parent as parentTable, feeStructure } from '@/lib/db/schema'
 import { eq, and, desc, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
@@ -50,6 +50,10 @@ export async function verifyKorapayPayment(reference: string) {
 
     return {
       success: true,
+      status: 'success',
+      payment: rec || null,
+      schoolCode: undefined as string | undefined,
+      schoolName: undefined as string | undefined,
       data: {
         reference,
         status: 'success',
@@ -64,12 +68,12 @@ export async function verifyKorapayPayment(reference: string) {
 
   if (!res.ok) {
     const errText = await res.text()
-    return { success: false, error: `Verification request failed (${res.status}): ${errText}` }
+    return { success: false, status: 'failed', payment: null, schoolCode: undefined, schoolName: undefined, error: `Verification request failed (${res.status}): ${errText}` }
   }
 
   const json = await res.json()
   if (!json.status || !json.data) {
-    return { success: false, error: json.message || 'Invalid verification response from Korapay' }
+    return { success: false, status: 'failed', payment: null, schoolCode: undefined, schoolName: undefined, error: json.message || 'Invalid verification response from Korapay' }
   }
 
   const data = json.data
@@ -79,7 +83,7 @@ export async function verifyKorapayPayment(reference: string) {
 
   if (rec && status === 'success') {
     if (data.amount !== undefined && Number(data.amount) < Number(rec.amount)) {
-      return { success: false, error: 'Verified payment amount is less than required invoice total.' }
+      return { success: false, status: 'failed', payment: rec, schoolCode: undefined, schoolName: undefined, error: 'Verified payment amount is less than required invoice total.' }
     }
 
     await db.update(payment)
@@ -108,6 +112,10 @@ export async function verifyKorapayPayment(reference: string) {
 
   return {
     success: status === 'success',
+    status: status === 'success' ? 'success' : 'failed',
+    payment: rec || null,
+    schoolCode: undefined as string | undefined,
+    schoolName: undefined as string | undefined,
     data: {
       reference: data.reference,
       status: data.status,
@@ -467,9 +475,16 @@ export async function getAdminWalletSummaryAction() {
 
   const totalRevenue = schoolPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
 
+  const categoryBreakdown: Record<string, number> = {}
+  for (const p of schoolPayments) {
+    const cat = p.feeType || 'tuition'
+    categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + Number(p.amount || 0)
+  }
+
   return {
     totalRevenue,
     transactionCount: schoolPayments.length,
+    categoryBreakdown,
     recentTransactions: schoolPayments.slice(0, 15)
   }
 }
@@ -479,11 +494,15 @@ export async function getParentWalletSummaryAction() {
   if (!session?.user) throw new Error('Unauthorized')
 
   const pRec = await db.query.parent.findFirst({ where: eq(parentTable.userId, session.user.id) })
-  if (!pRec) return { totalPaid: 0, pendingAmount: 0, payments: [] }
+  if (!pRec) return { parent: null, children: [], totalFeesPaid: 0, totalPaid: 0, pendingAmount: 0, paymentsCount: 0, recentPayments: [], payments: [] }
 
   const payments = await db.query.payment.findMany({
     where: eq(payment.parentId, pRec.id),
     orderBy: [desc(payment.createdAt)],
+  })
+
+  const children = await db.query.student.findMany({
+    where: eq(student.parentId, pRec.id)
   })
 
   const totalPaid = payments
@@ -494,7 +513,17 @@ export async function getParentWalletSummaryAction() {
     .filter(p => p.status === 'pending')
     .reduce((sum, p) => sum + Number(p.amount || 0), 0)
 
-  return { totalPaid, pendingAmount, payments }
+  return {
+    parent: pRec,
+    children,
+    totalFeesPaid: totalPaid,
+    totalPaid,
+    pendingAmount,
+    paymentsCount: payments.length,
+    recentTransactions: payments.slice(0, 15),
+    recentPayments: payments.slice(0, 15),
+    payments,
+  }
 }
 
 export async function getStudentWalletStatsAction(studentIdInput?: string) {

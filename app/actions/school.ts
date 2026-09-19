@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db'
 import { school, user as userTable, schoolAdminRoles, userRole } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { auth } from '@/lib/auth'
 
@@ -150,7 +150,6 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
 
     const rec = existingSchool[0]
 
-    // Verify payment with Korapay if secret key configured
     const secretKey = process.env.KORAPAY_SECRET_KEY
     if (secretKey) {
       const res = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(paymentReference)}`, {
@@ -193,6 +192,7 @@ export async function getSchoolByCodeAction(code: string) {
       code: school.code,
       location: school.location,
       logoUrl: school.logoUrl,
+      allowParents: school.allowParents,
     }).from(school).where(eq(school.code, cleanCode))
 
     if (!result.length) {
