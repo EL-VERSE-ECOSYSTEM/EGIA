@@ -5,6 +5,7 @@ import { school, user, userRole, student, teacher, parent, assessment, message, 
 import { eq, sql, desc, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
+import { randomUUID } from 'crypto'
 
 async function checkSuperAdminPermission() {
   const session = await auth.getSession()
@@ -22,6 +23,7 @@ async function checkSuperAdminPermission() {
 }
 
 export async function getSuperAdminOverviewStats() {
+  const requestId = randomUUID()
   try {
     await checkSuperAdminPermission()
 
@@ -51,8 +53,8 @@ export async function getSuperAdminOverviewStats() {
       schools: schoolsList
     }
   } catch (error: any) {
-    console.error('Failed to get Super Admin stats:', error)
-    return { success: false, error: error.message }
+    console.error('Failed to get Super Admin stats:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to retrieve system statistics. Please try again.', requestId }
   }
 }
 
@@ -64,6 +66,7 @@ export async function awardStudentGiftAction(data: {
   giftType?: 'CASH' | 'FEE_CREDIT' | 'CASH_OR_FEE'
   expirationHours?: number
 }) {
+  const requestId = randomUUID()
   try {
     await checkSuperAdminPermission()
 
@@ -95,11 +98,13 @@ export async function awardStudentGiftAction(data: {
     revalidatePath('/dashboard/student/leaderboard')
     return { success: true, giftId }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('Failed to award student gift:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to award student gift. Please try again.', requestId }
   }
 }
 
 export async function toggleUserSuspensionAction(userId: string, suspend: boolean, reason?: string) {
+  const requestId = randomUUID()
   try {
     await checkSuperAdminPermission()
 
@@ -116,7 +121,8 @@ export async function toggleUserSuspensionAction(userId: string, suspend: boolea
     revalidatePath('/dashboard/super-admin')
     return { success: true }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('Failed to toggle user suspension:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to update account suspension status. Please try again.', requestId }
   }
 }
 
@@ -126,6 +132,7 @@ export async function recordDisciplinaryAction(data: {
   description: string
   actionType: 'WARNING' | 'SUSPENSION' | 'PROBATION' | 'EXPULSION'
 }) {
+  const requestId = randomUUID()
   try {
     await checkSuperAdminPermission()
 
@@ -146,11 +153,13 @@ export async function recordDisciplinaryAction(data: {
     revalidatePath('/dashboard/super-admin')
     return { success: true }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('Failed to record disciplinary action:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to record disciplinary action. Please try again.', requestId }
   }
 }
 
 export async function toggleSchoolParentRegistrationAction(schoolId: string, allowParents: boolean) {
+  const requestId = randomUUID()
   try {
     await checkSuperAdminPermission()
 
@@ -161,11 +170,13 @@ export async function toggleSchoolParentRegistrationAction(schoolId: string, all
     revalidatePath('/dashboard/super-admin/overview')
     return { success: true }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('Failed to toggle school parent registration:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to update school registration settings. Please try again.', requestId }
   }
 }
 
 export async function updateSchoolPaymentStatusAction(schoolId: string, status: 'PAID' | 'PENDING') {
+  const requestId = randomUUID()
   try {
     await checkSuperAdminPermission()
 
@@ -176,7 +187,8 @@ export async function updateSchoolPaymentStatusAction(schoolId: string, status: 
     revalidatePath('/dashboard/super-admin/overview')
     return { success: true }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('Failed to update school payment status:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to update school payment status. Please try again.', requestId }
   }
 }
 
@@ -186,6 +198,7 @@ export async function sendSystemWideNotificationAction(input: {
   targetSchoolId?: string
   targetRole?: string
 }) {
+  const requestId = randomUUID()
   try {
     await checkSuperAdminPermission()
 
@@ -216,11 +229,13 @@ export async function sendSystemWideNotificationAction(input: {
     revalidatePath('/dashboard/super-admin/overview')
     return { success: true, count: notificationInserts.length }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('Failed to send system-wide notification:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to broadcast system notifications. Please try again.', requestId }
   }
 }
 
 export async function getAllUsersForSuperAdmin() {
+  const requestId = randomUUID()
   try {
     await checkSuperAdminPermission()
 
@@ -237,11 +252,13 @@ export async function getAllUsersForSuperAdmin() {
 
     return { success: true, users: usersList }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('Failed to retrieve super-admin users list:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to fetch users list. Please try again.', requestId }
   }
 }
 
 export async function updateUserRoleAction(userId: string, newRole: string) {
+  const requestId = randomUUID()
   try {
     await checkSuperAdminPermission()
 
@@ -252,11 +269,13 @@ export async function updateUserRoleAction(userId: string, newRole: string) {
     revalidatePath('/dashboard/super-admin/overview')
     return { success: true }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('Failed to update user role:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to update user role. Please try again.', requestId }
   }
 }
 
 export async function deleteUserAccountAction(userId: string) {
+  const requestId = randomUUID()
   try {
     await checkSuperAdminPermission()
 
@@ -264,11 +283,13 @@ export async function deleteUserAccountAction(userId: string) {
     revalidatePath('/dashboard/super-admin/overview')
     return { success: true }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('Failed to delete user account:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to delete user account. Please try again.', requestId }
   }
 }
 
 export async function getAllCBTsForSuperAdmin() {
+  const requestId = randomUUID()
   try {
     await checkSuperAdminPermission()
 
@@ -283,11 +304,13 @@ export async function getAllCBTsForSuperAdmin() {
 
     return { success: true, cbts: cbtsList }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('Failed to fetch super-admin CBTs:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to retrieve CBT assessments. Please try again.', requestId }
   }
 }
 
 export async function approveCBTAssessmentAction(assessmentId: string, approved: boolean, comment?: string) {
+  const requestId = randomUUID()
   try {
     await checkSuperAdminPermission()
 
@@ -302,6 +325,7 @@ export async function approveCBTAssessmentAction(assessmentId: string, approved:
     revalidatePath('/dashboard/super-admin/overview')
     return { success: true }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('Failed to approve/reject CBT assessment:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to update assessment status. Please try again.', requestId }
   }
 }

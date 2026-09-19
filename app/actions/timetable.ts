@@ -5,6 +5,7 @@ import { timetables, class_ } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
+import { randomUUID } from 'crypto'
 
 export interface TimetableEntry {
   id?: string
@@ -20,6 +21,7 @@ export interface TimetableEntry {
 export async function getTimetableAction(classNameInput: string) {
   const cleanClassName = classNameInput.trim()
   if (!cleanClassName) return { success: true, entries: [] }
+  const requestId = randomUUID()
 
   try {
     const list = await db.query.timetables.findMany({
@@ -28,8 +30,8 @@ export async function getTimetableAction(classNameInput: string) {
     })
     return { success: true, entries: list }
   } catch (err: any) {
-    console.error('getTimetableAction Error:', err)
-    return { success: false, error: err.message || 'Failed to fetch timetable' }
+    console.error('getTimetableAction Error:', { requestId, error: err?.message || err })
+    return { success: false, error: 'Unable to retrieve class timetable. Please try again.', requestId }
   }
 }
 
@@ -42,6 +44,7 @@ export async function saveTimetableAction(data: {
 
   const cleanClassName = data.className.trim()
   if (!cleanClassName) throw new Error('Class name is required.')
+  const requestId = randomUUID()
 
   try {
     await db.transaction(async (tx) => {
@@ -69,7 +72,7 @@ export async function saveTimetableAction(data: {
     revalidatePath(`/dashboard/teacher/my-classes`)
     return { success: true }
   } catch (err: any) {
-    console.error('saveTimetableAction Error:', err)
-    return { success: false, error: err.message || 'Failed to save timetable' }
+    console.error('saveTimetableAction Error:', { requestId, error: err?.message || err })
+    return { success: false, error: 'Unable to save class timetable. Please try again.', requestId }
   }
 }

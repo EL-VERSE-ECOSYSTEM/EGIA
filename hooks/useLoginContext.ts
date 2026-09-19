@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { UserIdentity, LoginContext } from '@/lib/auth/resolveIdentities'
 import { switchIdentityAction } from '@/app/auth/signin/actions'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 export function useLoginContext() {
   const router = useRouter()
@@ -20,9 +21,12 @@ export function useLoginContext() {
           setActiveIdentity(res.identity)
         }
         router.push(res.redirectTo)
+      } else {
+        toast.error(res.error || 'Unable to switch identity context. Please try again.')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Identity switch error:', err)
+      toast.error('Failed to switch accounts. Please check your network connection and try again.')
     } finally {
       setLoading(false)
     }

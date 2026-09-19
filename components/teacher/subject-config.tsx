@@ -10,6 +10,7 @@ import { School, BookOpen, Users, Check, AlertCircle, Loader2 } from 'lucide-rea
 import { updateTeacherSubjects, getStudentsBySubject } from '@/app/actions/teacher'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 interface SubjectConfigProps {
   initialSubjects: string[]
@@ -38,6 +39,7 @@ export function SubjectConfig({ initialSubjects = [] }: SubjectConfigProps) {
   const [activeSubjectTab, setActiveSubjectTab] = useState<string | null>(initialSubjects[0] || null)
   const [students, setStudents] = useState<any[]>([])
   const [loadingStudents, setLoadingStudents] = useState(false)
+  const [studentsError, setStudentsError] = useState<string | null>(null)
 
   const handleSubjectToggle = (subject: string) => {
     if (selectedSubjects.includes(subject)) {
@@ -55,11 +57,12 @@ export function SubjectConfig({ initialSubjects = [] }: SubjectConfigProps) {
       await updateTeacherSubjects(subjectsToSave)
       setSavedSaved(true)
       setActiveSubjectTab(subjectsToSave[0] || null)
+      toast.success('Subject configuration updated successfully!')
       setTimeout(() => setSavedSaved(false), 3000)
       router.refresh()
     } catch (err) {
-      console.error(err)
-      alert('Failed to update subject configuration.')
+      console.error('Failed to update teacher subjects:', err)
+      toast.error('Failed to update subject configuration. Please try again.')
     } finally {
       setIsSaving(false)
     }
@@ -69,6 +72,7 @@ export function SubjectConfig({ initialSubjects = [] }: SubjectConfigProps) {
   useEffect(() => {
     if (activeSubjectTab) {
       setLoadingStudents(true)
+      setStudentsError(null)
       getStudentsBySubject(activeSubjectTab)
         .then(res => {
           // Sort students by class first, then alphabetically
@@ -80,8 +84,10 @@ export function SubjectConfig({ initialSubjects = [] }: SubjectConfigProps) {
           setLoadingStudents(false)
         })
         .catch(err => {
-          console.error(err)
+          console.error('Error fetching students by subject:', err)
+          setStudentsError('Unable to load student roster for this subject.')
           setLoadingStudents(false)
+          toast.error('Unable to load student roster. Please try again.')
         })
     } else {
       setStudents([])
@@ -184,6 +190,11 @@ export function SubjectConfig({ initialSubjects = [] }: SubjectConfigProps) {
             <div className="p-10">
               {loadingStudents ? (
                 <div className="text-center py-20 text-slate-400 font-bold italic">Loading class list...</div>
+              ) : studentsError ? (
+                <div className="text-center py-20 text-red-500 font-bold italic space-y-4">
+                  <AlertCircle className="w-12 h-12 text-red-300 mx-auto" />
+                  <p>{studentsError}</p>
+                </div>
               ) : students.length === 0 ? (
                 <div className="text-center py-20 text-slate-400 font-bold italic space-y-4">
                   <AlertCircle className="w-12 h-12 text-slate-200 mx-auto" />

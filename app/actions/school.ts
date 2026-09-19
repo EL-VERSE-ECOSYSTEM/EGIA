@@ -39,6 +39,7 @@ export async function generateSchoolCode(schoolName: string): Promise<string> {
 }
 
 export async function registerSchoolAction(input: SchoolRegistrationInput) {
+  const requestId = randomUUID()
   try {
     if (!input.name || !input.adminEmail || !input.adminName) {
       return { success: false, error: 'School name, admin email, and admin name are required.' }
@@ -130,12 +131,13 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       checkoutUrl: `/payment/return?reference=${encodeURIComponent(paymentReference)}`
     }
   } catch (error: any) {
-    console.error('Failed to register school:', error)
-    return { success: false, error: error.message || 'Failed to initialize school registration' }
+    console.error('Failed to register school:', { requestId, error: error?.message || error })
+    return { success: false, error: 'School registration could not be initialized. Please verify your details and try again.', requestId }
   }
 }
 
 export async function confirmSchoolPaymentAction(paymentReference: string) {
+  const requestId = randomUUID()
   try {
     const session = await auth.getSession()
     if (!session?.user) {
@@ -178,12 +180,13 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
       paidAt: new Date().toISOString()
     }
   } catch (error: any) {
-    console.error('Failed to confirm school payment:', error)
-    return { success: false, error: error.message || 'Payment confirmation failed' }
+    console.error('Failed to confirm school payment:', { requestId, error: error?.message || error })
+    return { success: false, error: 'School registration payment confirmation failed. Please try again.', requestId }
   }
 }
 
 export async function getSchoolByCodeAction(code: string) {
+  const requestId = randomUUID()
   try {
     const cleanCode = code.trim().toUpperCase()
     const result = await db.select({
@@ -200,6 +203,7 @@ export async function getSchoolByCodeAction(code: string) {
     }
     return { success: true, school: result[0] }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('School lookup failed:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to verify school code. Please try again.', requestId }
   }
 }
