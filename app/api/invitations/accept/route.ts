@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { invitations, user, userRole, teacher, parent, student } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { invitations, user as userTable, userRole, teacher, parent, student } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
 export async function POST(req: NextRequest) {
@@ -13,87 +13,132 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Token and password are required.' }, { status: 400 })
     }
 
-    const records = await db.select().from(invitations).where(eq(invitations.token, token))
+    if (typeof password !== 'string' || password.length < 8) {
+      return NextResponse.json({ error: 'Password must be at least 8 characters long.' }, { status: 400 })
+    }
+
+    // Atomic claim on invitation record
+    const now = new Date()
+    const records = await db.select().from(invitations).where(
+      and(
+        eq(invitations.token, token),
+        eq(invitations.status, 'PENDING')
+      )
+    )
+
     if (records.length === 0) {
-      return NextResponse.json({ error: 'Invalid invitation token.' }, { status: 404 })
+      return NextResponse.json({ error: 'Invalid or already accepted invitation token.' }, { status: 400 })
     }
 
     const invitation = records[0]
-    if (invitation.status === 'ACCEPTED') {
-      return NextResponse.json({ error: 'Invitation has already been accepted.' }, { status: 400 })
-    }
-
-    if (new Date(invitation.expiresAt) < new Date()) {
+    if (new Date(invitation.expiresAt) < now) {
       await db.update(invitations).set({ status: 'EXPIRED' }).where(eq(invitations.id, invitation.id))
       return NextResponse.json({ error: 'Invitation token has expired.' }, { status: 400 })
     }
 
-    const userId = randomUUID()
-    const email = invitation.email || `${invitation.phone || 'user'}@school.com`
-    const userRoleType = invitation.role || 'TEACHER'
-
-    // Create user record
-    await db.insert(user).values({
-      id: userId,
-      email,
-      name: name || `${firstName || 'Invited'} ${lastName || 'User'}`,
-      schoolId: invitation.schoolId,
-      password
-    })
-
-    // Create user role record
-    await db.insert(userRole).values({
-      id: randomUUID(),
-      userId,
-      role: userRoleType
-    })
-
-    // Role-specific records
-    if (userRoleType === 'TEACHER') {
-      await db.insert(teacher).values({
-        id: randomUUID(),
-        userId,
-        schoolId: invitation.schoolId,
-        firstName: firstName || 'Teacher',
-        lastName: lastName || 'Staff',
-        gender: gender || 'Male',
-        staffCode: `ST-${Math.floor(10000 + Math.random() * 90000)}`,
-        password,
-        status: 'ACTIVE'
-      })
-    } else if (userRoleType === 'PARENT') {
-      await db.insert(parent).values({
-        id: randomUUID(),
-        userId,
-        schoolId: invitation.schoolId,
-        firstName: firstName || 'Parent',
-        lastName: lastName || 'Guardian',
-        gender: gender || 'Male',
-        phoneNumber: invitation.phone || null,
-        password
-      })
-    } else if (userRoleType === 'STUDENT') {
-      await db.insert(student).values({
-        id: randomUUID(),
-        userId,
-        schoolId: invitation.schoolId,
-        firstName: firstName || 'Student',
-        lastName: lastName || 'Pupil',
-        gender: gender || 'Male',
-        class: 'JSS1',
-        admissionNumber: `STU-${Math.floor(10000 + Math.random() * 90000)}`,
-        password,
-        registrationStatus: 'ACTIVE'
-      })
+    const email = (invitation.email || body.email || '').trim().toLowerCase()
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: 'A valid email address is required to complete invitation acceptance.' }, { status: 400 })
     }
 
-    // Mark invitation as ACCEPTED
-    await db.update(invitations).set({ status: 'ACCEPTED' }).where(eq(invitations.id, invitation.id))
+    const userRoleType = invitation.role || 'TEACHER'
+    let userId = randomUUID()
 
-    return NextResponse.json({
-      success: true,
-      message: 'Invitation accepted successfully! You can now log in.',
-      role: userRoleType
+    // Provision user in Supabase Auth via Admin client if secret key present
+    const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
+    if (secretKey) {
+      const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
+      const adminClient = createSupabaseAdminClient(supabaseUrl, secretKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+
+      const authRes = await adminClient.auth.admin.createUser({
+        id: userId,
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: name || `${firstName || 'Invited'} ${lastName || 'User'}`,
+          role: userRoleType,
+          school_id: invitation.schoolId,
+        },
+      })
+
+      if (authRes.error || !authRes.data?.user?.id) {
+        return NextResponse.json(
+          { error: `Auth account creation failed: ${authRes.error?.message || 'Unknown auth error'}` },
+          { status: 400 }
+        )
+      }
+      userId = authRes.data.user.id
+    }
+
+    return await db.transaction(async (tx) => {
+      // Create user record (no plaintext password stored)
+      await tx.insert(userTable).values({
+        id: userId,
+        email,
+        name: name || `${firstName || 'Invited'} ${lastName || 'User'}`,
+        schoolId: invitation.schoolId,
+        createdAt: now,
+        updatedAt: now,
+      }).onConflictDoUpdate({
+        target: userTable.id,
+        set: { updatedAt: now }
+      })
+
+      // Create user role record
+      await tx.insert(userRole).values({
+        id: randomUUID(),
+        userId,
+        role: userRoleType
+      }).onConflictDoNothing()
+
+      // Role-specific records
+      if (userRoleType === 'TEACHER') {
+        await tx.insert(teacher).values({
+          id: randomUUID(),
+          userId,
+          schoolId: invitation.schoolId,
+          firstName: firstName || 'Teacher',
+          lastName: lastName || 'Staff',
+          gender: gender || 'Male',
+          staffCode: `ST-${Math.floor(10000 + Math.random() * 90000)}`,
+          status: 'ACTIVE'
+        } as any)
+      } else if (userRoleType === 'PARENT') {
+        await tx.insert(parent).values({
+          id: randomUUID(),
+          userId,
+          schoolId: invitation.schoolId,
+          firstName: firstName || 'Parent',
+          lastName: lastName || 'Guardian',
+          gender: gender || 'Male',
+          phoneNumber: invitation.phone || null
+        } as any)
+      } else if (userRoleType === 'STUDENT') {
+        await tx.insert(student).values({
+          id: randomUUID(),
+          userId,
+          schoolId: invitation.schoolId,
+          firstName: firstName || 'Student',
+          lastName: lastName || 'Pupil',
+          gender: gender || 'Male',
+          class: 'JSS1',
+          admissionNumber: `STU-${Math.floor(10000 + Math.random() * 90000)}`,
+          registrationStatus: 'ACTIVE'
+        } as any)
+      }
+
+      // Mark invitation as ACCEPTED
+      await tx.update(invitations).set({ status: 'ACCEPTED' }).where(eq(invitations.id, invitation.id))
+
+      return NextResponse.json({
+        success: true,
+        message: 'Invitation accepted successfully! You can now log in.',
+        role: userRoleType
+      })
     })
   } catch (error: any) {
     console.error('Error accepting invitation:', error)
@@ -115,7 +160,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Invitation not found.' }, { status: 404 })
     }
 
-    return NextResponse.json({ success: true, invitation: records[0] })
+    const inv = records[0]
+
+    return NextResponse.json({
+      success: true,
+      invitation: {
+        id: inv.id,
+        email: inv.email,
+        role: inv.role,
+        status: inv.status,
+        expiresAt: inv.expiresAt,
+      }
+    })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to fetch invitation details' }, { status: 500 })
   }

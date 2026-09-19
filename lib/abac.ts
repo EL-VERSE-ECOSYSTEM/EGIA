@@ -3,7 +3,18 @@ import { abacPolicy } from './db/schema'
 import { eq, and } from 'drizzle-orm'
 
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'publish' | 'grade'
-export type Resource = 'assessment' | 'result' | 'student' | 'teacher' | 'parent' | 'payment' | 'message' | 'dispute' | 'class' | 'academicSession' | 'term' | 'academicSession' | 'term'
+export type Resource =
+  | 'assessment'
+  | 'result'
+  | 'student'
+  | 'teacher'
+  | 'parent'
+  | 'payment'
+  | 'message'
+  | 'dispute'
+  | 'class'
+  | 'academicSession'
+  | 'term'
 
 interface EvaluationContext {
   user: {
@@ -23,10 +34,12 @@ export async function checkPermission(
   resourceName: Resource,
   resourceData?: any
 ): Promise<boolean> {
-  // 1. Fetch applicable policies from DB
+  const normalizedRole = (role || '').toUpperCase()
+
+  // 1. Fetch applicable policies from DB sorted by priority (highest priority evaluated first)
   const policies = await db.query.abacPolicy.findMany({
     where: and(
-      eq(abacPolicy.role, role),
+      eq(abacPolicy.role, normalizedRole),
       eq(abacPolicy.resource, resourceName),
       eq(abacPolicy.action, action)
     ),
@@ -34,11 +47,11 @@ export async function checkPermission(
   })
 
   const context: EvaluationContext = {
-    user: { id: userId, role },
+    user: { id: userId, role: normalizedRole },
     resource: resourceData || {}
   }
 
-  // 2. If policies exist, evaluate them
+  // 2. Evaluate DB policies with strict precedence (First matching condition determines ALLOW/DENY)
   if (policies.length > 0) {
     for (const policy of policies) {
       const conditions = policy.conditions as any
@@ -46,35 +59,45 @@ export async function checkPermission(
         return policy.effect === 'ALLOW'
       }
     }
-    // If we have policies but none matched, or last match was DENY, we follow the last match or deny
     return false
   }
 
-  // 3. Fallback RBAC Logic (when no specific ABAC policies are seeded in DB)
-  if (role.toUpperCase() === 'ADMIN') return true
+  // 3. Explicit RBAC Fallback Logic (When no custom ABAC rules match in DB)
+  if (normalizedRole === 'SUPER_ADMIN') {
+    return true
+  }
 
-  if (role.toUpperCase() === 'TEACHER') {
-    const allowedResources = ['assessment', 'result', 'message', 'dispute', 'student', 'class']
-    if (allowedResources.includes(resourceName)) {
-      if (action === 'delete') return false // Even teachers shouldn't delete without policy
+  if (normalizedRole === 'ADMIN' || normalizedRole === 'PRIMARY_ADMIN' || normalizedRole === 'SCHOOL_ADMIN') {
+    return true
+  }
+
+  if (normalizedRole === 'TEACHER') {
+    const allowedTeacherResources: Resource[] = ['assessment', 'result', 'message', 'dispute', 'student', 'class']
+    if (allowedTeacherResources.includes(resourceName)) {
+      if (action === 'delete') return false
       return true
     }
   }
 
-  if (role.toUpperCase() === 'STUDENT') {
-    if (resourceName === 'result' || resourceName === 'message' || resourceName === 'assessment') {
-      // Students can read assessments/messages/results, and create results (take assessments) or create messages
-      return action === 'read' || (action === 'create' && (resourceName === 'result' || resourceName === 'message'))
+  if (normalizedRole === 'STUDENT') {
+    if (resourceName === 'message') {
+      return action === 'read' || action === 'create'
+    }
+    if (resourceName === 'assessment' || resourceName === 'result') {
+      return action === 'read'
     }
   }
 
-  if (role.toUpperCase() === 'PARENT') {
-    if (resourceName === 'student' || resourceName === 'result' || resourceName === 'payment' || resourceName === 'message') {
-      // Parents can read student/result/payment/messages, and create payments or create messages
-      return action === 'read' || (action === 'create' && (resourceName === 'payment' || resourceName === 'message'))
+  if (normalizedRole === 'PARENT') {
+    if (resourceName === 'message') {
+      return action === 'read' || action === 'create'
+    }
+    if (resourceName === 'student' || resourceName === 'result' || resourceName === 'payment') {
+      return action === 'read'
     }
   }
 
+  // Default Deny
   return false
 }
 
