@@ -4,9 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { db } from '@/lib/db'
-import { userRole } from '@/lib/db/schema'
 import { createAdminProfile } from '@/app/actions/user'
+import { toast } from 'sonner'
 
 export default function AdminSetupPage() {
   const router = useRouter()
@@ -17,10 +16,11 @@ export default function AdminSetupPage() {
 
     try {
       await createAdminProfile()
+      toast.success('Administrator account setup successful!')
       router.push('/dashboard/admin/overview')
     } catch (error) {
       console.error('Error setting up admin:', error)
-      alert('Failed to setup admin account. Please try again.')
+      toast.error('Failed to setup admin account. Please try again or contact support.')
     } finally {
       setLoading(false)
     }

@@ -10,8 +10,15 @@ export function parseCSV(text: string): Record<string, string>[] {
   return result.rows
 }
 
+export function sanitizeCSVFormula(val: string): string {
+  if (typeof val === 'string' && /^[=+\-@\t\r]/.test(val)) {
+    return `'${val}`
+  }
+  return val
+}
+
 export function parseCSVAdvanced(text: string): CSVParseResult {
-  const cleanText = text.replace(/^\uFEFF/, '') // Remove UTF-8 BOM if present
+  const cleanText = text.replace(/^\uFEFF/, '')
   const lines: string[] = []
   let currentLine = ''
   let inQuotes = false
@@ -65,13 +72,13 @@ export function parseCSVAdvanced(text: string): CSVParseResult {
           inside = !inside
         }
       } else if (c === ',' && !inside) {
-        fields.push(field.trim())
+        fields.push(sanitizeCSVFormula(field.trim()))
         field = ''
       } else {
         field += c
       }
     }
-    fields.push(field.trim())
+    fields.push(sanitizeCSVFormula(field.trim()))
     return fields
   }
 
@@ -81,7 +88,7 @@ export function parseCSVAdvanced(text: string): CSVParseResult {
   const rows: Record<string, string>[] = []
   for (let i = 1; i < lines.length; i++) {
     const values = parseLine(lines[i])
-    if (values.every(v => !v)) continue // skip empty rows
+    if (values.every(v => !v)) continue
 
     const row: Record<string, string> = {}
     headers.forEach((header, idx) => {
@@ -90,7 +97,6 @@ export function parseCSVAdvanced(text: string): CSVParseResult {
     rows.push(row)
   }
 
-  // Auto-detect column data types
   const detectedTypes: Record<string, 'text' | 'number' | 'date'> = {}
   headers.forEach(h => {
     let isNumber = true
@@ -128,10 +134,14 @@ export function parseCSVAdvanced(text: string): CSVParseResult {
 }
 
 export function validateQuestionCSV(data: any[]): boolean {
-  const requiredFields = ['question', 'option a', 'option b', 'correct']
+  if (!Array.isArray(data) || data.length === 0) return false
+
   return data.every(row => {
-    const keys = Object.keys(row).map(k => k.toLowerCase())
-    return requiredFields.some(req => keys.includes(req))
+    if (!row || typeof row !== 'object') return false
+    const keys = Object.keys(row).map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    const hasQuestion = keys.some(k => k.includes('question'))
+    const hasAnswer = keys.some(k => k.includes('correct') || k.includes('answer'))
+    return hasQuestion && hasAnswer
   })
 }
 

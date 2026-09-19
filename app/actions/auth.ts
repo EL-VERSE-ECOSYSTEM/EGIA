@@ -17,6 +17,7 @@ export const parentSignupSchema = z.object({
 })
 
 export async function signUpAsParent(formData: unknown) {
+  const requestId = randomUUID()
   const parsed = parentSignupSchema.safeParse(formData)
   if (!parsed.success) {
     const errorMsg = parsed.error.issues.map(i => i.message).join(', ')
@@ -53,7 +54,6 @@ export async function signUpAsParent(formData: unknown) {
       id: userId,
       email,
       name: fullName,
-      phone,
       createdAt: new Date(),
       updatedAt: new Date(),
     }).onConflictDoNothing()
@@ -64,10 +64,12 @@ export async function signUpAsParent(formData: unknown) {
       id: parentId,
       userId,
       schoolId: schoolId || null,
-      phonenumber: phone,
+      firstName,
+      lastName,
+      phoneNumber: phone,
       createdAt: new Date(),
       updatedAt: new Date(),
-    }).onConflictDoNothing()
+    } as any).onConflictDoNothing()
 
     // 4. Assign PARENT user role
     await db.insert(userRoleTable).values({
@@ -82,10 +84,11 @@ export async function signUpAsParent(formData: unknown) {
       parentId,
     }
   } catch (dbError: any) {
-    console.error('Error creating parent application profile:', dbError)
+    console.error('Error creating parent application profile:', { requestId, error: dbError?.message || dbError })
     return {
       success: false,
-      error: dbError.message || 'Failed to complete profile registration in application database.',
+      error: 'Failed to complete profile registration in application database. Please try again.',
+      requestId,
     }
   }
 }

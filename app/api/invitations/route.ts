@@ -8,6 +8,7 @@ import { auth } from '@/lib/auth'
 const ALLOWED_INVITE_ROLES = ['TEACHER', 'PARENT', 'STUDENT']
 
 export async function POST(req: NextRequest) {
+  const requestId = randomUUID()
   try {
     const session = await auth.getSession()
     if (!session?.user) {
@@ -70,12 +71,13 @@ export async function POST(req: NextRequest) {
       }
     })
   } catch (error: any) {
-    console.error('Error creating invitation:', error)
-    return NextResponse.json({ error: error.message || 'Failed to create invitation' }, { status: 500 })
+    console.error('Error creating invitation:', { requestId, error: error?.message || error })
+    return NextResponse.json({ error: 'Unable to create invitation. Please try again.', requestId }, { status: 500 })
   }
 }
 
 export async function GET(req: NextRequest) {
+  const requestId = randomUUID()
   try {
     const session = await auth.getSession()
     if (!session?.user) {
@@ -122,6 +124,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ success: true, data: maskedList })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to fetch invitations' }, { status: 500 })
+    console.error('Error fetching invitations:', { requestId, error: error?.message || error })
+    return NextResponse.json({ error: 'Unable to fetch invitations. Please try again.', requestId }, { status: 500 })
   }
 }

@@ -40,7 +40,7 @@ export function ClockInOutWidget({ todayRecord, onRefresh }: ClockInOutWidgetPro
         if (onRefresh) onRefresh()
       }
     } catch (err: any) {
-      toast.error(err.message || 'Clock in failed')
+      toast.error(err?.message || 'Unable to clock in at this time. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -55,7 +55,7 @@ export function ClockInOutWidget({ todayRecord, onRefresh }: ClockInOutWidgetPro
         if (onRefresh) onRefresh()
       }
     } catch (err: any) {
-      toast.error(err.message || 'Clock out failed')
+      toast.error(err?.message || 'Unable to clock out at this time. Please try again.')
     } finally {
       setLoading(false)
     }

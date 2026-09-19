@@ -119,9 +119,15 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    transition-property: color, background-color, border-color, box-shadow, opacity;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 300ms;
+    transition-duration: 150ms;
   }
   body {
     @apply bg-background text-foreground;
@@ -131,7 +137,18 @@
   }
 }
 
-/* Premium Theme & Accessibility Overrides (Dark theme text-readable overrides) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Premium Theme & Accessibility Overrides */
 .dark .text-slate-900,
 .dark .text-slate-800,
 .dark .text-slate-700,
