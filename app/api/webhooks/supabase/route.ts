@@ -28,9 +28,9 @@ function validSecret(received: string | null, expected: string) {
 
 function eventKey(payload: WebhookPayload) {
   const id = typeof payload.record?.id === "string" ? payload.record.id : typeof payload.old_record?.id === "string" ? payload.old_record.id : "no-record-id";
-  // A status transition is represented by the final relevant state, so retried DB webhooks remain idempotent.
   const state = typeof payload.record?.status === "string" ? payload.record.status : String(payload.record?.is_graded ?? "");
-  return `${payload.table}:${id}:${state}`;
+  const ts = payload.timestamp || "";
+  return `${payload.table}:${id}:${state}:${ts}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -58,17 +58,35 @@ export async function POST(request: NextRequest) {
   const payload = parsed.data;
   const key = eventKey(payload);
   const supabase = supabaseAdmin();
-  const { data: known, error: readError } = await supabase.from("webhook_events").select("status").eq("event_key", key).maybeSingle();
-  if (readError) {
-    logger.error("Webhook idempotency lookup failed", readError, { requestId });
-    return NextResponse.json({ error: "Temporary processing error", requestId }, { status: 500 });
-  }
-  if (known?.status === "processed") return NextResponse.json({ success: true, duplicate: true, requestId });
 
-  const { error: claimError } = await supabase.from("webhook_events").upsert({ event_key: key, table_name: payload.table, event_type: payload.type, record_id: typeof payload.record?.id === "string" ? payload.record.id : null, status: "processing", payload }, { onConflict: "event_key" });
+  // Atomic event claim to avoid race condition
+  const { error: claimError } = await supabase
+    .from("webhook_events")
+    .insert({
+      event_key: key,
+      table_name: payload.table,
+      event_type: payload.type,
+      record_id: typeof payload.record?.id === "string" ? payload.record.id : null,
+      status: "processing",
+      payload
+    });
+
   if (claimError) {
-    logger.error("Webhook idempotency claim failed", claimError, { requestId });
-    return NextResponse.json({ error: "Temporary processing error", requestId }, { status: 500 });
+    // If conflict on event_key, check existing status
+    if (claimError.code === '23505' || claimError.message?.includes('duplicate key') || claimError.message?.includes('unique constraint')) {
+      const { data: existing } = await supabase
+        .from("webhook_events")
+        .select("status")
+        .eq("event_key", key)
+        .maybeSingle();
+
+      if (existing?.status === "processed" || existing?.status === "processing") {
+        return NextResponse.json({ success: true, duplicate: true, requestId });
+      }
+    } else {
+      logger.error("Webhook idempotency claim failed", claimError, { requestId });
+      return NextResponse.json({ error: "Temporary processing error", requestId }, { status: 500 });
+    }
   }
 
   try {
@@ -82,11 +100,10 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     await supabase.from("webhook_events").update({ status: "failed", error_message: message, updated_at: new Date().toISOString() }).eq("event_key", key);
     logger.error("Webhook processing failed", error, { requestId, table: payload.table, type: payload.type });
-    // A non-2xx response is vital: Supabase Database Webhooks then retries delivery.
     return NextResponse.json({ error: "Processing failed", requestId }, { status: 500 });
   }
 }
 
 export async function GET() {
-  return NextResponse.json({ status: "healthy", service: "FCM webhook processor", timestamp: new Date().toISOString() });
+  return NextResponse.json({ error: "Method Not Allowed" }, { status: 405 });
 }

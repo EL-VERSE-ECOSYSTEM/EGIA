@@ -1,158 +1,11 @@
 'use server'
 
+import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { libraryBooks, lessonNotes, subject } from '@/lib/db/schema'
-import { asc, eq } from 'drizzle-orm'
+import { libraryBooks, lessonNotes, subject, teacher as teacherTable, user as userTable } from '@/lib/db/schema'
+import { asc, eq, and } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
-const SEED_BOOKS = [
-  {
-    id: 'res-1',
-    title: 'Essential Mathematics for Senior Secondary Schools (Book 1)',
-    category: 'Textbooks',
-    subject: 'Mathematics',
-    classLevel: 'SSS 1',
-    author: 'Dr. O. A. Adebayo',
-    pages: 412,
-    downloads: 128,
-    fileSize: '14.2 MB',
-    content: `Chapter 1: Number Bases. Let's learn conversion between bases, addition, and subtraction in other bases. Binary, octal, and hexadecimal operations...`
-  },
-  {
-    id: 'res-2',
-    title: 'Modern Biology for Senior Secondary Schools',
-    category: 'Textbooks',
-    subject: 'Biology',
-    classLevel: 'SSS 2',
-    author: 'Prof. T. U. Ndu',
-    pages: 385,
-    downloads: 95,
-    fileSize: '18.5 MB',
-    content: `Chapter 3: Photosynthesis. Photosynthesis is the chemical process by which green plants build up complex organic substances from carbon dioxide and water using light energy...`
-  },
-  {
-    id: 'res-3',
-    title: 'New School Physics for SSS',
-    category: 'Textbooks',
-    subject: 'Physics',
-    classLevel: 'SSS 3',
-    author: 'M. W. Anyakoha',
-    pages: 520,
-    downloads: 242,
-    fileSize: '22.1 MB',
-    content: `Chapter 12: Waves and Wave Motion. Reflection, refraction, diffraction, and polarization of wave pulses. Formulas for frequency, wavelength, and velocity...`
-  },
-  {
-    id: 'res-4',
-    title: 'Interactive English Grammar & Composition',
-    category: 'Textbooks',
-    subject: 'English Language',
-    classLevel: 'JSS 2',
-    author: 'Sarah I. Williams',
-    pages: 210,
-    downloads: 74,
-    fileSize: '8.4 MB',
-    content: `Unit 4: Pronouns and Conjunctions. Learn subjective, objective, possessive, and relative pronouns with classroom examples...`
-  },
-  {
-    id: 'res-5',
-    title: 'WAEC Mathematics Past Questions & Solutions (2020 - 2025)',
-    category: 'Past Questions',
-    subject: 'Mathematics',
-    classLevel: 'SSS 3',
-    author: 'EGIA Academic Committee',
-    pages: 88,
-    downloads: 512,
-    fileSize: '4.8 MB',
-    content: `WAEC 2024 Theory Section A. Question 1: Simplify 3(x-2)/4 - (2x-1)/3 = 5. Solution details inside...`
-  },
-  {
-    id: 'res-6',
-    title: 'NECO Civic Education Past Exam Papers',
-    category: 'Past Questions',
-    subject: 'Civic Education',
-    classLevel: 'SSS 3',
-    author: 'EGIA Academic Committee',
-    pages: 45,
-    downloads: 189,
-    fileSize: '3.1 MB',
-    content: `Section A: National Values, Citizenship, human rights, and constitutional structures in Nigeria...`
-  },
-  {
-    id: 'res-7',
-    title: 'Junior WAEC (BECE) Basic Science Solved Papers',
-    category: 'Past Questions',
-    subject: 'Biology',
-    classLevel: 'JSS 3',
-    author: 'EGIA Prep Board',
-    pages: 64,
-    downloads: 305,
-    fileSize: '5.2 MB',
-    content: `BECE 2023. Basic science components including simple machines, light transmission, and skeletal systems...`
-  },
-  {
-    id: 'res-8',
-    title: 'Grade 5 Arithmetic Operations & Word Problems Notes',
-    category: 'Class Notes',
-    subject: 'Mathematics',
-    classLevel: 'Primary 5',
-    author: 'Mrs. Blessing Obi',
-    pages: 18,
-    downloads: 42,
-    fileSize: '1.2 MB',
-    content: `Week 2 Notes: Long Division and Prime Factorization. Always find the smallest prime factor first, then divide continuously...`
-  },
-  {
-    id: 'res-9',
-    title: 'SSS 2 Chemistry: Complete Organic Chemistry Revision Notes',
-    category: 'Class Notes',
-    subject: 'Chemistry',
-    classLevel: 'SSS 2',
-    author: 'Mr. Emmanuel Okafor',
-    pages: 35,
-    downloads: 167,
-    fileSize: '2.8 MB',
-    content: `Introduction to Alkanes, Alkenes, Alkynes. Saturated vs. unsaturated hydrocarbons, IUPAC nomenclature rules, and laboratory preparation methods...`
-  },
-  {
-    id: 'res-10',
-    title: 'Video Lecture: Quadratic Equations Made Super Easy',
-    category: 'Video Tutorials',
-    subject: 'Mathematics',
-    classLevel: 'SSS 1',
-    author: 'Mr. Charles Udoh',
-    pages: 1,
-    downloads: 98,
-    fileSize: '45.0 MB',
-    content: `[Simulated Video Playback] This 15-minute video lecture explains factoring, completing the square, and using the quadratic formula: x = (-b ± √(b² - 4ac)) / 2a.`
-  },
-  {
-    id: 'res-11',
-    title: 'Computer Science: Introduction to Python Programming',
-    category: 'Video Tutorials',
-    subject: 'Computer Studies',
-    classLevel: 'SSS 2',
-    author: 'Dr. Jane Peters',
-    pages: 1,
-    downloads: 140,
-    fileSize: '65.2 MB',
-    content: `[Simulated Video Playback] Master variables, loop structures, conditionals, and standard input/output syntax in Python.`
-  },
-  {
-    id: 'res-12',
-    title: 'Primary 4 Elementary Science Discovery Guide',
-    category: 'Study Guides',
-    subject: 'Biology',
-    classLevel: 'Primary 4',
-    author: 'Mrs. Sandra Alabi',
-    pages: 28,
-    downloads: 36,
-    fileSize: '3.4 MB',
-    content: `Discovery Guide. Unit 1: Living and Non-Living things. Interactive field assignments: observing backyard insects and naming plant leaves...`
-  }
-]
-
-/** The library uses the same active Supabase subject catalogue as registration. */
 export async function getLibrarySubjects() {
   return db.select({ id: subject.id, name: subject.name })
     .from(subject)
@@ -162,50 +15,45 @@ export async function getLibrarySubjects() {
 
 export async function searchLibraryBooks(query: string = '', schoolId?: string) {
   try {
-    // Try to retrieve existing library books from local database
-    let results = await db.select().from(libraryBooks)
+    const session = await auth.getSession()
+    let currentSchoolId = schoolId
 
-    // Seed database dynamically if it is completely empty
-    if (results.length === 0) {
-      for (const item of SEED_BOOKS) {
-        await db.insert(libraryBooks).values({
-          id: item.id,
-          title: item.title,
-          category: item.category,
-          subject: item.subject,
-          classLevel: item.classLevel,
-          author: item.author,
-          content: item.content,
-          location: 'Main Block digital repository',
-          isbn: `ISBN-${Math.floor(1000000 + Math.random() * 9000000)}`
-        }).onConflictDoNothing()
-      }
-      results = await db.select().from(libraryBooks)
+    if (!currentSchoolId && session?.user) {
+      const uRec = await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) })
+      if (uRec?.schoolId) currentSchoolId = uRec.schoolId
     }
 
+    const results = await db.select().from(libraryBooks)
     const trimmedQuery = query.trim().toLowerCase()
+
     if (!trimmedQuery) {
-      return results.map(book => ({
-        id: book.id,
-        title: book.title,
-        category: book.category || 'Textbooks',
-        subject: book.subject || 'Mathematics',
-        classLevel: book.classLevel || 'SSS 1',
-        author: book.author || 'EL LEARNERS APP AUTHOR',
-        pages: book.category === 'Video Tutorials' ? 1 : 210,
-        downloads: 85,
-        fileSize: '12.4 MB',
-        content: book.content || ''
-      }))
+      return results
+        .filter(book => {
+          const isLessonNoteOrSyllabus = book.category === 'Lesson Notes' || book.category === 'Syllabus' || book.category === 'Scheme of Work'
+          if (isLessonNoteOrSyllabus && currentSchoolId && (book as any).schoolId && (book as any).schoolId !== currentSchoolId) {
+            return false
+          }
+          return true
+        })
+        .map(book => ({
+          id: book.id,
+          title: book.title,
+          category: book.category || 'Textbooks',
+          subject: book.subject || 'Mathematics',
+          classLevel: book.classLevel || 'SSS 1',
+          author: book.author || 'EL LEARNERS APP AUTHOR',
+          pages: book.category === 'Video Tutorials' ? 1 : (book.pages || 210),
+          downloads: book.borrowedCount || 85,
+          fileSize: book.fileUrl ? 'PDF Document' : '12.4 MB',
+          content: book.content || book.description || ''
+        }))
     }
 
-    // Google-like keyword and phrase exact search algorithm matching in memory
     const searchTerms = trimmedQuery.split(/\s+/).filter(Boolean)
 
     const filtered = results.filter(book => {
-      // Books are viewable across schools, but Lesson Notes / Syllabus are scoped strictly to the school
       const isLessonNoteOrSyllabus = book.category === 'Lesson Notes' || book.category === 'Syllabus' || book.category === 'Scheme of Work'
-      if (isLessonNoteOrSyllabus && schoolId && (book as any).schoolId && (book as any).schoolId !== schoolId) {
+      if (isLessonNoteOrSyllabus && currentSchoolId && (book as any).schoolId && (book as any).schoolId !== currentSchoolId) {
         return false
       }
 
@@ -218,7 +66,6 @@ export async function searchLibraryBooks(query: string = '', schoolId?: string) 
         ${book.content || ''}
       `.toLowerCase()
 
-      // Full phrase matches first, or all individual keywords must match
       if (!trimmedQuery || fullText.includes(trimmedQuery)) {
         return true
       }
@@ -239,15 +86,8 @@ export async function searchLibraryBooks(query: string = '', schoolId?: string) 
       fileUrl: book.fileUrl || null
     }))
   } catch (error) {
-    console.warn('Database library search fallback to resilient client catalog:', error)
-    const trimmedQuery = query.trim().toLowerCase()
-    if (!trimmedQuery) return SEED_BOOKS
-    const searchTerms = trimmedQuery.split(/\s+/).filter(Boolean)
-    return SEED_BOOKS.filter(item => {
-      const text = `${item.title} ${item.author} ${item.content} ${item.subject} ${item.category}`.toLowerCase()
-      if (text.includes(trimmedQuery)) return true
-      return searchTerms.every(term => text.includes(term))
-    })
+    console.error('Library search error:', error)
+    return []
   }
 }
 
@@ -255,7 +95,7 @@ export async function createLessonNote(data: {
   title: string
   subject: string
   classLevel: string
-  author: string
+  author?: string
   category?: string
   content?: string
   description?: string
@@ -265,22 +105,49 @@ export async function createLessonNote(data: {
   pages?: number
   isPdf?: boolean
   isDigital?: boolean
-  schoolId?: string
-  teacherId?: string
 }) {
-  try {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized session')
+
+  const role = (session.user.role || '').toUpperCase()
+  if (!['TEACHER', 'ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(role)) {
+    throw new Error('Forbidden: Insufficient permissions to create lesson notes.')
+  }
+
+  let schoolId = session.user.schoolId || null
+  let teacherId: string | null = null
+
+  if (role === 'TEACHER') {
+    const tProfile = await db.query.teacher.findFirst({
+      where: eq(teacherTable.userId, session.user.id)
+    })
+    if (!tProfile) throw new Error('Teacher record not found')
+    teacherId = tProfile.id
+    schoolId = tProfile.schoolId || schoolId
+  } else {
+    const uRec = await db.query.user.findFirst({
+      where: eq(userTable.id, session.user.id)
+    })
+    if (uRec?.schoolId) schoolId = uRec.schoolId
+  }
+
+  if (!data.title || !data.title.trim()) {
+    throw new Error('Lesson note title is required.')
+  }
+
+  return await db.transaction(async (tx) => {
     const id = `note-${randomUUID()}`
     const category = data.category || 'Lesson Notes'
+    const authorName = data.author || session.user.name || 'Academy Educator'
 
-    // Insert into dedicated lesson_notes table
-    await db.insert(lessonNotes).values({
+    await tx.insert(lessonNotes).values({
       id,
-      schoolId: data.schoolId || null,
-      teacherId: data.teacherId || null,
-      title: data.title,
+      schoolId: schoolId || null,
+      teacherId: teacherId || null,
+      title: data.title.trim(),
       subject: data.subject,
       classLevel: data.classLevel,
-      author: data.author,
+      author: authorName,
       category,
       content: data.content || data.description || '',
       description: data.description || data.content || '',
@@ -291,26 +158,22 @@ export async function createLessonNote(data: {
       isDigital: data.isDigital ?? true
     }).onConflictDoNothing()
 
-    // Insert into library_books table for unified search & browsing
-    await db.insert(libraryBooks).values({
+    await tx.insert(libraryBooks).values({
       id,
-      title: data.title,
+      title: data.title.trim(),
       subject: data.subject,
       classLevel: data.classLevel,
-      author: data.author,
+      author: authorName,
       category,
       content: data.content || data.description || '',
       description: data.description || data.content || '',
       fileUrl: data.fileUrl || null,
       pages: data.pages || 1,
       isDigital: data.isDigital ?? true,
-      isbn: `LN-${Math.floor(100000 + Math.random() * 900000)}`,
+      isbn: null,
       location: 'EL LEARN App Digital Library'
     }).onConflictDoNothing()
 
     return { success: true, id }
-  } catch (error: any) {
-    console.error('Failed to create lesson note:', error)
-    return { success: false, error: error.message || 'Failed to save lesson note' }
-  }
+  })
 }

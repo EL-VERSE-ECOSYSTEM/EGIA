@@ -18,10 +18,12 @@ export async function clockOut(deviceInfo?: string, ipAddress?: string) {
   const schoolId = teacherProfile.schoolId || session.user.schoolId
   if (!schoolId) throw new Error('School tenant ID missing')
 
-  const today = new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
 
   const record = await db.query.teacherAttendance.findFirst({
     where: and(
+      eq(teacherAttendance.schoolId, schoolId),
       eq(teacherAttendance.teacherId, teacherProfile.id),
       eq(teacherAttendance.workDate, today)
     )
@@ -30,9 +32,12 @@ export async function clockOut(deviceInfo?: string, ipAddress?: string) {
   if (!record?.clockInAt) throw new Error('Not clocked in today')
   if (record.clockOutAt) throw new Error('Already clocked out today')
 
-  const now = new Date()
   const clockInTime = new Date(record.clockInAt)
-  const totalMinutes = Math.floor((now.getTime() - clockInTime.getTime()) / 60000)
+  if (now < clockInTime) {
+    throw new Error('Clock out time cannot be earlier than clock in time')
+  }
+
+  const totalMinutes = Math.max(0, Math.floor((now.getTime() - clockInTime.getTime()) / 60000))
 
   const config = await db.query.schoolAttendanceConfig.findFirst({
     where: eq(schoolAttendanceConfig.schoolId, schoolId)
@@ -56,13 +61,19 @@ export async function clockOut(deviceInfo?: string, ipAddress?: string) {
       overtimeMinutes,
       updatedAt: now,
     })
-    .where(eq(teacherAttendance.id, record.id))
+    .where(and(
+      eq(teacherAttendance.id, record.id),
+      eq(teacherAttendance.schoolId, schoolId)
+    ))
 
   revalidatePath('/dashboard/teacher/attendance')
   revalidatePath('/dashboard/admin/attendance')
 
   const updatedRecord = await db.query.teacherAttendance.findFirst({
-    where: eq(teacherAttendance.id, record.id)
+    where: and(
+      eq(teacherAttendance.id, record.id),
+      eq(teacherAttendance.schoolId, schoolId)
+    )
   })
 
   return { success: true, record: updatedRecord }
