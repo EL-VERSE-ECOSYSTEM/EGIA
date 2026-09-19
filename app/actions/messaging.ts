@@ -3,7 +3,7 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { conversation, conversationParticipant, message, user, userRole, student, notification as notificationTable } from '@/lib/db/schema'
-import { eq, and, or, desc, inArray, sql } from 'drizzle-orm'
+import { eq, and, inArray, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
 import { moderateMessage } from '@/lib/moderation'
@@ -23,6 +23,18 @@ async function getUserWithSchool(userId: string) {
   })
   if (!currentUser) throw new Error('User account not found')
   return currentUser
+}
+
+async function verifyParticipant(conversationId: string, userId: string) {
+  const participant = await db.query.conversationParticipant.findFirst({
+    where: and(
+      eq(conversationParticipant.conversationId, conversationId),
+      eq(conversationParticipant.userId, userId)
+    )
+  })
+  if (!participant) {
+    throw new Error('Forbidden: You are not a participant in this conversation')
+  }
 }
 
 export async function getConversations() {
@@ -57,7 +69,6 @@ export async function getConversations() {
     },
   })
 
-  // Filter conversations by school boundary (Super Admin sees all)
   return participants
     .map(p => p.conversation)
     .filter(c => currentUser.userRole?.role === 'SUPER_ADMIN' || !c.schoolId || !currentUser.schoolId || c.schoolId === currentUser.schoolId)
@@ -83,53 +94,77 @@ export async function createConversation(recipientId: string, type: 'INDIVIDUAL'
 
   if (!recipient) throw new Error('Recipient not found')
 
-  // Enforce single-school boundary isolation
   if (currentUser.userRole?.role !== 'SUPER_ADMIN' && currentUser.schoolId && recipient.schoolId && currentUser.schoolId !== recipient.schoolId) {
     throw new Error('Messaging is restricted to members registered within your specific school.')
   }
 
-  const convId = crypto.randomUUID()
-  const newConversation = await db.insert(conversation).values({
-    id: convId,
-    schoolId: currentUser.schoolId || recipient.schoolId || null,
-    type,
-    name,
-  }).returning()
+  return await db.transaction(async (tx) => {
+    const convId = crypto.randomUUID()
+    const newConversation = (await tx.insert(conversation).values({
+      id: convId,
+      schoolId: currentUser.schoolId || recipient.schoolId || null,
+      type,
+      name,
+    }).returning())[0]
 
-  await db.insert(conversationParticipant).values([
-    { id: crypto.randomUUID(), conversationId: convId, userId },
-    { id: crypto.randomUUID(), conversationId: convId, userId: recipientId },
-  ])
+    await tx.insert(conversationParticipant).values([
+      { id: crypto.randomUUID(), conversationId: convId, userId },
+      { id: crypto.randomUUID(), conversationId: convId, userId: recipientId },
+    ])
 
-  return newConversation[0]
+    return newConversation
+  })
 }
 
 export async function createGroupConversation(participantIds: string[], groupName: string) {
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
 
-  const convId = crypto.randomUUID()
-  const newConversation = await db.insert(conversation).values({
-    id: convId,
-    schoolId: currentUser.schoolId || null,
-    type: 'GROUP',
-    name: groupName,
-  }).returning()
+  if (!groupName || !groupName.trim()) throw new Error('Group name is required')
 
   const allParticipantIds = Array.from(new Set([userId, ...participantIds]))
-  const participantInserts = allParticipantIds.map(pId => ({
-    id: crypto.randomUUID(),
-    conversationId: convId,
-    userId: pId
-  }))
 
-  await db.insert(conversationParticipant).values(participantInserts)
-  return newConversation[0]
+  // Verify all participants exist and belong to the same school
+  const users = await db.query.user.findMany({
+    where: inArray(user.id, allParticipantIds)
+  })
+
+  if (users.length !== allParticipantIds.length) {
+    throw new Error('One or more group participants could not be found')
+  }
+
+  if (currentUser.userRole?.role !== 'SUPER_ADMIN' && currentUser.schoolId) {
+    const mismatched = users.some(u => u.schoolId && u.schoolId !== currentUser.schoolId)
+    if (mismatched) {
+      throw new Error('All group participants must belong to your school.')
+    }
+  }
+
+  return await db.transaction(async (tx) => {
+    const convId = crypto.randomUUID()
+    const newConversation = (await tx.insert(conversation).values({
+      id: convId,
+      schoolId: currentUser.schoolId || null,
+      type: 'GROUP',
+      name: groupName.trim(),
+    }).returning())[0]
+
+    const participantInserts = allParticipantIds.map(pId => ({
+      id: crypto.randomUUID(),
+      conversationId: convId,
+      userId: pId
+    }))
+
+    await tx.insert(conversationParticipant).values(participantInserts)
+    return newConversation
+  })
 }
 
 export async function sendMessage(conversationId: string, content: string, attachments?: any) {
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
+
+  await verifyParticipant(conversationId, userId)
 
   const hasPermission = await checkPermission(
     userId,
@@ -141,7 +176,14 @@ export async function sendMessage(conversationId: string, content: string, attac
 
   if (!hasPermission) throw new Error('Permission denied')
 
-  // Run backend moderation and content filtration
+  if (!content || !content.trim()) {
+    throw new Error('Message content cannot be empty')
+  }
+
+  if (content.length > 5000) {
+    throw new Error('Message content exceeds 5000 character limit')
+  }
+
   const moderation = moderateMessage(content)
   if (!moderation.allowed) {
     try {
@@ -178,8 +220,8 @@ export async function sendMessage(conversationId: string, content: string, attac
     conversationId,
     senderId: userId,
     schoolId: currentUser.schoolId || null,
-    content,
-    attachments,
+    content: content.trim(),
+    attachments: attachments || null,
   }).returning()
 
   await db.update(conversation)
@@ -193,6 +235,8 @@ export async function sendMessage(conversationId: string, content: string, attac
 export async function getMessages(conversationId: string) {
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
+
+  await verifyParticipant(conversationId, userId)
 
   const hasPermission = await checkPermission(
     userId,
@@ -224,9 +268,8 @@ export async function getAllUsersForMessaging() {
     }
   })
 
-  // Filter users by school boundary (Super Admin sees all users across schools)
   return users
-    .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || !u.schoolId || !currentUser.schoolId || u.schoolId === currentUser.schoolId)
+    .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || (currentUser.schoolId && u.schoolId === currentUser.schoolId))
     .map(u => ({
       id: u.id,
       name: u.name,
@@ -248,9 +291,21 @@ export async function getUsersByRole(roleName: string) {
 export async function adminDeleteMessage(messageId: string) {
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
-  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
+
+  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SCHOOL_ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
     throw new Error('Permission denied')
   }
+
+  const msg = await db.query.message.findFirst({
+    where: eq(message.id, messageId)
+  })
+
+  if (!msg) throw new Error('Message not found')
+
+  if (currentUser.userRole?.role !== 'SUPER_ADMIN' && currentUser.schoolId && msg.schoolId && msg.schoolId !== currentUser.schoolId) {
+    throw new Error('Forbidden: Cannot delete message outside your school')
+  }
+
   await db.delete(message).where(eq(message.id, messageId))
   return { success: true }
 }
@@ -258,9 +313,21 @@ export async function adminDeleteMessage(messageId: string) {
 export async function adminDeleteConversation(conversationId: string) {
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
-  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
+
+  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SCHOOL_ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
     throw new Error('Permission denied')
   }
+
+  const conv = await db.query.conversation.findFirst({
+    where: eq(conversation.id, conversationId)
+  })
+
+  if (!conv) throw new Error('Conversation not found')
+
+  if (currentUser.userRole?.role !== 'SUPER_ADMIN' && currentUser.schoolId && conv.schoolId && conv.schoolId !== currentUser.schoolId) {
+    throw new Error('Forbidden: Cannot delete conversation outside your school')
+  }
+
   await db.delete(conversation).where(eq(conversation.id, conversationId))
   return { success: true }
 }
@@ -269,8 +336,18 @@ export async function adminSendNotification(targetUserId: string, title: string,
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
 
-  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
+  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SCHOOL_ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
     throw new Error('Permission denied')
+  }
+
+  const targetUser = await db.query.user.findFirst({
+    where: eq(user.id, targetUserId)
+  })
+
+  if (!targetUser) throw new Error('Target user not found')
+
+  if (currentUser.userRole?.role !== 'SUPER_ADMIN' && currentUser.schoolId && targetUser.schoolId && targetUser.schoolId !== currentUser.schoolId) {
+    throw new Error('Forbidden: Cannot send notification to a user outside your school')
   }
 
   return db.insert(notificationTable).values({
@@ -288,6 +365,10 @@ export async function adminSendNotification(targetUserId: string, title: string,
 export async function adminBroadcastNotification(title: string, bodyText: string, targetRole?: string) {
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
+
+  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SCHOOL_ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
+    throw new Error('Permission denied')
+  }
 
   let users = await getAllUsersForMessaging()
   if (targetRole) {
@@ -316,11 +397,10 @@ export async function broadcastMessage(content: string, recipientRole: string) {
   const userId = await getUserId()
   const currentUser = await getUserWithSchool(userId)
 
-  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
+  if (currentUser.userRole?.role !== 'ADMIN' && currentUser.userRole?.role !== 'SCHOOL_ADMIN' && currentUser.userRole?.role !== 'SUPER_ADMIN') {
     throw new Error('Permission denied')
   }
 
-  // Get users for recipientRole filtered by school
   const targetRoles = await db.select().from(userRole).where(eq(userRole.role, recipientRole))
   const targetUserIds = targetRoles.map(r => r.userId)
 
@@ -331,32 +411,34 @@ export async function broadcastMessage(content: string, recipientRole: string) {
   })
 
   const targetUsers = targetUsersList
-    .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || !u.schoolId || !currentUser.schoolId || u.schoolId === currentUser.schoolId)
+    .filter(u => currentUser.userRole?.role === 'SUPER_ADMIN' || (currentUser.schoolId && u.schoolId === currentUser.schoolId))
 
   if (targetUsers.length === 0) return
 
-  const convId = crypto.randomUUID()
-  const newConversation = await db.insert(conversation).values({
-    id: convId,
-    schoolId: currentUser.schoolId || null,
-    type: 'BROADCAST',
-    name: `Broadcast to ${recipientRole}s - ${new Date().toLocaleDateString()}`,
-  }).returning()
+  return await db.transaction(async (tx) => {
+    const convId = crypto.randomUUID()
+    await tx.insert(conversation).values({
+      id: convId,
+      schoolId: currentUser.schoolId || null,
+      type: 'BROADCAST',
+      name: `Broadcast to ${recipientRole}s - ${new Date().toLocaleDateString()}`,
+    })
 
-  const participants = [
-    { id: crypto.randomUUID(), conversationId: convId, userId },
-    ...targetUsers.map(u => ({ id: crypto.randomUUID(), conversationId: convId, userId: u.id }))
-  ]
+    const participants = [
+      { id: crypto.randomUUID(), conversationId: convId, userId },
+      ...targetUsers.map(u => ({ id: crypto.randomUUID(), conversationId: convId, userId: u.id }))
+    ]
 
-  await db.insert(conversationParticipant).values(participants)
+    await tx.insert(conversationParticipant).values(participants)
 
-  await db.insert(message).values({
-    id: crypto.randomUUID(),
-    conversationId: convId,
-    senderId: userId,
-    schoolId: currentUser.schoolId || null,
-    content,
+    await tx.insert(message).values({
+      id: crypto.randomUUID(),
+      conversationId: convId,
+      senderId: userId,
+      schoolId: currentUser.schoolId || null,
+      content,
+    })
+
+    revalidatePath('/dashboard/communication')
   })
-
-  revalidatePath('/dashboard/communication')
 }

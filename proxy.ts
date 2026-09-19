@@ -25,6 +25,8 @@ const publicRoutes = [
   '/api/library/autocomplete'
 ]
 
+const adminRoles = ['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN']
+
 interface RateLimitInfo {
   count: number
   resetTime: number
@@ -40,7 +42,7 @@ function withSecurityHeaders(res: NextResponse) {
   res.headers.set('X-Frame-Options', 'SAMEORIGIN')
   res.headers.set('X-Content-Type-Options', 'nosniff')
   res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  res.headers.set('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=(self)')
   res.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
   return res
 }
@@ -58,19 +60,6 @@ function redirectWithSessionCookies(url: URL, sessionResponse: NextResponse) {
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
-
-  const userAgent = request.headers.get('user-agent') || ''
-  const isPlaywright = userAgent.toLowerCase().includes('playwright') || userAgent.toLowerCase().includes('headlesschrome')
-  const isLocalHostName = request.nextUrl.hostname === 'localhost' || request.nextUrl.hostname === '127.0.0.1' || request.nextUrl.hostname === '::1' || request.nextUrl.hostname === '0.0.0.0'
-  const isTestingBypass = isPlaywright && isLocalHostName
-
-  if (pathname.startsWith('/dashboard/teacher/assessments/create/pdf')) {
-    console.log('MIDDLEWARE BYPASS DIAGNOSTIC: hostname =', request.nextUrl.hostname, 'isPlaywright =', isPlaywright, 'isLocalHostName =', isLocalHostName, 'isTestingBypass =', isTestingBypass)
-  }
-
-  if (isTestingBypass) {
-    return withSecurityHeaders(NextResponse.next())
-  }
 
   // Rate Limiting
   const ip = (request as any).ip || request.headers.get('x-forwarded-for') || '127.0.0.1'
@@ -148,7 +137,7 @@ export async function proxy(request: NextRequest) {
   if (isAuthenticated && pathname.startsWith('/dashboard/')) {
     const role = (user?.user_metadata?.role || '').toUpperCase()
 
-    if (pathname.startsWith('/dashboard/admin') && role !== 'ADMIN') {
+    if (pathname.startsWith('/dashboard/admin') && !adminRoles.includes(role)) {
       return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
     }
     if (pathname.startsWith('/dashboard/teacher') && role !== 'TEACHER') {

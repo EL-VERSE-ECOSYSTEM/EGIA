@@ -1,8 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from './db'
-import { userRole, user as userTable } from './db/schema'
-import { eq, or } from 'drizzle-orm'
+import { userRole, user as userTable, schoolAdminRoles } from './db/schema'
+import { eq } from 'drizzle-orm'
 
 async function getSessionImpl() {
   const cookieStore = await cookies()
@@ -18,20 +18,29 @@ async function getSessionImpl() {
     return null
   }
 
+  // Resolve user role exclusively from database records
   const roleRecord = await db.select()
     .from(userRole)
     .where(eq(userRole.userId, user.id))
     .limit(1)
 
-  const metadataRole = user.user_metadata?.role || null
+  // Also check schoolAdminRoles
+  const adminRoleRec = await db.query.schoolAdminRoles.findFirst({
+    where: eq(schoolAdminRoles.userId, user.id)
+  })
+
+  let dbRole = roleRecord?.[0]?.role
+  if (!dbRole && adminRoleRec) {
+    dbRole = 'SCHOOL_ADMIN'
+  }
 
   const dbUser = await db.select({ schoolId: userTable.schoolId })
     .from(userTable)
-    .where(or(eq(userTable.id, user.id), eq(userTable.email, user.email || '')))
+    .where(eq(userTable.id, user.id))
     .limit(1)
 
-  const finalRole = (roleRecord?.[0]?.role || metadataRole || null)?.toUpperCase()
-  const schoolId = dbUser?.[0]?.schoolId || user.user_metadata?.school_id || null
+  const finalRole = (dbRole || adminRoleRec?.level || 'STUDENT').toUpperCase()
+  const schoolId = dbUser?.[0]?.schoolId || adminRoleRec?.schoolId || null
 
   return {
     ...session,
@@ -60,15 +69,22 @@ async function getUserImpl() {
     .where(eq(userRole.userId, user.id))
     .limit(1)
 
-  const metadataRole = user.user_metadata?.role || null
+  const adminRoleRec = await db.query.schoolAdminRoles.findFirst({
+    where: eq(schoolAdminRoles.userId, user.id)
+  })
+
+  let dbRole = roleRecord?.[0]?.role
+  if (!dbRole && adminRoleRec) {
+    dbRole = 'SCHOOL_ADMIN'
+  }
 
   const dbUser = await db.select({ schoolId: userTable.schoolId })
     .from(userTable)
-    .where(or(eq(userTable.id, user.id), eq(userTable.email, user.email || '')))
+    .where(eq(userTable.id, user.id))
     .limit(1)
 
-  const finalRole = (roleRecord?.[0]?.role || metadataRole || null)?.toUpperCase()
-  const schoolId = dbUser?.[0]?.schoolId || user.user_metadata?.school_id || null
+  const finalRole = (dbRole || adminRoleRec?.level || 'STUDENT').toUpperCase()
+  const schoolId = dbUser?.[0]?.schoolId || adminRoleRec?.schoolId || null
 
   return {
     ...user,

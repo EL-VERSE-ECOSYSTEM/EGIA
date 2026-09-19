@@ -19,11 +19,13 @@ export async function clockIn(deviceInfo?: string, ipAddress?: string) {
   const schoolId = teacherProfile.schoolId || session.user.schoolId
   if (!schoolId) throw new Error('School tenant ID missing')
 
-  const today = new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
 
   // Check if already clocked in
   const existing = await db.query.teacherAttendance.findFirst({
     where: and(
+      eq(teacherAttendance.schoolId, schoolId),
       eq(teacherAttendance.teacherId, teacherProfile.id),
       eq(teacherAttendance.workDate, today)
     )
@@ -38,7 +40,6 @@ export async function clockIn(deviceInfo?: string, ipAddress?: string) {
     where: eq(schoolAttendanceConfig.schoolId, schoolId)
   })
 
-  const now = new Date()
   const workStart = config?.workStartTime || '08:00:00'
   const lateThreshold = config?.lateThresholdMinutes ?? 10
 
@@ -47,7 +48,7 @@ export async function clockIn(deviceInfo?: string, ipAddress?: string) {
   start.setHours(sh || 8, sm || 0, 0, 0)
 
   const lateMinutes = Math.max(0, Math.floor((now.getTime() - start.getTime()) / 60000))
-  const status = lateMinutes > lateThreshold ? 'LATE' : 'PRESENT'
+  const status = lateMinutes >= lateThreshold ? 'LATE' : 'PRESENT'
 
   const recordId = existing?.id || randomUUID()
 
@@ -61,7 +62,10 @@ export async function clockIn(deviceInfo?: string, ipAddress?: string) {
         lateMinutes,
         updatedAt: now,
       })
-      .where(eq(teacherAttendance.id, existing.id))
+      .where(and(
+        eq(teacherAttendance.id, existing.id),
+        eq(teacherAttendance.schoolId, schoolId)
+      ))
   } else {
     await db.insert(teacherAttendance).values({
       id: recordId,
@@ -75,14 +79,18 @@ export async function clockIn(deviceInfo?: string, ipAddress?: string) {
       lateMinutes,
       createdAt: now,
       updatedAt: now,
-    })
+    }).onConflictDoNothing()
   }
 
   revalidatePath('/dashboard/teacher/attendance')
   revalidatePath('/dashboard/admin/attendance')
 
   const updatedRecord = await db.query.teacherAttendance.findFirst({
-    where: eq(teacherAttendance.id, recordId)
+    where: and(
+      eq(teacherAttendance.teacherId, teacherProfile.id),
+      eq(teacherAttendance.workDate, today),
+      eq(teacherAttendance.schoolId, schoolId)
+    )
   })
 
   return { success: true, record: updatedRecord }

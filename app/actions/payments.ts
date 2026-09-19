@@ -1,207 +1,195 @@
 'use server'
 
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { payment, student, feeStructure, parent as parentTable, school, studentGifts, user as userTable } from '@/lib/db/schema'
+import { payment, student, paymentReceiptUploads, transactionLedger, studentGifts, user as userTable, parent as parentTable } from '@/lib/db/schema'
+import { eq, and, desc, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
-import { eq, desc, and, or, isNull, sql } from 'drizzle-orm'
+import { auth } from '@/lib/auth'
+import { createClient } from '@/utils/supabase/server'
+import { cookies } from 'next/headers'
 
 const KORAPAY_GATEWAY_FEE = 161.25
-const REGISTRATION_FEE = 2000
+const REGISTRATION_FEE = 2000.00
 
-export async function getKorapayGatewayFee() {
-  return KORAPAY_GATEWAY_FEE
-}
-const KORAPAY_CHECKOUT_LINK = process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
-
-async function requireParent() {
-  const session = await auth.getSession()
-  if (!session?.user || session.user.role !== 'PARENT') throw new Error('Parent authentication is required.')
-  const profile = await db.query.parent.findFirst({ where: eq(parentTable.userId, session.user.id) })
-  if (!profile) throw new Error('Parent profile not found.')
-  return { session, profile }
-}
-
-async function requireLinkedChild(parentId: string, studentId: string) {
-  const child = await db.query.student.findFirst({
-    where: and(eq(student.id, studentId), eq(student.parentId, parentId)),
-  })
-  if (!child) throw new Error('You can only make payments for a child linked to your account.')
-  return child
-}
-
-function checkoutUrl(reference: string) {
-  const url = new URL(KORAPAY_CHECKOUT_LINK)
+function checkoutUrl(reference: string): string {
+  const base = process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
+  const url = new URL(base)
   url.searchParams.set('reference', reference)
+
   const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
   if (siteUrl) {
     url.searchParams.set('redirect_url', `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`)
   }
+
   return url.toString()
 }
 
-/**
- * Called after Korapay returns the customer to the portal. The redirect itself
- * is untrusted, so the server verifies reference, status and amount with
- * Korapay before changing the local ledger or granting registration access.
- */
+export async function getKorapayGatewayFee() {
+  return KORAPAY_GATEWAY_FEE
+}
+
 export async function verifyKorapayPayment(reference: string) {
-  const normalizedReference = reference.trim()
-  if (!normalizedReference) throw new Error('A payment reference is required.')
+  const secretKey = process.env.KORAPAY_SECRET_KEY
+  if (!secretKey) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Korapay secret key is unconfigured in production environment.')
+    }
+    const rec = await db.query.payment.findFirst({ where: eq(payment.transactionReference, reference) })
+    if (rec) {
+      await db.update(payment)
+        .set({ status: 'success', paidAt: new Date(), paymentDate: new Date(), updatedAt: new Date() })
+        .where(eq(payment.id, rec.id))
 
-  // 1. Check if reference belongs to school registration
-  const schoolRecord = await db.query.school.findFirst({ where: eq(school.paymentReference, normalizedReference) })
-  if (schoolRecord) {
-    if (schoolRecord.paymentStatus === 'PAID') {
-      return {
-        status: 'success' as const,
-        paymentId: schoolRecord.id,
-        payment: { amount: '30161.25', feeType: 'school_registration' },
-        schoolCode: schoolRecord.code,
-        schoolName: schoolRecord.name
+      if (rec.feeType === 'registration') {
+        await db.update(student)
+          .set({ registrationStatus: 'ACTIVE', updatedAt: new Date() })
+          .where(eq(student.id, rec.studentId))
       }
     }
 
-    const secret = process.env.KORAPAY_SECRET_KEY
-    if (secret) {
-      try {
-        const response = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(normalizedReference)}`, {
-          headers: { Authorization: `Bearer ${secret}`, Accept: 'application/json' },
-          cache: 'no-store',
-        })
-        if (response.ok) {
-          const gateway = await response.json() as { data?: { reference?: string; status?: string; amount?: string | number } }
-          const charge = gateway.data
-          if (charge && String(charge.status || '').toLowerCase() === 'success') {
-            await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schoolRecord.id))
-            return {
-              status: 'success' as const,
-              paymentId: schoolRecord.id,
-              payment: { amount: '30161.25', feeType: 'school_registration' },
-              schoolCode: schoolRecord.code,
-              schoolName: schoolRecord.name
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Korapay verification error for school:', err)
-      }
-    }
-
-    // Dev environment or auto-confirm fallback for school
-    await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schoolRecord.id))
     return {
-      status: 'success' as const,
-      paymentId: schoolRecord.id,
-      payment: { amount: '30161.25', feeType: 'school_registration' },
-      schoolCode: schoolRecord.code,
-      schoolName: schoolRecord.name
+      success: true,
+      data: {
+        reference,
+        status: 'success',
+        amount: rec?.amount ? Number(rec.amount) : 2161.25,
+      },
     }
   }
 
-  // 2. Check general payments
-  const record = await db.query.payment.findFirst({ where: eq(payment.transactionReference, normalizedReference) })
-  if (!record) throw new Error('This payment reference was not found.')
-
-  let admissionNumber: string | undefined
-  let schoolCode: string | undefined
-  let schoolName: string | undefined
-
-  if (record.studentId) {
-    const studentRec = await db.query.student.findFirst({ where: eq(student.id, record.studentId) })
-    if (studentRec?.admissionNumber) {
-      admissionNumber = studentRec.admissionNumber
-    }
-    if (studentRec?.schoolId) {
-      const schoolRec = await db.query.school.findFirst({ where: eq(school.id, studentRec.schoolId) })
-      if (schoolRec) {
-        schoolCode = schoolRec.code
-        schoolName = schoolRec.name
-      }
-    }
-  }
-
-  const isRegistrationFee = Boolean(record.feeType?.toLowerCase().includes('registration'))
-
-  if (record.status === 'success') {
-    if (isRegistrationFee && record.studentId) {
-      await db.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: new Date() }).where(eq(student.id, record.studentId))
-    }
-    return { status: 'success' as const, paymentId: record.id, payment: record, admissionNumber, schoolCode, schoolName }
-  }
-
-  const secret = process.env.KORAPAY_SECRET_KEY
-  if (!secret) {
-    // If secret key is not set, auto-confirm for dev environment
-    await db.transaction(async (tx) => {
-      await tx.update(payment).set({ status: 'success', paidAt: new Date(), paymentDate: new Date(), updatedAt: new Date() }).where(eq(payment.id, record.id))
-      if (isRegistrationFee && record.studentId) {
-        await tx.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: new Date() }).where(eq(student.id, record.studentId))
-      }
-    })
-    return { status: 'success' as const, paymentId: record.id, payment: record, admissionNumber, schoolCode, schoolName }
-  }
-
-  const response = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(normalizedReference)}`, {
-    headers: { Authorization: `Bearer ${secret}`, Accept: 'application/json' },
-    cache: 'no-store',
+  const res = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(reference)}`, {
+    headers: { Authorization: `Bearer ${secretKey}` },
   })
-  if (!response.ok) throw new Error('Korapay could not verify this payment yet. Please try again shortly.')
-  const gateway = await response.json() as { data?: { reference?: string; status?: string; amount?: string | number; amount_paid?: string | number } }
-  const charge = gateway.data
-  if (!charge || charge.reference !== normalizedReference) throw new Error('Korapay returned an invalid payment response.')
 
-  const gatewayStatus = String(charge.status || '').toLowerCase()
-  if (gatewayStatus === 'success') {
-    await db.transaction(async (tx) => {
-      await tx.update(payment).set({ status: 'success', paidAt: new Date(), paymentDate: new Date(), updatedAt: new Date() }).where(eq(payment.id, record.id))
-      if (isRegistrationFee && record.studentId) {
-        await tx.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: new Date() }).where(eq(student.id, record.studentId))
-      }
-    })
-    revalidatePath('/dashboard/parent/payments/history')
-    revalidatePath('/dashboard/student/payments/history')
-    return { status: 'success' as const, paymentId: record.id, payment: record, admissionNumber, schoolCode, schoolName }
+  if (!res.ok) {
+    const errText = await res.text()
+    return { success: false, error: `Verification request failed (${res.status}): ${errText}` }
   }
-  if (gatewayStatus === 'failed') {
-    await db.update(payment).set({ status: 'failed', updatedAt: new Date() }).where(eq(payment.id, record.id))
-    return { status: 'failed' as const, paymentId: record.id, payment: record, admissionNumber, schoolCode, schoolName }
+
+  const json = await res.json()
+  if (!json.status || !json.data) {
+    return { success: false, error: json.message || 'Invalid verification response from Korapay' }
   }
-  return { status: 'pending' as const, paymentId: record.id, payment: record, admissionNumber, schoolCode, schoolName }
+
+  const data = json.data
+  const status = (data.status || '').toLowerCase()
+
+  const rec = await db.query.payment.findFirst({ where: eq(payment.transactionReference, reference) })
+
+  if (rec && status === 'success') {
+    if (data.amount !== undefined && Number(data.amount) < Number(rec.amount)) {
+      return { success: false, error: 'Verified payment amount is less than required invoice total.' }
+    }
+
+    await db.update(payment)
+      .set({
+        status: 'success',
+        korapayReference: data.korapay_reference || data.reference || null,
+        paidAt: new Date(),
+        paymentDate: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(payment.id, rec.id))
+
+    if (rec.feeType === 'registration') {
+      await db.update(student)
+        .set({ registrationStatus: 'ACTIVE', updatedAt: new Date() })
+        .where(eq(student.id, rec.studentId))
+    }
+  } else if (rec && status === 'failed') {
+    await db.update(payment)
+      .set({ status: 'failed', updatedAt: new Date() })
+      .where(eq(payment.id, rec.id))
+  }
+
+  revalidatePath('/dashboard/parent/payments/history')
+  revalidatePath('/dashboard/student/payments/history')
+
+  return {
+    success: status === 'success',
+    data: {
+      reference: data.reference,
+      status: data.status,
+      amount: data.amount,
+      fee: data.fee,
+      currency: data.currency,
+      paidAt: data.paid_at,
+    },
+  }
 }
 
 export async function submitManualPayment(data: { studentId: string; amount: string; feeType: string; receiptUrl: string }) {
-  const { profile } = await requireParent()
-  await requireLinkedChild(profile.id, data.studentId)
-  if (!data.receiptUrl || !/^https:\/\//.test(data.receiptUrl)) throw new Error('Upload the receipt to approved storage before submitting it.')
-  return (await db.insert(payment).values({
-    id: randomUUID(), studentId: data.studentId, parentId: profile.id, amount: data.amount,
-    feeType: data.feeType, paymentMethod: 'TRANSFER', transactionReference: `MAN-${randomUUID()}`,
-    receiptUrl: data.receiptUrl, status: 'pending', description: 'Manual transfer receipt awaiting admin verification.',
-  }).returning())[0]
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const currentStudent = await db.query.student.findFirst({ where: eq(student.id, data.studentId) })
+  if (!currentStudent) throw new Error('Student record not found')
+
+  const pRec = await db.query.parent.findFirst({ where: eq(parentTable.userId, session.user.id) })
+
+  const paymentId = randomUUID()
+  const uploadId = randomUUID()
+
+  await db.transaction(async (tx) => {
+    await tx.insert(payment).values({
+      id: paymentId,
+      schoolId: currentStudent.schoolId || null,
+      studentId: currentStudent.id,
+      parentId: pRec?.id || currentStudent.parentId || null,
+      amount: data.amount,
+      feeType: data.feeType,
+      paymentMethod: 'BANK_TRANSFER',
+      transactionReference: `MANUAL-${Date.now()}-${randomUUID().slice(0, 6)}`,
+      status: 'pending',
+      receiptUrl: data.receiptUrl,
+      description: `Manual receipt upload for ${data.feeType}`,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    await tx.insert(paymentReceiptUploads).values({
+      id: uploadId,
+      schoolId: currentStudent.schoolId || 'default-school',
+      paymentId: paymentId,
+      studentId: currentStudent.id,
+      parentId: pRec?.id || null,
+      uploadedBy: session.user.id,
+      uploadedByRole: session.user.role || 'PARENT',
+      fileUrl: data.receiptUrl,
+      filePath: data.receiptUrl,
+      fileType: 'image/jpeg',
+      amountClaimed: data.amount,
+      status: 'PENDING',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+  })
+
+  revalidatePath('/dashboard/parent/payments/history')
+  return { success: true, paymentId, uploadId }
 }
 
 export async function initializeKorapayPayment(data: { studentId: string; amount: number; feeType: string; description?: string }) {
-  const { session, profile } = await requireParent()
-  const child = await requireLinkedChild(profile.id, data.studentId)
-  const configuredFee = await db.query.feeStructure.findFirst({
-    where: and(
-      eq(feeStructure.class, child.class),
-      eq(feeStructure.feeType, data.feeType),
-      eq(feeStructure.isActive, true),
-      or(eq(feeStructure.department, child.department || ''), isNull(feeStructure.department)),
-    ),
-  })
-  if (!configuredFee) throw new Error('This fee is not available for the selected learner.')
-  const baseAmount = Number(configuredFee.amount)
-  if (!Number.isFinite(baseAmount) || baseAmount <= 0) throw new Error('The configured fee amount is invalid.')
-  const totalAmount = baseAmount + KORAPAY_GATEWAY_FEE
-  const reference = `EGIA-${Date.now()}-${randomUUID().slice(0, 8)}`
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const child = await db.query.student.findFirst({ where: eq(student.id, data.studentId) })
+  if (!child) throw new Error('Student record was not found.')
+
+  const totalAmount = Number((data.amount + KORAPAY_GATEWAY_FEE).toFixed(2))
+  const reference = `EGIA-PAY-${Date.now()}-${randomUUID().slice(0, 8)}`
+
   const record = (await db.insert(payment).values({
-    id: randomUUID(), studentId: child.id, parentId: profile.id, amount: totalAmount.toFixed(2),
-    feeType: data.feeType, paymentMethod: 'KORAPAY', transactionReference: reference,
-    status: 'pending', description: data.description || `Payment for ${data.feeType} (includes NGN 161.25 gateway fee)`,
+    id: randomUUID(),
+    schoolId: child.schoolId || null,
+    studentId: child.id,
+    amount: totalAmount.toFixed(2),
+    feeType: data.feeType,
+    paymentMethod: 'KORAPAY',
+    transactionReference: reference,
+    status: 'pending',
+    description: data.description || `${data.feeType} fee payment for ${child.firstName} ${child.lastName}`,
   }).returning())[0]
 
   const secretKey = process.env.KORAPAY_SECRET_KEY
@@ -214,18 +202,16 @@ export async function initializeKorapayPayment(data: { studentId: string; amount
         amount: totalAmount,
         currency: 'NGN',
         reference,
-        narration: `Fee Payment (${data.feeType}) - ${child.firstName} ${child.lastName}`,
+        narration: data.description || `${data.feeType} payment - ${child.firstName} ${child.lastName}`,
         notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
         redirect_url: `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`,
         customer: {
-          email: session.user.email || profile.userId || 'parent@ellearners.app',
-          name: `${profile.firstName} ${profile.lastName}`,
+          email: session.user.email || `student_${child.id}@ellearners.app`,
+          name: `${child.firstName} ${child.lastName}`,
         },
         metadata: {
           studentId: child.id,
-          parentId: profile.id,
-          feeType: data.feeType,
-          type: 'STUDENT_FEE',
+          type: data.feeType,
         },
       }
       const res = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
@@ -236,31 +222,43 @@ export async function initializeKorapayPayment(data: { studentId: string; amount
         },
         body: JSON.stringify(payload),
       })
+
       if (res.ok) {
         const koraData = await res.json()
         if (koraData.status && koraData.data?.checkout_url) {
           checkout = koraData.data.checkout_url
         }
       }
-    } catch (e) {
-      console.warn('Failed to call Korapay initialize API for fee payment:', e)
+    } catch (err) {
+      console.warn('Failed to call Korapay initialize endpoint:', err)
     }
   }
 
   return { checkoutUrl: checkout, reference, paymentId: record.id, totalAmount }
 }
 
-/** Creates a pending registration payment (NGN 2000 + NGN 161.25 fee = NGN 2161.25); success is recorded by Korapay verification/webhook. */
-export async function initializeStudentRegistrationPayment(studentId: string | `${string}-${string}-${string}-${string}-${string}`) {
+export async function initializeStudentRegistrationPayment(studentId: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
   const child = await db.query.student.findFirst({ where: eq(student.id, studentId) })
   if (!child) throw new Error('Student registration record was not found.')
+
   const totalAmount = REGISTRATION_FEE + KORAPAY_GATEWAY_FEE
   const reference = `EGIA-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
+
   const record = (await db.insert(payment).values({
-    id: randomUUID(), studentId, amount: totalAmount.toFixed(2), feeType: 'registration',
-    paymentMethod: 'KORAPAY', transactionReference: reference, status: 'pending',
+    id: randomUUID(),
+    schoolId: child.schoolId || null,
+    studentId,
+    amount: totalAmount.toFixed(2),
+    feeType: 'registration',
+    paymentMethod: 'KORAPAY',
+    transactionReference: reference,
+    status: 'pending',
     description: `Session registration for ${child.firstName} ${child.lastName} (NGN 2000 + NGN 161.25 gateway fee)`,
   }).returning())[0]
+
   await db.update(student).set({ registrationStatus: 'PENDING_PAYMENT', updatedAt: new Date() }).where(eq(student.id, studentId))
 
   const secretKey = process.env.KORAPAY_SECRET_KEY
@@ -277,7 +275,7 @@ export async function initializeStudentRegistrationPayment(studentId: string | `
         notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
         redirect_url: `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`,
         customer: {
-          email: (child as any).email || `student_${child.admissionNumber || child.id}@ellearners.app`,
+          email: session.user.email || `student_${child.id}@ellearners.app`,
           name: `${child.firstName} ${child.lastName}`,
         },
         metadata: {
@@ -299,8 +297,8 @@ export async function initializeStudentRegistrationPayment(studentId: string | `
           checkout = koraData.data.checkout_url
         }
       }
-    } catch (e) {
-      console.warn('Failed to call Korapay initialize API for student registration:', e)
+    } catch (err) {
+      console.warn('Failed to call Korapay initialize endpoint:', err)
     }
   }
 
@@ -308,143 +306,136 @@ export async function initializeStudentRegistrationPayment(studentId: string | `
 }
 
 export async function getPaymentSummary(studentId: string) {
-  const payments = await getStudentPaymentHistory(studentId)
-  return {
-    totalPaid: payments.filter(p => p.status === 'success').reduce((sum, p) => sum + Number(p.amount), 0),
-    pending: payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + Number(p.amount), 0),
-    paymentCount: payments.length,
-  }
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const payments = await db.query.payment.findMany({
+    where: eq(payment.studentId, studentId),
+    orderBy: [desc(payment.createdAt)],
+  })
+
+  const totalPaid = payments
+    .filter(p => p.status === 'success')
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+
+  const pendingCount = payments.filter(p => p.status === 'pending').length
+
+  return { payments, totalPaid, pendingCount }
 }
 
 export async function getStudentPaymentHistory(studentId?: string) {
   const session = await auth.getSession()
-  if (!session?.user) return []
-  const profile = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
-  const id = studentId || profile?.id
-  if (!id || (studentId && profile?.id !== studentId && session.user.role !== 'ADMIN')) throw new Error('Unauthorized')
-  return db.query.payment.findMany({ where: eq(payment.studentId, id), orderBy: [desc(payment.createdAt)] })
+  if (!session?.user) throw new Error('Unauthorized')
+
+  let targetStudentId = studentId
+  if (!targetStudentId) {
+    const sRec = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
+    if (!sRec) throw new Error('Student record not found')
+    targetStudentId = sRec.id
+  }
+
+  return db.query.payment.findMany({
+    where: eq(payment.studentId, targetStudentId),
+    orderBy: [desc(payment.createdAt)]
+  })
 }
 
 export async function getParentPaymentHistory() {
-  const { profile } = await requireParent()
-  const list = await db.select().from(payment).where(eq(payment.parentId, profile.id)).orderBy(desc(payment.createdAt))
-  const children = await db.query.student.findMany({ where: eq(student.parentId, profile.id) })
-  const names = new Map(children.map(child => [child.id, `${child.firstName} ${child.lastName}`]))
-  return list.map(record => ({ ...record, childName: names.get(record.studentId) || 'Linked learner' }))
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const pRec = await db.query.parent.findFirst({ where: eq(parentTable.userId, session.user.id) })
+  if (!pRec) return []
+
+  return db.query.payment.findMany({
+    where: eq(payment.parentId, pRec.id),
+    with: { student: true },
+    orderBy: [desc(payment.createdAt)]
+  })
 }
 
 export async function getStudentIdByAdmissionNumber(admissionNumber: string) {
-  const s = await db.query.student.findFirst({ where: eq(student.admissionNumber, admissionNumber.trim().toUpperCase()) })
-  return s?.id || null
+  const child = await db.query.student.findFirst({ where: eq(student.admissionNumber, admissionNumber.trim().toUpperCase()) })
+  return child?.id || null
 }
 
 export async function getFeeStructuresForClass(className: string, department?: string) {
-  return db.query.feeStructure.findMany({
-    where: and(
-      eq(feeStructure.class, className),
-      eq(feeStructure.isActive, true),
-      or(eq(feeStructure.department, department || ''), isNull(feeStructure.department)),
-    ),
-  })
-}
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
 
-import { generatePdfReceipt } from '@/lib/pdf/generateReceipt'
-import { paymentReceiptUploads, transactionLedger } from '@/lib/db/schema'
-import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
+  const uRec = await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) })
+  if (!uRec?.schoolId) return []
+
+  const list = await db.query.feeStructure.findMany({
+    where: eq(feeStructure.schoolId, uRec.schoolId)
+  })
+
+  return list.filter(f => f.class.toLowerCase() === className.toLowerCase())
+}
 
 export async function approveReceipt(uploadId: string) {
   const session = await auth.getSession()
-  if (!session?.user || session.user.role !== 'ADMIN') throw new Error('Unauthorized')
-
-  const upload = await db.query.paymentReceiptUploads.findFirst({
-    where: eq(paymentReceiptUploads.id, uploadId)
-  })
-  if (!upload) throw new Error('Upload record not found')
-
-  // Generate PDF receipt
-  const pdfBuffer = await generatePdfReceipt({
-    schoolId: upload.schoolId,
-    studentId: upload.studentId || '',
-    amount: parseFloat(upload.amountClaimed || '0'),
-    reference: upload.paymentReference || upload.id,
-    confirmedBy: session.user.name || session.user.id,
-    date: new Date(),
-  })
-
-  // Upload PDF to Supabase Storage
-  const pdfPath = `${upload.schoolId}/${upload.studentId}/${upload.paymentId || 'payment'}-receipt.pdf`
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-  const { error: upErr } = await supabase.storage.from('school-generated-receipts')
-    .upload(pdfPath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
-
-  const { data: { publicUrl } } = supabase.storage.from('school-generated-receipts').getPublicUrl(pdfPath)
-
-  // Update payment_receipt_uploads row
-  await db.update(paymentReceiptUploads).set({
-    status: 'APPROVED',
-    reviewedBy: session.user.id,
-    reviewedAt: new Date(),
-    generatedReceiptUrl: publicUrl,
-    generatedReceiptPath: pdfPath,
-    updatedAt: new Date()
-  }).where(eq(paymentReceiptUploads.id, uploadId))
-
-  // Update payment row
-  if (upload.paymentId) {
-    await db.update(payment).set({
-      status: 'success',
-      reconciliationStatus: 'RECONCILED',
-      reconciledBy: session.user.id,
-      reconciledAt: new Date(),
-      paidAt: new Date(),
-      updatedAt: new Date()
-    }).where(eq(payment.id, upload.paymentId))
+  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
+    throw new Error('Unauthorized')
   }
 
-  // Insert Transaction Ledger
-  await db.insert(transactionLedger).values({
-    schoolId: upload.schoolId,
-    studentId: upload.studentId,
-    userId: upload.uploadedBy,
-    type: 'FEE_PAYMENT',
-    direction: 'IN',
-    amount: upload.amountClaimed || '0.00',
-    reference: upload.paymentReference || upload.id,
-    gateway: 'SCHOOL_ACCOUNT',
-    status: 'SUCCESS',
-    confirmationMethod: 'MANUAL_UPLOAD',
-    receiptUploadId: uploadId,
-    createdAt: new Date(),
-    updatedAt: new Date()
+  const upload = await db.query.paymentReceiptUploads.findFirst({ where: eq(paymentReceiptUploads.id, uploadId) })
+  if (!upload) throw new Error('Receipt upload record not found')
+
+  const now = new Date()
+
+  await db.transaction(async (tx) => {
+    await tx.update(paymentReceiptUploads).set({
+      status: 'APPROVED',
+      reviewedBy: session.user.id,
+      reviewedAt: now,
+      updatedAt: now,
+    }).where(eq(paymentReceiptUploads.id, uploadId))
+
+    if (upload.paymentId) {
+      await tx.update(payment).set({
+        status: 'success',
+        reconciliationStatus: 'RECONCILED',
+        reconciledBy: session.user.id,
+        reconciledAt: now,
+        paidAt: now,
+        updatedAt: now,
+      }).where(eq(payment.id, upload.paymentId))
+
+      const pRec = await tx.query.payment.findFirst({ where: eq(payment.id, upload.paymentId) })
+      if (pRec?.feeType === 'registration') {
+        await tx.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: now }).where(eq(student.id, pRec.studentId))
+      }
+    }
   })
 
   revalidatePath('/dashboard/admin/payments/pending-receipts')
-  revalidatePath('/dashboard/parent/payments/history')
-  return { success: true, receiptUrl: publicUrl }
+  return { success: true }
 }
 
 export async function rejectReceipt(uploadId: string, reason: string) {
   const session = await auth.getSession()
-  if (!session?.user || session.user.role !== 'ADMIN') throw new Error('Unauthorized')
+  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
+    throw new Error('Unauthorized')
+  }
 
-  if (!reason || !reason.trim()) throw new Error('Rejection reason is required')
-
+  const now = new Date()
   await db.update(paymentReceiptUploads).set({
     status: 'REJECTED',
+    rejectionReason: reason,
     reviewedBy: session.user.id,
-    reviewedAt: new Date(),
-    rejectionReason: reason.trim(),
-    updatedAt: new Date()
+    reviewedAt: now,
+    updatedAt: now,
   }).where(eq(paymentReceiptUploads.id, uploadId))
 
   revalidatePath('/dashboard/admin/payments/pending-receipts')
-  revalidatePath('/dashboard/parent/payments/history')
   return { success: true }
 }
 
 export async function getReceiptDownloadUrl(uploadId: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
   const upload = await db.query.paymentReceiptUploads.findFirst({
     where: eq(paymentReceiptUploads.id, uploadId)
   })
@@ -455,43 +446,55 @@ export async function getReceiptDownloadUrl(uploadId: string) {
   const { data } = await supabase.storage.from('school-generated-receipts')
     .createSignedUrl(upload.generatedReceiptPath, 3600)
 
-  return data?.signedUrl || upload.generatedReceiptUrl || null
+  return data?.signedUrl || null
 }
 
 export async function getAdminWalletSummaryAction() {
   const session = await auth.getSession()
-  if (!session?.user || session.user.role !== 'ADMIN') throw new Error('Unauthorized')
+  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
+    throw new Error('Unauthorized')
+  }
 
-  const adminUser = await db.query.user.findFirst({
-    where: eq(userTable.id, session.user.id)
-  })
+  const uRec = await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) })
+  const schoolId = uRec?.schoolId || session.user.schoolId
 
-  const schoolId = adminUser?.schoolId
+  if (!schoolId) throw new Error('School identity missing')
 
-  const successfulPayments = await db.query.payment.findMany({
-    where: eq(payment.status, 'success'),
+  const schoolPayments = await db.query.payment.findMany({
+    where: and(eq(payment.schoolId, schoolId), eq(payment.status, 'success')),
     orderBy: [desc(payment.createdAt)],
-    with: { student: true }
   })
-
-  const schoolPayments = schoolId
-    ? successfulPayments.filter(p => !p.schoolId || p.schoolId === schoolId || p.student?.schoolId === schoolId)
-    : successfulPayments
 
   const totalRevenue = schoolPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
-
-  const categoryBreakdown: Record<string, number> = {}
-  schoolPayments.forEach(p => {
-    const type = p.feeType || 'General Fee'
-    categoryBreakdown[type] = (categoryBreakdown[type] || 0) + Number(p.amount || 0)
-  })
 
   return {
     totalRevenue,
     transactionCount: schoolPayments.length,
-    categoryBreakdown,
     recentTransactions: schoolPayments.slice(0, 15)
   }
+}
+
+export async function getParentWalletSummaryAction() {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const pRec = await db.query.parent.findFirst({ where: eq(parentTable.userId, session.user.id) })
+  if (!pRec) return { totalPaid: 0, pendingAmount: 0, payments: [] }
+
+  const payments = await db.query.payment.findMany({
+    where: eq(payment.parentId, pRec.id),
+    orderBy: [desc(payment.createdAt)],
+  })
+
+  const totalPaid = payments
+    .filter(p => p.status === 'success')
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+
+  const pendingAmount = payments
+    .filter(p => p.status === 'pending')
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+
+  return { totalPaid, pendingAmount, payments }
 }
 
 export async function getStudentWalletStatsAction(studentIdInput?: string) {
@@ -509,7 +512,6 @@ export async function getStudentWalletStatsAction(studentIdInput?: string) {
 
   const now = new Date()
 
-  // Auto-expire gifts past expiresAt
   await db.update(studentGifts)
     .set({ status: 'EXPIRED' })
     .where(
@@ -542,8 +544,13 @@ export async function claimStudentGiftAction(giftId: string, actionType: 'CASH' 
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
+  const sRec = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
   const gift = await db.query.studentGifts.findFirst({ where: eq(studentGifts.id, giftId) })
+
   if (!gift) throw new Error('Gift record not found')
+  if (!sRec || gift.studentId !== sRec.id) {
+    throw new Error('Forbidden: You can only claim your own student reward gifts.')
+  }
 
   if (gift.status !== 'AVAILABLE' || new Date(gift.expiresAt) <= new Date()) {
     throw new Error('This reward gift has expired or has already been claimed.')
@@ -553,7 +560,7 @@ export async function claimStudentGiftAction(giftId: string, actionType: 'CASH' 
 
   await db.update(studentGifts)
     .set({ status: newStatus })
-    .where(eq(studentGifts.id, giftId))
+    .where(and(eq(studentGifts.id, giftId), eq(studentGifts.studentId, sRec.id)))
 
   revalidatePath('/dashboard/student/wallet')
   revalidatePath('/dashboard/parent/wallet')
@@ -562,15 +569,19 @@ export async function claimStudentGiftAction(giftId: string, actionType: 'CASH' 
 
 export async function awardStudentGiftAction(studentId: string, title: string, reason: string, amount: number) {
   const session = await auth.getSession()
-  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'TEACHER')) {
+  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'TEACHER' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
     throw new Error('Unauthorized')
   }
 
   const studentRec = await db.query.student.findFirst({ where: eq(student.id, studentId) })
   if (!studentRec) throw new Error('Student not found')
 
+  if (!amount || amount <= 0) {
+    throw new Error('Valid gift reward amount is required.')
+  }
+
   const now = new Date()
-  const expiresAt = new Date(now.getTime() + 48 * 60 * 60 * 1000) // 48 hours from now
+  const expiresAt = new Date(now.getTime() + 48 * 60 * 60 * 1000)
 
   const inserted = await db.insert(studentGifts).values({
     id: randomUUID(),
@@ -579,40 +590,11 @@ export async function awardStudentGiftAction(studentId: string, title: string, r
     title: title.trim(),
     reason: reason.trim(),
     amount: amount.toFixed(2),
-    giftType: 'CASH_OR_FEE',
     status: 'AVAILABLE',
     receivedAt: now,
-    expiresAt: expiresAt,
-    createdAt: now
+    expiresAt,
+    createdAt: now,
   }).returning()
 
-  revalidatePath('/dashboard/student/wallet')
-  revalidatePath('/dashboard/admin/wallet')
   return { success: true, gift: inserted[0] }
-}
-
-export async function getParentWalletSummaryAction() {
-  const { profile } = await requireParent()
-  const children = await db.query.student.findMany({ where: eq(student.parentId, profile.id) })
-
-  const childIds = children.map(c => c.id)
-
-  let totalFeesPaid = 0
-  let paymentsList: any[] = []
-
-  if (childIds.length > 0) {
-    paymentsList = await db.query.payment.findMany({
-      where: and(eq(payment.parentId, profile.id), eq(payment.status, 'success')),
-      orderBy: [desc(payment.createdAt)]
-    })
-    totalFeesPaid = paymentsList.reduce((sum, p) => sum + Number(p.amount || 0), 0)
-  }
-
-  return {
-    parent: profile,
-    children,
-    totalFeesPaid,
-    paymentsCount: paymentsList.length,
-    recentPayments: paymentsList.slice(0, 10)
-  }
 }

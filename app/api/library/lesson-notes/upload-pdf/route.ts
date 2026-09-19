@@ -3,8 +3,23 @@ import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { randomUUID } from 'crypto'
 
+const MAX_PDF_SIZE = 10 * 1024 * 1024 // 10MB
+
 export async function POST(req: NextRequest) {
   try {
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized session.' }, { status: 401 })
+    }
+
+    const role = (user.user_metadata?.role || '').toUpperCase()
+    if (!['TEACHER', 'ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(role)) {
+      return NextResponse.json({ error: 'Forbidden: Insufficient permissions to upload lesson note PDFs.' }, { status: 403 })
+    }
+
     const formData = await req.formData()
     const file = formData.get('file') as File | null
 
@@ -16,11 +31,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'File must be a PDF document.' }, { status: 400 })
     }
 
-    const cookieStore = await cookies()
-    const supabase = createClient(cookieStore)
+    if (file.size > MAX_PDF_SIZE) {
+      return NextResponse.json({ error: 'PDF file size exceeds maximum limit of 10MB.' }, { status: 400 })
+    }
 
-    const fileExt = file.name.split('.').pop() || 'pdf'
-    const fileName = `${Date.now()}-${randomUUID()}.${fileExt}`
+    const fileName = `${Date.now()}-${randomUUID()}.pdf`
     const filePath = `pdfs/${fileName}`
 
     const arrayBuffer = await file.arrayBuffer()
@@ -33,20 +48,19 @@ export async function POST(req: NextRequest) {
         upsert: true
       })
 
-    let publicUrl = ''
     if (uploadError) {
-      console.warn('Supabase storage bucket fallback to public static URL endpoint:', uploadError.message)
-      // Fallback URL construct
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xyz.supabase.co'
-      publicUrl = `${supabaseUrl}/storage/v1/object/public/lesson-notes/${filePath}`
-    } else {
-      const { data: urlData } = supabase.storage.from('lesson-notes').getPublicUrl(filePath)
-      publicUrl = urlData.publicUrl
+      console.error('Supabase storage upload error:', uploadError.message)
+      return NextResponse.json(
+        { error: `Failed to store PDF file: ${uploadError.message}` },
+        { status: 500 }
+      )
     }
+
+    const { data: urlData } = supabase.storage.from('lesson-notes').getPublicUrl(filePath)
 
     return NextResponse.json({
       success: true,
-      fileUrl: publicUrl,
+      fileUrl: urlData.publicUrl,
       storagePath: filePath,
       fileName: file.name,
       fileSize: `${(file.size / (1024 * 1024)).toFixed(2)} MB`

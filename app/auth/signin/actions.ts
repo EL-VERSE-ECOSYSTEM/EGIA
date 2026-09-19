@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { user as userTable, teacher, student } from '@/lib/db/schema'
-import { eq, ilike, sql } from 'drizzle-orm'
+import { eq, ilike } from 'drizzle-orm'
 import { resolveIdentities, LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
@@ -25,7 +25,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
   let inputIdentifier = emailInput.trim()
   let resolvedEmail = inputIdentifier.toLowerCase()
 
-  // Support real-time login via Staff ID or Admission Number in Supabase Database
+  // Support real-time login via exact Staff ID or Admission Number
   if (!resolvedEmail.includes('@')) {
     const cleanId = inputIdentifier.trim().toUpperCase()
 
@@ -40,7 +40,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
     if (teacherMatch[0]?.email) {
       resolvedEmail = teacherMatch[0].email
     } else {
-      // Check teacher staff code directly if inner join missed
+      // Direct teacher check
       const directTeacher = await db
         .select({ userId: teacher.userId, staffCode: teacher.staffCode })
         .from(teacher)
@@ -65,7 +65,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
       if (studentMatch[0]?.email) {
         resolvedEmail = studentMatch[0].email
       } else {
-        // Direct student check if inner join missed
+        // Direct student check
         const directStudent = await db
           .select({ userId: student.userId, admissionNumber: student.admissionNumber })
           .from(student)
@@ -75,25 +75,14 @@ export async function signInAction(emailInput: string, passwordInput: string) {
         if (directStudent[0]?.userId) {
           const uRec = await db.select({ email: userTable.email }).from(userTable).where(eq(userTable.id, directStudent[0].userId)).limit(1)
           if (uRec[0]?.email) resolvedEmail = uRec[0].email
-        } else {
-          // Fallback check for user table email pattern matching student identifier
-          const fallbackUser = await db
-            .select({ email: userTable.email })
-            .from(userTable)
-            .where(
-              sql`LOWER(${userTable.email}) LIKE LOWER(${'%' + cleanId.toLowerCase() + '%'})`
-            )
-            .limit(1)
-
-          if (fallbackUser[0]?.email) {
-            resolvedEmail = fallbackUser[0].email
-          } else {
-            return {
-              success: false,
-              error: `No registered user account found for Staff ID or Admission Number '${cleanId}'. Please verify your credentials or email address.`
-            }
-          }
         }
+      }
+    }
+
+    if (!resolvedEmail || !resolvedEmail.includes('@')) {
+      return {
+        success: false,
+        error: 'Invalid credentials or account not found.',
       }
     }
   }
@@ -104,7 +93,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
   })
 
   if (error || !data.user) {
-    return { success: false, error: error?.message || 'Invalid email or password.' }
+    return { success: false, error: 'Invalid credentials or account not found.' }
   }
 
   try {
@@ -114,7 +103,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
       await supabase.auth.signOut()
       return {
         success: false,
-        error: 'No active roles found for this account. Please contact your school administrator.',
+        error: 'Invalid credentials or account not found.',
       }
     }
 
@@ -124,7 +113,8 @@ export async function signInAction(emailInput: string, passwordInput: string) {
     }
   } catch (err: any) {
     console.error('Login identity resolution failed:', err)
-    return { success: false, error: err.message || 'Identity resolution error.' }
+    await supabase.auth.signOut()
+    return { success: false, error: 'An unexpected error occurred during sign in.' }
   }
 }
 
