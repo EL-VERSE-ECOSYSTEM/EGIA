@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { parseCSV, validateQuestionCSV } from '@/lib/csv-parser'
+import { parseCSV } from '@/lib/csv-parser'
 import { db } from '@/lib/db'
-import { assessmentQuestion, assessment, teacher, term } from '@/lib/db/schema'
+import { assessmentQuestion, assessment, teacher, term, subject } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 
 export async function POST(req: Request) {
   const session = await auth.getSession()
@@ -31,16 +31,38 @@ export async function POST(req: Request) {
     const text = await file.text()
     const data = parseCSV(text) as any[]
 
-    if (!validateQuestionCSV(data)) {
-      return NextResponse.json({ error: 'Invalid CSV format. Missing required columns: questionText, questionType, marks' }, { status: 400 })
+    if (!data || data.length === 0) {
+      return NextResponse.json({ error: 'CSV file is empty or contains no valid records.' }, { status: 400 })
     }
 
-    // If no existing assessmentId provided, create a new CBT assessment record
+    // Validate rows rigorously
+    const invalidRows: string[] = []
+    data.forEach((row, idx) => {
+      const qText = row.questionText || row.question
+      if (!qText || !qText.trim()) {
+        invalidRows.push(`Row ${idx + 1}: Missing question text`)
+      }
+      const answer = row.correctAnswer || row.answer || row.correct
+      if (!answer || !answer.trim()) {
+        invalidRows.push(`Row ${idx + 1}: Missing correct answer`)
+      }
+    })
+
+    if (invalidRows.length > 0) {
+      return NextResponse.json({
+        error: `CSV validation failed: ${invalidRows.slice(0, 5).join('; ')}${invalidRows.length > 5 ? ` and ${invalidRows.length - 5} more errors` : ''}`
+      }, { status: 400 })
+    }
+
+    // If no existing assessmentId provided, require valid subject and term records
     if (!assessmentId) {
-      let targetSubjectId = subjectId
-      if (!targetSubjectId) {
-        const firstSub = await db.query.subject.findFirst()
-        targetSubjectId = firstSub ? firstSub.id : uuidv4()
+      if (!subjectId) {
+        return NextResponse.json({ error: 'Explicit subjectId is required when creating a new assessment.' }, { status: 400 })
+      }
+
+      const existingSubject = await db.query.subject.findFirst({ where: eq(subject.id, subjectId) })
+      if (!existingSubject) {
+        return NextResponse.json({ error: 'Specified subject does not exist.' }, { status: 400 })
       }
 
       let currentTerm = await db.query.term.findFirst({ where: eq(term.isCurrent, true) })
@@ -49,19 +71,24 @@ export async function POST(req: Request) {
         currentTerm = allTerms[0]
       }
 
-      const newId = uuidv4()
+      if (!currentTerm) {
+        return NextResponse.json({ error: 'No active academic term found. Please contact administrator.' }, { status: 400 })
+      }
+
+      const newId = randomUUID()
       await db.insert(assessment).values({
         id: newId,
+        schoolId: teacherProfile.schoolId || null,
         title,
         description: 'Bulk CSV Imported Assessment',
-        subjectId: targetSubjectId,
-        termId: currentTerm?.id || 'default-term',
+        subjectId: existingSubject.id,
+        termId: currentTerm.id,
         createdBy: teacherProfile.id,
         duration: duration || 60,
         type,
-        status: 'pending_approval', // Pending Admin approval
+        status: 'pending_approval',
         passingScore: 40,
-        totalPoints: data.reduce((sum, row) => sum + (parseInt(row.marks, 10) || 1), 0),
+        totalPoints: data.reduce((sum, row) => sum + (parseInt(row.marks || row.points || '1', 10) || 1), 0),
         createdAt: new Date(),
         updatedAt: new Date(),
       } as any)
@@ -95,20 +122,20 @@ export async function POST(req: Request) {
       }
 
       return {
-        id: uuidv4(),
+        id: randomUUID(),
         assessmentId,
-        questionText: row.questionText || row.question || `Question ${index + 1}`,
+        questionText: (row.questionText || row.question).trim(),
         questionType: row.questionType || 'multiple_choice',
         points: marks,
-        options: parsedOptions,
-        correctAnswer: row.correctAnswer || row.answer || row.correct || '',
+        options: parsedOptions ? JSON.stringify(parsedOptions) : null,
+        correctAnswer: (row.correctAnswer || row.answer || row.correct).trim(),
         imageUrl: row.imageUrl || row.image || row.image_url || null,
         explanation: row.explanation || null,
         order: index + 1,
       }
     })
 
-    await db.insert(assessmentQuestion).values(questionsToInsert)
+    await db.insert(assessmentQuestion).values(questionsToInsert as any)
 
     return NextResponse.json({ success: true, count: questionsToInsert.length, assessmentId })
   } catch (error: any) {

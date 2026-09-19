@@ -1,11 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseCSVAdvanced, mapCSVFields } from '@/lib/csv-parser'
 import { db } from '@/lib/db'
-import { libraryBooks, assessment, assessmentQuestion } from '@/lib/db/schema'
+import { libraryBooks, assessmentQuestion, assessment } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
+import { createClient } from '@/utils/supabase/server'
+import { cookies } from 'next/headers'
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+const MAX_ROWS = 500
 
 export async function POST(req: NextRequest) {
   try {
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized session.' }, { status: 401 })
+    }
+
+    const role = (user.user_metadata?.role || '').toUpperCase()
+    if (!['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN', 'TEACHER'].includes(role)) {
+      return NextResponse.json({ error: 'Forbidden: Insufficient permissions to upload CSV.' }, { status: 403 })
+    }
+
     const contentType = req.headers.get('content-type') || ''
 
     let csvContent = ''
@@ -32,6 +51,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'No CSV file provided' }, { status: 400 })
       }
 
+      if (file.size > MAX_FILE_SIZE) {
+        return NextResponse.json({ error: 'File size exceeds maximum allowed limit of 5MB.' }, { status: 400 })
+      }
+
       csvContent = await file.text()
     } else {
       const json = await req.json()
@@ -49,6 +72,10 @@ export async function POST(req: NextRequest) {
 
     if (parsed.rows.length === 0) {
       return NextResponse.json({ error: 'No valid data rows found in CSV' }, { status: 400 })
+    }
+
+    if (parsed.rows.length > MAX_ROWS) {
+      return NextResponse.json({ error: `CSV row count exceeds maximum limit of ${MAX_ROWS} rows.` }, { status: 400 })
     }
 
     let insertedRecordsCount = 0
@@ -76,7 +103,7 @@ export async function POST(req: NextRequest) {
         subject: b.subject || 'General Studies',
         classLevel: b.classLevel || 'SSS 1',
         category: b.category || (type === 'lesson-notes' ? 'Lesson Notes' : 'General'),
-        isbn: b.isbn || `LN-${Math.floor(100000 + Math.random() * 900000)}`,
+        isbn: b.isbn || null,
         publicationYear: isNaN(Number(b.publicationYear)) ? 2026 : Number(b.publicationYear),
         description: b.description || b.content || 'Lesson note resource material.',
         content: b.content || b.description || 'Lesson note resource material.',
@@ -93,6 +120,15 @@ export async function POST(req: NextRequest) {
         insertedRecordsCount = bookInserts.length
       }
     } else if (type === 'quiz' && targetId) {
+      // Check target assessment existence and ownership/school match if available
+      const existingAssessment = await db.query.assessment.findFirst({
+        where: eq(assessment.id, targetId)
+      })
+
+      if (!existingAssessment) {
+        return NextResponse.json({ error: 'Target assessment not found.' }, { status: 404 })
+      }
+
       const mappedQuestions = mapCSVFields(parsed.rows, {
         questionText: mapping.question || 'Question',
         optionA: mapping.optionA || 'Option A',
@@ -126,7 +162,6 @@ export async function POST(req: NextRequest) {
       headers: parsed.headers,
       totalRows: parsed.totalRows,
       detectedTypes: parsed.detectedTypes,
-      rows: parsed.rows,
       insertedRecordsCount,
     })
   } catch (error) {
