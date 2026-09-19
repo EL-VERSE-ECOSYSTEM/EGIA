@@ -2,23 +2,18 @@
 
 import { db } from '@/lib/db'
 import { assessment, user } from '@/lib/db/schema'
-import { eq, or, desc, and } from 'drizzle-orm'
+import { eq, desc, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
+import { randomInt } from 'crypto'
 
-// Helper to generate a 6 digit alphanumeric code
-function generateAccessCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let result = ''
-  for (let i = 0; i < 6; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return result
+function generateSecureAccessCode(): string {
+  return randomInt(100000, 999999).toString()
 }
 
 export async function getPendingAssessments() {
   const session = await auth.getSession()
-  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'admin')) {
+  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
     return []
   }
 
@@ -43,7 +38,7 @@ export async function getPendingAssessments() {
 
 export async function getAllAdminAssessments() {
   const session = await auth.getSession()
-  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'admin')) {
+  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
     return []
   }
 
@@ -73,9 +68,11 @@ export async function handleCBTDecision(
   scheduledTime?: string
 ) {
   const session = await auth.getSession()
-  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'admin')) {
+  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
     throw new Error('Unauthorized')
   }
+
+  const currentUser = await db.query.user.findFirst({ where: eq(user.id, session.user.id) })
 
   const record = await db.query.assessment.findFirst({
     where: eq(assessment.id, assessmentId)
@@ -85,12 +82,15 @@ export async function handleCBTDecision(
     throw new Error('Assessment not found')
   }
 
+  if (currentUser?.schoolId && record.schoolId && record.schoolId !== currentUser.schoolId) {
+    throw new Error('Forbidden: Cannot modify assessment from another school.')
+  }
+
   const finalStatus = action === 'approve' ? 'approved' : 'rejected'
   let accessCode = record.accessCode
 
-  // Generate unique access code if approving and code isn't assigned yet
   if (action === 'approve') {
-    accessCode = accessCode || generateAccessCode()
+    accessCode = accessCode || generateSecureAccessCode()
   }
 
   await db.update(assessment)
@@ -111,7 +111,17 @@ export async function handleCBTDecision(
 
 export async function scheduleCBTExam(assessmentId: string, scheduledDate: string, scheduledTime: string) {
   const session = await auth.getSession()
-  if (!session?.user) throw new Error('Unauthorized')
+  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'TEACHER' && session.user.role !== 'SUPER_ADMIN')) {
+    throw new Error('Unauthorized')
+  }
+
+  const currentUser = await db.query.user.findFirst({ where: eq(user.id, session.user.id) })
+  const record = await db.query.assessment.findFirst({ where: eq(assessment.id, assessmentId) })
+
+  if (!record) throw new Error('Assessment record not found.')
+  if (currentUser?.schoolId && record.schoolId && record.schoolId !== currentUser.schoolId) {
+    throw new Error('Forbidden: Assessment school tenant mismatch.')
+  }
 
   await db.update(assessment)
     .set({

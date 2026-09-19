@@ -46,14 +46,12 @@ async function getAdminSchoolId(): Promise<string> {
 
   if (userRec?.schoolId) return userRec.schoolId
 
-  // Check schoolAdminRoles
   const adminRoleRec = await db.query.schoolAdminRoles.findFirst({
     where: eq(schoolAdminRoles.userId, session.user.id),
   })
 
   if (adminRoleRec?.schoolId) return adminRoleRec.schoolId
 
-  // Fallback to parent or teacher schoolId
   const parentRec = await db.query.parent.findFirst({ where: eq(parentTable.userId, session.user.id) })
   if (parentRec?.schoolId) return parentRec.schoolId
 
@@ -459,7 +457,7 @@ export async function createTeacher(data: any) {
     if (authRes.error || !authRes.data?.user?.id) {
       throw new Error(`Failed to create teacher account in Supabase Auth: ${authRes.error?.message || 'Unknown error'}`)
     }
-    userId = authRes.data.user.id
+    userId = authRes.data.user.id as `${string}-${string}-${string}-${string}-${string}`
   }
 
   return await db.transaction(async (tx) => {
@@ -586,7 +584,7 @@ export async function createSchoolAdmin(data: { name: string; email: string; pho
     if (authRes.error || !authRes.data?.user?.id) {
       throw new Error(`Failed to create school admin account in Supabase Auth: ${authRes.error?.message || 'Unknown error'}`)
     }
-    userId = authRes.data.user.id
+    userId = authRes.data.user.id as `${string}-${string}-${string}-${string}-${string}`
   }
 
   await db.transaction(async (tx) => {

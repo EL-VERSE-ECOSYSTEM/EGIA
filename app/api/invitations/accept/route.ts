@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Password must be at least 8 characters long.' }, { status: 400 })
     }
 
-    // Atomic claim on invitation record
     const now = new Date()
     const records = await db.select().from(invitations).where(
       and(
@@ -42,9 +41,8 @@ export async function POST(req: NextRequest) {
     }
 
     const userRoleType = invitation.role || 'TEACHER'
-    let userId = randomUUID()
+    let userId = randomUUID() as `${string}-${string}-${string}-${string}-${string}`
 
-    // Provision user in Supabase Auth via Admin client if secret key present
     const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
     if (secretKey) {
       const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
@@ -71,11 +69,10 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
       }
-      userId = authRes.data.user.id
+      userId = authRes.data.user.id as `${string}-${string}-${string}-${string}-${string}`
     }
 
     return await db.transaction(async (tx) => {
-      // Create user record (no plaintext password stored)
       await tx.insert(userTable).values({
         id: userId,
         email,
@@ -88,14 +85,12 @@ export async function POST(req: NextRequest) {
         set: { updatedAt: now }
       })
 
-      // Create user role record
       await tx.insert(userRole).values({
         id: randomUUID(),
         userId,
         role: userRoleType
       }).onConflictDoNothing()
 
-      // Role-specific records
       if (userRoleType === 'TEACHER') {
         await tx.insert(teacher).values({
           id: randomUUID(),
@@ -131,7 +126,6 @@ export async function POST(req: NextRequest) {
         } as any)
       }
 
-      // Mark invitation as ACCEPTED
       await tx.update(invitations).set({ status: 'ACCEPTED' }).where(eq(invitations.id, invitation.id))
 
       return NextResponse.json({

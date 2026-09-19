@@ -6,7 +6,7 @@ const nextConfig = {
     useTypeScriptCli: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: true,
