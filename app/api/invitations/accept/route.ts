@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { invitations, user as userTable, userRole, teacher, parent, student } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
-import { randomUUID } from 'crypto'
+import { randomUUID, createHash } from 'crypto'
 import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
+
+function hashToken(rawToken: string): string {
+  return createHash('sha256').update(rawToken.trim()).digest('hex')
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,13 +22,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Password must be at least 8 characters long.' }, { status: 400 })
     }
 
+    const hashedToken = hashToken(token)
     const now = new Date()
-    const records = await db.select().from(invitations).where(
+
+    // Query invitation by hashed or legacy raw token
+    let records = await db.select().from(invitations).where(
       and(
-        eq(invitations.token, token),
+        eq(invitations.token, hashedToken),
         eq(invitations.status, 'PENDING')
       )
     )
+
+    if (records.length === 0) {
+      records = await db.select().from(invitations).where(
+        and(
+          eq(invitations.token, token.trim()),
+          eq(invitations.status, 'PENDING')
+        )
+      )
+    }
 
     if (records.length === 0) {
       return NextResponse.json({ error: 'Invalid or already accepted invitation token.' }, { status: 400 })
@@ -36,9 +52,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invitation token has expired.' }, { status: 400 })
     }
 
-    const email = (invitation.email || body.email || '').trim().toLowerCase()
+    // Require invitation email directly to prevent arbitrary body overrides
+    const email = invitation.email ? invitation.email.trim().toLowerCase() : ''
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'A valid email address is required to complete invitation acceptance.' }, { status: 400 })
+      return NextResponse.json({ error: 'This invitation is missing a valid verified email address.' }, { status: 400 })
     }
 
     const userRoleType = invitation.role || 'TEACHER'
@@ -65,8 +82,9 @@ export async function POST(req: NextRequest) {
       })
 
       if (authRes.error || !authRes.data?.user?.id) {
+        console.error('Supabase Auth error during invitation creation:', authRes.error)
         return NextResponse.json(
-          { error: `Auth account creation failed: ${authRes.error?.message || 'Unknown auth error'}` },
+          { error: 'Account setup failed with authentication provider. Please try again or contact support.' },
           { status: 400 }
         )
       }
@@ -74,6 +92,16 @@ export async function POST(req: NextRequest) {
     }
 
     return await db.transaction(async (tx) => {
+      // Atomic claim of pending invitation
+      const claimed = await tx.update(invitations)
+        .set({ status: 'ACCEPTED' })
+        .where(and(eq(invitations.id, invitation.id), eq(invitations.status, 'PENDING')))
+        .returning()
+
+      if (!claimed.length) {
+        throw new Error('Invitation was already claimed or updated concurrently.')
+      }
+
       await tx.insert(userTable).values({
         id: userId,
         email,
@@ -127,8 +155,6 @@ export async function POST(req: NextRequest) {
         } as any)
       }
 
-      await tx.update(invitations).set({ status: 'ACCEPTED' }).where(eq(invitations.id, invitation.id))
-
       return NextResponse.json({
         success: true,
         message: 'Invitation accepted successfully! You can now log in.',
@@ -150,7 +176,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Token is required.' }, { status: 400 })
     }
 
-    const records = await db.select().from(invitations).where(eq(invitations.token, token))
+    const hashedToken = hashToken(token)
+    let records = await db.select().from(invitations).where(eq(invitations.token, hashedToken))
+    if (records.length === 0) {
+      records = await db.select().from(invitations).where(eq(invitations.token, token.trim()))
+    }
+
     if (records.length === 0) {
       return NextResponse.json({ error: 'Invitation not found.' }, { status: 404 })
     }

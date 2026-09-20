@@ -148,6 +148,17 @@ export async function saveProctoredAssessmentResult(data: {
     throw new Error('Forbidden: Student identity mismatch.')
   }
 
+  const existingResult = await db.query.assessmentResult.findFirst({
+    where: and(
+      eq(assessmentResult.assessmentId, data.assessmentId),
+      eq(assessmentResult.studentId, studentProfile.id)
+    )
+  })
+
+  if (existingResult) {
+    throw new Error('You have already submitted this assessment.')
+  }
+
   const dbAssessment = await db.query.assessment.findFirst({
     where: eq(assessment.id, data.assessmentId)
   })
@@ -179,6 +190,11 @@ export async function saveProctoredAssessmentResult(data: {
 }
 
 export async function getUpcomingAssessments(classId: string, schoolId?: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const userSchoolId = schoolId || session.user.schoolId
+
   const all = await db.query.assessment.findMany({
     with: {
       subject: true
@@ -187,11 +203,16 @@ export async function getUpcomingAssessments(classId: string, schoolId?: string)
 
   return all.filter(a =>
     (a.status === 'published' || a.status === 'approved') &&
-    (!schoolId || !a.schoolId || a.schoolId === schoolId)
+    (!userSchoolId || !a.schoolId || a.schoolId === userSchoolId)
   )
 }
 
 export async function getApprovedCBTs(schoolId?: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const userSchoolId = schoolId || session.user.schoolId
+
   const all = await db.query.assessment.findMany({
     with: {
       subject: true,
@@ -201,11 +222,29 @@ export async function getApprovedCBTs(schoolId?: string) {
 
   return all.filter(a =>
     a.status === 'approved' &&
-    (!schoolId || !a.schoolId || a.schoolId === schoolId)
-  )
+    (!userSchoolId || !a.schoolId || a.schoolId === userSchoolId)
+  ).map(a => {
+    if (session.user.role === 'STUDENT') {
+      return {
+        ...a,
+        questions: a.questions.map(q => ({
+          id: q.id,
+          questionText: q.questionText,
+          questionType: q.questionType,
+          options: q.options,
+          points: q.points,
+          order: q.order
+        }))
+      }
+    }
+    return a
+  })
 }
 
 export async function getAssessmentWithQuestions(id: string, providedAccessCode?: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
   const dbAssessment = await db.query.assessment.findFirst({
     where: eq(assessment.id, id),
     with: {
@@ -217,6 +256,10 @@ export async function getAssessmentWithQuestions(id: string, providedAccessCode?
   })
 
   if (!dbAssessment) return null
+
+  if (dbAssessment.schoolId && session.user.schoolId && dbAssessment.schoolId !== session.user.schoolId) {
+    throw new Error('Forbidden: Assessment school tenant mismatch.')
+  }
 
   if (dbAssessment.accessCode && dbAssessment.accessCode.trim().length > 0) {
     if (!providedAccessCode || providedAccessCode.trim().toUpperCase() !== dbAssessment.accessCode.trim().toUpperCase()) {
@@ -237,7 +280,7 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
   if (!questions.length) throw new Error('Add at least one question before publishing an assessment')
   const assessmentId = crypto.randomUUID()
 
-  // Generate secure 6-character numeric/uppercase access code using crypto
+  // Generate secure 6-character numeric access code using crypto
   const generatedAccessCode = assessmentData.type === 'EXAM_CBT'
     ? randomInt(100000, 999999).toString()
     : null
@@ -305,7 +348,7 @@ export async function getLoggedInStudentAndQuestions(assessmentId: string, provi
     throw new Error('This assessment is not available for your school.')
   }
 
-  // Omit correctAnswer from student response entirely
+  // Omit correctAnswer and explanation from student response entirely
   const questionsList = dbAssessment.questions.map(q => {
     const rawOptions = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : []
     const shuffledOptions = Array.isArray(rawOptions) ? [...rawOptions].sort(() => Math.random() - 0.5) : rawOptions

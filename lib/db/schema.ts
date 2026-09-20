@@ -32,7 +32,6 @@ export const user = pgTable('user', {
   name: text('name'),
   image: text('image'),
   schoolId: text('schoolid'),
-  password: text('password'),
   lastIdentityId: text('last_identity_id'),
   lastIdentityAt: timestamp('last_identity_at', { withTimezone: true }),
   gender: text('gender'),
@@ -45,10 +44,11 @@ export const user = pgTable('user', {
 
 export const userRole = pgTable('user_role', {
   id: text('id').primaryKey(),
-  userId: text('userid').notNull().unique(),
+  userId: text('userid').notNull(),
   role: text('role').notNull(), // SUPER_ADMIN, SCHOOL_ADMIN, TEACHER, PARENT, STUDENT, PUPIL
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
+  unique().on(t.userId, t.role),
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
 ])
 
@@ -104,7 +104,6 @@ export const student = pgTable('student', {
   registrationReference: text('registration_reference'),
   enrollmentType: text('enrollment_type'), // ADMIN or SELF
   registrationStatus: text('registrationstatus').notNull().default('WAIVED'),
-  password: text('password').default('default'),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
@@ -139,7 +138,6 @@ export const teacher = pgTable('teacher', {
   specialization: text('specialization'),
   profileImage: text('profileimage'),
   facialVerificationVideo: text('facialverificationvideo'),
-  password: text('password').default('default'),
   status: text('status').default('PENDING'),
   isActive: boolean('isactive').default(true),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
@@ -161,7 +159,6 @@ export const parent = pgTable('parent', {
   profileImage: text('profileimage'),
   facialVerificationVideo: text('facialverificationvideo'),
   occupation: text('occupation'),
-  password: text('password').default('default'),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
@@ -421,7 +418,6 @@ export const admissionNumberSequences = pgTable('admission_number_sequences', {
 }, (t) => [
   foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
 ])
-
 
 // ===== ASSESSMENT LOGS =====
 export const assessmentLogs = pgTable('assessment_logs', {

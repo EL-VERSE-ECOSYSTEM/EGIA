@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { user as userTable, teacher, student } from '@/lib/db/schema'
-import { eq, ilike } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { resolveIdentities, LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
@@ -25,16 +25,16 @@ export async function signInAction(emailInput: string, passwordInput: string) {
   let inputIdentifier = emailInput.trim()
   let resolvedEmail = inputIdentifier.toLowerCase()
 
-  // Support real-time login via exact Staff ID or Admission Number
+  // Support real-time login via exact Staff ID or Admission Number using eq
   if (!resolvedEmail.includes('@')) {
     const cleanId = inputIdentifier.trim().toUpperCase()
 
-    // 1. Check teacher staff code with inner join or case-insensitive ilike query
+    // 1. Check teacher staff code with exact match eq
     const teacherMatch = await db
       .select({ email: userTable.email, userId: teacher.userId })
       .from(teacher)
       .innerJoin(userTable, eq(teacher.userId, userTable.id))
-      .where(ilike(teacher.staffCode, cleanId))
+      .where(eq(teacher.staffCode, cleanId))
       .limit(1)
 
     if (teacherMatch[0]?.email) {
@@ -44,7 +44,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
       const directTeacher = await db
         .select({ userId: teacher.userId, staffCode: teacher.staffCode })
         .from(teacher)
-        .where(ilike(teacher.staffCode, cleanId))
+        .where(eq(teacher.staffCode, cleanId))
         .limit(1)
 
       if (directTeacher[0]?.userId) {
@@ -54,12 +54,12 @@ export async function signInAction(emailInput: string, passwordInput: string) {
     }
 
     if (!resolvedEmail || !resolvedEmail.includes('@')) {
-      // 2. Check student admission number with inner join or case-insensitive ilike query
+      // 2. Check student admission number with exact match eq
       const studentMatch = await db
         .select({ email: userTable.email, userId: student.userId })
         .from(student)
         .innerJoin(userTable, eq(student.userId, userTable.id))
-        .where(ilike(student.admissionNumber, cleanId))
+        .where(eq(student.admissionNumber, cleanId))
         .limit(1)
 
       if (studentMatch[0]?.email) {
@@ -69,7 +69,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
         const directStudent = await db
           .select({ userId: student.userId, admissionNumber: student.admissionNumber })
           .from(student)
-          .where(ilike(student.admissionNumber, cleanId))
+          .where(eq(student.admissionNumber, cleanId))
           .limit(1)
 
         if (directStudent[0]?.userId) {
@@ -143,7 +143,6 @@ export async function activateIdentityAction(identityId: string, remember: boole
     department: matchedIdentity.department || null,
   }
 
-  // 1. Update user metadata via Supabase client to trigger session cookie update
   try {
     await supabase.auth.updateUser({
       data: newMetadata,
@@ -153,7 +152,6 @@ export async function activateIdentityAction(identityId: string, remember: boole
     console.warn('Failed to update user session metadata via user client:', updateErr)
   }
 
-  // 2. Also update via Admin API to guarantee real-time persistence across devices
   const adminClient = authAdminClient()
   if (adminClient) {
     try {
@@ -165,7 +163,6 @@ export async function activateIdentityAction(identityId: string, remember: boole
     }
   }
 
-  // 3. Update public.user last_identity_id
   if (remember) {
     try {
       await db

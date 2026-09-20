@@ -5,6 +5,10 @@ import { school, user as userTable, schoolAdminRoles, userRole } from '@/lib/db/
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { auth } from '@/lib/auth'
+import {
+  initializeKorapayPayment as serviceInitializeKorapayPayment,
+  verifyKorapayPayment as serviceVerifyKorapayPayment,
+} from '@/lib/payments/service'
 
 export interface SchoolRegistrationInput {
   name: string
@@ -123,50 +127,29 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       }).onConflictDoNothing()
     })
 
-    // Initialize Korapay charge for school registration subscription (NGN 30,000 + NGN 161.25 fee)
-    let checkoutUrl = `/payment/return?reference=${encodeURIComponent(paymentReference)}`
-    const korapaySecret = process.env.KORAPAY_SECRET_KEY
-    if (korapaySecret) {
-      const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-      const korapayRes = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${korapaySecret}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: 30161.25,
-          currency: 'NGN',
-          reference: paymentReference,
-          narration: `School registration subscription fee for ${input.name}`,
-          notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
-          redirect_url: `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(paymentReference)}`,
-          customer: {
-            email: adminEmail,
-            name: input.adminName,
-          },
-          metadata: {
-            schoolId,
-            schoolCode,
-            paymentType: 'SCHOOL_REGISTRATION',
-          },
-        }),
-      })
-
-      if (korapayRes.ok) {
-        const payload = await korapayRes.json()
-        if (payload.status && payload.data?.checkout_url) {
-          checkoutUrl = payload.data.checkout_url
-        }
-      }
-    }
+    // Initialize Korapay charge via centralized service (NGN 30,000 + NGN 161.25 fee)
+    const initRes = await serviceInitializeKorapayPayment({
+      schoolId,
+      amount: 30161.25,
+      currency: 'NGN',
+      feeType: 'SCHOOL_REGISTRATION',
+      description: `School registration subscription fee for ${input.name}`,
+      customerEmail: adminEmail,
+      customerName: input.adminName,
+      redirectUrl: `${(process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(paymentReference)}`,
+      metadata: {
+        schoolId,
+        schoolCode,
+        paymentType: 'SCHOOL_REGISTRATION',
+      },
+    })
 
     return {
       success: true,
       schoolId,
       schoolCode,
-      paymentReference,
-      checkoutUrl
+      paymentReference: initRes.reference || paymentReference,
+      checkoutUrl: initRes.checkoutUrl,
     }
   } catch (error: any) {
     console.error('Failed to register school:', { requestId, error: error?.message || error })
@@ -182,38 +165,25 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
       return { success: false, error: 'Unauthorized session.' }
     }
 
+    const verification = await serviceVerifyKorapayPayment({
+      reference: paymentReference,
+      expectedAmount: 30161.25,
+    })
+
+    if (!verification.success) {
+      return { success: false, error: verification.error || 'Payment status not confirmed by gateway.' }
+    }
+
     const existingSchool = await db.select().from(school).where(eq(school.paymentReference, paymentReference))
-
-    if (!existingSchool.length) {
-      return { success: false, error: 'School registration record not found' }
-    }
-
     const rec = existingSchool[0]
-
-    const secretKey = process.env.KORAPAY_SECRET_KEY
-    if (secretKey) {
-      const res = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(paymentReference)}`, {
-        headers: { Authorization: `Bearer ${secretKey}` }
-      })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.status && data.data?.status !== 'success') {
-          return { success: false, error: 'Payment status not confirmed by gateway.' }
-        }
-      }
-    }
-
-    await db.update(school)
-      .set({ paymentStatus: 'PAID', updatedAt: new Date() })
-      .where(eq(school.id, rec.id))
 
     return {
       success: true,
-      school: rec,
-      schoolCode: rec.code,
-      schoolName: rec.name,
-      adminEmail: rec.adminEmail,
-      adminName: rec.adminName,
+      school: rec || null,
+      schoolCode: rec?.code || verification.schoolCode,
+      schoolName: rec?.name || verification.schoolName,
+      adminEmail: rec?.adminEmail,
+      adminName: rec?.adminName,
       amount: 30161.25,
       paidAt: new Date().toISOString()
     }
