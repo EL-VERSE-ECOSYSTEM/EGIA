@@ -7,6 +7,7 @@ import { eq, and, count, desc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
+import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
 
 export async function getStudentEmailByAdmissionNumber(admissionNumber: string) {
   const session = await auth.getSession()
@@ -214,14 +215,15 @@ export async function createStudentProfile(data: any) {
 
   if (existing) return existing
 
+  const targetClass = data.class || 'JSS1'
   const inserted = await db.insert(student).values({
     id: crypto.randomUUID(),
     userId: session.user.id,
     schoolId: session.user.schoolId || null,
     firstName: data.firstName || session.user.name?.split(' ')[0] || 'Student',
     lastName: data.lastName || session.user.name?.split(' ')[1] || 'Pupil',
-    class: data.class || 'JSS1',
-    admissionNumber: data.admissionNumber || `STU-${Math.floor(10000 + Math.random() * 90000)}`,
+    class: targetClass,
+    admissionNumber: data.admissionNumber || generateAdmissionNumber(targetClass),
   }).returning()
 
   return inserted[0]
@@ -243,7 +245,7 @@ export async function createTeacherProfile(data: any) {
     schoolId: session.user.schoolId || null,
     firstName: data.firstName || session.user.name?.split(' ')[0] || 'Teacher',
     lastName: data.lastName || session.user.name?.split(' ')[1] || 'Staff',
-    staffCode: `ST-${Math.floor(10000 + Math.random() * 90000)}`,
+    staffCode: generateStaffId(),
   }).returning()
 
   return inserted[0]

@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { invitations, user as userTable, userRole, teacher, parent, student } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
+import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
 
 export async function POST(req: NextRequest) {
   try {
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
           firstName: firstName || 'Teacher',
           lastName: lastName || 'Staff',
           gender: gender || 'Male',
-          staffCode: `ST-${Math.floor(10000 + Math.random() * 90000)}`,
+          staffCode: generateStaffId(),
           status: 'ACTIVE'
         } as any)
       } else if (userRoleType === 'PARENT') {
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
           lastName: lastName || 'Pupil',
           gender: gender || 'Male',
           class: 'JSS1',
-          admissionNumber: `STU-${Math.floor(10000 + Math.random() * 90000)}`,
+          admissionNumber: generateAdmissionNumber('JSS1'),
           registrationStatus: 'ACTIVE'
         } as any)
       }
