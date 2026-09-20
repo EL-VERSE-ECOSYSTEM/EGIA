@@ -2,19 +2,29 @@ import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+function sanitizeRedirectPath(nextPath: string | null): string {
+  if (!nextPath || !nextPath.startsWith('/') || nextPath.startsWith('//')) {
+    return '/dashboard-redirect'
+  }
+  return nextPath
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard-redirect";
+  const rawNext = searchParams.get("next");
+  const safePath = sanitizeRedirectPath(rawNext);
 
   if (code) {
     const cookieStore = await cookies();
     const supabase = createClient(cookieStore);
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(`${origin}${safePath}`);
     }
   }
 
-  return NextResponse.redirect(`${origin}/auth/signin?error=Verification failed`);
+  const errorUrl = new URL('/auth/signin', origin);
+  errorUrl.searchParams.set('error', 'Verification failed');
+  return NextResponse.redirect(errorUrl.toString());
 }

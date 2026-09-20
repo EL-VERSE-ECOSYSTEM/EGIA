@@ -34,16 +34,19 @@ export async function verifyForgotPasswordEmailAction(emailInput: string): Promi
     where: eq(userTable.email, email),
   })
 
+  // Return generic response if email is not found to prevent account enumeration
   if (!userRecord) {
-    return { success: false, error: 'No account found associated with this email address.' }
+    return {
+      success: true,
+      verificationType: 'PHONE',
+      role: 'PARENT',
+      userId: 'generic-notice',
+    }
   }
 
   const userRoles = await db.select().from(userRole).where(eq(userRole.userId, userRecord.id))
   const primaryRole = userRoles[0]?.role?.toUpperCase() || ''
 
-  // Determine verification type:
-  // If role is STUDENT or PUPIL -> verification requires School Code
-  // If role is SCHOOL_ADMIN, TEACHER, or PARENT -> verification requires last 4 digits of phone number
   const isStudentRole = primaryRole === 'STUDENT' || primaryRole === 'PUPIL'
   const verificationType = isStudentRole ? 'SCHOOL_CODE' : 'PHONE'
 
@@ -73,11 +76,13 @@ export async function confirmForgotPasswordVerificationAction(
     }
   }
 
+  if (userId === 'generic-notice') {
+    return { success: false, error: 'Verification failed. Please check your information and try again.' }
+  }
+
   if (verificationType === 'PHONE') {
-    // Check across School, Teacher, Parent profile phone numbers
     let registeredPhone = ''
 
-    // Check school admin
     const userRecord = await db.query.user.findFirst({ where: eq(userTable.id, userId) })
     if (userRecord?.schoolId) {
       const schoolRecord = await db.query.school.findFirst({ where: eq(school.id, userRecord.schoolId) })
@@ -86,7 +91,6 @@ export async function confirmForgotPasswordVerificationAction(
       }
     }
 
-    // Check teacher profile
     if (!registeredPhone) {
       const teacherRecord = await db.query.teacher.findFirst({ where: eq(teacher.userId, userId) })
       if (teacherRecord?.phoneNumber) {
@@ -94,7 +98,6 @@ export async function confirmForgotPasswordVerificationAction(
       }
     }
 
-    // Check parent profile
     if (!registeredPhone) {
       const parentRecord = await db.query.parent.findFirst({ where: eq(parent.userId, userId) })
       if (parentRecord?.phoneNumber) {
@@ -103,7 +106,7 @@ export async function confirmForgotPasswordVerificationAction(
     }
 
     if (!registeredPhone) {
-      return { success: false, error: 'No phone number is registered for this account profile.' }
+      return { success: false, error: 'Verification failed. Please check your information and try again.' }
     }
 
     const digitsOnly = registeredPhone.replace(/\D/g, '')
@@ -115,7 +118,6 @@ export async function confirmForgotPasswordVerificationAction(
 
     return { success: true }
   } else {
-    // Verification via School Code
     const studentRecord = await db.query.student.findFirst({ where: eq(student.userId, userId) })
     let schoolId = studentRecord?.schoolId
 
@@ -125,12 +127,12 @@ export async function confirmForgotPasswordVerificationAction(
     }
 
     if (!schoolId) {
-      return { success: false, error: 'No school tenant association found for this student account.' }
+      return { success: false, error: 'Verification failed. Please check your information and try again.' }
     }
 
     const schoolRecord = await db.query.school.findFirst({ where: eq(school.id, schoolId) })
     if (!schoolRecord) {
-      return { success: false, error: 'Associated school record not found.' }
+      return { success: false, error: 'Verification failed. Please check your information and try again.' }
     }
 
     if (cleanInput.toUpperCase() !== schoolRecord.code.toUpperCase()) {
@@ -150,43 +152,30 @@ export async function resetForgotPasswordPasswordAction(
   userId: string,
   newPassword: string
 ): Promise<ResetForgotPasswordPasswordResult> {
-  if (!newPassword || newPassword.length < 6) {
-    return { success: false, error: 'Password must be at least 6 characters in length.' }
+  if (!newPassword || newPassword.length < 8) {
+    return { success: false, error: 'Password must be at least 8 characters in length.' }
+  }
+
+  if (userId === 'generic-notice') {
+    return { success: false, error: 'Password reset could not be completed.' }
   }
 
   try {
     const supabaseAdmin = getSupabaseAdminClient()
 
-    // Update password in Supabase Auth via Admin API
+    // Update password exclusively in Supabase Auth via Admin API
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       password: newPassword,
     })
 
     if (authError) {
-      console.warn('Supabase Auth password reset error:', authError)
+      console.error('Supabase Auth password reset error:', authError)
+      return { success: false, error: 'Password reset could not be completed with Auth provider.' }
     }
-
-    // Update password in public.user database
-    await db.update(userTable)
-      .set({ password: newPassword, updatedAt: new Date() })
-      .where(eq(userTable.id, userId))
-
-    // Update password in role tables if applicable
-    await db.update(student)
-      .set({ password: newPassword, updatedAt: new Date() })
-      .where(eq(student.userId, userId))
-
-    await db.update(teacher)
-      .set({ password: newPassword, updatedAt: new Date() })
-      .where(eq(teacher.userId, userId))
-
-    await db.update(parent)
-      .set({ password: newPassword, updatedAt: new Date() })
-      .where(eq(parent.userId, userId))
 
     return { success: true }
   } catch (err: any) {
     console.error('Real-time password reset failed:', err)
-    return { success: false, error: err.message || 'Failed to update password.' }
+    return { success: false, error: 'Failed to update password.' }
   }
 }
