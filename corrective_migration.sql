@@ -74,6 +74,9 @@ CREATE TABLE IF NOT EXISTS public.parent (
     updatedat timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.parent ADD COLUMN IF NOT EXISTS firstname text;
+ALTER TABLE public.parent ADD COLUMN IF NOT EXISTS lastname text;
+
 CREATE TABLE IF NOT EXISTS public.teacher (
     id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
     userid text NOT NULL UNIQUE REFERENCES public."user"(id) ON DELETE CASCADE,
@@ -553,6 +556,8 @@ CREATE TABLE IF NOT EXISTS public.library_books (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.library_books ADD COLUMN IF NOT EXISTS schoolid text;
+
 CREATE TABLE IF NOT EXISTS public.library_book_loans (
     id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
     bookid text NOT NULL REFERENCES public.library_books(id) ON DELETE CASCADE,
@@ -1002,18 +1007,15 @@ CREATE INDEX IF NOT EXISTS idx_student_school_class ON public.student(schoolid, 
 CREATE INDEX IF NOT EXISTS idx_teacher_school ON public.teacher(schoolid);
 CREATE INDEX IF NOT EXISTS idx_parent_school ON public.parent(schoolid);
 CREATE INDEX IF NOT EXISTS idx_subject_name ON public.subject(lower(name));
-CREATE INDEX IF NOT EXISTS idx_payment_school_status ON public.payment(schoolid, status, createdat DESC);
-CREATE INDEX IF NOT EXISTS idx_payment_student ON public.payment(studentid, createdat DESC);
-CREATE INDEX IF NOT EXISTS idx_assessment_school_status ON public.assessment(schoolid, status, updatedat DESC);
-CREATE INDEX IF NOT EXISTS idx_assessment_result_student ON public.assessment_result(studentid, createdat DESC);
-CREATE INDEX IF NOT EXISTS idx_cbt_sessions_student ON public.cbt_sessions(student_id, assessment_id, started_at DESC);
-CREATE INDEX IF NOT EXISTS idx_notification_user ON public.notification(userid, createdat DESC);
-CREATE INDEX IF NOT EXISTS idx_notification_history_user ON public.notification_history(user_id, sent_at DESC);
-CREATE INDEX IF NOT EXISTS idx_message_conversation ON public.message(conversationid, createdat DESC);
-CREATE INDEX IF NOT EXISTS idx_support_ticket_user ON public.support_ticket(userid, createdat DESC);
-CREATE INDEX IF NOT EXISTS idx_dispute_raisedby ON public.dispute(raisedbyid, createdat DESC);
+CREATE INDEX IF NOT EXISTS idx_payment_student ON public.payment(studentid);
+CREATE INDEX IF NOT EXISTS idx_cbt_sessions_student ON public.cbt_sessions(student_id, assessment_id);
+CREATE INDEX IF NOT EXISTS idx_notification_user ON public.notification("userId");
+CREATE INDEX IF NOT EXISTS idx_notification_history_user ON public.notification_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_message_conversation ON public.message("conversationId");
+CREATE INDEX IF NOT EXISTS idx_support_ticket_user ON public.support_ticket("userId");
+CREATE INDEX IF NOT EXISTS idx_dispute_raisedby ON public.dispute("raisedById");
 CREATE INDEX IF NOT EXISTS idx_library_search ON public.library_books(title, category, class_level) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_library_books_school ON public.library_books(schoolid, deleted_at);
+CREATE INDEX IF NOT EXISTS idx_library_books_school ON public.library_books(schoolid, deleted_at) WHERE schoolid IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_payment_receipt_uploads_school ON public.payment_receipt_uploads(schoolid, status);
 CREATE INDEX IF NOT EXISTS idx_student_attendance_day ON public.teacher_attendance(teacherid, work_date);
 
