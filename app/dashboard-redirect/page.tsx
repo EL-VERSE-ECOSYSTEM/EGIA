@@ -4,14 +4,17 @@ import { getParentProfile, getStudentProfile, getTeacherProfile, getLinkedChildr
 
 export const dynamic = 'force-dynamic'
 
-/** Routes only verified roles to their real dashboard. It never invents profiles or IDs. */
+/** Routes only verified roles to their real dashboard based on Supabase database roles. */
 export default async function DashboardRedirect() {
   const session = await auth.getSession()
   if (!session?.user) redirect('/auth/signin?error=Please sign in to continue')
 
   switch (session.user.role?.toUpperCase()) {
-    case 'SUPER_ADMIN': redirect('/dashboard/super-admin/overview')
-    case 'ADMIN': redirect('/dashboard/admin/overview')
+    case 'SUPER_ADMIN':
+      redirect('/dashboard/super-admin/overview')
+    case 'SCHOOL_ADMIN':
+    case 'ADMIN':
+      redirect('/dashboard/admin/overview')
     case 'TEACHER': {
       const profile = await getTeacherProfile(session.user.id)
       redirect(profile ? '/dashboard/teacher/overview' : '/setup-role/teacher')
@@ -21,7 +24,6 @@ export default async function DashboardRedirect() {
       if (!profile) {
         redirect('/setup-role/parent')
       }
-      // Redirect to Parent Setup if they haven't linked any ward account yet
       const wards = await getLinkedChildren()
       if (wards.length === 0) {
         redirect('/setup-role/parent')
@@ -32,6 +34,7 @@ export default async function DashboardRedirect() {
       const profile = await getStudentProfile(session.user.id)
       redirect(profile ? '/dashboard/student/overview' : '/setup-role/student')
     }
-    default: redirect('/setup-role')
+    default:
+      redirect('/setup-role')
   }
 }

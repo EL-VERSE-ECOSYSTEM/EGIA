@@ -28,7 +28,7 @@ export async function generateSchoolCode(schoolName: string): Promise<string> {
     .padEnd(4, 'S')
 
   const uniqueDigits = Math.floor(10000 + Math.random() * 90000)
-  const finalCode = `${prefix}${uniqueDigits}`
+  const finalCode = `${prefix}-${uniqueDigits}`
 
   const existing = await db.select().from(school).where(eq(school.code, finalCode))
   if (existing.length > 0) {
@@ -47,7 +47,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
 
     const schoolId = randomUUID()
     const schoolCode = await generateSchoolCode(input.name)
-    const paymentReference = `SCH_PAY_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+    const paymentReference = `SCH-PAY-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`
 
     await db.insert(school).values({
       id: schoolId,
@@ -123,12 +123,50 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       }).onConflictDoNothing()
     })
 
+    // Initialize Korapay charge for school registration subscription (NGN 30,000 + NGN 161.25 fee)
+    let checkoutUrl = `/payment/return?reference=${encodeURIComponent(paymentReference)}`
+    const korapaySecret = process.env.KORAPAY_SECRET_KEY
+    if (korapaySecret) {
+      const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+      const korapayRes = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${korapaySecret}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: 30161.25,
+          currency: 'NGN',
+          reference: paymentReference,
+          narration: `School registration subscription fee for ${input.name}`,
+          notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
+          redirect_url: `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(paymentReference)}`,
+          customer: {
+            email: adminEmail,
+            name: input.adminName,
+          },
+          metadata: {
+            schoolId,
+            schoolCode,
+            paymentType: 'SCHOOL_REGISTRATION',
+          },
+        }),
+      })
+
+      if (korapayRes.ok) {
+        const payload = await korapayRes.json()
+        if (payload.status && payload.data?.checkout_url) {
+          checkoutUrl = payload.data.checkout_url
+        }
+      }
+    }
+
     return {
       success: true,
       schoolId,
       schoolCode,
       paymentReference,
-      checkoutUrl: `/payment/return?reference=${encodeURIComponent(paymentReference)}`
+      checkoutUrl
     }
   } catch (error: any) {
     console.error('Failed to register school:', { requestId, error: error?.message || error })

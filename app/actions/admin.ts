@@ -21,7 +21,7 @@ import { eq, sql, and, count, inArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
 import { randomUUID } from 'crypto'
-import { generateAdmissionNumber, isValidAdmissionNumber } from '@/lib/id'
+import { generateAdmissionNumber, isValidAdmissionNumber, generateStaffId } from '@/lib/id'
 import { studentEnrollmentSchema } from '@/lib/validators/student.schema'
 
 async function getUserId() {
@@ -431,7 +431,7 @@ export async function createTeacher(data: any) {
   const email = (data.email || '').trim().toLowerCase()
   if (!email) throw new Error('Teacher email address is required')
 
-  const staffCode = data.staffCode || `ST-${Math.floor(10000 + Math.random() * 90000)}`
+  const staffCode = data.staffCode || generateStaffId()
   let userId = randomUUID()
 
   const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
