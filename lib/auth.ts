@@ -39,7 +39,7 @@ async function getSessionImpl() {
     .where(eq(userTable.id, user.id))
     .limit(1)
 
-  const finalRole = (dbRole || adminRoleRec?.level || 'STUDENT').toUpperCase()
+  const finalRole = dbRole ? dbRole.toUpperCase() : (adminRoleRec ? 'SCHOOL_ADMIN' : 'STUDENT')
   const schoolId = dbUser?.[0]?.schoolId || adminRoleRec?.schoolId || null
 
   return {
@@ -83,7 +83,7 @@ async function getUserImpl() {
     .where(eq(userTable.id, user.id))
     .limit(1)
 
-  const finalRole = (dbRole || adminRoleRec?.level || 'STUDENT').toUpperCase()
+  const finalRole = dbRole ? dbRole.toUpperCase() : (adminRoleRec ? 'SCHOOL_ADMIN' : 'STUDENT')
   const schoolId = dbUser?.[0]?.schoolId || adminRoleRec?.schoolId || null
 
   return {
