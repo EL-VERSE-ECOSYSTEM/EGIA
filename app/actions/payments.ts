@@ -1,130 +1,31 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { payment, student, paymentReceiptUploads, transactionLedger, studentGifts, user as userTable, parent as parentTable, feeStructure } from '@/lib/db/schema'
+import { payment, student, paymentReceiptUploads, user as userTable, parent as parentTable, feeStructure, studentGifts } from '@/lib/db/schema'
 import { eq, and, desc, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
+import {
+  initializeKorapayPayment as serviceInitializeKorapayPayment,
+  verifyKorapayPayment as serviceVerifyKorapayPayment,
+  reconcilePayment as serviceReconcilePayment,
+} from '@/lib/payments/service'
 
 const KORAPAY_GATEWAY_FEE = 161.25
 const REGISTRATION_FEE = 2000.00
-
-function checkoutUrl(reference: string): string {
-  const base = process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
-  const url = new URL(base)
-  url.searchParams.set('reference', reference)
-
-  const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
-  if (siteUrl) {
-    url.searchParams.set('redirect_url', `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`)
-  }
-
-  return url.toString()
-}
 
 export async function getKorapayGatewayFee() {
   return KORAPAY_GATEWAY_FEE
 }
 
 export async function verifyKorapayPayment(reference: string) {
-  const secretKey = process.env.KORAPAY_SECRET_KEY
-  if (!secretKey) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Korapay secret key is unconfigured in production environment.')
-    }
-    const rec = await db.query.payment.findFirst({ where: eq(payment.transactionReference, reference) })
-    if (rec) {
-      await db.update(payment)
-        .set({ status: 'success', paidAt: new Date(), paymentDate: new Date(), updatedAt: new Date() })
-        .where(eq(payment.id, rec.id))
-
-      if (rec.feeType === 'registration') {
-        await db.update(student)
-          .set({ registrationStatus: 'ACTIVE', updatedAt: new Date() })
-          .where(eq(student.id, rec.studentId))
-      }
-    }
-
-    return {
-      success: true,
-      status: 'success',
-      payment: rec || null,
-      schoolCode: undefined as string | undefined,
-      schoolName: undefined as string | undefined,
-      data: {
-        reference,
-        status: 'success',
-        amount: rec?.amount ? Number(rec.amount) : 2161.25,
-      },
-    }
-  }
-
-  const res = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(reference)}`, {
-    headers: { Authorization: `Bearer ${secretKey}` },
-  })
-
-  if (!res.ok) {
-    const errText = await res.text()
-    return { success: false, status: 'failed', payment: null, schoolCode: undefined, schoolName: undefined, error: `Verification request failed (${res.status}): ${errText}` }
-  }
-
-  const json = await res.json()
-  if (!json.status || !json.data) {
-    return { success: false, status: 'failed', payment: null, schoolCode: undefined, schoolName: undefined, error: json.message || 'Invalid verification response from Korapay' }
-  }
-
-  const data = json.data
-  const status = (data.status || '').toLowerCase()
-
-  const rec = await db.query.payment.findFirst({ where: eq(payment.transactionReference, reference) })
-
-  if (rec && status === 'success') {
-    if (data.amount !== undefined && Number(data.amount) < Number(rec.amount)) {
-      return { success: false, status: 'failed', payment: rec, schoolCode: undefined, schoolName: undefined, error: 'Verified payment amount is less than required invoice total.' }
-    }
-
-    await db.update(payment)
-      .set({
-        status: 'success',
-        korapayReference: data.korapay_reference || data.reference || null,
-        paidAt: new Date(),
-        paymentDate: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(payment.id, rec.id))
-
-    if (rec.feeType === 'registration') {
-      await db.update(student)
-        .set({ registrationStatus: 'ACTIVE', updatedAt: new Date() })
-        .where(eq(student.id, rec.studentId))
-    }
-  } else if (rec && status === 'failed') {
-    await db.update(payment)
-      .set({ status: 'failed', updatedAt: new Date() })
-      .where(eq(payment.id, rec.id))
-  }
-
+  const result = await serviceVerifyKorapayPayment({ reference })
   revalidatePath('/dashboard/parent/payments/history')
   revalidatePath('/dashboard/student/payments/history')
-
-  return {
-    success: status === 'success',
-    status: status === 'success' ? 'success' : 'failed',
-    payment: rec || null,
-    schoolCode: undefined as string | undefined,
-    schoolName: undefined as string | undefined,
-    data: {
-      reference: data.reference,
-      status: data.status,
-      amount: data.amount,
-      fee: data.fee,
-      currency: data.currency,
-      paidAt: data.paid_at,
-    },
-  }
+  return result
 }
 
 export async function submitManualPayment(data: { studentId: string; amount: string; feeType: string; receiptUrl: string }) {
@@ -186,63 +87,28 @@ export async function initializeKorapayPayment(data: { studentId: string; amount
   if (!child) throw new Error('Student record was not found.')
 
   const totalAmount = Number((data.amount + KORAPAY_GATEWAY_FEE).toFixed(2))
-  const reference = `EGIA-PAY-${Date.now()}-${randomUUID().slice(0, 8)}`
 
-  const record = (await db.insert(payment).values({
-    id: randomUUID(),
+  const paymentRes = await serviceInitializeKorapayPayment({
     schoolId: child.schoolId || null,
     studentId: child.id,
-    amount: totalAmount.toFixed(2),
+    parentId: child.parentId || null,
+    amount: totalAmount,
     feeType: data.feeType,
-    paymentMethod: 'KORAPAY',
-    transactionReference: reference,
-    status: 'pending',
     description: data.description || `${data.feeType} fee payment for ${child.firstName} ${child.lastName}`,
-  }).returning())[0]
+    customerEmail: session.user.email || `student_${child.id}@ellearners.app`,
+    customerName: `${child.firstName} ${child.lastName}`,
+    metadata: {
+      studentId: child.id,
+      type: data.feeType,
+    },
+  })
 
-  const secretKey = process.env.KORAPAY_SECRET_KEY
-  const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  let checkout = checkoutUrl(reference)
-
-  if (secretKey) {
-    try {
-      const payload = {
-        amount: totalAmount,
-        currency: 'NGN',
-        reference,
-        narration: data.description || `${data.feeType} payment - ${child.firstName} ${child.lastName}`,
-        notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
-        redirect_url: `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`,
-        customer: {
-          email: session.user.email || `student_${child.id}@ellearners.app`,
-          name: `${child.firstName} ${child.lastName}`,
-        },
-        metadata: {
-          studentId: child.id,
-          type: data.feeType,
-        },
-      }
-      const res = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${secretKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (res.ok) {
-        const koraData = await res.json()
-        if (koraData.status && koraData.data?.checkout_url) {
-          checkout = koraData.data.checkout_url
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to call Korapay initialize endpoint:', err)
-    }
+  return {
+    checkoutUrl: paymentRes.checkoutUrl,
+    reference: paymentRes.reference,
+    paymentId: paymentRes.paymentId,
+    totalAmount,
   }
-
-  return { checkoutUrl: checkout, reference, paymentId: record.id, totalAmount }
 }
 
 export async function initializeStudentRegistrationPayment(studentId: string) {
@@ -253,64 +119,32 @@ export async function initializeStudentRegistrationPayment(studentId: string) {
   if (!child) throw new Error('Student registration record was not found.')
 
   const totalAmount = REGISTRATION_FEE + KORAPAY_GATEWAY_FEE
-  const reference = `EGIA-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
 
-  const record = (await db.insert(payment).values({
-    id: randomUUID(),
+  const paymentRes = await serviceInitializeKorapayPayment({
     schoolId: child.schoolId || null,
-    studentId,
-    amount: totalAmount.toFixed(2),
+    studentId: child.id,
+    parentId: child.parentId || null,
+    amount: totalAmount,
     feeType: 'registration',
-    paymentMethod: 'KORAPAY',
-    transactionReference: reference,
-    status: 'pending',
     description: `Session registration for ${child.firstName} ${child.lastName} (NGN 2000 + NGN 161.25 gateway fee)`,
-  }).returning())[0]
+    customerEmail: session.user.email || `student_${child.id}@ellearners.app`,
+    customerName: `${child.firstName} ${child.lastName}`,
+    metadata: {
+      studentId: child.id,
+      type: 'STUDENT_REGISTRATION',
+    },
+  })
 
-  await db.update(student).set({ registrationStatus: 'PENDING_PAYMENT', updatedAt: new Date() }).where(eq(student.id, studentId))
+  await db.update(student)
+    .set({ registrationStatus: 'PENDING_PAYMENT', updatedAt: new Date() })
+    .where(eq(student.id, studentId))
 
-  const secretKey = process.env.KORAPAY_SECRET_KEY
-  const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  let checkout = checkoutUrl(reference)
-
-  if (secretKey) {
-    try {
-      const payload = {
-        amount: totalAmount,
-        currency: 'NGN',
-        reference,
-        narration: `Student Registration Fee - ${child.firstName} ${child.lastName}`,
-        notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
-        redirect_url: `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`,
-        customer: {
-          email: session.user.email || `student_${child.id}@ellearners.app`,
-          name: `${child.firstName} ${child.lastName}`,
-        },
-        metadata: {
-          studentId,
-          type: 'STUDENT_REGISTRATION',
-        },
-      }
-      const res = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${secretKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-      if (res.ok) {
-        const koraData = await res.json()
-        if (koraData.status && koraData.data?.checkout_url) {
-          checkout = koraData.data.checkout_url
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to call Korapay initialize endpoint:', err)
-    }
+  return {
+    checkoutUrl: paymentRes.checkoutUrl,
+    reference: paymentRes.reference,
+    paymentId: paymentRes.paymentId,
+    totalAmount,
   }
-
-  return { checkoutUrl: checkout, reference, paymentId: record.id, totalAmount }
 }
 
 export async function getPaymentSummary(studentId: string) {
@@ -401,19 +235,7 @@ export async function approveReceipt(uploadId: string) {
     }).where(eq(paymentReceiptUploads.id, uploadId))
 
     if (upload.paymentId) {
-      await tx.update(payment).set({
-        status: 'success',
-        reconciliationStatus: 'RECONCILED',
-        reconciledBy: session.user.id,
-        reconciledAt: now,
-        paidAt: now,
-        updatedAt: now,
-      }).where(eq(payment.id, upload.paymentId))
-
-      const pRec = await tx.query.payment.findFirst({ where: eq(payment.id, upload.paymentId) })
-      if (pRec?.feeType === 'registration') {
-        await tx.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: now }).where(eq(student.id, pRec.studentId))
-      }
+      await serviceReconcilePayment(upload.paymentId, session.user.id)
     }
   })
 

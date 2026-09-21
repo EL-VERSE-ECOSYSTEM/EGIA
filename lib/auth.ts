@@ -18,13 +18,10 @@ async function getSessionImpl() {
     return null
   }
 
-  // Resolve user role exclusively from database records
   const roleRecord = await db.select()
     .from(userRole)
     .where(eq(userRole.userId, user.id))
-    .limit(1)
 
-  // Also check schoolAdminRoles
   const adminRoleRec = await db.query.schoolAdminRoles.findFirst({
     where: eq(schoolAdminRoles.userId, user.id)
   })
@@ -34,12 +31,17 @@ async function getSessionImpl() {
     dbRole = 'SCHOOL_ADMIN'
   }
 
+  // Fail closed if user has no matching database role record
+  if (!dbRole && !adminRoleRec) {
+    return null
+  }
+
   const dbUser = await db.select({ schoolId: userTable.schoolId })
     .from(userTable)
     .where(eq(userTable.id, user.id))
     .limit(1)
 
-  const finalRole = dbRole ? dbRole.toUpperCase() : (adminRoleRec ? 'SCHOOL_ADMIN' : 'STUDENT')
+  const finalRole = dbRole ? dbRole.toUpperCase() : 'SCHOOL_ADMIN'
   const schoolId = dbUser?.[0]?.schoolId || adminRoleRec?.schoolId || null
 
   return {
@@ -50,6 +52,7 @@ async function getSessionImpl() {
       email: user.email || '',
       name: user.user_metadata?.full_name || user.user_metadata?.name || '',
       role: finalRole,
+      adminLevel: adminRoleRec?.level || null,
       schoolId,
     }
   }
@@ -67,7 +70,6 @@ async function getUserImpl() {
   const roleRecord = await db.select()
     .from(userRole)
     .where(eq(userRole.userId, user.id))
-    .limit(1)
 
   const adminRoleRec = await db.query.schoolAdminRoles.findFirst({
     where: eq(schoolAdminRoles.userId, user.id)
@@ -78,17 +80,22 @@ async function getUserImpl() {
     dbRole = 'SCHOOL_ADMIN'
   }
 
+  if (!dbRole && !adminRoleRec) {
+    return null
+  }
+
   const dbUser = await db.select({ schoolId: userTable.schoolId })
     .from(userTable)
     .where(eq(userTable.id, user.id))
     .limit(1)
 
-  const finalRole = dbRole ? dbRole.toUpperCase() : (adminRoleRec ? 'SCHOOL_ADMIN' : 'STUDENT')
+  const finalRole = dbRole ? dbRole.toUpperCase() : 'SCHOOL_ADMIN'
   const schoolId = dbUser?.[0]?.schoolId || adminRoleRec?.schoolId || null
 
   return {
     ...user,
     role: finalRole,
+    adminLevel: adminRoleRec?.level || null,
     schoolId,
   }
 }

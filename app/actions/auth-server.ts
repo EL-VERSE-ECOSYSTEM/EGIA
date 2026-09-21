@@ -172,10 +172,7 @@ export async function getRegistrationSubjects() {
 }
 
 export async function checkStudentPasswordRequirement(admissionNumber: string) {
-  const existing = await db.query.student.findFirst({
-    where: eq(student.admissionNumber, admissionNumber.trim().toUpperCase())
-  })
-  return { requiresPassword: Boolean(existing?.password && existing.password !== 'default') }
+  return { requiresPassword: true }
 }
 
 export async function activateStudent(data: any) {
@@ -252,7 +249,6 @@ export async function registerStudent(data: any) {
           name: `${firstName} ${lastName}`,
           image: profileImage || existingDbUser.image,
           schoolId: schoolId || existingDbUser.schoolId,
-          password: password || existingDbUser.password,
           gender: data.gender || existingDbUser.gender || 'Male',
           lastIdentityId: createdStudentId,
           lastIdentityAt: new Date(),
@@ -265,7 +261,6 @@ export async function registerStudent(data: any) {
           name: `${firstName} ${lastName}`,
           image: profileImage || null,
           schoolId,
-          password: password || 'default',
           gender: data.gender || 'Male',
           lastIdentityId: createdStudentId,
           lastIdentityAt: new Date(),
@@ -278,7 +273,6 @@ export async function registerStudent(data: any) {
         role: 'STUDENT',
       }).onConflictDoNothing()
 
-      // Real-time password saving to student table
       await tx.insert(student).values({
         id: createdStudentId,
         userId: finalUserId,
@@ -296,7 +290,6 @@ export async function registerStudent(data: any) {
         profileImage: profileImage || null,
         facialVerificationVideo: data.facialVerificationVideo || null,
         registrationStatus: 'PENDING_PAYMENT',
-        password: password || 'default'
       })
     })
 
@@ -362,7 +355,6 @@ export async function registerParent(data: any) {
           name: `${firstName} ${lastName}`,
           image: profileImage || existingDbUser.image,
           schoolId: schoolId || existingDbUser.schoolId,
-          password: password || existingDbUser.password,
           gender: data.gender || existingDbUser.gender || 'Male',
           lastIdentityId: parentId,
           lastIdentityAt: new Date(),
@@ -375,7 +367,6 @@ export async function registerParent(data: any) {
           name: `${firstName} ${lastName}`,
           image: profileImage || null,
           schoolId,
-          password: password || 'default',
           gender: data.gender || 'Male',
           lastIdentityId: parentId,
           lastIdentityAt: new Date(),
@@ -388,7 +379,6 @@ export async function registerParent(data: any) {
         role: 'PARENT',
       }).onConflictDoNothing()
 
-      // Real-time password saving to parent table
       await tx.insert(parent).values({
         id: parentId,
         userId: finalUserId,
@@ -400,7 +390,6 @@ export async function registerParent(data: any) {
         occupation: occupation || null,
         profileImage: profileImage || null,
         facialVerificationVideo: data.facialVerificationVideo || null,
-        password: password || 'default'
       })
 
       const wardsList = Array.isArray(data.wardAdmissionNumbers)
@@ -483,7 +472,6 @@ export async function registerTeacher(data: any) {
           name: `${firstName} ${lastName}`,
           image: profileImage || existingDbUser.image,
           schoolId: schoolId || existingDbUser.schoolId,
-          password: password || existingDbUser.password,
           gender: data.gender || existingDbUser.gender || 'Male',
           lastIdentityId: teacherId,
           lastIdentityAt: new Date(),
@@ -496,7 +484,6 @@ export async function registerTeacher(data: any) {
           name: `${firstName} ${lastName}`,
           image: profileImage || null,
           schoolId,
-          password: password || 'default',
           gender: data.gender || 'Male',
           lastIdentityId: teacherId,
           lastIdentityAt: new Date(),
@@ -509,7 +496,6 @@ export async function registerTeacher(data: any) {
         role: 'TEACHER',
       }).onConflictDoNothing()
 
-      // Real-time password saving to teacher table
       await tx.insert(teacher).values({
         id: randomUUID(),
         userId: finalUserId,
@@ -526,7 +512,6 @@ export async function registerTeacher(data: any) {
         presentDays: Array.isArray(data.presentDays) ? data.presentDays : [],
         profileImage: profileImage || null,
         facialVerificationVideo: data.facialVerificationVideo || null,
-        password: password || 'default'
       })
 
       // If teacher indicated they are also a Parent, seamlessly create Parent profile and link ward
@@ -547,7 +532,6 @@ export async function registerTeacher(data: any) {
           gender: data.gender || 'Male',
           phoneNumber: teacherPhone,
           profileImage: profileImage || null,
-          password: password || 'default'
         }).onConflictDoNothing()
 
         if (wardAdmissionNumber) {
@@ -591,16 +575,9 @@ export async function loginStudent(data: any) {
     return { error: 'Admission number not found. Please contact the school administration.' }
   }
 
-  const hasCustomPassword = existingStudent.password && existingStudent.password !== 'default'
-  if (hasCustomPassword && !userPassword) {
+  if (!userPassword) {
     return { error: 'Password is required for this account.' }
   }
-
-  if (userPassword && existingStudent.password && userPassword !== existingStudent.password) {
-    return { error: 'Incorrect password for this student account.' }
-  }
-
-  const loginPassword = userPassword || existingStudent.password || 'default'
 
   let resolvedEmail = `student.${admissionNumber.toLowerCase()}@portal.egia.local`
   if (existingStudent.userId) {
@@ -624,7 +601,7 @@ export async function loginStudent(data: any) {
           const { data: created, error: createError } = await adminClient.auth.admin.createUser({
             id: existingStudent.userId || undefined,
             email: resolvedEmail,
-            password: loginPassword,
+            password: userPassword,
             email_confirm: true,
             user_metadata: {
               full_name: `${existingStudent.firstName} ${existingStudent.lastName}`,
@@ -637,7 +614,7 @@ export async function loginStudent(data: any) {
           }
         } else {
           const { data: updated, error: updateError } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
-            password: loginPassword,
+            password: userPassword,
             user_metadata: {
               ...existingAuthUser.user_metadata,
               role: 'STUDENT',
@@ -667,7 +644,7 @@ export async function loginStudent(data: any) {
             }).onConflictDoNothing()
 
             await tx.update(student)
-              .set({ userId: realUserId!, password: loginPassword, updatedAt: new Date() })
+              .set({ userId: realUserId!, updatedAt: new Date() })
               .where(eq(student.id, existingStudent.id))
           })
         }
@@ -679,7 +656,7 @@ export async function loginStudent(data: any) {
 
   let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
-    password: loginPassword
+    password: userPassword
   })
 
   if (authError) {
@@ -738,21 +715,6 @@ export async function loginRole(data: {
         })
 
         if (dbUser) {
-          // Check local password if recorded
-          let storedPassword = dbUser.password
-          if (!storedPassword && selectedRole === 'TEACHER') {
-            const tRec = await db.query.teacher.findFirst({ where: eq(teacher.userId, dbUser.id) })
-            if (tRec?.password) storedPassword = tRec.password
-          } else if (!storedPassword && selectedRole === 'PARENT') {
-            const pRec = await db.query.parent.findFirst({ where: eq(parent.userId, dbUser.id) })
-            if (pRec?.password) storedPassword = pRec.password
-          }
-
-          // If password was stored and does not match entered password (and isn't 'default')
-          if (storedPassword && storedPassword !== 'default' && storedPassword !== data.password) {
-            return { error: 'Invalid login credentials.' }
-          }
-
           let existingAuthUser = await findAuthUserByEmail(adminClient, email)
 
           if (!existingAuthUser) {
@@ -768,7 +730,6 @@ export async function loginRole(data: {
               }
             })
             if (!createError && created.user) {
-              await db.update(userTable).set({ password: data.password, updatedAt: new Date() }).where(eq(userTable.id, dbUser.id))
               signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
             }
           } else {
@@ -781,7 +742,6 @@ export async function loginRole(data: {
               }
             })
             if (!updateError) {
-              await db.update(userTable).set({ password: data.password, updatedAt: new Date() }).where(eq(userTable.id, dbUser.id))
               signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
             }
           }
@@ -796,23 +756,17 @@ export async function loginRole(data: {
   if (!signInResult.data.user) return { error: 'Sign-in failed. Please try again.' }
 
   const userId = signInResult.data.user.id
-  const metadataRole = signInResult.data.user.user_metadata?.role?.toUpperCase()
 
-  // Synchronize user record in Supabase Database with password update if necessary
+  // Synchronize user record in Supabase Database
   try {
     const existingLocalUser = await db.query.user.findFirst({
       where: or(eq(userTable.id, userId), eq(userTable.email, email))
     })
-    if (existingLocalUser) {
-      await db.update(userTable)
-        .set({ password: data.password, updatedAt: new Date() })
-        .where(eq(userTable.id, existingLocalUser.id))
-    } else {
+    if (!existingLocalUser) {
       await db.insert(userTable).values({
         id: userId,
         email: email,
         name: signInResult.data.user.user_metadata?.full_name || 'User',
-        password: data.password
       }).onConflictDoNothing()
     }
   } catch (syncErr) {
