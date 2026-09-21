@@ -1,10 +1,9 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { school, user as userTable, schoolAdminRoles, userRole } from '@/lib/db/schema'
+import { school, schoolRegistrationApplication } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
-import { auth } from '@/lib/auth'
 import {
   initializeKorapayPayment as serviceInitializeKorapayPayment,
   verifyKorapayPayment as serviceVerifyKorapayPayment,
@@ -18,7 +17,7 @@ export interface SchoolRegistrationInput {
   adminName: string
   adminPhone: string
   adminEmail: string
-  adminPassword?: string
+  adminGender?: string
   adminLevel?: string
   logoUrl?: string
   logoPath?: string
@@ -50,9 +49,12 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     }
 
     const schoolId = randomUUID()
+    const applicationId = randomUUID()
     const schoolCode = await generateSchoolCode(input.name)
     const paymentReference = `SCH-PAY-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`
+    const adminEmail = input.adminEmail.trim().toLowerCase()
 
+    // 1. Create School record in PENDING state
     await db.insert(school).values({
       id: schoolId,
       name: input.name,
@@ -62,7 +64,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       allowParents: input.allowParents,
       adminName: input.adminName,
       adminPhone: input.adminPhone,
-      adminEmail: input.adminEmail,
+      adminEmail: adminEmail,
       paymentStatus: 'PENDING',
       paymentReference: paymentReference,
       logoUrl: input.logoUrl || null,
@@ -70,64 +72,29 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       logoUploadedAt: input.logoUrl ? new Date() : null,
     })
 
-    const adminEmail = input.adminEmail.trim().toLowerCase()
-    const adminPassword = input.adminPassword || 'AdminPass123!'
-    const userId = randomUUID()
-
-    let finalUserId: string = userId
-    const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
-    if (secretKey) {
-      const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
-      const adminClient = createSupabaseAdminClient(supabaseUrl, secretKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      })
-
-      const createRes = await adminClient.auth.admin.createUser({
-        id: userId,
-        email: adminEmail,
-        password: adminPassword,
-        email_confirm: true,
-        user_metadata: {
-          full_name: input.adminName,
-          role: 'ADMIN',
-          school_code: schoolCode,
-          school_id: schoolId,
-        }
-      })
-
-      if (createRes.data?.user?.id) {
-        finalUserId = createRes.data.user.id
-      }
-    }
-
-    await db.transaction(async (tx) => {
-      await tx.insert(userTable).values({
-        id: finalUserId,
-        email: adminEmail,
-        name: input.adminName,
-        schoolId: schoolId,
-        adminLevel: input.adminLevel || 'PRIMARY_ADMIN',
-        lastIdentityId: schoolId,
-        lastIdentityAt: new Date(),
-      }).onConflictDoNothing()
-
-      await tx.insert(userRole).values({
-        id: randomUUID(),
-        userId: finalUserId,
-        role: 'SCHOOL_ADMIN',
-      }).onConflictDoNothing()
-
-      await tx.insert(schoolAdminRoles).values({
-        id: randomUUID(),
-        schoolId: schoolId,
-        userId: finalUserId,
-        level: input.adminLevel || 'PRIMARY_ADMIN',
-        isActive: true,
-      }).onConflictDoNothing()
+    // 2. Create PENDING School Registration Application
+    // Untrusted applicant registration: NO SCHOOL_ADMIN account, userRole, or Auth user created at this stage.
+    await db.insert(schoolRegistrationApplication).values({
+      id: applicationId,
+      schoolId: schoolId,
+      applicantEmail: adminEmail,
+      applicantPhone: input.adminPhone,
+      applicantName: input.adminName,
+      applicantGender: input.adminGender || null,
+      adminLevel: input.adminLevel || 'PRIMARY_ADMIN',
+      schoolName: input.name,
+      schoolAddress: input.location,
+      registeredClasses: input.registeredClasses,
+      allowParents: input.allowParents,
+      logoUrl: input.logoUrl || null,
+      logoPath: input.logoPath || null,
+      paymentStatus: 'PENDING',
+      documentVerificationStatus: 'PENDING',
+      approvalStatus: 'PENDING_REVIEW',
+      submittedAt: new Date(),
     })
 
-    // Initialize Korapay charge via centralized service (NGN 30,000 + NGN 161.25 fee)
+    // 3. Initialize Korapay subscription payment (NGN 30,000 + NGN 161.25 fee)
     const initRes = await serviceInitializeKorapayPayment({
       schoolId,
       amount: 30161.25,
@@ -138,6 +105,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       customerName: input.adminName,
       redirectUrl: `${(process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(paymentReference)}`,
       metadata: {
+        applicationId,
         schoolId,
         schoolCode,
         paymentType: 'SCHOOL_REGISTRATION',
@@ -146,25 +114,86 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
 
     return {
       success: true,
+      applicationId,
       schoolId,
       schoolCode,
       paymentReference: initRes.reference || paymentReference,
       checkoutUrl: initRes.checkoutUrl,
     }
   } catch (error: any) {
-    console.error('Failed to register school:', { requestId, error: error?.message || error })
-    return { success: false, error: 'School registration could not be initialized. Please verify your details and try again.', requestId }
+    console.error('Failed to register school application:', { requestId, error: error?.message || error })
+    return { success: false, error: 'School registration application could not be initialized. Please verify your details and try again.', requestId }
+  }
+}
+
+export async function uploadSchoolApplicationDocumentAction(input: {
+  applicationId: string
+  proofOfAddressType: string
+  proofOfAddressFileUrl: string
+  proofOfAddressFilePath?: string
+  additionalDocuments?: any
+}) {
+  const requestId = randomUUID()
+  try {
+    if (!input.applicationId || !input.proofOfAddressFileUrl) {
+      return { success: false, error: 'Application ID and Proof of Address file are required.' }
+    }
+
+    const appRecord = await db.query.schoolRegistrationApplication.findFirst({
+      where: eq(schoolRegistrationApplication.id, input.applicationId)
+    })
+
+    if (!appRecord) {
+      return { success: false, error: 'School registration application not found.' }
+    }
+
+    await db.update(schoolRegistrationApplication).set({
+      proofOfAddressType: input.proofOfAddressType || 'ELECTRICITY_BILL',
+      proofOfAddressFileUrl: input.proofOfAddressFileUrl,
+      proofOfAddressFilePath: input.proofOfAddressFilePath || null,
+      additionalDocuments: input.additionalDocuments || appRecord.additionalDocuments || null,
+      documentVerificationStatus: 'PENDING', // Pending manual Super-Admin review
+      updatedAt: new Date(),
+    }).where(eq(schoolRegistrationApplication.id, input.applicationId))
+
+    return { success: true, message: 'Document submitted successfully for Super-Admin review.' }
+  } catch (error: any) {
+    console.error('Failed to upload application document:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Document upload failed. Please try again.', requestId }
+  }
+}
+
+export async function getSchoolApplicationStatusAction(applicationId: string) {
+  const requestId = randomUUID()
+  try {
+    if (!applicationId) return { success: false, error: 'Application ID is required.' }
+
+    const appRecord = await db.query.schoolRegistrationApplication.findFirst({
+      where: eq(schoolRegistrationApplication.id, applicationId)
+    })
+
+    if (!appRecord) {
+      return { success: false, error: 'Application not found.' }
+    }
+
+    const schRecord = await db.query.school.findFirst({
+      where: eq(school.id, appRecord.schoolId)
+    })
+
+    return {
+      success: true,
+      application: appRecord,
+      schoolCode: schRecord?.code || null,
+    }
+  } catch (error: any) {
+    console.error('Failed to get school application status:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to retrieve application status.', requestId }
   }
 }
 
 export async function confirmSchoolPaymentAction(paymentReference: string) {
   const requestId = randomUUID()
   try {
-    const session = await auth.getSession()
-    if (!session?.user) {
-      return { success: false, error: 'Unauthorized session.' }
-    }
-
     const verification = await serviceVerifyKorapayPayment({
       reference: paymentReference,
       expectedAmount: 30161.25,
@@ -177,6 +206,17 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
     const existingSchool = await db.select().from(school).where(eq(school.paymentReference, paymentReference))
     const rec = existingSchool[0]
 
+    let appRecord: any = null
+    if (rec) {
+      await db.update(schoolRegistrationApplication)
+        .set({ paymentStatus: 'SUCCESS', updatedAt: new Date() })
+        .where(eq(schoolRegistrationApplication.schoolId, rec.id))
+
+      appRecord = await db.query.schoolRegistrationApplication.findFirst({
+        where: eq(schoolRegistrationApplication.schoolId, rec.id)
+      })
+    }
+
     return {
       success: true,
       school: rec || null,
@@ -185,7 +225,10 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
       adminEmail: rec?.adminEmail,
       adminName: rec?.adminName,
       amount: 30161.25,
-      paidAt: new Date().toISOString()
+      paidAt: new Date().toISOString(),
+      applicationId: appRecord?.id || null,
+      documentVerificationStatus: appRecord?.documentVerificationStatus || 'PENDING',
+      approvalStatus: appRecord?.approvalStatus || 'PENDING_REVIEW',
     }
   } catch (error: any) {
     console.error('Failed to confirm school payment:', { requestId, error: error?.message || error })

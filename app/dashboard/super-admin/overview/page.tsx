@@ -14,6 +14,10 @@ import {
   awardStudentGiftAction,
   toggleUserSuspensionAction,
   recordDisciplinaryAction,
+  getSchoolApplicationsForSuperAdmin,
+  verifyApplicationDocumentAction,
+  approveSchoolApplicationAction,
+  rejectSchoolApplicationAction,
 } from '@/app/actions/super-admin'
 import {
   Building2,
@@ -36,10 +40,11 @@ import {
 import { toast } from 'sonner'
 
 export default function SuperAdminOverviewPage() {
-  const [activeTab, setActiveTab] = useState<'SCHOOLS' | 'USERS' | 'CBTS' | 'GIFTS'>('SCHOOLS')
+  const [activeTab, setActiveTab] = useState<'APPLICATIONS' | 'SCHOOLS' | 'USERS' | 'CBTS' | 'GIFTS'>('APPLICATIONS')
   const [data, setData] = useState<any>(null)
   const [usersData, setUsersData] = useState<any[]>([])
   const [cbtsData, setCbtsData] = useState<any[]>([])
+  const [applicationsData, setApplicationsData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -82,6 +87,11 @@ export default function SuperAdminOverviewPage() {
     const cbtsRes = await getAllCBTsForSuperAdmin()
     if (cbtsRes.success) {
       setCbtsData(cbtsRes.cbts || [])
+    }
+
+    const appsRes = await getSchoolApplicationsForSuperAdmin()
+    if (appsRes.success) {
+      setApplicationsData(appsRes.applications || [])
     }
 
     setLoading(false)
@@ -174,6 +184,43 @@ export default function SuperAdminOverviewPage() {
     const comment = prompt('Optional comment for this CBT approval/rejection:')
     await approveCBTAssessmentAction(cbtId, approved, comment || undefined)
     loadData()
+  }
+
+  const handleVerifyDoc = async (applicationId: string, status: 'VERIFIED' | 'REJECTED') => {
+    let rejectionReason: string | undefined = undefined
+    if (status === 'REJECTED') {
+      rejectionReason = prompt('Rejection reason for proof of address document:') || 'Document rejected.'
+    }
+    const res = await verifyApplicationDocumentAction({ applicationId, status, rejectionReason })
+    if (res.success) {
+      toast.success(`Document verification status set to ${status}.`)
+      loadData()
+    } else {
+      toast.error(res.error || 'Failed to update document status.')
+    }
+  }
+
+  const handleApproveSchoolApp = async (applicationId: string) => {
+    if (!confirm('Are you sure you want to approve this school registration application? This will create/activate the SCHOOL_ADMIN identity.')) return
+    const res = await approveSchoolApplicationAction({ applicationId })
+    if (res.success) {
+      toast.success(`School application approved! SCHOOL_ADMIN identity created for ${res.adminEmail}.`)
+      loadData()
+    } else {
+      toast.error(res.error || 'Failed to approve application.')
+    }
+  }
+
+  const handleRejectSchoolApp = async (applicationId: string) => {
+    const reason = prompt('Reason for rejecting this school application:')
+    if (!reason) return
+    const res = await rejectSchoolApplicationAction({ applicationId, rejectionReason: reason })
+    if (res.success) {
+      toast.success('School application rejected.')
+      loadData()
+    } else {
+      toast.error(res.error || 'Failed to reject application.')
+    }
   }
 
   const handleSendBroadcast = async (e: React.FormEvent) => {
@@ -302,10 +349,20 @@ export default function SuperAdminOverviewPage() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center gap-3 border-b border-slate-800 pb-2">
+        <div className="flex items-center gap-3 border-b border-slate-800 pb-2 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('APPLICATIONS')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
+              activeTab === 'APPLICATIONS'
+                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                : 'text-slate-400 hover:bg-slate-900'
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4" /> Applications Queue ({applicationsData.length})
+          </button>
           <button
             onClick={() => setActiveTab('SCHOOLS')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
               activeTab === 'SCHOOLS'
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                 : 'text-slate-400 hover:bg-slate-900'
@@ -356,6 +413,132 @@ export default function SuperAdminOverviewPage() {
             className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
           />
         </div>
+
+        {/* APPLICATIONS QUEUE TAB */}
+        {activeTab === 'APPLICATIONS' && (
+          <section className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black text-blue-400 flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5" /> School Registration Applications Queue
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Review applicant details, verify proof of school address (electricity bill), and manually approve or reject applications before SCHOOL_ADMIN identity activation.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase font-black tracking-wider">
+                  <tr>
+                    <th className="p-3">School Name</th>
+                    <th className="p-3">Applicant Contact</th>
+                    <th className="p-3">Proof of Address</th>
+                    <th className="p-3">Payment</th>
+                    <th className="p-3">Doc Status</th>
+                    <th className="p-3">Approval Status</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-medium">
+                  {applicationsData.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-slate-500 font-bold">
+                        No pending school registration applications found.
+                      </td>
+                    </tr>
+                  ) : (
+                    applicationsData.map((app: any) => (
+                      <tr key={app.id} className="hover:bg-slate-800/40 transition">
+                        <td className="p-3 font-bold text-white">
+                          <p>{app.schoolName}</p>
+                          <p className="text-[10px] text-slate-400">{app.schoolAddress}</p>
+                        </td>
+                        <td className="p-3">
+                          <p className="font-bold text-slate-200">{app.applicantName} ({app.adminLevel || 'PRIMARY_ADMIN'})</p>
+                          <p className="text-[10px] text-slate-400">{app.applicantEmail} • {app.applicantPhone}</p>
+                        </td>
+                        <td className="p-3">
+                          {app.proofOfAddressFileUrl ? (
+                            <a
+                              href={app.proofOfAddressFileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-400 hover:underline font-bold text-[11px] inline-flex items-center gap-1"
+                            >
+                              <span>{app.proofOfAddressType || 'Electricity Bill'}</span>
+                            </a>
+                          ) : (
+                            <span className="text-slate-500 italic">No document uploaded</span>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            app.paymentStatus === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                          }`}>
+                            {app.paymentStatus}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            app.documentVerificationStatus === 'VERIFIED' ? 'bg-emerald-500/20 text-emerald-400' :
+                            app.documentVerificationStatus === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                          }`}>
+                            {app.documentVerificationStatus}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            app.approvalStatus === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400' :
+                            app.approvalStatus === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                          }`}>
+                            {app.approvalStatus}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right space-y-1 sm:space-y-0 sm:space-x-1.5">
+                          {app.proofOfAddressFileUrl && app.documentVerificationStatus !== 'VERIFIED' && (
+                            <button
+                              onClick={() => handleVerifyDoc(app.id, 'VERIFIED')}
+                              className="px-2 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold text-[10px] transition"
+                            >
+                              Verify Doc
+                            </button>
+                          )}
+                          {app.proofOfAddressFileUrl && app.documentVerificationStatus !== 'REJECTED' && (
+                            <button
+                              onClick={() => handleVerifyDoc(app.id, 'REJECTED')}
+                              className="px-2 py-1 rounded bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 font-bold text-[10px] transition"
+                            >
+                              Reject Doc
+                            </button>
+                          )}
+                          {app.approvalStatus === 'PENDING_REVIEW' && (
+                            <button
+                              onClick={() => handleApproveSchoolApp(app.id)}
+                              disabled={app.paymentStatus !== 'SUCCESS' || app.documentVerificationStatus !== 'VERIFIED'}
+                              className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              Approve School
+                            </button>
+                          )}
+                          {app.approvalStatus === 'PENDING_REVIEW' && (
+                            <button
+                              onClick={() => handleRejectSchoolApp(app.id)}
+                              className="px-2.5 py-1 rounded bg-red-600/20 hover:bg-red-600/30 text-red-400 font-bold text-[10px] transition"
+                            >
+                              Reject
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* SCHOOLS TAB */}
         {activeTab === 'SCHOOLS' && (
