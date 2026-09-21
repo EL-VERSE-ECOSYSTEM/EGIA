@@ -195,6 +195,7 @@ export async function verifyKorapayPayment(params: PaymentVerificationParams) {
       await markPaymentSuccessful(paymentRec.id)
     } else if (schoolRec) {
       await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schoolRec.id))
+      await db.update(schoolRegistrationApplication).set({ paymentStatus: 'SUCCESS', updatedAt: new Date() }).where(eq(schoolRegistrationApplication.schoolId, schoolRec.id))
     }
 
     return {
@@ -235,6 +236,7 @@ export async function verifyKorapayPayment(params: PaymentVerificationParams) {
     }
     if (schoolRec) {
       await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schoolRec.id))
+      await db.update(schoolRegistrationApplication).set({ paymentStatus: 'SUCCESS', updatedAt: new Date() }).where(eq(schoolRegistrationApplication.schoolId, schoolRec.id))
     }
   } else if (status === 'failed') {
     if (paymentRec) {
@@ -242,6 +244,7 @@ export async function verifyKorapayPayment(params: PaymentVerificationParams) {
     }
     if (schoolRec) {
       await db.update(school).set({ paymentStatus: 'FAILED', updatedAt: new Date() }).where(eq(school.id, schoolRec.id))
+      await db.update(schoolRegistrationApplication).set({ paymentStatus: 'FAILED', updatedAt: new Date() }).where(eq(schoolRegistrationApplication.schoolId, schoolRec.id))
     }
   }
 

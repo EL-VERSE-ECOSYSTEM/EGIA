@@ -14,7 +14,7 @@ import {
   approveCBTAssessmentAction,
   awardStudentGiftAction,
   toggleUserSuspensionAction,
-  recordDisciplinaryAction,
+  recordDisciplinaryAction
   getPendingSchoolApplicationsAction,
   reviewSchoolApplicationAction,
   activateSchoolAdminAction,
@@ -49,6 +49,7 @@ export default function SuperAdminOverviewPage() {
   const [supportTicketsData, setSupportTicketsData] = useState<any[]>([])
   const [usersData, setUsersData] = useState<any[]>([])
   const [cbtsData, setCbtsData] = useState<any[]>([])
+  const [applicationsData, setApplicationsData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -273,6 +274,43 @@ export default function SuperAdminOverviewPage() {
     loadData()
   }
 
+  const handleVerifyDoc = async (applicationId: string, status: 'VERIFIED' | 'REJECTED') => {
+    let rejectionReason: string | undefined = undefined
+    if (status === 'REJECTED') {
+      rejectionReason = prompt('Rejection reason for proof of address document:') || 'Document rejected.'
+    }
+    const res = await verifyApplicationDocumentAction({ applicationId, status, rejectionReason })
+    if (res.success) {
+      toast.success(`Document verification status set to ${status}.`)
+      loadData()
+    } else {
+      toast.error(res.error || 'Failed to update document status.')
+    }
+  }
+
+  const handleApproveSchoolApp = async (applicationId: string) => {
+    if (!confirm('Are you sure you want to approve this school registration application? This will create/activate the SCHOOL_ADMIN identity.')) return
+    const res = await approveSchoolApplicationAction({ applicationId })
+    if (res.success) {
+      toast.success(`School application approved! SCHOOL_ADMIN identity created for ${res.adminEmail}.`)
+      loadData()
+    } else {
+      toast.error(res.error || 'Failed to approve application.')
+    }
+  }
+
+  const handleRejectSchoolApp = async (applicationId: string) => {
+    const reason = prompt('Reason for rejecting this school application:')
+    if (!reason) return
+    const res = await rejectSchoolApplicationAction({ applicationId, rejectionReason: reason })
+    if (res.success) {
+      toast.success('School application rejected.')
+      loadData()
+    } else {
+      toast.error(res.error || 'Failed to reject application.')
+    }
+  }
+
   const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!broadcastTitle || !broadcastMessage) return
@@ -399,7 +437,17 @@ export default function SuperAdminOverviewPage() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center gap-3 border-b border-slate-800 pb-2">
+        <div className="flex items-center gap-3 border-b border-slate-800 pb-2 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('APPLICATIONS')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
+              activeTab === 'APPLICATIONS'
+                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                : 'text-slate-400 hover:bg-slate-900'
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4" /> Applications Queue ({applicationsData.length})
+          </button>
           <button
             onClick={() => setActiveTab('APPLICATIONS')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
@@ -422,7 +470,7 @@ export default function SuperAdminOverviewPage() {
           </button>
           <button
             onClick={() => setActiveTab('SCHOOLS')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
               activeTab === 'SCHOOLS'
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                 : 'text-slate-400 hover:bg-slate-900'

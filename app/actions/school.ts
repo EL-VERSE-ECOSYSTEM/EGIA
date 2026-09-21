@@ -4,8 +4,6 @@ import { db } from '@/lib/db'
 import { school, schoolRegistrationApplication } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
-import { auth } from '@/lib/auth'
-import { sanitizeServerError } from '@/lib/errors'
 import {
   initializeKorapayPayment as serviceInitializeKorapayPayment,
   verifyKorapayPayment as serviceVerifyKorapayPayment,
@@ -56,7 +54,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     const paymentReference = `SCH-PAY-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`
     const adminEmail = input.adminEmail.trim().toLowerCase()
 
-    // 1. Create school record in pending state (inactive until approved)
+    // 1. Create School record in PENDING state
     await db.insert(school).values({
       id: schoolId,
       name: input.name,
@@ -151,11 +149,34 @@ export async function uploadApplicationProofOfAddressAction(applicationId: strin
 
 export async function confirmSchoolPaymentAction(paymentReference: string) {
   try {
-    const session = await auth.getSession()
-    if (!session?.user) {
-      return { success: false, error: 'Unauthorized session.' }
+    if (!applicationId) return { success: false, error: 'Application ID is required.' }
+
+    const appRecord = await db.query.schoolRegistrationApplication.findFirst({
+      where: eq(schoolRegistrationApplication.id, applicationId)
+    })
+
+    if (!appRecord) {
+      return { success: false, error: 'Application not found.' }
     }
 
+    const schRecord = await db.query.school.findFirst({
+      where: eq(school.id, appRecord.schoolId)
+    })
+
+    return {
+      success: true,
+      application: appRecord,
+      schoolCode: schRecord?.code || null,
+    }
+  } catch (error: any) {
+    console.error('Failed to get school application status:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to retrieve application status.', requestId }
+  }
+}
+
+export async function confirmSchoolPaymentAction(paymentReference: string) {
+  const requestId = randomUUID()
+  try {
     const verification = await serviceVerifyKorapayPayment({
       reference: paymentReference,
       expectedAmount: 30161.25,
@@ -168,6 +189,17 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
     const existingSchool = await db.select().from(school).where(eq(school.paymentReference, paymentReference))
     const rec = existingSchool[0]
 
+    let appRecord: any = null
+    if (rec) {
+      await db.update(schoolRegistrationApplication)
+        .set({ paymentStatus: 'SUCCESS', updatedAt: new Date() })
+        .where(eq(schoolRegistrationApplication.schoolId, rec.id))
+
+      appRecord = await db.query.schoolRegistrationApplication.findFirst({
+        where: eq(schoolRegistrationApplication.schoolId, rec.id)
+      })
+    }
+
     return {
       success: true,
       school: rec || null,
@@ -176,7 +208,10 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
       adminEmail: rec?.adminEmail,
       adminName: rec?.adminName,
       amount: 30161.25,
-      paidAt: new Date().toISOString()
+      paidAt: new Date().toISOString(),
+      applicationId: appRecord?.id || null,
+      documentVerificationStatus: appRecord?.documentVerificationStatus || 'PENDING',
+      approvalStatus: appRecord?.approvalStatus || 'PENDING_REVIEW',
     }
   } catch (error: any) {
     return sanitizeServerError('confirmSchoolPaymentAction', error, 'School registration payment confirmation failed.')

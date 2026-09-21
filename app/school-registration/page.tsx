@@ -1,9 +1,28 @@
 'use client'
 
 import { useState } from 'react'
-import { registerSchoolAction, confirmSchoolPaymentAction } from '@/app/actions/school'
-import { CheckCircle2, Building2, Sparkles, CreditCard, Download, ShieldCheck, ArrowRight, BookOpen, ExternalLink, Key, Lock, GraduationCap } from 'lucide-react'
-import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
+import {
+  registerSchoolAction,
+  confirmSchoolPaymentAction,
+  uploadSchoolApplicationDocumentAction,
+  getSchoolApplicationStatusAction
+} from '@/app/actions/school'
+import {
+  CheckCircle2,
+  Building2,
+  Sparkles,
+  CreditCard,
+  Download,
+  ShieldCheck,
+  ArrowRight,
+  BookOpen,
+  ExternalLink,
+  GraduationCap,
+  FileText,
+  Clock,
+  Upload,
+  AlertCircle
+} from 'lucide-react'
 import { LogoUploadField } from '@/components/uploads/LogoUploadField'
 import { ProofOfAddressUploadField } from '@/components/uploads/ProofOfAddressUploadField'
 
@@ -32,6 +51,7 @@ export default function SchoolRegistrationPage() {
   const [selectedClasses, setSelectedClasses] = useState<string[]>([...AVAILABLE_CLASSES])
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
   // 3D Mouse Movement Tilt
   const [rotateX, setRotateX] = useState(0)
@@ -50,10 +70,11 @@ export default function SchoolRegistrationPage() {
     setRotateY(0)
   }
 
-  // State for post-payment / confirmation modal
-  const [pendingCheckout, setPendingCheckout] = useState<any>(null)
-  const [registeredData, setRegisteredData] = useState<any>(null)
-  const [showReceiptModal, setShowReceiptModal] = useState(false)
+  // Application / Checkout state
+  const [appState, setAppState] = useState<any>(null)
+  const [documentType, setDocumentType] = useState('ELECTRICITY_BILL')
+  const [documentUrl, setDocumentTypeUrl] = useState('')
+  const [uploadingDoc, setUploadingDoc] = useState(false)
 
   const handleClassToggle = (cls: string) => {
     if (selectedClasses.includes(cls)) {
@@ -67,6 +88,7 @@ export default function SchoolRegistrationPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMessage('')
+    setSuccessMessage('')
 
     if (!formData.name || !formData.location || !formData.adminName || !formData.adminPhone || !formData.adminEmail) {
       setErrorMessage('Please fill in all required fields.')
@@ -89,35 +111,92 @@ export default function SchoolRegistrationPage() {
       })
 
       if (!res.success || !res.schoolCode) {
-        setErrorMessage(res.error || 'Registration failed')
+        setErrorMessage(res.error || 'Registration application failed.')
         setLoading(false)
         return
       }
 
-      setPendingCheckout(res)
+      setAppState({
+        applicationId: res.applicationId,
+        schoolId: res.schoolId,
+        schoolCode: res.schoolCode,
+        paymentReference: res.paymentReference,
+        checkoutUrl: res.checkoutUrl,
+        schoolName: formData.name,
+        paymentStatus: 'PENDING',
+        documentVerificationStatus: 'PENDING',
+        approvalStatus: 'PENDING_REVIEW',
+      })
+      setSuccessMessage('School application submitted! Please complete subscription payment and upload proof of address.')
     } catch (err: any) {
-      setErrorMessage(err.message || 'An unexpected error occurred')
+      setErrorMessage(err.message || 'An unexpected error occurred.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleConfirmPayment = async () => {
-    if (!pendingCheckout) return
+    if (!appState?.paymentReference) return
     setLoading(true)
-    const confirmRes = await confirmSchoolPaymentAction(pendingCheckout.paymentReference)
+    setErrorMessage('')
+    const confirmRes = await confirmSchoolPaymentAction(appState.paymentReference)
     if (confirmRes.success) {
-      setRegisteredData(confirmRes)
-      setShowReceiptModal(true)
-      setPendingCheckout(null)
+      setAppState((prev: any) => ({
+        ...prev,
+        paymentStatus: 'SUCCESS',
+        documentVerificationStatus: confirmRes.documentVerificationStatus || prev.documentVerificationStatus,
+        approvalStatus: confirmRes.approvalStatus || prev.approvalStatus,
+      }))
+      setSuccessMessage('Payment verified successfully! Now upload proof of school address.')
     } else {
-      setErrorMessage(confirmRes.error || 'Payment confirmation failed')
+      setErrorMessage(confirmRes.error || 'Payment confirmation failed.')
     }
     setLoading(false)
   }
 
-  const handlePrintReceipt = () => {
-    window.print()
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!appState?.applicationId || !documentUrl) {
+      setErrorMessage('Please provide a valid document URL (or upload recent electricity bill).')
+      return
+    }
+
+    setUploadingDoc(true)
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    const res = await uploadSchoolApplicationDocumentAction({
+      applicationId: appState.applicationId,
+      proofOfAddressType: documentType,
+      proofOfAddressFileUrl: documentUrl,
+    })
+
+    if (res.success) {
+      setAppState((prev: any) => ({
+        ...prev,
+        documentVerificationStatus: 'PENDING',
+      }))
+      setSuccessMessage('Proof of address document submitted successfully! Application is now under Super-Admin review.')
+    } else {
+      setErrorMessage(res.error || 'Document submission failed.')
+    }
+    setUploadingDoc(false)
+  }
+
+  const handleCheckStatus = async () => {
+    if (!appState?.applicationId) return
+    setLoading(true)
+    const statusRes = await getSchoolApplicationStatusAction(appState.applicationId)
+    if (statusRes.success && statusRes.application) {
+      setAppState((prev: any) => ({
+        ...prev,
+        paymentStatus: statusRes.application.paymentStatus,
+        documentVerificationStatus: statusRes.application.documentVerificationStatus,
+        approvalStatus: statusRes.application.approvalStatus,
+        rejectionReason: statusRes.application.rejectionReason,
+      }))
+    }
+    setLoading(false)
   }
 
   return (
@@ -153,71 +232,177 @@ export default function SchoolRegistrationPage() {
       >
         <div className="mb-8 text-center sm:text-left space-y-2">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-black uppercase tracking-widest">
-            <Sparkles className="w-3.5 h-3.5" /> Institutional School Onboarding
+            <Sparkles className="w-3.5 h-3.5" /> Institutional School Application
           </div>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-            Register Your School on EL LEARNERS APP
+            Register Your School Application
           </h1>
           <p className="text-slate-400 text-xs sm:text-sm font-bold leading-relaxed">
-            Enroll your institution, manage classes from Primary 3 to SSS3, set parent access, and activate your school portal with a standard NGN 30,000 subscription payment.
+            Submit your school onboarding application. Complete subscription payment via Korapay and upload proof of school address (e.g. recent electricity bill) for Super-Admin verification and account activation.
           </p>
         </div>
 
         {errorMessage && (
-          <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-black">
-            {errorMessage}
+          <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-black flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMessage}</span>
           </div>
         )}
 
-        {pendingCheckout ? (
-          <div className="p-8 bg-slate-950 border border-blue-500/40 rounded-3xl space-y-6 text-center animate-in fade-in duration-300">
-            <div className="w-16 h-16 rounded-2xl bg-blue-500/20 border border-blue-500 flex items-center justify-center mx-auto text-blue-400 shadow-lg">
-              <CreditCard className="w-8 h-8" />
+        {successMessage && (
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-black flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+        )}
+
+        {appState ? (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Onboarding Progress Tracker */}
+            <div className="p-6 bg-slate-950 border border-slate-800 rounded-3xl space-y-4">
+              <h2 className="text-sm font-black uppercase text-blue-400 flex items-center gap-2">
+                <Clock className="w-4 h-4" /> Application Verification Status
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className={`p-4 rounded-2xl border text-xs space-y-1 ${
+                  appState.paymentStatus === 'SUCCESS' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-slate-900 border-slate-800 text-amber-400'
+                }`}>
+                  <p className="font-black uppercase text-[10px]">Step 1: Payment</p>
+                  <p className="font-bold text-white">{appState.paymentStatus === 'SUCCESS' ? 'PAID & VERIFIED' : 'PENDING PAYMENT'}</p>
+                </div>
+
+                <div className={`p-4 rounded-2xl border text-xs space-y-1 ${
+                  appState.documentVerificationStatus === 'VERIFIED' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' :
+                  appState.documentVerificationStatus === 'REJECTED' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
+                  'bg-slate-900 border-slate-800 text-amber-400'
+                }`}>
+                  <p className="font-black uppercase text-[10px]">Step 2: Proof of Address</p>
+                  <p className="font-bold text-white">{appState.documentVerificationStatus}</p>
+                </div>
+
+                <div className={`p-4 rounded-2xl border text-xs space-y-1 ${
+                  appState.approvalStatus === 'APPROVED' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' :
+                  appState.approvalStatus === 'REJECTED' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
+                  'bg-slate-900 border-slate-800 text-amber-400'
+                }`}>
+                  <p className="font-black uppercase text-[10px]">Step 3: Super-Admin Approval</p>
+                  <p className="font-bold text-white">{appState.approvalStatus}</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl text-xs font-mono space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Application Code:</span>
+                  <span className="font-bold text-blue-400">{appState.schoolCode}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Payment Reference:</span>
+                  <span className="font-bold text-white">{appState.paymentReference}</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-black text-white">Complete Korapay Subscription Payment</h2>
-              <p className="text-slate-400 text-xs font-bold mt-2 max-w-md mx-auto">
-                Click below to complete the NGN 30,000 subscription payment for <strong className="text-white">{pendingCheckout.schoolName}</strong>.
+
+            {/* Payment Section */}
+            {appState.paymentStatus !== 'SUCCESS' && (
+              <div className="p-6 bg-slate-950 border border-blue-500/40 rounded-3xl space-y-4 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/20 border border-blue-500 flex items-center justify-center mx-auto text-blue-400">
+                  <CreditCard className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white">1. Complete Subscription Payment (NGN 30,161.25)</h3>
+                  <p className="text-slate-400 text-xs mt-1">
+                    Pay via Korapay checkout link to update your application payment status.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+                  <a
+                    href={appState.checkoutUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 py-3 px-4 rounded-xl bg-[#1E3A8A] hover:bg-blue-800 text-white font-black text-xs uppercase flex items-center justify-center gap-2 transition"
+                  >
+                    <span>Korapay Checkout</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                  <button
+                    onClick={handleConfirmPayment}
+                    disabled={loading}
+                    className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-black text-xs uppercase transition disabled:opacity-50"
+                  >
+                    {loading ? 'Verifying...' : 'Verify Payment'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Proof of Address Document Upload Section */}
+            <form onSubmit={handleUploadDocument} className="p-6 bg-slate-950 border border-slate-800 rounded-3xl space-y-4">
+              <h3 className="text-sm font-black uppercase text-blue-400 flex items-center gap-2">
+                <FileText className="w-4 h-4" /> 2. Upload Proof of School Address
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">
+                Provide a recent electricity bill or utility document matching the school address ({appState.schoolName}).
               </p>
-            </div>
 
-            <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl max-w-md mx-auto text-xs font-mono space-y-2">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Generated School Code:</span>
-                <span className="font-bold text-blue-400 text-sm">{pendingCheckout.schoolCode}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Payment Reference:</span>
-                <span className="font-bold text-white">{pendingCheckout.paymentReference}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Amount:</span>
-                <span className="font-bold text-white">NGN 30,000</span>
-              </div>
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Document Type *</label>
+                  <select
+                    value={documentType}
+                    onChange={e => setDocumentType(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="ELECTRICITY_BILL">Electricity Bill / Utility Bill</option>
+                    <option value="GOVT_APPROVAL">Government License / Registration Approval</option>
+                    <option value="SCHOOL_CERTIFICATE">School Registration Certificate</option>
+                    <option value="AUTHORIZATION_LETTER">Principal Authorization Letter</option>
+                  </select>
+                </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
-              <a
-                href={pendingCheckout.checkoutUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-3.5 px-6 rounded-2xl bg-[#1E3A8A] hover:bg-blue-800 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition"
-              >
-                <span>Proceed to Korapay Checkout</span>
-                <ExternalLink className="w-4 h-4" />
-              </a>
-              <button
-                onClick={handleConfirmPayment}
-                disabled={loading}
-                className="w-full py-3.5 px-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-black text-xs uppercase tracking-wider transition disabled:opacity-50"
-              >
-                {loading ? 'Verifying...' : 'Verify Completed Payment'}
-              </button>
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Document File URL *</label>
+                  <input
+                    type="url"
+                    required
+                    placeholder="https://.../electricity-bill.pdf"
+                    value={documentUrl}
+                    onChange={e => setDocumentTypeUrl(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={uploadingDoc}
+                  className="py-3 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase flex items-center gap-2 transition disabled:opacity-50"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>{uploadingDoc ? 'Submitting...' : 'Submit Proof of Address'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCheckStatus}
+                  disabled={loading}
+                  className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition"
+                >
+                  Refresh Application Status
+                </button>
+              </div>
+            </form>
+
+            <div className="p-4 rounded-2xl bg-blue-950/40 border border-blue-500/20 text-xs text-slate-300 font-medium space-y-1">
+              <p className="font-bold text-white">Trust & Security Notice:</p>
+              <p>
+                Email address and phone number are collected as contact details only and are not used as primary authorization. Super-Admin will verify your proof of address (electricity bill) and payment prior to activating your SCHOOL_ADMIN identity.
+              </p>
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* School Details */}
+            {/* School Profile */}
             <div className="space-y-4">
               <h2 className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-2">
                 <Building2 className="w-4 h-4" /> School Profile & Branding
@@ -281,7 +466,7 @@ export default function SchoolRegistrationPage() {
               </div>
             </div>
 
-            {/* Parents Verification Option */}
+            {/* Parents Option */}
             <div className="space-y-3 p-4 rounded-2xl bg-slate-950 border border-slate-800">
               <h2 className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4" /> Access Verification
@@ -311,7 +496,8 @@ export default function SchoolRegistrationPage() {
               <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
                 <strong>Manual Authorization Notice:</strong> Registration creates a pending school application. Active school administrator access is granted only after manual document review (e.g. recent electricity bill) and Super-Admin approval. Email and phone are collected as contact details.
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-black uppercase text-slate-400 mb-1">Name of Applicant *</label>
                   <input
@@ -339,7 +525,7 @@ export default function SchoolRegistrationPage() {
                   <input
                     type="email"
                     required
-                    placeholder="admin@school.com"
+                    placeholder="applicant@school.com"
                     value={formData.adminEmail}
                     onChange={e => setFormData({ ...formData, adminEmail: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
@@ -381,10 +567,10 @@ export default function SchoolRegistrationPage() {
               className="w-full py-4 rounded-2xl bg-[#1E3A8A] hover:bg-blue-800 text-white font-black text-sm uppercase tracking-wider shadow-xl shadow-blue-900/30 transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? (
-                <span>Generating Payment Order...</span>
+                <span>Submitting Application...</span>
               ) : (
                 <>
-                  <span>Pay NGN 30,161.25 & Register School</span>
+                  <span>Submit Application & Proceed to Payment</span>
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}
@@ -392,70 +578,6 @@ export default function SchoolRegistrationPage() {
           </form>
         )}
       </main>
-
-      {/* SUCCESS PAYMENT & RECEIPT MODAL */}
-      {showReceiptModal && registeredData && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-950 border border-blue-500/40 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-6 text-white animate-in fade-in zoom-in duration-200">
-            <div className="text-center space-y-2">
-              <div className="w-16 h-16 rounded-full bg-blue-500/20 border border-blue-500 flex items-center justify-center mx-auto text-blue-400">
-                <CheckCircle2 className="w-10 h-10" />
-              </div>
-              <h2 className="text-2xl font-black text-white">Payment Successful!</h2>
-              <p className="text-slate-400 text-xs sm:text-sm">
-                Your school has been registered and activated on EL LEARNERS APP.
-              </p>
-            </div>
-
-            {/* Receipt Card */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 font-mono text-xs">
-              <div className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-400">Platform:</span>
-                <span className="font-bold text-blue-400">EL LEARNERS APP</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-400">School Name:</span>
-                <span className="font-bold text-white">{registeredData.schoolName}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-400">School Registration Code:</span>
-                <span className="font-black text-blue-400 text-base">{registeredData.schoolCode}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-400">Admin Email:</span>
-                <span className="font-bold text-white">{registeredData.adminEmail}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-400">Amount Paid:</span>
-                <span className="font-bold text-white">NGN {registeredData.amount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Status:</span>
-                <span className="font-bold text-blue-400">PAID & VERIFIED</span>
-              </div>
-            </div>
-
-            <p className="text-slate-400 text-xs text-center font-bold">
-              Please save your <strong className="text-white">School Registration Code ({registeredData.schoolCode})</strong>. Teachers, Students, and Parents will use this code during sign up. School Admin can login with this code or email address and password.
-            </p>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handlePrintReceipt}
-                className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-black text-xs flex items-center justify-center gap-2 transition"
-              >
-                <Download className="w-4 h-4" /> Download Receipt
-              </button>
-              <a
-                href="/auth/signin"
-                className="flex-1 py-3 px-4 rounded-xl bg-[#1E3A8A] hover:bg-blue-800 text-white font-black text-xs text-center transition"
-              >
-                Proceed to Sign In
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
 
       <footer className="relative max-w-5xl mx-auto w-full text-center py-4 border-t border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest z-10">
         &copy; {new Date().getFullYear()} EL LEARNERS APP • Institutional Gateway

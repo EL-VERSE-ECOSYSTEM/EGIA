@@ -572,3 +572,195 @@ export async function approveCBTAssessmentAction(assessmentId: string, approved:
     return sanitizeServerError('approveCBTAssessmentAction', error, 'Unable to update assessment status.')
   }
 }
+
+// ===== SCHOOL REGISTRATION APPLICATIONS QUEUE & APPROVALS =====
+
+export async function getSchoolApplicationsForSuperAdmin() {
+  const requestId = randomUUID()
+  try {
+    await checkSuperAdminPermission()
+
+    const applications = await db.select().from(schoolRegistrationApplication).orderBy(desc(schoolRegistrationApplication.submittedAt))
+
+    return { success: true, applications }
+  } catch (error: any) {
+    console.error('Failed to fetch school applications for Super Admin:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to retrieve school applications. Please try again.', requestId }
+  }
+}
+
+export async function verifyApplicationDocumentAction(input: {
+  applicationId: string
+  status: 'VERIFIED' | 'REJECTED'
+  rejectionReason?: string
+}) {
+  const requestId = randomUUID()
+  try {
+    const superAdminUser = await checkSuperAdminPermission()
+
+    await db.update(schoolRegistrationApplication).set({
+      documentVerificationStatus: input.status,
+      rejectionReason: input.status === 'REJECTED' ? (input.rejectionReason || 'Proof of address document rejected.') : null,
+      reviewedBy: superAdminUser.id,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(schoolRegistrationApplication.id, input.applicationId))
+
+    revalidatePath('/dashboard/super-admin/overview')
+    return { success: true }
+  } catch (error: any) {
+    console.error('Failed to verify application document:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to update document verification status.', requestId }
+  }
+}
+
+export async function approveSchoolApplicationAction(input: {
+  applicationId: string
+  adminLevel?: string
+}) {
+  const requestId = randomUUID()
+  try {
+    const superAdminUser = await checkSuperAdminPermission()
+
+    const appRecord = await db.query.schoolRegistrationApplication.findFirst({
+      where: eq(schoolRegistrationApplication.id, input.applicationId)
+    })
+
+    if (!appRecord) {
+      return { success: false, error: 'School application record not found.' }
+    }
+
+    if (appRecord.paymentStatus !== 'SUCCESS') {
+      return { success: false, error: 'Cannot approve application until Korapay payment is verified as SUCCESS.' }
+    }
+
+    if (appRecord.documentVerificationStatus !== 'VERIFIED') {
+      return { success: false, error: 'Cannot approve application until proof of address document is VERIFIED.' }
+    }
+
+    const email = appRecord.applicantEmail.trim().toLowerCase()
+    const targetAdminLevel = input.adminLevel || appRecord.adminLevel || 'PRIMARY_ADMIN'
+
+    // Prevent existing account takeover: check if email belongs to existing user record
+    const existingUser = await db.query.user.findFirst({
+      where: eq(user.email, email)
+    })
+
+    let targetUserId = existingUser?.id
+
+    if (!existingUser) {
+      // New user account creation
+      targetUserId = randomUUID()
+      const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
+      if (secretKey) {
+        const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
+        const adminClient = createSupabaseAdminClient(supabaseUrl, secretKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        })
+
+        const createRes = await adminClient.auth.admin.createUser({
+          id: targetUserId,
+          email: email,
+          email_confirm: true,
+          user_metadata: {
+            full_name: appRecord.applicantName,
+            role: 'SCHOOL_ADMIN',
+            school_id: appRecord.schoolId,
+          }
+        })
+
+        if (createRes.data?.user?.id) {
+          targetUserId = createRes.data.user.id
+        }
+      }
+
+      await db.insert(user).values({
+        id: targetUserId,
+        email: email,
+        name: appRecord.applicantName,
+        schoolId: appRecord.schoolId,
+        adminLevel: targetAdminLevel,
+        lastIdentityId: appRecord.schoolId,
+        lastIdentityAt: new Date(),
+      }).onConflictDoNothing()
+    }
+
+    if (!targetUserId) {
+      targetUserId = randomUUID()
+    }
+
+    // Attach SCHOOL_ADMIN identity
+    await db.insert(userRole).values({
+      id: randomUUID(),
+      userId: targetUserId,
+      role: 'SCHOOL_ADMIN',
+    }).onConflictDoNothing()
+
+    await db.insert(schoolAdminRoles).values({
+      id: randomUUID(),
+      schoolId: appRecord.schoolId,
+      userId: targetUserId,
+      level: targetAdminLevel,
+      isActive: true,
+    }).onConflictDoNothing()
+
+    // Record approval in audit log
+    await db.insert(auditLog).values({
+      id: randomUUID(),
+      userId: superAdminUser.id,
+      action: 'APPROVE_SCHOOL_APPLICATION',
+      resource: 'SCHOOL_REGISTRATION_APPLICATION',
+      resourceId: input.applicationId,
+      details: {
+        schoolId: appRecord.schoolId,
+        applicantEmail: email,
+        adminLevel: targetAdminLevel,
+      },
+      createdAt: new Date(),
+    })
+
+    // Update Application and School records
+    await db.update(schoolRegistrationApplication).set({
+      approvalStatus: 'APPROVED',
+      reviewedBy: superAdminUser.id,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(schoolRegistrationApplication.id, input.applicationId))
+
+    await db.update(school).set({
+      paymentStatus: 'PAID',
+      updatedAt: new Date(),
+    }).where(eq(school.id, appRecord.schoolId))
+
+    revalidatePath('/dashboard/super-admin/overview')
+    return { success: true, schoolId: appRecord.schoolId, adminEmail: email }
+  } catch (error: any) {
+    console.error('Failed to approve school application:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to approve school application. Please try again.', requestId }
+  }
+}
+
+export async function rejectSchoolApplicationAction(input: {
+  applicationId: string
+  rejectionReason: string
+}) {
+  const requestId = randomUUID()
+  try {
+    const superAdminUser = await checkSuperAdminPermission()
+
+    await db.update(schoolRegistrationApplication).set({
+      approvalStatus: 'REJECTED',
+      rejectionReason: input.rejectionReason,
+      reviewedBy: superAdminUser.id,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(schoolRegistrationApplication.id, input.applicationId))
+
+    revalidatePath('/dashboard/super-admin/overview')
+    return { success: true }
+  } catch (error: any) {
+    console.error('Failed to reject school application:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to reject school application. Please try again.', requestId }
+  }
+}
