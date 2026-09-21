@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Shield, Mail, Lock, Loader2, ArrowRight, CheckCircle2, GraduationCap } from 'lucide-react'
+import { Shield, Mail, Lock, Loader2, ArrowRight, CheckCircle2, GraduationCap, Eye, EyeOff } from 'lucide-react'
 import { signInAction, activateIdentityAction } from './actions'
 import { RolePickerModal } from '@/components/auth/RolePickerModal'
 import { LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
@@ -17,6 +17,7 @@ export default function SignInPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -51,8 +52,12 @@ export default function SignInPage() {
         const singleIdentity = identities[0]
         const activateRes = await activateIdentityAction(singleIdentity.id, rememberMe)
         if (activateRes.success && activateRes.redirectTo) {
-          toast.success('Welcome to EL LEARNERS APP...')
+          toast.success('Welcome back to EL LEARNERS APP')
           router.push(activateRes.redirectTo)
+          return
+        } else {
+          setError(activateRes.error || 'Unable to activate your account identity.')
+          setLoading(false)
           return
         }
       }
@@ -63,8 +68,12 @@ export default function SignInPage() {
         if (rememberedIdentity) {
           const activateRes = await activateIdentityAction(rememberedIdentity.id, true)
           if (activateRes.success && activateRes.redirectTo) {
-            toast.success('Welcome to EL LEARNERS APP...')
+            toast.success('Welcome back to EL LEARNERS APP')
             router.push(activateRes.redirectTo)
+            return
+          } else {
+            setError(activateRes.error || 'Unable to activate your saved identity.')
+            setLoading(false)
             return
           }
         }
@@ -85,7 +94,7 @@ export default function SignInPage() {
     try {
       const res = await activateIdentityAction(identity.id, remember)
       if (res.success && res.redirectTo) {
-        toast.success('Welcome to EL LEARNERS APP...')
+        toast.success('Welcome back to EL LEARNERS APP')
         setIsModalOpen(false)
         router.push(res.redirectTo)
       } else {
@@ -94,6 +103,8 @@ export default function SignInPage() {
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred while activating your identity.')
+      setLoading(false)
+    } finally {
       setLoading(false)
     }
   }
@@ -120,7 +131,7 @@ export default function SignInPage() {
         <Card className="border-slate-800 bg-slate-900/90 shadow-2xl backdrop-blur-xl rounded-3xl overflow-hidden">
           <CardContent className="p-8 space-y-6">
             {error && (
-              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold leading-relaxed flex items-center gap-3">
+              <div role="alert" aria-live="polite" className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold leading-relaxed flex items-center gap-3">
                 <Shield className="w-5 h-5 text-rose-400 shrink-0" />
                 <span>{error}</span>
               </div>
@@ -129,20 +140,26 @@ export default function SignInPage() {
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-xs font-black uppercase tracking-wider text-slate-300">
-                  Email / Staff ID / Admission Number
+                  Email, Staff ID, or Admission Number
                 </Label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
                   <Input
                     id="email"
                     type="text"
-                    placeholder="e.g. user@academy.edu, ST-10001, or ADM-10001"
+                    autoComplete="username"
+                    inputMode="email"
+                    placeholder="Enter your email, staff ID, or admission number"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    aria-describedby="email-hint"
                     className="bg-slate-950/60 border-slate-800 text-white placeholder:text-slate-500 pl-11 rounded-2xl h-12 text-xs focus:border-blue-500 font-bold"
                   />
                 </div>
+                <p id="email-hint" className="text-[11px] font-bold text-slate-400 pl-1">
+                  Use your registered school email address, staff code, or admission number.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -161,13 +178,23 @@ export default function SignInPage() {
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
                     placeholder="••••••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="bg-slate-950/60 border-slate-800 text-white placeholder:text-slate-600 pl-11 rounded-2xl h-12 text-sm focus:border-blue-500 font-medium"
+                    className="bg-slate-950/60 border-slate-800 text-white placeholder:text-slate-600 pl-11 pr-11 rounded-2xl h-12 text-sm focus:border-blue-500 font-medium"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-pressed={showPassword}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 
@@ -180,7 +207,7 @@ export default function SignInPage() {
                   className="rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500 h-4 w-4"
                 />
                 <label htmlFor="remember" className="text-xs font-bold text-slate-400 cursor-pointer select-none">
-                  Remember my choice for this device
+                  Use this portal automatically next time
                 </label>
               </div>
 

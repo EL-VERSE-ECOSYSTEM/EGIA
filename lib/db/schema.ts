@@ -511,6 +511,37 @@ export const transactionLedger = pgTable('transaction_ledger', {
   foreignKey({ columns: [t.receiptUploadId], foreignColumns: [paymentReceiptUploads.id] }).onDelete('set null'),
 ])
 
+// ===== SCHOOL REGISTRATION APPLICATIONS =====
+export const schoolRegistrationApplication = pgTable('school_registration_application', {
+  id: text('id').primaryKey(),
+  schoolId: text('school_id'),
+  applicantEmail: text('applicant_email').notNull(),
+  applicantPhone: text('applicant_phone').notNull(),
+  applicantName: text('applicant_name').notNull(),
+  schoolName: text('school_name').notNull(),
+  schoolAddress: text('school_address').notNull(),
+  proofOfAddressType: text('proof_of_address_type').notNull().default('ELECTRICITY_BILL'),
+  proofOfAddressFileUrl: text('proof_of_address_file_url'),
+  documentVerificationStatus: text('document_verification_status').notNull().default('PENDING'), // PENDING, VERIFIED, REJECTED
+  paymentStatus: text('payment_status').notNull().default('PENDING'), // PENDING, SUCCESS, FAILED, REFUNDED
+  approvalStatus: text('approval_status').notNull().default('PENDING_REVIEW'), // PENDING_REVIEW, APPROVED, REJECTED, SUSPENDED
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+  reviewedBy: text('reviewed_by'),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  rejectionReason: text('rejection_reason'),
+  adminLevel: text('admin_level').default('PRIMARY_ADMIN'),
+  registeredClasses: jsonb('registered_classes'),
+  allowParents: boolean('allow_parents').default(true),
+  paymentReference: text('payment_reference').unique(),
+  logoUrl: text('logo_url'),
+  logoPath: text('logo_path'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('set null'),
+  foreignKey({ columns: [t.reviewedBy], foreignColumns: [user.id] }).onDelete('set null'),
+])
+
 // ===== SCHOOL ADMIN ROLES =====
 export const schoolAdminRoles = pgTable('school_admin_roles', {
   id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
@@ -518,12 +549,15 @@ export const schoolAdminRoles = pgTable('school_admin_roles', {
   userId: text('userid').notNull(),
   level: text('level').notNull(), // PRIMARY_ADMIN, VICE_PRINCIPAL_ACADEMICS, VICE_PRINCIPAL_ADMIN, HOD_SCIENCE, HOD_ARTS, HOD_COMMERCIAL
   department: text('department'),
-  isActive: boolean('is_active').default(true),
+  isActive: boolean('is_active').default(false),
+  approvedBy: text('approved_by'),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   unique().on(t.schoolId, t.userId),
   foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.approvedBy], foreignColumns: [user.id] }).onDelete('set null'),
 ])
 
 export const paymentInstallment = pgTable('payment_installment', {

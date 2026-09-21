@@ -2,6 +2,16 @@ import { cert, getApp, getApps, initializeApp, type ServiceAccount } from "fireb
 import { getMessaging } from "firebase-admin/messaging";
 import type { PushNotification } from "./types";
 
+function sanitizeFCMData(raw: Record<string, unknown> | undefined): Record<string, string> {
+  if (!raw) return {};
+  return Object.fromEntries(
+    Object.entries(raw).map(([key, value]) => [
+      key,
+      typeof value === "string" ? value : JSON.stringify(value ?? ""),
+    ])
+  );
+}
+
 function adminMessaging() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!raw) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is not configured");
@@ -22,7 +32,7 @@ export async function sendFCMNotification(token: string, notification: PushNotif
     const messageId = await adminMessaging().send({
       token,
       notification: { title: notification.title, body: notification.body, imageUrl: notification.image },
-      data: { ...notification.data, link: notification.link || "/dashboard", type: notification.type },
+      data: sanitizeFCMData({ ...notification.data, link: notification.link || "/dashboard", type: notification.type }),
       webpush: { headers: { Urgency: "high" }, notification: { icon: "/logo.svg", data: { link: notification.link || "/dashboard" } } },
     });
     return { success: true, messageId };
@@ -34,7 +44,7 @@ export async function sendMulticastFCM(tokens: string[], notification: PushNotif
   try {
     const response = await adminMessaging().sendEachForMulticast({
       tokens, notification: { title: notification.title, body: notification.body, imageUrl: notification.image },
-      data: { ...notification.data, link: notification.link || "/dashboard", type: notification.type },
+      data: sanitizeFCMData({ ...notification.data, link: notification.link || "/dashboard", type: notification.type }),
       webpush: { headers: { Urgency: "high" }, notification: { icon: "/logo.svg", data: { link: notification.link || "/dashboard" } } },
     });
     const invalidTokens = response.responses.flatMap((result, index) => {

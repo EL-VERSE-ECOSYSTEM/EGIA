@@ -40,6 +40,11 @@ function loadLocalEnvironment() {
 async function applySchema() {
   loadLocalEnvironment()
 
+  if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_DESTRUCTIVE_SCHEMA_APPLY) {
+    console.error('CRITICAL: Refusing to execute schema reset script in production without ALLOW_DESTRUCTIVE_SCHEMA_APPLY=true')
+    process.exit(1)
+  }
+
   const databaseUrl = process.env.SUPABASE_DATABASE_POOLER_URL || process.env.DATABASE_URL
   if (!databaseUrl) {
     throw new Error('Database connection string missing in environment.')

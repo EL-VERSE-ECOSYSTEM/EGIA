@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { RealtimeProvider } from '@/components/realtime/RealtimeProvider'
 import { TimeThemeProvider } from '@/components/TimeThemeProvider'
+import { FloatingSupportWidget } from '@/components/support/FloatingSupportWidget'
 
 export const metadata: Metadata = {
   title: "EL LEARNERS APP - Empowering Excellence",
@@ -34,6 +35,7 @@ export default function RootLayout({
           <div className="flex-1">
             {children}
           </div>
+          <FloatingSupportWidget />
         </RealtimeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
         {/* Simple inline PWA registration block */}

@@ -83,7 +83,7 @@ export default function ClassTeacherTimetablePage() {
       if (res.success) {
         toast.success(`Class Timetable for ${className} saved to Supabase DB in real time!`)
       } else {
-        toast.error(res.error || 'Failed to save timetable.')
+        toast.error('error' in res && res.error ? res.error : 'Failed to save timetable.')
       }
     } catch (err: any) {
       toast.error(err.message || 'An error occurred while saving timetable.')

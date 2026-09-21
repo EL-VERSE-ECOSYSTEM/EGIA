@@ -3,9 +3,11 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
-import { user as userTable, parent as parentTable, userRole as userRoleTable } from '@/lib/db/schema'
+import { user as userTable, parent as parentTable, userRole as userRoleTable, school as schoolTable } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { z } from 'zod'
+import { sanitizeServerError } from '@/lib/errors'
 
 export const parentSignupSchema = z.object({
   firstName: z.string().trim().min(2, 'First name must be at least 2 characters').max(80),
@@ -13,19 +15,28 @@ export const parentSignupSchema = z.object({
   email: z.string().trim().email('Invalid email address').transform(v => v.toLowerCase()),
   phone: z.string().trim().min(7, 'Phone number must be at least 7 characters').max(20),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  schoolId: z.string().optional().nullable(),
+  schoolCode: z.string().trim().optional().nullable(),
 })
 
 export async function signUpAsParent(formData: unknown) {
-  const requestId = randomUUID()
   const parsed = parentSignupSchema.safeParse(formData)
   if (!parsed.success) {
     const errorMsg = parsed.error.issues.map(i => i.message).join(', ')
     return { success: false, error: errorMsg }
   }
 
-  const { firstName, lastName, email, phone, password, schoolId } = parsed.data
+  const { firstName, lastName, email, phone, password, schoolCode } = parsed.data
   const fullName = `${firstName} ${lastName}`
+
+  let verifiedSchoolId: string | null = null
+  if (schoolCode) {
+    const matchingSchool = await db.query.school.findFirst({
+      where: eq(schoolTable.code, schoolCode.toUpperCase()),
+    })
+    if (matchingSchool) {
+      verifiedSchoolId = matchingSchool.id
+    }
+  }
 
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
@@ -43,7 +54,7 @@ export async function signUpAsParent(formData: unknown) {
   })
 
   if (authError || !authData.user) {
-    return { success: false, error: authError?.message || 'User account creation failed.' }
+    return { success: false, error: 'User account creation failed. Please check your credentials and try again.' }
   }
 
   const userId = authData.user.id
@@ -54,6 +65,7 @@ export async function signUpAsParent(formData: unknown) {
       id: userId,
       email,
       name: fullName,
+      schoolId: verifiedSchoolId,
       createdAt: new Date(),
       updatedAt: new Date(),
     }).onConflictDoNothing()
@@ -63,7 +75,7 @@ export async function signUpAsParent(formData: unknown) {
     await db.insert(parentTable).values({
       id: parentId,
       userId,
-      schoolId: schoolId || null,
+      schoolId: verifiedSchoolId,
       firstName,
       lastName,
       phoneNumber: phone,
@@ -84,11 +96,6 @@ export async function signUpAsParent(formData: unknown) {
       parentId,
     }
   } catch (dbError: any) {
-    console.error('Error creating parent application profile:', { requestId, error: dbError?.message || dbError })
-    return {
-      success: false,
-      error: 'Failed to complete profile registration in application database. Please try again.',
-      requestId,
-    }
+    return sanitizeServerError('signUpAsParent DB creation', dbError, 'Failed to complete parent registration profile. Please try again.')
   }
 }

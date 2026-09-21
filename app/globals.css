@@ -129,6 +129,10 @@
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 150ms;
   }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
   body {
     @apply bg-background text-foreground;
   }
@@ -148,37 +152,29 @@
   }
 }
 
-/* Premium Theme & Accessibility Overrides */
-.dark .text-slate-900,
-.dark .text-slate-800,
-.dark .text-slate-700,
-.dark .text-slate-600 {
-  color: oklch(0.95 0 0) !important;
-}
-
-.dark .text-slate-500,
-.dark .text-slate-400 {
-  color: oklch(0.85 0 0) !important;
+/* Dark Mode Accessibility & Theme Consistency */
+.dark {
+  color-scheme: dark;
 }
 
 .dark .bg-white {
-  background-color: oklch(0.205 0 0) !important;
-  color: oklch(0.95 0 0) !important;
+  background-color: var(--card);
+  color: var(--card-foreground);
 }
 
 .dark .bg-slate-50,
 .dark .bg-slate-50\/50,
 .dark .bg-slate-50\/30 {
-  background-color: oklch(0.25 0 0) !important;
-  color: oklch(0.9 0 0) !important;
+  background-color: var(--muted);
+  color: var(--muted-foreground);
 }
 
 .dark input,
 .dark select,
 .dark textarea {
-  background-color: oklch(0.25 0 0) !important;
-  color: oklch(0.95 0 0) !important;
-  border-color: oklch(1 0 0 / 10%) !important;
+  background-color: var(--input);
+  color: var(--foreground);
+  border-color: var(--border);
 }
 
 /* Animated Icons Keyframes & Micro-interactions */
