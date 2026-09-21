@@ -128,7 +128,7 @@ export default function SuperAdminOverviewPage() {
       toast.success(currentSuspended ? 'User unsuspended successfully!' : 'User suspended successfully!')
       loadData()
     } else {
-      toast.error(res.error || 'Failed to update user suspension state.')
+      toast.error('error' in res && res.error ? res.error : 'Failed to update user suspension state.')
     }
   }
 
@@ -151,7 +151,7 @@ export default function SuperAdminOverviewPage() {
       setShowGiftModal(false)
       setSelectedStudentForGift(null)
     } else {
-      toast.error(res.error || 'Failed to award gift.')
+      toast.error('error' in res && res.error ? res.error : 'Failed to award gift.')
     }
     setSubmittingGift(false)
   }
@@ -174,7 +174,7 @@ export default function SuperAdminOverviewPage() {
       setSelectedUserForDisc(null)
       loadData()
     } else {
-      toast.error(res.error || 'Failed to record disciplinary action.')
+      toast.error('error' in res && res.error ? res.error : 'Failed to record disciplinary action.')
     }
     setSubmittingDisc(false)
   }
@@ -191,7 +191,7 @@ export default function SuperAdminOverviewPage() {
       toast.success('Application state updated successfully.')
       loadData()
     } else {
-      toast.error(res.error || 'Failed to update application review state.')
+      toast.error('error' in res && res.error ? res.error : 'Failed to update application review state.')
     }
   }
 
@@ -202,7 +202,7 @@ export default function SuperAdminOverviewPage() {
       toast.success('School Admin activated and password setup/invitation issued!')
       loadData()
     } else {
-      toast.error(res.error || 'Failed to activate School Admin.')
+      toast.error('error' in res && res.error ? res.error : 'Failed to activate School Admin.')
     }
   }
 
@@ -224,7 +224,7 @@ export default function SuperAdminOverviewPage() {
     })
 
     if (res.success) {
-      alert(`Broadcast sent successfully to ${res.count} user accounts!`)
+      alert(`Broadcast sent successfully to ${'count' in res ? res.count : 0} user accounts!`)
       setShowBroadcastModal(false)
       setBroadcastTitle('')
       setBroadcastMessage('')

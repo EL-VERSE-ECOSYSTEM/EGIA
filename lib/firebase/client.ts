@@ -3,6 +3,12 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { getMessaging, getToken, isSupported, onMessage, type MessagePayload, type Unsubscribe } from "firebase/messaging";
 
+const isFirebaseConfigured = Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+
+if (!isFirebaseConfigured && typeof window !== "undefined") {
+  console.warn("Firebase client configuration (NEXT_PUBLIC_FIREBASE_PROJECT_ID) is missing.");
+}
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyAih9Mm-8SSaxMmAEmsFvXq6NaiM3XNCqg",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "goodnews-ebd4a.firebaseapp.com",

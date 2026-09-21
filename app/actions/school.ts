@@ -5,6 +5,7 @@ import { school, schoolRegistrationApplication } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { auth } from '@/lib/auth'
+import { sanitizeServerError } from '@/lib/errors'
 import {
   initializeKorapayPayment as serviceInitializeKorapayPayment,
   verifyKorapayPayment as serviceVerifyKorapayPayment,
@@ -44,7 +45,6 @@ export async function generateSchoolCode(schoolName: string): Promise<string> {
 }
 
 export async function registerSchoolAction(input: SchoolRegistrationInput) {
-  const requestId = randomUUID()
   try {
     if (!input.name || !input.adminEmail || !input.adminName || !input.location) {
       return { success: false, error: 'School name, location, contact email, and applicant name are required.' }
@@ -124,13 +124,11 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       checkoutUrl: initRes.checkoutUrl,
     }
   } catch (error: any) {
-    console.error('Failed to register school application:', { requestId, error: error?.message || error })
-    return { success: false, error: 'School registration application could not be initialized. Please verify your details and try again.', requestId }
+    return sanitizeServerError('registerSchoolAction', error, 'School registration application could not be initialized.')
   }
 }
 
 export async function uploadApplicationProofOfAddressAction(applicationId: string, fileUrl: string) {
-  const requestId = randomUUID()
   try {
     const existing = await db.select().from(schoolRegistrationApplication).where(eq(schoolRegistrationApplication.id, applicationId))
     if (!existing.length) {
@@ -147,13 +145,11 @@ export async function uploadApplicationProofOfAddressAction(applicationId: strin
 
     return { success: true }
   } catch (error: any) {
-    console.error('Failed to upload proof of address:', { requestId, error: error?.message || error })
-    return { success: false, error: 'Failed to update proof of address document.', requestId }
+    return sanitizeServerError('uploadApplicationProofOfAddressAction', error, 'Failed to update proof of address document.')
   }
 }
 
 export async function confirmSchoolPaymentAction(paymentReference: string) {
-  const requestId = randomUUID()
   try {
     const session = await auth.getSession()
     if (!session?.user) {
@@ -183,13 +179,11 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
       paidAt: new Date().toISOString()
     }
   } catch (error: any) {
-    console.error('Failed to confirm school payment:', { requestId, error: error?.message || error })
-    return { success: false, error: 'School registration payment confirmation failed. Please try again.', requestId }
+    return sanitizeServerError('confirmSchoolPaymentAction', error, 'School registration payment confirmation failed.')
   }
 }
 
 export async function getSchoolByCodeAction(code: string) {
-  const requestId = randomUUID()
   try {
     const cleanCode = code.trim().toUpperCase()
     const result = await db.select({
@@ -206,7 +200,6 @@ export async function getSchoolByCodeAction(code: string) {
     }
     return { success: true, school: result[0] }
   } catch (error: any) {
-    console.error('School lookup failed:', { requestId, error: error?.message || error })
-    return { success: false, error: 'Unable to verify school code. Please try again.', requestId }
+    return sanitizeServerError('getSchoolByCodeAction', error, 'Unable to verify school code.')
   }
 }

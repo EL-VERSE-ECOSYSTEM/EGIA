@@ -12,7 +12,14 @@ export type NotificationData = {
   eventKey: string;
 };
 
-type DeliveryResult = { delivered: boolean; tokenCount: number; successCount: number; failureCount: number };
+type DeliveryResult = {
+  inAppStored: boolean;
+  pushAttempted: boolean;
+  pushDelivered: boolean;
+  tokenCount: number;
+  successCount: number;
+  failureCount: number;
+};
 
 function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,6 +45,8 @@ export async function sendPushNotification(notification: NotificationData): Prom
   let failureCount = 0;
   const invalidTokens: string[] = [];
 
+  const pushAttempted = tokens.length > 0;
+
   // Firebase limits a multicast request to 500 registration tokens.
   for (let index = 0; index < tokens.length; index += 500) {
     const batch = tokens.slice(index, index + 500);
@@ -58,13 +67,20 @@ export async function sendPushNotification(notification: NotificationData): Prom
     if (error) console.error("Could not deactivate invalid FCM tokens", { error: error.message, count: invalidTokens.length });
   }
 
-  const delivered = tokens.length > 0 && failureCount === 0;
+  const pushDelivered = pushAttempted && failureCount === 0;
   const { error: historyError } = await supabase.from("notification_history").upsert({
     user_id: notification.userId, event_key: notification.eventKey, title: notification.title, body: notification.body,
-    type: notification.type, data: notification.data ?? {}, link: notification.link ?? "/dashboard", delivered,
+    type: notification.type, data: notification.data ?? {}, link: notification.link ?? "/dashboard", delivered: pushDelivered,
     metadata: { token_count: tokens.length, success_count: successCount, failure_count: failureCount }, sent_at: new Date().toISOString(),
   }, { onConflict: "user_id,event_key" });
   if (historyError) throw new Error(`Unable to record notification: ${historyError.message}`);
 
-  return { delivered, tokenCount: tokens.length, successCount, failureCount };
+  return {
+    inAppStored: true,
+    pushAttempted,
+    pushDelivered,
+    tokenCount: tokens.length,
+    successCount,
+    failureCount
+  };
 }
