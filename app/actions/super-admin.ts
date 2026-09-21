@@ -473,6 +473,87 @@ export async function activateSchoolAdminAction(applicationId: string) {
   }
 }
 
+export async function getSuperAdminSupportTicketsAction() {
+  try {
+    await checkSuperAdminPermission()
+
+    const { supportTicket, supportTicketReply } = await import('@/lib/db/schema')
+    const tickets = await db.query.supportTicket.findMany({
+      orderBy: (ticket, { desc }) => [desc(ticket.createdAt)],
+    })
+
+    const result: any[] = []
+    for (const t of tickets) {
+      const userRec = await db.query.user.findFirst({
+        where: eq(user.id, t.userId),
+      })
+      const replies = await db.select().from(supportTicketReply).where(eq(supportTicketReply.ticketId, t.id)).orderBy(desc(supportTicketReply.createdAt))
+
+      result.push({
+        ...t,
+        userName: userRec?.name || 'Portal User',
+        userEmail: userRec?.email || 'N/A',
+        replies,
+      })
+    }
+
+    return { success: true, tickets: result }
+  } catch (error: any) {
+    return sanitizeServerError('getSuperAdminSupportTicketsAction', error, 'Unable to retrieve support tickets.')
+  }
+}
+
+export async function replyToSupportTicketAction(ticketId: string, message: string) {
+  try {
+    const adminUser = await checkSuperAdminPermission()
+
+    const { supportTicket, supportTicketReply } = await import('@/lib/db/schema')
+    const ticket = await db.query.supportTicket.findFirst({
+      where: eq(supportTicket.id, ticketId),
+    })
+
+    if (!ticket) {
+      return { success: false, error: 'Support ticket not found.' }
+    }
+
+    const replyId = randomUUID()
+    await db.insert(supportTicketReply).values({
+      id: replyId,
+      ticketId,
+      senderId: adminUser.id,
+      message,
+      createdAt: new Date(),
+    })
+
+    await db.update(supportTicket)
+      .set({
+        status: 'IN_PROGRESS',
+        updatedAt: new Date(),
+      })
+      .where(eq(supportTicket.id, ticketId))
+
+    // Real-time notification for user
+    await db.insert(notification).values({
+      id: randomUUID(),
+      userId: ticket.userId,
+      title: `SUPPORT RESPONSE: ${ticket.ticketNumber}`,
+      message: `Super Admin Response: "${message}"`,
+      type: 'SUPPORT_REPLY',
+      createdAt: new Date(),
+    })
+
+    revalidatePath('/dashboard/super-admin/overview')
+    return { success: true, replyId }
+  } catch (error: any) {
+    return sanitizeServerError('replyToSupportTicketAction', error, 'Failed to send response to support ticket.')
+  }
+}
+
+export async function quickReplySupportTicketAction(ticketId: string) {
+  const quickMessage = "We have taken note of the support submitted, we'll get back to you shortly"
+  return replyToSupportTicketAction(ticketId, quickMessage)
+}
+
 export async function approveCBTAssessmentAction(assessmentId: string, approved: boolean, comment?: string) {
   try {
     await checkSuperAdminPermission()
