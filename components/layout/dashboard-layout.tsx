@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
-import { Bell, Search, User, Download, X, Smartphone, CheckCircle, Menu } from 'lucide-react'
+import { Bell, Search, User, Download, X, Smartphone, CheckCircle, Menu, LogOut, ChevronDown, Settings, Shield } from 'lucide-react'
+import { createClient } from '@/utils/supabase/client'
 import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSync'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { PermissionRequest } from '@/components/notifications/PermissionRequest'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { FloatingSupportWidget } from '@/components/support/FloatingSupportWidget'
 
 export default function DashboardLayout({
   children,
@@ -31,6 +31,19 @@ export default function DashboardLayout({
 
   // Mobile sidebar drawer state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+
+  // Escape key handler for drawer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsSidebarOpen(false)
+        setShowUserMenu(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   useEffect(() => {
     setMounted(true)
@@ -99,13 +112,22 @@ export default function DashboardLayout({
       {/* Mobile Sidebar backdrop overlay */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm animate-in fade-in duration-300"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
         />
       )}
 
-      {/* Responsive Sidebar */}
-      <Sidebar role={activeRole} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      {/* Responsive Sidebar Drawer */}
+      <div
+        id="mobile-sidebar-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation Menu"
+        className={`lg:static lg:z-auto z-50 ${isSidebarOpen ? 'relative' : 'hidden lg:block'}`}
+      >
+        <Sidebar role={activeRole} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      </div>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-20 border-b border-slate-200 bg-white/50 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
@@ -127,14 +149,60 @@ export default function DashboardLayout({
             {mounted && <ThemeToggle />}
             {mounted && <NotificationBell />}
             <div className="h-10 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
-            <div className="flex items-center gap-3 pl-2">
-              <div className="text-right hidden md:block">
-                <p className="text-xs font-black text-slate-900">EL LEARNERS</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userEmail || `${activeRole} Portal`}</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-lg">
-                <User className="w-5 h-5" />
-              </div>
+            <div className="relative flex items-center gap-3 pl-2">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                aria-expanded={showUserMenu}
+                aria-haspopup="true"
+                aria-label="User Account Menu"
+                className="flex items-center gap-3 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-300"
+              >
+                <div className="text-right hidden md:block">
+                  <p className="text-xs font-black text-slate-900 dark:text-white">EL LEARNERS</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userEmail || `${activeRole} Portal`}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-md">
+                  <User className="w-5 h-5" />
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+              </button>
+
+              {showUserMenu && (
+                <div className="absolute right-0 top-14 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                    <p className="text-xs font-black text-slate-900 dark:text-white capitalize">{activeRole} Identity</p>
+                    <p className="text-[10px] font-bold text-slate-400 truncate">{userEmail || 'Active Portal'}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false)
+                      window.location.href = `/dashboard/${activeRole}/profile`
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2"
+                  >
+                    <User className="w-3.5 h-3.5" /> My Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false)
+                      window.location.href = `/dashboard/${activeRole}/settings`
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2"
+                  >
+                    <Settings className="w-3.5 h-3.5" /> Settings
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const supabase = createClient()
+                      await supabase.auth.signOut()
+                      window.location.href = '/auth/signin'
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2"
+                  >
+                    <LogOut className="w-3.5 h-3.5" /> Sign Out
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -142,9 +210,6 @@ export default function DashboardLayout({
         <main className="flex-1 overflow-y-auto bg-slate-50/50 relative">
           {mounted && <PermissionRequest />}
           {children}
-
-          {/* Global Floating Support Widget */}
-          <FloatingSupportWidget />
 
           {/* Floating interactive PWA Download / Install App Prompt Widget */}
           {showInstallBtn && (
