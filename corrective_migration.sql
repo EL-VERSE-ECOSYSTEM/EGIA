@@ -1249,6 +1249,7 @@ EXECUTE FUNCTION public.enforce_parent_ward_limit();
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES
   ('school-logos', 'school-logos', true, 2097152, ARRAY['image/png','image/jpeg','image/webp','image/svg+xml']),
+  ('school-documents', 'school-documents', true, 10485760, ARRAY['application/pdf','image/png','image/jpeg','image/webp']),
   ('school-receipts', 'school-receipts', false, 5242880, ARRAY['image/png','image/jpeg','application/pdf']),
   ('school-generated-receipts', 'school-generated-receipts', false, 10485760, ARRAY['application/pdf']),
   ('lesson-notes', 'lesson-notes', false, 52428800, ARRAY['application/pdf']),
@@ -1259,6 +1260,12 @@ SET
   public = EXCLUDED.public,
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS school_documents_public_read ON storage.objects;
+CREATE POLICY school_documents_public_read ON storage.objects FOR SELECT TO public USING (bucket_id = 'school-documents');
+
+DROP POLICY IF EXISTS school_documents_public_insert ON storage.objects;
+CREATE POLICY school_documents_public_insert ON storage.objects FOR INSERT TO public WITH CHECK (bucket_id = 'school-documents');
 
 DROP POLICY IF EXISTS school_logos_public_read ON storage.objects;
 CREATE POLICY school_logos_public_read ON storage.objects FOR SELECT TO public USING (bucket_id = 'school-logos');

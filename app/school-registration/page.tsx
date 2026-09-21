@@ -5,6 +5,7 @@ import { registerSchoolAction, confirmSchoolPaymentAction } from '@/app/actions/
 import { CheckCircle2, Building2, Sparkles, CreditCard, Download, ShieldCheck, ArrowRight, BookOpen, ExternalLink, Key, Lock, GraduationCap } from 'lucide-react'
 import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
 import { LogoUploadField } from '@/components/uploads/LogoUploadField'
+import { ProofOfAddressUploadField } from '@/components/uploads/ProofOfAddressUploadField'
 
 const AVAILABLE_CLASSES = [
   'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
@@ -347,17 +348,13 @@ export default function SchoolRegistrationPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-black uppercase text-slate-400 mb-1">Proof of School Address URL (e.g. Recent Electricity Bill) *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="https://... (URL to uploaded electricity bill or utility receipt)"
-                  value={formData.proofOfAddressFileUrl}
-                  onChange={e => setFormData({ ...formData, proofOfAddressFileUrl: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
+                <ProofOfAddressUploadField
+                  existingUrl={formData.proofOfAddressFileUrl}
+                  onUploaded={(url) => setFormData(prev => ({ ...prev, proofOfAddressFileUrl: url }))}
+                  onRemoved={() => setFormData(prev => ({ ...prev, proofOfAddressFileUrl: '' }))}
                 />
                 <p className="text-[11px] text-slate-500 font-medium pt-1">
-                  Upload a recent electricity bill matching the school name/address for manual Super-Admin verification.
+                  Upload a recent electricity bill (PDF, PNG, JPG, WebP) matching the school name/address for manual Super-Admin verification.
                 </p>
               </div>
             </div>

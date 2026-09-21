@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { subscribeToTable, unsubscribeFromTable } from '@/utils/supabase/client'
 import {
   getSuperAdminOverviewStats,
   toggleSchoolParentRegistrationAction,
@@ -17,6 +18,9 @@ import {
   getPendingSchoolApplicationsAction,
   reviewSchoolApplicationAction,
   activateSchoolAdminAction,
+  getSuperAdminSupportTicketsAction,
+  replyToSupportTicketAction,
+  quickReplySupportTicketAction,
 } from '@/app/actions/super-admin'
 import {
   Building2,
@@ -39,9 +43,10 @@ import {
 import { toast } from 'sonner'
 
 export default function SuperAdminOverviewPage() {
-  const [activeTab, setActiveTab] = useState<'APPLICATIONS' | 'SCHOOLS' | 'USERS' | 'CBTS' | 'GIFTS'>('APPLICATIONS')
+  const [activeTab, setActiveTab] = useState<'APPLICATIONS' | 'SUPPORT' | 'SCHOOLS' | 'USERS' | 'CBTS' | 'GIFTS'>('APPLICATIONS')
   const [data, setData] = useState<any>(null)
   const [applicationsData, setApplicationsData] = useState<any[]>([])
+  const [supportTicketsData, setSupportTicketsData] = useState<any[]>([])
   const [usersData, setUsersData] = useState<any[]>([])
   const [cbtsData, setCbtsData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -93,11 +98,45 @@ export default function SuperAdminOverviewPage() {
       setCbtsData(cbtsRes.cbts || [])
     }
 
+    const supportRes = await getSuperAdminSupportTicketsAction()
+    if (supportRes.success) {
+      setSupportTicketsData(supportRes.tickets || [])
+    }
+
     setLoading(false)
   }
 
   useEffect(() => {
     loadData()
+
+    // Real-time Supabase Database Subscriptions across platform tables
+    const appsChannel = subscribeToTable('school_registration_application', {
+      callback: () => loadData(),
+    })
+    const schoolsChannel = subscribeToTable('school', {
+      callback: () => loadData(),
+    })
+    const usersChannel = subscribeToTable('user', {
+      callback: () => loadData(),
+    })
+    const cbtsChannel = subscribeToTable('assessment', {
+      callback: () => loadData(),
+    })
+    const supportChannel = subscribeToTable('support_ticket', {
+      callback: () => loadData(),
+    })
+    const repliesChannel = subscribeToTable('support_ticket_replies', {
+      callback: () => loadData(),
+    })
+
+    return () => {
+      unsubscribeFromTable(appsChannel)
+      unsubscribeFromTable(schoolsChannel)
+      unsubscribeFromTable(usersChannel)
+      unsubscribeFromTable(cbtsChannel)
+      unsubscribeFromTable(supportChannel)
+      unsubscribeFromTable(repliesChannel)
+    }
   }, [])
 
   const handleToggleParentAccess = async (schoolId: string, current: boolean) => {
@@ -203,6 +242,28 @@ export default function SuperAdminOverviewPage() {
       loadData()
     } else {
       toast.error('error' in res && res.error ? res.error : 'Failed to activate School Admin.')
+    }
+  }
+
+  const handleQuickReplySupport = async (ticketId: string) => {
+    const res = await quickReplySupportTicketAction(ticketId)
+    if (res.success) {
+      toast.success("Quick reply sent in real time: \"We have taken note of the support submitted, we'll get back to you shortly\"")
+      loadData()
+    } else {
+      toast.error('error' in res && res.error ? res.error : 'Failed to send quick reply.')
+    }
+  }
+
+  const handleCustomReplySupport = async (ticketId: string) => {
+    const customMessage = prompt('Type your custom support response for the user:')
+    if (!customMessage?.trim()) return
+    const res = await replyToSupportTicketAction(ticketId, customMessage.trim())
+    if (res.success) {
+      toast.success('Support reply sent successfully in real time!')
+      loadData()
+    } else {
+      toast.error('error' in res && res.error ? res.error : 'Failed to send support reply.')
     }
   }
 
@@ -348,6 +409,16 @@ export default function SuperAdminOverviewPage() {
             }`}
           >
             <ShieldAlert className="w-4 h-4" /> Pending Applications Queue ({applicationsData.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('SUPPORT')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+              activeTab === 'SUPPORT'
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                : 'text-slate-400 hover:bg-slate-900'
+            }`}
+          >
+            <Bell className="w-4 h-4" /> Support Tickets ({supportTicketsData.length})
           </button>
           <button
             onClick={() => setActiveTab('SCHOOLS')}
@@ -508,6 +579,98 @@ export default function SuperAdminOverviewPage() {
                                 Activate Admin
                               </button>
                             )}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* SUPPORT TICKETS TAB */}
+        {activeTab === 'SUPPORT' && (
+          <section className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-emerald-400" /> Real-Time Support Tickets & One-Click Quick Reply Queue
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Manage incoming support requests in real time. Send instant one-click acknowledgments or custom replies.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase font-black tracking-wider">
+                  <tr>
+                    <th className="p-3">Ticket ID & Title</th>
+                    <th className="p-3">User & Contact</th>
+                    <th className="p-3">Category</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3">Latest Response</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-medium">
+                  {supportTicketsData.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-500 font-bold">
+                        No support tickets submitted yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    supportTicketsData.map((t: any) => {
+                      const latestReply = t.replies?.[0]
+                      return (
+                        <tr key={t.id} className="hover:bg-slate-800/40 transition">
+                          <td className="p-3 font-bold text-white">
+                            <div className="text-emerald-400 font-mono text-[11px]">{t.ticketNumber || t.id}</div>
+                            <div className="text-slate-200">{t.title}</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{t.description}</div>
+                          </td>
+                          <td className="p-3">
+                            <p className="font-bold text-slate-200">{t.userName}</p>
+                            <p className="text-[10px] text-slate-400">{t.userEmail}</p>
+                          </td>
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300">
+                              {t.category || 'TECHNICAL'}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
+                              t.status === 'RESOLVED' ? 'bg-emerald-500/20 text-emerald-400' :
+                              t.status === 'IN_PROGRESS' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'
+                            }`}>
+                              {t.status || 'OPEN'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-[10px]">
+                            {latestReply ? (
+                              <p className="text-slate-300 italic line-clamp-2">"{latestReply.message}"</p>
+                            ) : (
+                              <span className="text-slate-500 italic">No reply yet</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right space-x-1.5">
+                            <button
+                              onClick={() => handleQuickReplySupport(t.id)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-bold text-[10px] transition"
+                              title="Send preset acknowledgment: We have taken note of the support submitted, we'll get back to you shortly"
+                            >
+                              One-Click Quick Reply
+                            </button>
+                            <button
+                              onClick={() => handleCustomReplySupport(t.id)}
+                              className="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 font-bold text-[10px] transition"
+                            >
+                              Custom Reply
+                            </button>
                           </td>
                         </tr>
                       )
