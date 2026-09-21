@@ -14,13 +14,16 @@ import {
   approveCBTAssessmentAction,
   awardStudentGiftAction,
   toggleUserSuspensionAction,
-  recordDisciplinaryAction
+  recordDisciplinaryAction,
   getPendingSchoolApplicationsAction,
   reviewSchoolApplicationAction,
   activateSchoolAdminAction,
   getSuperAdminSupportTicketsAction,
   replyToSupportTicketAction,
   quickReplySupportTicketAction,
+  verifyApplicationDocumentAction,
+  approveSchoolApplicationAction,
+  rejectSchoolApplicationAction,
 } from '@/app/actions/super-admin'
 import {
   Building2,
@@ -49,7 +52,6 @@ export default function SuperAdminOverviewPage() {
   const [supportTicketsData, setSupportTicketsData] = useState<any[]>([])
   const [usersData, setUsersData] = useState<any[]>([])
   const [cbtsData, setCbtsData] = useState<any[]>([])
-  const [applicationsData, setApplicationsData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -441,16 +443,6 @@ export default function SuperAdminOverviewPage() {
           <button
             onClick={() => setActiveTab('APPLICATIONS')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
-              activeTab === 'APPLICATIONS'
-                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
-                : 'text-slate-400 hover:bg-slate-900'
-            }`}
-          >
-            <ShieldAlert className="w-4 h-4" /> Applications Queue ({applicationsData.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('APPLICATIONS')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
               activeTab === 'APPLICATIONS'
                 ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
                 : 'text-slate-400 hover:bg-slate-900'

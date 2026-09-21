@@ -693,17 +693,19 @@ export async function approveSchoolApplicationAction(input: {
     // Attach SCHOOL_ADMIN identity
     await db.insert(userRole).values({
       id: randomUUID(),
-      userId: targetUserId,
+      userId: targetUserId!,
       role: 'SCHOOL_ADMIN',
     }).onConflictDoNothing()
 
-    await db.insert(schoolAdminRoles).values({
-      id: randomUUID(),
-      schoolId: appRecord.schoolId,
-      userId: targetUserId,
-      level: targetAdminLevel,
-      isActive: true,
-    }).onConflictDoNothing()
+    if (appRecord.schoolId) {
+      await db.insert(schoolAdminRoles).values({
+        id: randomUUID(),
+        schoolId: appRecord.schoolId,
+        userId: targetUserId!,
+        level: targetAdminLevel,
+        isActive: true,
+      }).onConflictDoNothing()
+    }
 
     // Record approval in audit log
     await db.insert(auditLog).values({
@@ -728,10 +730,12 @@ export async function approveSchoolApplicationAction(input: {
       updatedAt: new Date(),
     }).where(eq(schoolRegistrationApplication.id, input.applicationId))
 
-    await db.update(school).set({
-      paymentStatus: 'PAID',
-      updatedAt: new Date(),
-    }).where(eq(school.id, appRecord.schoolId))
+    if (appRecord.schoolId) {
+      await db.update(school).set({
+        paymentStatus: 'PAID',
+        updatedAt: new Date(),
+      }).where(eq(school.id, appRecord.schoolId))
+    }
 
     revalidatePath('/dashboard/super-admin/overview')
     return { success: true, schoolId: appRecord.schoolId, adminEmail: email }

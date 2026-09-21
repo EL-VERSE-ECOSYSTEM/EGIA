@@ -4,7 +4,7 @@ import { useState } from 'react'
 import {
   registerSchoolAction,
   confirmSchoolPaymentAction,
-  uploadSchoolApplicationDocumentAction,
+  uploadApplicationProofOfAddressAction,
   getSchoolApplicationStatusAction
 } from '@/app/actions/school'
 import {
@@ -165,11 +165,10 @@ export default function SchoolRegistrationPage() {
     setErrorMessage('')
     setSuccessMessage('')
 
-    const res = await uploadSchoolApplicationDocumentAction({
-      applicationId: appState.applicationId,
-      proofOfAddressType: documentType,
-      proofOfAddressFileUrl: documentUrl,
-    })
+    const res = await uploadApplicationProofOfAddressAction(
+      appState.applicationId,
+      documentUrl
+    )
 
     if (res.success) {
       setAppState((prev: any) => ({

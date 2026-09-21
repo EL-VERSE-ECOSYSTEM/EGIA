@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { school, schoolRegistrationApplication } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
+import { sanitizeServerError } from '@/lib/errors'
 import {
   initializeKorapayPayment as serviceInitializeKorapayPayment,
   verifyKorapayPayment as serviceVerifyKorapayPayment,
@@ -147,7 +148,7 @@ export async function uploadApplicationProofOfAddressAction(applicationId: strin
   }
 }
 
-export async function confirmSchoolPaymentAction(paymentReference: string) {
+export async function getSchoolApplicationStatusAction(applicationId: string) {
   try {
     if (!applicationId) return { success: false, error: 'Application ID is required.' }
 
@@ -159,9 +160,9 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
       return { success: false, error: 'Application not found.' }
     }
 
-    const schRecord = await db.query.school.findFirst({
+    const schRecord = appRecord.schoolId ? await db.query.school.findFirst({
       where: eq(school.id, appRecord.schoolId)
-    })
+    }) : null
 
     return {
       success: true,
@@ -169,8 +170,7 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
       schoolCode: schRecord?.code || null,
     }
   } catch (error: any) {
-    console.error('Failed to get school application status:', { requestId, error: error?.message || error })
-    return { success: false, error: 'Unable to retrieve application status.', requestId }
+    return sanitizeServerError('getSchoolApplicationStatusAction', error, 'Unable to retrieve application status.')
   }
 }
 
