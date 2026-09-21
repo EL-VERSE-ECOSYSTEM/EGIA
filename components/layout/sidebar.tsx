@@ -161,7 +161,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         if (sch) {
           setSchoolInfo({
             name: String(sch.name || 'EL LEARNERS'),
-            logoUrl: String(sch.logo_url || '/app-logo.png')
+            logoUrl: String(sch.logo_url || '/logo.svg')
           })
         }
       }
@@ -221,10 +221,10 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
     )
   } else if (role === 'admin') {
     links.push(
-      { label: 'Manage Adult Videos', icon: MonitorPlay, href: '/dashboard/teacher/adult-education/video-classes' },
-      { label: 'Manage Adult Assignments', icon: FileText, href: '/dashboard/teacher/adult-education/assignments' },
-      { label: 'Manage Adult Saved Sessions', icon: BookMarked, href: '/dashboard/teacher/adult-education/saved-sessions' },
-      { label: 'Manage Adult Live Classes', icon: Video, href: '/dashboard/teacher/adult-education/live-classes' },
+      { label: 'Manage Adult Videos', icon: MonitorPlay, href: '/dashboard/admin/adult-education/video-classes' },
+      { label: 'Manage Adult Assignments', icon: FileText, href: '/dashboard/admin/adult-education/assignments' },
+      { label: 'Manage Adult Saved Sessions', icon: BookMarked, href: '/dashboard/admin/adult-education/saved-sessions' },
+      { label: 'Manage Adult Live Classes', icon: Video, href: '/dashboard/admin/adult-education/live-classes' },
     )
   }
 
@@ -253,7 +253,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
                   alt={schoolInfo.name || 'School Logo'}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/app-logo.png'
+                    (e.target as HTMLImageElement).src = '/logo.svg'
                   }}
                 />
               ) : (

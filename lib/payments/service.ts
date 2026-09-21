@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { payment, school, schoolRegistrationApplication, transactions, student, paymentWebhookLogs, transactionLedger } from '@/lib/db/schema'
+import { payment, school, transactions, student, paymentWebhookLogs, transactionLedger, schoolRegistrationApplication } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { createHmac, timingSafeEqual, randomUUID } from 'crypto'
 
@@ -309,16 +309,30 @@ export async function processKorapayWebhook(rawBody: string, signature: string |
   const isFailed = event === 'charge.failed' || event === 'transfer.failed' || body.data?.status === 'failed'
 
   // 1. School Registration Payment Check
+  const appRecord = await db.query.schoolRegistrationApplication.findFirst({ where: eq(schoolRegistrationApplication.paymentReference, reference) })
   const schRecord = await db.query.school.findFirst({ where: eq(school.paymentReference, reference) })
-  if (schRecord) {
+
+  if (appRecord || schRecord) {
     if (isSuccess) {
-      await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schRecord.id))
-      await db.update(schoolRegistrationApplication).set({ paymentStatus: 'SUCCESS', updatedAt: new Date() }).where(eq(schoolRegistrationApplication.schoolId, schRecord.id))
+      if (appRecord) {
+        await db.update(schoolRegistrationApplication)
+          .set({ paymentStatus: 'SUCCESS', updatedAt: new Date() })
+          .where(eq(schoolRegistrationApplication.id, appRecord.id))
+      }
+      if (schRecord) {
+        await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schRecord.id))
+      }
     } else if (isFailed) {
-      await db.update(school).set({ paymentStatus: 'FAILED', updatedAt: new Date() }).where(eq(school.id, schRecord.id))
-      await db.update(schoolRegistrationApplication).set({ paymentStatus: 'FAILED', updatedAt: new Date() }).where(eq(schoolRegistrationApplication.schoolId, schRecord.id))
+      if (appRecord) {
+        await db.update(schoolRegistrationApplication)
+          .set({ paymentStatus: 'FAILED', updatedAt: new Date() })
+          .where(eq(schoolRegistrationApplication.id, appRecord.id))
+      }
+      if (schRecord) {
+        await db.update(school).set({ paymentStatus: 'FAILED', updatedAt: new Date() }).where(eq(school.id, schRecord.id))
+      }
     }
-    return { success: true, event, reference, note: 'School payment status updated' }
+    return { success: true, event, reference, note: 'School application payment status updated' }
   }
 
   // 2. Transactions Table Check

@@ -21,6 +21,10 @@ def load_env():
     return env
 
 def main():
+    if os.environ.get('NODE_ENV') == 'production' or os.environ.get('VERCEL') == '1':
+        print("db_exec.py is a development tool and cannot be executed in production environments.", file=sys.stderr)
+        sys.exit(1)
+
     if len(sys.argv) < 2:
         print("Usage: db_exec.py \"SQL STATEMENT\"")
         sys.exit(1)
@@ -53,13 +57,13 @@ def main():
     """
 
     env = load_env()
-    # Debug print actual DATABASE_URL used (excluding password)
+    # Debug print actual DATABASE_URL used (excluding credentials)
     db_url = env.get('DATABASE_URL', '')
     if '@' in db_url:
         parts = db_url.split('@', 1)
-        print("Using DB:", parts[1], file=sys.stderr)
+        print("Using DB host:", parts[1], file=sys.stderr)
     else:
-        print("Using DB:", db_url, file=sys.stderr)
+        print("Using DB connection string", file=sys.stderr)
 
     proc = subprocess.Popen(['node', '-e', node_script], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
     stdout, stderr = proc.communicate()

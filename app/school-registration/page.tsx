@@ -24,6 +24,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { LogoUploadField } from '@/components/uploads/LogoUploadField'
+import { ProofOfAddressUploadField } from '@/components/uploads/ProofOfAddressUploadField'
 
 const AVAILABLE_CLASSES = [
   'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
@@ -40,6 +41,8 @@ export default function SchoolRegistrationPage() {
     adminEmail: '',
     adminGender: 'Male',
     adminLevel: 'PRIMARY_ADMIN',
+    proofOfAddressType: 'ELECTRICITY_BILL',
+    proofOfAddressFileUrl: '',
     allowParents: true,
     logo_url: '',
     logo_path: '',
@@ -485,25 +488,13 @@ export default function SchoolRegistrationPage() {
               </div>
             </div>
 
-            {/* Applicant Contact Info */}
+            {/* Applicant Details & Document Verification */}
             <div className="space-y-4">
               <h2 className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-2">
-                <Building2 className="w-4 h-4" /> Applicant Contact Information
+                <Building2 className="w-4 h-4" /> Applicant Details & Verification Documents
               </h2>
-              <div className="space-y-1 bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                <label className="block text-xs font-black uppercase text-slate-400 mb-1">Requested Admin Level *</label>
-                <select
-                  value={formData.adminLevel}
-                  onChange={e => setFormData({ ...formData, adminLevel: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-blue-400 focus:outline-none focus:border-blue-500 cursor-pointer"
-                >
-                  <option value="PRIMARY_ADMIN">Primary Admin / Principal (Full Control)</option>
-                  <option value="VICE_PRINCIPAL_ACADEMICS">Vice Principal (Academics)</option>
-                  <option value="VICE_PRINCIPAL_ADMIN">Vice Principal (Administration)</option>
-                  <option value="HOD_SCIENCE">Head of Department (HOD) — Science</option>
-                  <option value="HOD_ARTS">Head of Department (HOD) — Arts</option>
-                  <option value="HOD_COMMERCIAL">Head of Department (HOD) — Commercial</option>
-                </select>
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+                <strong>Manual Authorization Notice:</strong> Registration creates a pending school application. Active school administrator access is granted only after manual document review (e.g. recent electricity bill) and Super-Admin approval. Email and phone are collected as contact details.
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -517,17 +508,6 @@ export default function SchoolRegistrationPage() {
                     onChange={e => setFormData({ ...formData, adminName: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Gender *</label>
-                  <select
-                    value={formData.adminGender}
-                    onChange={e => setFormData({ ...formData, adminGender: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition cursor-pointer"
-                  >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-black uppercase text-slate-400 mb-1">Contact Phone Number *</label>
@@ -551,6 +531,17 @@ export default function SchoolRegistrationPage() {
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
                   />
                 </div>
+              </div>
+
+              <div>
+                <ProofOfAddressUploadField
+                  existingUrl={formData.proofOfAddressFileUrl}
+                  onUploaded={(url) => setFormData(prev => ({ ...prev, proofOfAddressFileUrl: url }))}
+                  onRemoved={() => setFormData(prev => ({ ...prev, proofOfAddressFileUrl: '' }))}
+                />
+                <p className="text-[11px] text-slate-500 font-medium pt-1">
+                  Upload a recent electricity bill (PDF, PNG, JPG, WebP) matching the school name/address for manual Super-Admin verification.
+                </p>
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { subscribeToTable, unsubscribeFromTable } from '@/utils/supabase/client'
 import {
   getSuperAdminOverviewStats,
   toggleSchoolParentRegistrationAction,
@@ -13,11 +14,13 @@ import {
   approveCBTAssessmentAction,
   awardStudentGiftAction,
   toggleUserSuspensionAction,
-  recordDisciplinaryAction,
-  getSchoolApplicationsForSuperAdmin,
-  verifyApplicationDocumentAction,
-  approveSchoolApplicationAction,
-  rejectSchoolApplicationAction,
+  recordDisciplinaryAction
+  getPendingSchoolApplicationsAction,
+  reviewSchoolApplicationAction,
+  activateSchoolAdminAction,
+  getSuperAdminSupportTicketsAction,
+  replyToSupportTicketAction,
+  quickReplySupportTicketAction,
 } from '@/app/actions/super-admin'
 import {
   Building2,
@@ -40,8 +43,10 @@ import {
 import { toast } from 'sonner'
 
 export default function SuperAdminOverviewPage() {
-  const [activeTab, setActiveTab] = useState<'APPLICATIONS' | 'SCHOOLS' | 'USERS' | 'CBTS' | 'GIFTS'>('APPLICATIONS')
+  const [activeTab, setActiveTab] = useState<'APPLICATIONS' | 'SUPPORT' | 'SCHOOLS' | 'USERS' | 'CBTS' | 'GIFTS'>('APPLICATIONS')
   const [data, setData] = useState<any>(null)
+  const [applicationsData, setApplicationsData] = useState<any[]>([])
+  const [supportTicketsData, setSupportTicketsData] = useState<any[]>([])
   const [usersData, setUsersData] = useState<any[]>([])
   const [cbtsData, setCbtsData] = useState<any[]>([])
   const [applicationsData, setApplicationsData] = useState<any[]>([])
@@ -79,6 +84,11 @@ export default function SuperAdminOverviewPage() {
       setData(res)
     }
 
+    const appsRes = await getPendingSchoolApplicationsAction()
+    if (appsRes.success) {
+      setApplicationsData(appsRes.applications || [])
+    }
+
     const usersRes = await getAllUsersForSuperAdmin()
     if (usersRes.success) {
       setUsersData(usersRes.users || [])
@@ -89,9 +99,9 @@ export default function SuperAdminOverviewPage() {
       setCbtsData(cbtsRes.cbts || [])
     }
 
-    const appsRes = await getSchoolApplicationsForSuperAdmin()
-    if (appsRes.success) {
-      setApplicationsData(appsRes.applications || [])
+    const supportRes = await getSuperAdminSupportTicketsAction()
+    if (supportRes.success) {
+      setSupportTicketsData(supportRes.tickets || [])
     }
 
     setLoading(false)
@@ -99,6 +109,35 @@ export default function SuperAdminOverviewPage() {
 
   useEffect(() => {
     loadData()
+
+    // Real-time Supabase Database Subscriptions across platform tables
+    const appsChannel = subscribeToTable('school_registration_application', {
+      callback: () => loadData(),
+    })
+    const schoolsChannel = subscribeToTable('school', {
+      callback: () => loadData(),
+    })
+    const usersChannel = subscribeToTable('user', {
+      callback: () => loadData(),
+    })
+    const cbtsChannel = subscribeToTable('assessment', {
+      callback: () => loadData(),
+    })
+    const supportChannel = subscribeToTable('support_ticket', {
+      callback: () => loadData(),
+    })
+    const repliesChannel = subscribeToTable('support_ticket_replies', {
+      callback: () => loadData(),
+    })
+
+    return () => {
+      unsubscribeFromTable(appsChannel)
+      unsubscribeFromTable(schoolsChannel)
+      unsubscribeFromTable(usersChannel)
+      unsubscribeFromTable(cbtsChannel)
+      unsubscribeFromTable(supportChannel)
+      unsubscribeFromTable(repliesChannel)
+    }
   }, [])
 
   const handleToggleParentAccess = async (schoolId: string, current: boolean) => {
@@ -129,7 +168,7 @@ export default function SuperAdminOverviewPage() {
       toast.success(currentSuspended ? 'User unsuspended successfully!' : 'User suspended successfully!')
       loadData()
     } else {
-      toast.error(res.error || 'Failed to update user suspension state.')
+      toast.error('error' in res && res.error ? res.error : 'Failed to update user suspension state.')
     }
   }
 
@@ -152,7 +191,7 @@ export default function SuperAdminOverviewPage() {
       setShowGiftModal(false)
       setSelectedStudentForGift(null)
     } else {
-      toast.error(res.error || 'Failed to award gift.')
+      toast.error('error' in res && res.error ? res.error : 'Failed to award gift.')
     }
     setSubmittingGift(false)
   }
@@ -175,9 +214,58 @@ export default function SuperAdminOverviewPage() {
       setSelectedUserForDisc(null)
       loadData()
     } else {
-      toast.error(res.error || 'Failed to record disciplinary action.')
+      toast.error('error' in res && res.error ? res.error : 'Failed to record disciplinary action.')
     }
     setSubmittingDisc(false)
+  }
+
+  const handleReviewApplication = async (applicationId: string, docStatus?: 'VERIFIED' | 'REJECTED', appStatus?: 'APPROVED' | 'REJECTED') => {
+    const rejectionReason = appStatus === 'REJECTED' ? prompt('Reason for rejection:') || 'Documentation incomplete' : undefined
+    const res = await reviewSchoolApplicationAction({
+      applicationId,
+      documentStatus: docStatus,
+      approvalStatus: appStatus,
+      rejectionReason,
+    })
+    if (res.success) {
+      toast.success('Application state updated successfully.')
+      loadData()
+    } else {
+      toast.error('error' in res && res.error ? res.error : 'Failed to update application review state.')
+    }
+  }
+
+  const handleActivateSchoolAdmin = async (applicationId: string) => {
+    if (!confirm('Activate school admin identity and send setup invitation link?')) return
+    const res = await activateSchoolAdminAction(applicationId)
+    if (res.success) {
+      toast.success('School Admin activated and password setup/invitation issued!')
+      loadData()
+    } else {
+      toast.error('error' in res && res.error ? res.error : 'Failed to activate School Admin.')
+    }
+  }
+
+  const handleQuickReplySupport = async (ticketId: string) => {
+    const res = await quickReplySupportTicketAction(ticketId)
+    if (res.success) {
+      toast.success("Quick reply sent in real time: \"We have taken note of the support submitted, we'll get back to you shortly\"")
+      loadData()
+    } else {
+      toast.error('error' in res && res.error ? res.error : 'Failed to send quick reply.')
+    }
+  }
+
+  const handleCustomReplySupport = async (ticketId: string) => {
+    const customMessage = prompt('Type your custom support response for the user:')
+    if (!customMessage?.trim()) return
+    const res = await replyToSupportTicketAction(ticketId, customMessage.trim())
+    if (res.success) {
+      toast.success('Support reply sent successfully in real time!')
+      loadData()
+    } else {
+      toast.error('error' in res && res.error ? res.error : 'Failed to send support reply.')
+    }
   }
 
   const handleApproveCBT = async (cbtId: string, approved: boolean) => {
@@ -235,7 +323,7 @@ export default function SuperAdminOverviewPage() {
     })
 
     if (res.success) {
-      alert(`Broadcast sent successfully to ${res.count} user accounts!`)
+      alert(`Broadcast sent successfully to ${'count' in res ? res.count : 0} user accounts!`)
       setShowBroadcastModal(false)
       setBroadcastTitle('')
       setBroadcastMessage('')
@@ -361,6 +449,26 @@ export default function SuperAdminOverviewPage() {
             <ShieldAlert className="w-4 h-4" /> Applications Queue ({applicationsData.length})
           </button>
           <button
+            onClick={() => setActiveTab('APPLICATIONS')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+              activeTab === 'APPLICATIONS'
+                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                : 'text-slate-400 hover:bg-slate-900'
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4" /> Pending Applications Queue ({applicationsData.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('SUPPORT')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+              activeTab === 'SUPPORT'
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                : 'text-slate-400 hover:bg-slate-900'
+            }`}
+          >
+            <Bell className="w-4 h-4" /> Support Tickets ({supportTicketsData.length})
+          </button>
+          <button
             onClick={() => setActiveTab('SCHOOLS')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
               activeTab === 'SCHOOLS'
@@ -368,7 +476,7 @@ export default function SuperAdminOverviewPage() {
                 : 'text-slate-400 hover:bg-slate-900'
             }`}
           >
-            <Building2 className="w-4 h-4" /> School Management ({filteredSchools.length})
+            <Building2 className="w-4 h-4" /> Active Schools ({filteredSchools.length})
           </button>
           <button
             onClick={() => setActiveTab('USERS')}
@@ -417,13 +525,13 @@ export default function SuperAdminOverviewPage() {
         {/* APPLICATIONS QUEUE TAB */}
         {activeTab === 'APPLICATIONS' && (
           <section className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
-                <h3 className="text-lg font-black text-blue-400 flex items-center gap-2">
-                  <ShieldAlert className="w-5 h-5" /> School Registration Applications Queue
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-blue-400" /> Pending School Applications & Proof of Address Queue
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Review applicant details, verify proof of school address (electricity bill), and manually approve or reject applications before SCHOOL_ADMIN identity activation.
+                  Verify electricity bill / proof of address, confirm Korapay payment, and manually approve applications before activating SCHOOL_ADMIN identities.
                 </p>
               </div>
             </div>
@@ -432,11 +540,10 @@ export default function SuperAdminOverviewPage() {
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase font-black tracking-wider">
                   <tr>
-                    <th className="p-3">School Name</th>
-                    <th className="p-3">Applicant Contact</th>
-                    <th className="p-3">Proof of Address</th>
-                    <th className="p-3">Payment</th>
-                    <th className="p-3">Doc Status</th>
+                    <th className="p-3">School & Address</th>
+                    <th className="p-3">Applicant Contact (Unverified)</th>
+                    <th className="p-3">Proof of Address (Electricity Bill)</th>
+                    <th className="p-3">Payment Status</th>
                     <th className="p-3">Approval Status</th>
                     <th className="p-3 text-right">Actions</th>
                   </tr>
@@ -444,95 +551,178 @@ export default function SuperAdminOverviewPage() {
                 <tbody className="divide-y divide-slate-800/60 font-medium">
                   {applicationsData.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-slate-500 font-bold">
-                        No pending school registration applications found.
+                      <td colSpan={6} className="p-8 text-center text-slate-500 font-bold">
+                        No pending school applications in the queue.
                       </td>
                     </tr>
                   ) : (
-                    applicationsData.map((app: any) => (
-                      <tr key={app.id} className="hover:bg-slate-800/40 transition">
-                        <td className="p-3 font-bold text-white">
-                          <p>{app.schoolName}</p>
-                          <p className="text-[10px] text-slate-400">{app.schoolAddress}</p>
-                        </td>
-                        <td className="p-3">
-                          <p className="font-bold text-slate-200">{app.applicantName} ({app.adminLevel || 'PRIMARY_ADMIN'})</p>
-                          <p className="text-[10px] text-slate-400">{app.applicantEmail} • {app.applicantPhone}</p>
-                        </td>
-                        <td className="p-3">
-                          {app.proofOfAddressFileUrl ? (
-                            <a
-                              href={app.proofOfAddressFileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-blue-400 hover:underline font-bold text-[11px] inline-flex items-center gap-1"
-                            >
-                              <span>{app.proofOfAddressType || 'Electricity Bill'}</span>
-                            </a>
-                          ) : (
-                            <span className="text-slate-500 italic">No document uploaded</span>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            app.paymentStatus === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
-                          }`}>
-                            {app.paymentStatus}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            app.documentVerificationStatus === 'VERIFIED' ? 'bg-emerald-500/20 text-emerald-400' :
-                            app.documentVerificationStatus === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
-                          }`}>
-                            {app.documentVerificationStatus}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            app.approvalStatus === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400' :
-                            app.approvalStatus === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
-                          }`}>
-                            {app.approvalStatus}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right space-y-1 sm:space-y-0 sm:space-x-1.5">
-                          {app.proofOfAddressFileUrl && app.documentVerificationStatus !== 'VERIFIED' && (
+                    applicationsData.map((app: any) => {
+                      const canActivate = app.paymentStatus === 'SUCCESS' && app.approvalStatus === 'APPROVED' && app.documentVerificationStatus === 'VERIFIED'
+                      return (
+                        <tr key={app.id} className="hover:bg-slate-800/40 transition">
+                          <td className="p-3 font-bold text-white">
+                            <div>{app.schoolName}</div>
+                            <div className="text-[10px] text-slate-400">{app.schoolAddress}</div>
+                          </td>
+                          <td className="p-3">
+                            <p className="font-bold text-slate-200">{app.applicantName}</p>
+                            <p className="text-[10px] text-slate-400">{app.applicantEmail}</p>
+                            <p className="text-[10px] text-slate-400">{app.applicantPhone}</p>
+                          </td>
+                          <td className="p-3">
+                            {app.proofOfAddressFileUrl ? (
+                              <div className="space-y-1">
+                                <a
+                                  href={app.proofOfAddressFileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-blue-400 hover:underline font-bold text-[11px] block"
+                                >
+                                  View Electricity Bill
+                                </a>
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                                  app.documentVerificationStatus === 'VERIFIED' ? 'bg-emerald-500/20 text-emerald-400' :
+                                  app.documentVerificationStatus === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                                }`}>
+                                  Doc: {app.documentVerificationStatus}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-500 italic">No bill uploaded</span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
+                              app.paymentStatus === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                            }`}>
+                              {app.paymentStatus}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
+                              app.approvalStatus === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400' :
+                              app.approvalStatus === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                            }`}>
+                              {app.approvalStatus}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right space-x-1.5">
                             <button
-                              onClick={() => handleVerifyDoc(app.id, 'VERIFIED')}
-                              className="px-2 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold text-[10px] transition"
+                              onClick={() => handleReviewApplication(app.id, 'VERIFIED', 'APPROVED')}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-bold text-[10px] transition"
                             >
-                              Verify Doc
+                              Verify & Approve
                             </button>
-                          )}
-                          {app.proofOfAddressFileUrl && app.documentVerificationStatus !== 'REJECTED' && (
                             <button
-                              onClick={() => handleVerifyDoc(app.id, 'REJECTED')}
-                              className="px-2 py-1 rounded bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 font-bold text-[10px] transition"
-                            >
-                              Reject Doc
-                            </button>
-                          )}
-                          {app.approvalStatus === 'PENDING_REVIEW' && (
-                            <button
-                              onClick={() => handleApproveSchoolApp(app.id)}
-                              disabled={app.paymentStatus !== 'SUCCESS' || app.documentVerificationStatus !== 'VERIFIED'}
-                              className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] transition disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              Approve School
-                            </button>
-                          )}
-                          {app.approvalStatus === 'PENDING_REVIEW' && (
-                            <button
-                              onClick={() => handleRejectSchoolApp(app.id)}
-                              className="px-2.5 py-1 rounded bg-red-600/20 hover:bg-red-600/30 text-red-400 font-bold text-[10px] transition"
+                              onClick={() => handleReviewApplication(app.id, 'REJECTED', 'REJECTED')}
+                              className="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold text-[10px] transition"
                             >
                               Reject
                             </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))
+                            {canActivate && (
+                              <button
+                                onClick={() => handleActivateSchoolAdmin(app.id)}
+                                className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] shadow transition"
+                              >
+                                Activate Admin
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* SUPPORT TICKETS TAB */}
+        {activeTab === 'SUPPORT' && (
+          <section className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-emerald-400" /> Real-Time Support Tickets & One-Click Quick Reply Queue
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Manage incoming support requests in real time. Send instant one-click acknowledgments or custom replies.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase font-black tracking-wider">
+                  <tr>
+                    <th className="p-3">Ticket ID & Title</th>
+                    <th className="p-3">User & Contact</th>
+                    <th className="p-3">Category</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3">Latest Response</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-medium">
+                  {supportTicketsData.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-500 font-bold">
+                        No support tickets submitted yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    supportTicketsData.map((t: any) => {
+                      const latestReply = t.replies?.[0]
+                      return (
+                        <tr key={t.id} className="hover:bg-slate-800/40 transition">
+                          <td className="p-3 font-bold text-white">
+                            <div className="text-emerald-400 font-mono text-[11px]">{t.ticketNumber || t.id}</div>
+                            <div className="text-slate-200">{t.title}</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{t.description}</div>
+                          </td>
+                          <td className="p-3">
+                            <p className="font-bold text-slate-200">{t.userName}</p>
+                            <p className="text-[10px] text-slate-400">{t.userEmail}</p>
+                          </td>
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300">
+                              {t.category || 'TECHNICAL'}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
+                              t.status === 'RESOLVED' ? 'bg-emerald-500/20 text-emerald-400' :
+                              t.status === 'IN_PROGRESS' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'
+                            }`}>
+                              {t.status || 'OPEN'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-[10px]">
+                            {latestReply ? (
+                              <p className="text-slate-300 italic line-clamp-2">"{latestReply.message}"</p>
+                            ) : (
+                              <span className="text-slate-500 italic">No reply yet</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right space-x-1.5">
+                            <button
+                              onClick={() => handleQuickReplySupport(t.id)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-bold text-[10px] transition"
+                              title="Send preset acknowledgment: We have taken note of the support submitted, we'll get back to you shortly"
+                            >
+                              One-Click Quick Reply
+                            </button>
+                            <button
+                              onClick={() => handleCustomReplySupport(t.id)}
+                              className="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 font-bold text-[10px] transition"
+                            >
+                              Custom Reply
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
                   )}
                 </tbody>
               </table>

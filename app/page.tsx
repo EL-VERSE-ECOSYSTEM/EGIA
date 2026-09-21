@@ -68,100 +68,95 @@ export default async function LandingPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative pt-24 pb-32 overflow-hidden bg-gradient-to-br from-amber-500/10 via-blue-500/10 to-purple-500/10 animate-gradient-x">
+        <section className="relative pt-16 sm:pt-24 pb-20 sm:pb-32 overflow-hidden bg-gradient-to-br from-amber-500/10 via-blue-500/10 to-purple-500/10">
           <div className="container mx-auto px-4 relative z-10 text-center max-w-5xl">
-            <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-amber-50 border border-amber-100 text-amber-700 text-sm font-black mb-10 tracking-widest uppercase">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-100 text-amber-700 text-xs sm:text-sm font-black mb-6 sm:mb-10 tracking-widest uppercase">
               <Trophy className="w-4 h-4" /> Academic Excellence in Nigeria
             </div>
-            <h1 className="text-6xl md:text-9xl font-black text-slate-900 mb-8 leading-[0.9] tracking-tighter">
+            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-slate-900 mb-6 sm:mb-8 leading-tight tracking-tighter">
               Inspiring <span className="text-amber-600">Greatness</span> In Every Student
             </h1>
-            <p className="text-xl md:text-2xl text-slate-500 mb-14 leading-relaxed max-w-3xl mx-auto font-medium">
+            <p className="text-base sm:text-xl text-slate-600 mb-8 sm:mb-12 leading-relaxed max-w-3xl mx-auto font-medium">
               EL LEARNERS is where traditional values meet 21st-century innovation.
               Join a community committed to nurturing the total child.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-              <Link href="/auth/signup">
-                <Button size="lg" className="bg-amber-600 hover:bg-amber-700 text-white h-20 px-14 rounded-[2rem] font-black text-xl shadow-2xl shadow-amber-200 group transition-all hover:scale-105">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+              <Link href="/auth/signup" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white h-12 sm:h-16 px-6 sm:px-10 rounded-2xl font-black text-base sm:text-lg shadow-xl shadow-amber-200 group transition-all">
                   START REGISTRATION <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Link href="/auth/signin">
-                <Button size="lg" className="bg-slate-900 hover:bg-slate-800 text-white h-20 px-14 rounded-[2rem] font-black text-xl shadow-2xl shadow-slate-200 transition-all hover:scale-105">
+              <Link href="/auth/signin" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white h-12 sm:h-16 px-6 sm:px-10 rounded-2xl font-black text-base sm:text-lg shadow-xl shadow-slate-200 transition-all">
                   PORTAL LOGIN
-                </Button>
-              </Link>
-              <Link href="/admissions">
-                <Button variant="outline" size="lg" className="h-20 px-14 rounded-[2rem] font-black text-xl border-4 text-slate-800 border-slate-100 hover:bg-slate-50 transition-all hover:scale-105">
-                  ADMISSIONS
                 </Button>
               </Link>
             </div>
           </div>
-          <div className="absolute top-1/2 left-0 w-[500px] h-[500px] bg-amber-400/5 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-blue-400/5 rounded-full blur-[140px] translate-x-1/3 translate-y-1/3" />
+          <div className="absolute top-1/2 left-0 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-amber-400/5 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-[350px] sm:w-[600px] h-[350px] sm:h-[600px] bg-blue-400/5 rounded-full blur-[140px] translate-x-1/3 translate-y-1/3" />
         </section>
 
         {/* Stats Bar */}
-        <section className="py-24 bg-slate-950 text-white relative z-20">
+        <section className="py-16 sm:py-24 bg-slate-950 text-white relative z-20">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-16 text-center">
-              <div className="space-y-4">
-                <div className="text-7xl font-black text-amber-500 tracking-tighter">4+</div>
-                <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-xs">Years of History</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-16 text-center">
+              <div className="space-y-2 sm:space-y-4">
+                <div className="text-4xl sm:text-6xl font-black text-amber-500 tracking-tighter">50+</div>
+                <div className="text-slate-400 font-black uppercase tracking-[0.2em] text-xs">Partner Schools</div>
               </div>
-              <div className="space-y-4">
-                <div className="text-7xl font-black text-amber-500 tracking-tighter">A few</div>
-                <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-xs">Ph.D Educators</div>
+              <div className="space-y-2 sm:space-y-4">
+                <div className="text-4xl sm:text-6xl font-black text-amber-500 tracking-tighter">10,000+</div>
+                <div className="text-slate-400 font-black uppercase tracking-[0.2em] text-xs">Active Students</div>
               </div>
-              <div className="space-y-4">
-                <div className="text-7xl font-black text-amber-500 tracking-tighter">100%</div>
-                <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-xs">Exam Pass Rate</div>
+              <div className="space-y-2 sm:space-y-4">
+                <div className="text-4xl sm:text-6xl font-black text-amber-500 tracking-tighter">500+</div>
+                <div className="text-slate-400 font-black uppercase tracking-[0.2em] text-xs">Certified Educators</div>
               </div>
             </div>
           </div>
         </section>
 
         {/* About Us */}
-        <section id="about" className="py-40 bg-white">
+        <section id="about" className="py-20 sm:py-32 bg-white">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-32 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
               <div className="relative group">
-                <div className="aspect-[3/4] bg-slate-100 rounded-[4rem] overflow-hidden shadow-2xl relative border-[16px] border-slate-50">
-                   <img
-                     src="https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1200"
-                     alt="EL LEARNERS APP Classroom"
-                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
-                   />
-                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent opacity-40" />
-                </div>
-                <div className="absolute -bottom-16 -right-16 bg-amber-600 text-white p-14 rounded-[3rem] shadow-[0_50px_100px_-20px_rgba(217,119,6,0.3)] max-w-sm hidden lg:block border-[12px] border-white">
-                  <p className="font-black text-3xl italic leading-[1.2]">"We nurture the total child for a brighter global future."</p>
+                <div className="aspect-[4/3] sm:aspect-[3/4] bg-slate-900 rounded-3xl sm:rounded-[3rem] overflow-hidden shadow-2xl relative border-8 sm:border-[12px] border-slate-100 flex items-center justify-center p-8">
+                   <div className="text-center space-y-4">
+                     <GraduationCap className="w-24 h-24 text-amber-500 mx-auto" />
+                     <h3 className="text-2xl font-black text-white uppercase tracking-wider">EL LEARNERS APP</h3>
+                     <p className="text-slate-400 text-sm font-bold max-w-xs mx-auto">Empowering Educational Excellence across Nigeria</p>
+                   </div>
                 </div>
               </div>
-              <div className="space-y-12">
-                <div className="inline-block px-8 py-2 rounded-full bg-amber-100 text-amber-700 text-xs font-black uppercase tracking-[0.3em]">Our Heritage</div>
-                <h2 className="text-6xl md:text-7xl font-black text-slate-900 leading-[0.95] tracking-tighter">Committed to Academic Rigor</h2>
-                <p className="text-slate-500 text-2xl leading-relaxed font-medium">
+              <div className="space-y-8 sm:space-y-10">
+                <div className="inline-block px-6 py-2 rounded-full bg-amber-100 text-amber-700 text-xs font-black uppercase tracking-[0.2em]">Our Platform</div>
+                <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter leading-tight">Committed to Academic Rigor</h2>
+                <p className="text-slate-600 text-lg sm:text-xl leading-relaxed font-medium">
                   At EL LEARNERS, we don't just teach; we inspire. Our curriculum is designed to challenge students
                   intellectually while grounding them in moral discipline.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {[
                     "Global Standard",
                     "Moral Leadership",
                     "Tech-First Lab",
                     "Secure Campus"
                   ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-5">
-                      <div className="bg-amber-500 p-3 rounded-2xl shadow-lg shadow-amber-200">
-                        <CheckCircle2 className="text-white" size={24} />
+                    <div key={i} className="flex items-center gap-4">
+                      <div className="bg-amber-500 p-2.5 rounded-xl shadow-md shadow-amber-200">
+                        <CheckCircle2 className="text-white w-5 h-5" />
                       </div>
-                      <span className="font-black text-slate-800 text-xl tracking-tight">{item}</span>
+                      <span className="font-black text-slate-800 text-base sm:text-lg tracking-tight">{item}</span>
                     </div>
                   ))}
                 </div>
-                <Button variant="outline" className="h-16 px-10 rounded-2xl font-black text-slate-900 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">LEARN OUR HISTORY</Button>
+                <Link href="#contact" className="inline-block">
+                  <Button variant="outline" className="h-12 sm:h-14 px-8 rounded-xl font-black text-slate-900 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+                    GET IN TOUCH
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
@@ -333,27 +328,33 @@ export default async function LandingPage() {
                      </div>
                   </div>
                </div>
-               <Card className="bg-slate-50 border-none rounded-[4rem] p-16 shadow-2xl shadow-slate-100">
-                  <form className="space-y-10">
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                        <div className="space-y-3">
-                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2">First Name</label>
-                           <Input placeholder="Enter first name" className="h-16 rounded-[1.5rem] bg-white border-none shadow-sm px-8 font-black text-lg focus:ring-8 focus:ring-amber-600/10 transition-all placeholder:text-slate-300" />
+               <Card className="bg-slate-50 border-none rounded-3xl sm:rounded-[3rem] p-8 sm:p-12 shadow-xl">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      alert('Thank you for reaching out! Our support team will get back to you shortly.')
+                    }}
+                    className="space-y-6 sm:space-y-8"
+                  >
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                           <label htmlFor="firstName" className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">First Name</label>
+                           <Input id="firstName" required placeholder="Enter first name" className="h-12 rounded-xl bg-white border border-slate-200 px-4 font-bold text-sm" />
                         </div>
-                        <div className="space-y-3">
-                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2">Last Name</label>
-                           <Input placeholder="Enter last name" className="h-16 rounded-[1.5rem] bg-white border-none shadow-sm px-8 font-black text-lg focus:ring-8 focus:ring-amber-600/10 transition-all placeholder:text-slate-300" />
+                        <div className="space-y-2">
+                           <label htmlFor="lastName" className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Last Name</label>
+                           <Input id="lastName" required placeholder="Enter last name" className="h-12 rounded-xl bg-white border border-slate-200 px-4 font-bold text-sm" />
                         </div>
                      </div>
-                     <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2">Email Address</label>
-                        <Input type="email" placeholder="email@example.com" className="h-16 rounded-[1.5rem] bg-white border-none shadow-sm px-8 font-black text-lg focus:ring-8 focus:ring-amber-600/10 transition-all placeholder:text-slate-300" />
+                     <div className="space-y-2">
+                        <label htmlFor="contactEmail" className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Email Address</label>
+                        <Input id="contactEmail" type="email" required placeholder="email@example.com" className="h-12 rounded-xl bg-white border border-slate-200 px-4 font-bold text-sm" />
                      </div>
-                     <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2">Message</label>
-                        <Textarea placeholder="How can we help you?" rows={5} className="rounded-[2rem] bg-white border-none shadow-sm px-8 py-8 font-black text-lg focus:ring-8 focus:ring-amber-600/10 transition-all placeholder:text-slate-300" />
+                     <div className="space-y-2">
+                        <label htmlFor="contactMessage" className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Message</label>
+                        <Textarea id="contactMessage" required placeholder="How can we help you?" rows={4} className="rounded-xl bg-white border border-slate-200 p-4 font-bold text-sm" />
                      </div>
-                     <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white h-20 rounded-[2rem] font-black text-xl transition-all shadow-2xl shadow-slate-200 uppercase tracking-[0.2em]">
+                     <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white h-12 rounded-xl font-black text-sm uppercase tracking-wider transition-all shadow-lg">
                         Send Message
                      </Button>
                   </form>

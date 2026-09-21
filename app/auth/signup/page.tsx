@@ -59,13 +59,13 @@ export default function SignUpPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4 sm:p-8 py-16 relative overflow-hidden perspective-[1200px]">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4 sm:p-8 py-16 relative overflow-hidden">
       {/* Dynamic Background Lights */}
       <div className="absolute top-10 left-1/4 w-96 h-96 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 right-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
 
       {/* Brand Header */}
-      <div className="mb-10 flex items-center gap-3 relative z-10">
+      <div className="mb-8 flex items-center gap-3 relative z-10">
         <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-xl border border-white/20 shadow-xl">
           <GraduationCap className="text-white w-7 h-7" />
         </div>
@@ -73,17 +73,14 @@ export default function SignUpPage() {
           <span className="font-black text-2xl tracking-tight text-white uppercase">
             EL <span className="text-orange-400">LEARNERS APP</span>
           </span>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">3D Registration Gateway</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registration Portal</p>
         </div>
       </div>
 
-      <div className="max-w-3xl w-full text-center mb-12 space-y-3 relative z-10">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-black uppercase tracking-widest text-orange-400">
-          <Sparkles className="w-4 h-4 text-orange-400" /> Onboarding Portals
-        </div>
-        <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight">Create Your Account</h1>
+      <div className="max-w-3xl w-full text-center mb-10 space-y-3 relative z-10">
+        <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">Select Account Type</h1>
         <p className="text-slate-400 text-sm sm:text-base font-bold max-w-xl mx-auto">
-          Choose your account type to access standardized 3D dashboards on EL LEARNERS APP
+          Choose your role below to start setting up your EL LEARNERS account.
         </p>
       </div>
 
@@ -106,10 +103,11 @@ export default function SignUpPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-6 pb-8 mt-auto">
-                <Link href={opt.link} className="block w-full">
-                  <Button className={`w-full ${opt.btnBg} h-12 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-xl active:scale-95`}>
-                    GET STARTED <ArrowRight className="w-4 h-4" />
-                  </Button>
+                <Link
+                  href={opt.link}
+                  className={`block w-full ${opt.btnBg} h-12 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-xl active:scale-95 text-center`}
+                >
+                  GET STARTED <ArrowRight className="w-4 h-4" />
                 </Link>
               </CardContent>
             </Card>

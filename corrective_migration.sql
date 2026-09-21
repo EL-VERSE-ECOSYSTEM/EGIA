@@ -227,6 +227,33 @@ CREATE TABLE IF NOT EXISTS public.school_admin_roles (
     UNIQUE (schoolid, userid)
 );
 
+CREATE TABLE IF NOT EXISTS public.school_registration_application (
+    id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    school_id text REFERENCES public.school(id) ON DELETE SET NULL,
+    applicant_email text NOT NULL,
+    applicant_phone text NOT NULL,
+    applicant_name text NOT NULL,
+    school_name text NOT NULL,
+    school_address text NOT NULL,
+    proof_of_address_type text NOT NULL DEFAULT 'ELECTRICITY_BILL',
+    proof_of_address_file_url text,
+    document_verification_status text NOT NULL DEFAULT 'PENDING',
+    payment_status text NOT NULL DEFAULT 'PENDING',
+    approval_status text NOT NULL DEFAULT 'PENDING_REVIEW',
+    submitted_at timestamptz NOT NULL DEFAULT now(),
+    reviewed_by text REFERENCES public."user"(id) ON DELETE SET NULL,
+    reviewed_at timestamptz,
+    rejection_reason text,
+    admin_level text DEFAULT 'PRIMARY_ADMIN',
+    registered_classes jsonb,
+    allow_parents boolean DEFAULT true,
+    payment_reference text UNIQUE,
+    logo_url text,
+    logo_path text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.system_settings (
     id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
     key text NOT NULL UNIQUE,
@@ -1150,6 +1177,7 @@ BEGIN
     'payment_receipt_uploads',
     'school_payment_config',
     'school_admin_roles',
+    'school_registration_application',
     'adult_education_enrollments',
     'adult_education_classes',
     'teacher_attendance',
@@ -1221,6 +1249,7 @@ EXECUTE FUNCTION public.enforce_parent_ward_limit();
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES
   ('school-logos', 'school-logos', true, 2097152, ARRAY['image/png','image/jpeg','image/webp','image/svg+xml']),
+  ('school-documents', 'school-documents', true, 10485760, ARRAY['application/pdf','image/png','image/jpeg','image/webp']),
   ('school-receipts', 'school-receipts', false, 5242880, ARRAY['image/png','image/jpeg','application/pdf']),
   ('school-generated-receipts', 'school-generated-receipts', false, 10485760, ARRAY['application/pdf']),
   ('lesson-notes', 'lesson-notes', false, 52428800, ARRAY['application/pdf']),
@@ -1231,6 +1260,12 @@ SET
   public = EXCLUDED.public,
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS school_documents_public_read ON storage.objects;
+CREATE POLICY school_documents_public_read ON storage.objects FOR SELECT TO public USING (bucket_id = 'school-documents');
+
+DROP POLICY IF EXISTS school_documents_public_insert ON storage.objects;
+CREATE POLICY school_documents_public_insert ON storage.objects FOR INSERT TO public WITH CHECK (bucket_id = 'school-documents');
 
 DROP POLICY IF EXISTS school_logos_public_read ON storage.objects;
 CREATE POLICY school_logos_public_read ON storage.objects FOR SELECT TO public USING (bucket_id = 'school-logos');
