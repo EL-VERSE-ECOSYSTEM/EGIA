@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { subscribeToTable, unsubscribeFromTable } from '@/utils/supabase/client'
 import {
   getSuperAdminOverviewStats,
   toggleSchoolParentRegistrationAction,
@@ -98,6 +99,27 @@ export default function SuperAdminOverviewPage() {
 
   useEffect(() => {
     loadData()
+
+    // Real-time Supabase Database Subscriptions across platform tables
+    const appsChannel = subscribeToTable('school_registration_application', {
+      callback: () => loadData(),
+    })
+    const schoolsChannel = subscribeToTable('school', {
+      callback: () => loadData(),
+    })
+    const usersChannel = subscribeToTable('user', {
+      callback: () => loadData(),
+    })
+    const cbtsChannel = subscribeToTable('assessment', {
+      callback: () => loadData(),
+    })
+
+    return () => {
+      unsubscribeFromTable(appsChannel)
+      unsubscribeFromTable(schoolsChannel)
+      unsubscribeFromTable(usersChannel)
+      unsubscribeFromTable(cbtsChannel)
+    }
   }, [])
 
   const handleToggleParentAccess = async (schoolId: string, current: boolean) => {
