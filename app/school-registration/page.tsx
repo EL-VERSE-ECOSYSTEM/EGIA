@@ -20,8 +20,9 @@ export default function SchoolRegistrationPage() {
     adminPhone: '',
     adminEmail: '',
     adminGender: 'Male',
-    adminPassword: '',
     adminLevel: 'PRIMARY_ADMIN',
+    proofOfAddressType: 'ELECTRICITY_BILL',
+    proofOfAddressFileUrl: '',
     allowParents: true,
     logo_url: '',
     logo_path: '',
@@ -66,8 +67,8 @@ export default function SchoolRegistrationPage() {
     e.preventDefault()
     setErrorMessage('')
 
-    if (!formData.name || !formData.location || !formData.adminName || !formData.adminPhone || !formData.adminEmail || !formData.adminPassword) {
-      setErrorMessage('Please fill in all required fields including password.')
+    if (!formData.name || !formData.location || !formData.adminName || !formData.adminPhone || !formData.adminEmail) {
+      setErrorMessage('Please fill in all required fields.')
       return
     }
 
@@ -249,7 +250,6 @@ export default function SchoolRegistrationPage() {
                   />
                 </div>
               </div>
-              <PasswordStrengthIndicator password={formData.adminPassword} />
             </div>
 
             {/* Classes Selection */}
@@ -302,32 +302,17 @@ export default function SchoolRegistrationPage() {
               </div>
             </div>
 
-            {/* Admin Credentials */}
+            {/* Applicant Details & Document Verification */}
             <div className="space-y-4">
               <h2 className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-2">
-                <Building2 className="w-4 h-4" /> School Administrator Credentials
+                <Building2 className="w-4 h-4" /> Applicant Details & Verification Documents
               </h2>
-              <div className="space-y-1 bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                <label className="block text-xs font-black uppercase text-slate-400 mb-1">School Admin Level *</label>
-                <select
-                  value={formData.adminLevel}
-                  onChange={e => setFormData({ ...formData, adminLevel: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-blue-400 focus:outline-none focus:border-blue-500 cursor-pointer"
-                >
-                  <option value="PRIMARY_ADMIN">Primary Admin / Principal (Full Control)</option>
-                  <option value="VICE_PRINCIPAL_ACADEMICS">Vice Principal (Academics)</option>
-                  <option value="VICE_PRINCIPAL_ADMIN">Vice Principal (Administration)</option>
-                  <option value="HOD_SCIENCE">Head of Department (HOD) — Science</option>
-                  <option value="HOD_ARTS">Head of Department (HOD) — Arts</option>
-                  <option value="HOD_COMMERCIAL">Head of Department (HOD) — Commercial</option>
-                </select>
-                <p className="text-[11px] text-slate-500 font-medium pt-1">
-                  Select your assigned administrative level for this institution.
-                </p>
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+                <strong>Manual Authorization Notice:</strong> Registration creates a pending school application. Active school administrator access is granted only after manual document review (e.g. recent electricity bill) and Super-Admin approval. Email and phone are collected as contact details.
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Name of Admin *</label>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Name of Applicant *</label>
                   <input
                     type="text"
                     required
@@ -338,18 +323,7 @@ export default function SchoolRegistrationPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Gender *</label>
-                  <select
-                    value={formData.adminGender}
-                    onChange={e => setFormData({ ...formData, adminGender: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition cursor-pointer"
-                  >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Phone Number of Admin *</label>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Contact Phone Number *</label>
                   <input
                     type="tel"
                     required
@@ -360,7 +334,7 @@ export default function SchoolRegistrationPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Email Address of Admin *</label>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Contact Email Address *</label>
                   <input
                     type="email"
                     required
@@ -370,17 +344,21 @@ export default function SchoolRegistrationPage() {
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
                   />
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Set Admin Password *</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={formData.adminPassword}
-                    onChange={e => setFormData({ ...formData, adminPassword: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
-                  />
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase text-slate-400 mb-1">Proof of School Address URL (e.g. Recent Electricity Bill) *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="https://... (URL to uploaded electricity bill or utility receipt)"
+                  value={formData.proofOfAddressFileUrl}
+                  onChange={e => setFormData({ ...formData, proofOfAddressFileUrl: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
+                />
+                <p className="text-[11px] text-slate-500 font-medium pt-1">
+                  Upload a recent electricity bill matching the school name/address for manual Super-Admin verification.
+                </p>
               </div>
             </div>
 

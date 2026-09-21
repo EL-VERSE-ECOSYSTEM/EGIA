@@ -14,6 +14,9 @@ import {
   awardStudentGiftAction,
   toggleUserSuspensionAction,
   recordDisciplinaryAction,
+  getPendingSchoolApplicationsAction,
+  reviewSchoolApplicationAction,
+  activateSchoolAdminAction,
 } from '@/app/actions/super-admin'
 import {
   Building2,
@@ -36,8 +39,9 @@ import {
 import { toast } from 'sonner'
 
 export default function SuperAdminOverviewPage() {
-  const [activeTab, setActiveTab] = useState<'SCHOOLS' | 'USERS' | 'CBTS' | 'GIFTS'>('SCHOOLS')
+  const [activeTab, setActiveTab] = useState<'APPLICATIONS' | 'SCHOOLS' | 'USERS' | 'CBTS' | 'GIFTS'>('APPLICATIONS')
   const [data, setData] = useState<any>(null)
+  const [applicationsData, setApplicationsData] = useState<any[]>([])
   const [usersData, setUsersData] = useState<any[]>([])
   const [cbtsData, setCbtsData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -72,6 +76,11 @@ export default function SuperAdminOverviewPage() {
     const res = await getSuperAdminOverviewStats()
     if (res.success) {
       setData(res)
+    }
+
+    const appsRes = await getPendingSchoolApplicationsAction()
+    if (appsRes.success) {
+      setApplicationsData(appsRes.applications || [])
     }
 
     const usersRes = await getAllUsersForSuperAdmin()
@@ -168,6 +177,33 @@ export default function SuperAdminOverviewPage() {
       toast.error(res.error || 'Failed to record disciplinary action.')
     }
     setSubmittingDisc(false)
+  }
+
+  const handleReviewApplication = async (applicationId: string, docStatus?: 'VERIFIED' | 'REJECTED', appStatus?: 'APPROVED' | 'REJECTED') => {
+    const rejectionReason = appStatus === 'REJECTED' ? prompt('Reason for rejection:') || 'Documentation incomplete' : undefined
+    const res = await reviewSchoolApplicationAction({
+      applicationId,
+      documentStatus: docStatus,
+      approvalStatus: appStatus,
+      rejectionReason,
+    })
+    if (res.success) {
+      toast.success('Application state updated successfully.')
+      loadData()
+    } else {
+      toast.error(res.error || 'Failed to update application review state.')
+    }
+  }
+
+  const handleActivateSchoolAdmin = async (applicationId: string) => {
+    if (!confirm('Activate school admin identity and send setup invitation link?')) return
+    const res = await activateSchoolAdminAction(applicationId)
+    if (res.success) {
+      toast.success('School Admin activated and password setup/invitation issued!')
+      loadData()
+    } else {
+      toast.error(res.error || 'Failed to activate School Admin.')
+    }
   }
 
   const handleApproveCBT = async (cbtId: string, approved: boolean) => {
@@ -304,6 +340,16 @@ export default function SuperAdminOverviewPage() {
         {/* Tab Navigation */}
         <div className="flex items-center gap-3 border-b border-slate-800 pb-2">
           <button
+            onClick={() => setActiveTab('APPLICATIONS')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+              activeTab === 'APPLICATIONS'
+                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                : 'text-slate-400 hover:bg-slate-900'
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4" /> Pending Applications Queue ({applicationsData.length})
+          </button>
+          <button
             onClick={() => setActiveTab('SCHOOLS')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
               activeTab === 'SCHOOLS'
@@ -311,7 +357,7 @@ export default function SuperAdminOverviewPage() {
                 : 'text-slate-400 hover:bg-slate-900'
             }`}
           >
-            <Building2 className="w-4 h-4" /> School Management ({filteredSchools.length})
+            <Building2 className="w-4 h-4" /> Active Schools ({filteredSchools.length})
           </button>
           <button
             onClick={() => setActiveTab('USERS')}
@@ -356,6 +402,122 @@ export default function SuperAdminOverviewPage() {
             className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
           />
         </div>
+
+        {/* APPLICATIONS QUEUE TAB */}
+        {activeTab === 'APPLICATIONS' && (
+          <section className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-blue-400" /> Pending School Applications & Proof of Address Queue
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Verify electricity bill / proof of address, confirm Korapay payment, and manually approve applications before activating SCHOOL_ADMIN identities.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase font-black tracking-wider">
+                  <tr>
+                    <th className="p-3">School & Address</th>
+                    <th className="p-3">Applicant Contact (Unverified)</th>
+                    <th className="p-3">Proof of Address (Electricity Bill)</th>
+                    <th className="p-3">Payment Status</th>
+                    <th className="p-3">Approval Status</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-medium">
+                  {applicationsData.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-500 font-bold">
+                        No pending school applications in the queue.
+                      </td>
+                    </tr>
+                  ) : (
+                    applicationsData.map((app: any) => {
+                      const canActivate = app.paymentStatus === 'SUCCESS' && app.approvalStatus === 'APPROVED' && app.documentVerificationStatus === 'VERIFIED'
+                      return (
+                        <tr key={app.id} className="hover:bg-slate-800/40 transition">
+                          <td className="p-3 font-bold text-white">
+                            <div>{app.schoolName}</div>
+                            <div className="text-[10px] text-slate-400">{app.schoolAddress}</div>
+                          </td>
+                          <td className="p-3">
+                            <p className="font-bold text-slate-200">{app.applicantName}</p>
+                            <p className="text-[10px] text-slate-400">{app.applicantEmail}</p>
+                            <p className="text-[10px] text-slate-400">{app.applicantPhone}</p>
+                          </td>
+                          <td className="p-3">
+                            {app.proofOfAddressFileUrl ? (
+                              <div className="space-y-1">
+                                <a
+                                  href={app.proofOfAddressFileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-blue-400 hover:underline font-bold text-[11px] block"
+                                >
+                                  View Electricity Bill
+                                </a>
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                                  app.documentVerificationStatus === 'VERIFIED' ? 'bg-emerald-500/20 text-emerald-400' :
+                                  app.documentVerificationStatus === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                                }`}>
+                                  Doc: {app.documentVerificationStatus}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-500 italic">No bill uploaded</span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
+                              app.paymentStatus === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                            }`}>
+                              {app.paymentStatus}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
+                              app.approvalStatus === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400' :
+                              app.approvalStatus === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                            }`}>
+                              {app.approvalStatus}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right space-x-1.5">
+                            <button
+                              onClick={() => handleReviewApplication(app.id, 'VERIFIED', 'APPROVED')}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-bold text-[10px] transition"
+                            >
+                              Verify & Approve
+                            </button>
+                            <button
+                              onClick={() => handleReviewApplication(app.id, 'REJECTED', 'REJECTED')}
+                              className="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold text-[10px] transition"
+                            >
+                              Reject
+                            </button>
+                            {canActivate && (
+                              <button
+                                onClick={() => handleActivateSchoolAdmin(app.id)}
+                                className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] shadow transition"
+                              >
+                                Activate Admin
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* SCHOOLS TAB */}
         {activeTab === 'SCHOOLS' && (

@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { school, user, userRole, student, teacher, parent, assessment, message, notification, adultEducationEnrollment } from '@/lib/db/schema'
+import { school, user, userRole, student, teacher, parent, assessment, message, notification, adultEducationEnrollment, schoolRegistrationApplication, schoolAdminRoles, auditLog } from '@/lib/db/schema'
 import { eq, sql, desc, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
@@ -306,6 +306,197 @@ export async function getAllCBTsForSuperAdmin() {
   } catch (error: any) {
     console.error('Failed to fetch super-admin CBTs:', { requestId, error: error?.message || error })
     return { success: false, error: 'Unable to retrieve CBT assessments. Please try again.', requestId }
+  }
+}
+
+export async function getPendingSchoolApplicationsAction() {
+  const requestId = randomUUID()
+  try {
+    await checkSuperAdminPermission()
+
+    const applications = await db.query.schoolRegistrationApplication.findMany({
+      orderBy: (app, { desc }) => [desc(app.submittedAt)],
+    })
+
+    return { success: true, applications }
+  } catch (error: any) {
+    console.error('Failed to retrieve pending school applications:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Unable to fetch school applications queue.', requestId }
+  }
+}
+
+export async function reviewSchoolApplicationAction(input: {
+  applicationId: string
+  documentStatus?: 'VERIFIED' | 'REJECTED'
+  approvalStatus?: 'APPROVED' | 'REJECTED' | 'SUSPENDED'
+  rejectionReason?: string
+}) {
+  const requestId = randomUUID()
+  try {
+    const adminUser = await checkSuperAdminPermission()
+
+    const appRecord = await db.query.schoolRegistrationApplication.findFirst({
+      where: eq(schoolRegistrationApplication.id, input.applicationId)
+    })
+
+    if (!appRecord) {
+      return { success: false, error: 'School application not found.' }
+    }
+
+    await db.update(schoolRegistrationApplication)
+      .set({
+        documentVerificationStatus: input.documentStatus || appRecord.documentVerificationStatus,
+        approvalStatus: input.approvalStatus || appRecord.approvalStatus,
+        rejectionReason: input.rejectionReason || appRecord.rejectionReason,
+        reviewedBy: adminUser.id,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(schoolRegistrationApplication.id, input.applicationId))
+
+    revalidatePath('/dashboard/super-admin/overview')
+    return { success: true }
+  } catch (error: any) {
+    console.error('Failed to review school application:', { requestId, error: error?.message || error })
+    return { success: false, error: 'Failed to update application review state.', requestId }
+  }
+}
+
+export async function activateSchoolAdminAction(applicationId: string) {
+  const requestId = randomUUID()
+  try {
+    const adminUser = await checkSuperAdminPermission()
+
+    const appRecord = await db.query.schoolRegistrationApplication.findFirst({
+      where: eq(schoolRegistrationApplication.id, applicationId)
+    })
+
+    if (!appRecord) {
+      return { success: false, error: 'School application not found.' }
+    }
+
+    // Recommended approval rule enforcement
+    if (appRecord.paymentStatus !== 'SUCCESS') {
+      return { success: false, error: 'Cannot activate school: Korapay payment status must be SUCCESS.' }
+    }
+    if (appRecord.documentVerificationStatus !== 'VERIFIED') {
+      return { success: false, error: 'Cannot activate school: Proof of address document must be VERIFIED.' }
+    }
+    if (appRecord.approvalStatus !== 'APPROVED') {
+      return { success: false, error: 'Cannot activate school: Approval status must be APPROVED.' }
+    }
+
+    const applicantEmail = appRecord.applicantEmail.trim().toLowerCase()
+    let finalUserId: string = randomUUID()
+
+    // 1. Create or locate Supabase Auth user (handling existing user safely)
+    const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
+    if (secretKey) {
+      const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
+      const supabaseAdmin = createSupabaseAdminClient(supabaseUrl, secretKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+
+      // Check existing user by email
+      const { data: existingList } = await supabaseAdmin.auth.admin.listUsers()
+      const existingAuthUser = existingList?.users?.find(u => u.email?.toLowerCase() === applicantEmail)
+
+      if (existingAuthUser) {
+        // Prevent existing account takeover: do NOT overwrite password or global metadata
+        finalUserId = existingAuthUser.id
+      } else {
+        const createRes = await supabaseAdmin.auth.admin.createUser({
+          id: finalUserId,
+          email: applicantEmail,
+          email_confirm: true,
+          user_metadata: {
+            full_name: appRecord.applicantName,
+            role: 'SCHOOL_ADMIN',
+            school_id: appRecord.schoolId,
+          }
+        })
+        if (createRes.data?.user?.id) {
+          finalUserId = createRes.data.user.id
+        }
+
+        // Send invitation / password setup link
+        try {
+          await supabaseAdmin.auth.admin.generateLink({
+            type: 'invite',
+            email: applicantEmail,
+          })
+        } catch (linkErr) {
+          console.warn('Could not generate password setup link:', linkErr)
+        }
+      }
+    }
+
+    await db.transaction(async (tx) => {
+      // 2. Create or ensure application user record exists
+      await tx.insert(user).values({
+        id: finalUserId,
+        email: applicantEmail,
+        name: appRecord.applicantName,
+        schoolId: appRecord.schoolId,
+        adminLevel: appRecord.adminLevel || 'PRIMARY_ADMIN',
+        lastIdentityId: appRecord.schoolId,
+        lastIdentityAt: new Date(),
+      }).onConflictDoNothing()
+
+      // 3. Create global user_role record
+      await tx.insert(userRole).values({
+        id: randomUUID(),
+        userId: finalUserId,
+        role: 'SCHOOL_ADMIN',
+      }).onConflictDoNothing()
+
+      // 4. Create active school_admin_roles record
+      if (appRecord.schoolId) {
+        await tx.insert(schoolAdminRoles).values({
+          id: randomUUID(),
+          schoolId: appRecord.schoolId,
+          userId: finalUserId,
+          level: appRecord.adminLevel || 'PRIMARY_ADMIN',
+          isActive: true,
+          approvedBy: adminUser.id,
+          approvedAt: new Date(),
+        }).onConflictDoUpdate({
+          target: [schoolAdminRoles.schoolId, schoolAdminRoles.userId],
+          set: {
+            isActive: true,
+            approvedBy: adminUser.id,
+            approvedAt: new Date(),
+          }
+        })
+
+        // Activate school record
+        await tx.update(school)
+          .set({ paymentStatus: 'PAID', updatedAt: new Date() })
+          .where(eq(school.id, appRecord.schoolId))
+      }
+
+      // 5. Record approval in audit_log
+      await tx.insert(auditLog).values({
+        id: randomUUID(),
+        userId: adminUser.id,
+        action: 'APPROVE_SCHOOL_ADMIN',
+        resource: 'school_registration_application',
+        resourceId: applicationId,
+        details: {
+          applicantEmail,
+          schoolId: appRecord.schoolId,
+          activatedAdminUserId: finalUserId,
+        },
+        createdAt: new Date(),
+      })
+    })
+
+    revalidatePath('/dashboard/super-admin/overview')
+    return { success: true, activatedUserId: finalUserId }
+  } catch (error: any) {
+    console.error('Failed to activate school admin:', { requestId, error: error?.message || error })
+    return { success: false, error: 'School admin activation failed. Please check logs and try again.', requestId }
   }
 }
 
