@@ -139,7 +139,8 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
   React.useEffect(() => {
     const supabase = createClient()
     async function loadSchoolBranding() {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data } = await supabase.auth.getUser()
+      const user = data?.user
       if (!user) return
 
       // Fetch user's school

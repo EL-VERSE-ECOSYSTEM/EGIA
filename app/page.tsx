@@ -25,10 +25,18 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 
+export const dynamic = 'force-dynamic'
+
 export default async function LandingPage() {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-  const { data: { user } } = await supabase.auth.getUser()
+  let user: Record<string, unknown> | null = null
+  try {
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+    const { data } = await supabase.auth.getUser()
+    user = (data?.user as unknown as Record<string, unknown>) ?? null
+  } catch (err) {
+    console.error('Error fetching user on landing page:', err)
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] font-sans">
