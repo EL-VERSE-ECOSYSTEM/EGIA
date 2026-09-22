@@ -254,13 +254,23 @@ export function FloatingSupportWidget() {
       )}
 
       {/* Floating Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black flex items-center justify-center shadow-2xl shadow-emerald-500/30 transition-transform duration-300 hover:scale-110 active:scale-95"
-        title="Help and Support"
-      >
-        <MessageSquare className="w-6 h-6 fill-current" />
-      </button>
+      <div className="relative group">
+        <span className="absolute -top-1 -right-1 flex h-4 w-4 z-20">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-slate-950"></span>
+        </span>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-slate-950 font-black flex items-center justify-center shadow-[0_20px_50px_rgba(16,185,129,0.35)] hover:shadow-[0_25px_60px_rgba(16,185,129,0.5)] transition-all duration-300 hover:scale-110 active:scale-95 border border-emerald-300/30 backdrop-blur-md"
+          title="Live Help and Support"
+        >
+          {isOpen ? (
+            <X className="w-7 h-7 text-slate-950" />
+          ) : (
+            <MessageSquare className="w-7 h-7 text-slate-950 fill-current" />
+          )}
+        </button>
+      </div>
     </div>
   )
 }
