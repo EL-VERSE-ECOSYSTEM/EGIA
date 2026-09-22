@@ -3,7 +3,14 @@ import { db } from '@/lib/db'
 import { userRole } from '@/lib/db/schema'
 import { auth } from '@/lib/auth'
 import { eq, and } from 'drizzle-orm'
-import { randomUUID } from 'crypto'
+import { randomUUID, timingSafeEqual } from 'crypto'
+
+export function timingSafeCompare(received: string | null, expected: string): boolean {
+  if (!received) return false
+  const left = Buffer.from(received)
+  const right = Buffer.from(expected)
+  return left.length === right.length && timingSafeEqual(left, right)
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +18,7 @@ export async function POST(request: NextRequest) {
     const setupSecret = request.headers.get('x-setup-admin-secret')
     const envSecret = process.env.SETUP_ADMIN_SECRET
 
-    if (!envSecret || setupSecret !== envSecret) {
+    if (!envSecret || !timingSafeCompare(setupSecret, envSecret)) {
       return NextResponse.json(
         { error: 'Unauthorized: Invalid setup admin secret token.' },
         { status: 401 }

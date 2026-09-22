@@ -25,38 +25,6 @@ export const school = pgTable('school', {
   updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const schoolRegistrationApplication = pgTable('school_registration_application', {
-  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
-  schoolId: text('school_id').notNull(),
-  applicantEmail: text('applicant_email').notNull(),
-  applicantPhone: text('applicant_phone').notNull(),
-  applicantName: text('applicant_name').notNull(),
-  applicantGender: text('applicant_gender'),
-  adminLevel: text('admin_level').default('PRIMARY_ADMIN'),
-  schoolName: text('school_name').notNull(),
-  schoolAddress: text('school_address').notNull(),
-  registeredClasses: jsonb('registered_classes'),
-  allowParents: boolean('allow_parents').default(true),
-  logoUrl: text('logo_url'),
-  logoPath: text('logo_path'),
-  proofOfAddressType: text('proof_of_address_type'),
-  proofOfAddressFileUrl: text('proof_of_address_file_url'),
-  proofOfAddressFilePath: text('proof_of_address_file_path'),
-  additionalDocuments: jsonb('additional_documents'),
-  documentVerificationStatus: text('document_verification_status').notNull().default('PENDING'),
-  paymentStatus: text('payment_status').notNull().default('PENDING'),
-  approvalStatus: text('approval_status').notNull().default('PENDING_REVIEW'),
-  rejectionReason: text('rejection_reason'),
-  submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
-  reviewedBy: text('reviewed_by'),
-  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [
-  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
-  foreignKey({ columns: [t.reviewedBy], foreignColumns: [user.id] }).onDelete('set null'),
-])
-
 // ===== CORE USER TABLES =====
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
