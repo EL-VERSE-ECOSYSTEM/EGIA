@@ -153,6 +153,18 @@ export async function uploadSchoolApplicationDocumentAction(input: {
   }
 }
 
+export async function uploadApplicationProofOfAddressAction(
+  applicationId: string,
+  proofOfAddressFileUrl: string,
+  proofOfAddressType?: string
+) {
+  return uploadSchoolApplicationDocumentAction({
+    applicationId,
+    proofOfAddressFileUrl,
+    proofOfAddressType,
+  })
+}
+
 export async function getSchoolApplicationStatusAction(applicationId: string) {
   const requestId = randomUUID()
   try {

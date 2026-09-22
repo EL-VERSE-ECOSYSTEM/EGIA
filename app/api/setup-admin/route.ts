@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID, timingSafeEqual } from 'crypto'
 
-export function timingSafeCompare(received: string | null, expected: string): boolean {
+function timingSafeCompare(received: string | null, expected: string): boolean {
   if (!received) return false
   const left = Buffer.from(received)
   const right = Buffer.from(expected)
