@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { school, schoolRegistrationApplication } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
+import { sanitizeServerError } from '@/lib/errors'
 import {
   initializeKorapayPayment as serviceInitializeKorapayPayment,
   verifyKorapayPayment as serviceVerifyKorapayPayment,
@@ -126,42 +127,48 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
   }
 }
 
-export async function uploadApplicationProofOfAddressAction(applicationId: string, fileUrl: string) {
+export async function uploadSchoolApplicationDocumentAction(input: {
+  applicationId: string
+  proofOfAddressType?: string
+  proofOfAddressFileUrl: string
+}) {
   try {
-    const existing = await db.select().from(schoolRegistrationApplication).where(eq(schoolRegistrationApplication.id, applicationId))
+    const existing = await db.select().from(schoolRegistrationApplication).where(eq(schoolRegistrationApplication.id, input.applicationId))
     if (!existing.length) {
       return { success: false, error: 'Application not found.' }
     }
 
     await db.update(schoolRegistrationApplication)
       .set({
-        proofOfAddressFileUrl: fileUrl,
+        proofOfAddressType: input.proofOfAddressType || 'ELECTRICITY_BILL',
+        proofOfAddressFileUrl: input.proofOfAddressFileUrl,
         documentVerificationStatus: 'PENDING',
         updatedAt: new Date(),
       })
-      .where(eq(schoolRegistrationApplication.id, applicationId))
+      .where(eq(schoolRegistrationApplication.id, input.applicationId))
 
     return { success: true }
   } catch (error: any) {
-    return sanitizeServerError('uploadApplicationProofOfAddressAction', error, 'Failed to update proof of address document.')
+    return sanitizeServerError('uploadSchoolApplicationDocumentAction', error, 'Failed to update proof of address document.')
   }
 }
 
-export async function confirmSchoolPaymentAction(paymentReference: string) {
+export async function getSchoolApplicationStatusAction(applicationId: string) {
+  const requestId = randomUUID()
   try {
-    if (!applicationId) return { success: false, error: 'Application ID is required.' }
+    if (!applicationId) return { success: false, error: 'Application ID is required.', requestId }
 
     const appRecord = await db.query.schoolRegistrationApplication.findFirst({
       where: eq(schoolRegistrationApplication.id, applicationId)
     })
 
     if (!appRecord) {
-      return { success: false, error: 'Application not found.' }
+      return { success: false, error: 'Application not found.', requestId }
     }
 
-    const schRecord = await db.query.school.findFirst({
+    const schRecord = appRecord.schoolId ? await db.query.school.findFirst({
       where: eq(school.id, appRecord.schoolId)
-    })
+    }) : null
 
     return {
       success: true,
@@ -169,8 +176,7 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
       schoolCode: schRecord?.code || null,
     }
   } catch (error: any) {
-    console.error('Failed to get school application status:', { requestId, error: error?.message || error })
-    return { success: false, error: 'Unable to retrieve application status.', requestId }
+    return sanitizeServerError('getSchoolApplicationStatusAction', error, 'Unable to retrieve application status.')
   }
 }
 

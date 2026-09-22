@@ -25,6 +25,39 @@ export const school = pgTable('school', {
   updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),
 })
 
+export const schoolRegistrationApplication = pgTable('school_registration_application', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('school_id').notNull(),
+  applicantEmail: text('applicant_email').notNull(),
+  applicantPhone: text('applicant_phone').notNull(),
+  applicantName: text('applicant_name').notNull(),
+  applicantGender: text('applicant_gender'),
+  adminLevel: text('admin_level').default('PRIMARY_ADMIN'),
+  schoolName: text('school_name').notNull(),
+  schoolAddress: text('school_address').notNull(),
+  registeredClasses: jsonb('registered_classes'),
+  allowParents: boolean('allow_parents').default(true),
+  logoUrl: text('logo_url'),
+  logoPath: text('logo_path'),
+  proofOfAddressType: text('proof_of_address_type').notNull().default('ELECTRICITY_BILL'),
+  proofOfAddressFileUrl: text('proof_of_address_file_url'),
+  proofOfAddressFilePath: text('proof_of_address_file_path'),
+  additionalDocuments: jsonb('additional_documents'),
+  documentVerificationStatus: text('document_verification_status').notNull().default('PENDING'),
+  paymentStatus: text('payment_status').notNull().default('PENDING'),
+  paymentReference: text('payment_reference').unique(),
+  approvalStatus: text('approval_status').notNull().default('PENDING_REVIEW'),
+  rejectionReason: text('rejection_reason'),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+  reviewedBy: text('reviewed_by'),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.reviewedBy], foreignColumns: [user.id] }).onDelete('set null'),
+])
+
 // ===== CORE USER TABLES =====
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
@@ -509,37 +542,6 @@ export const transactionLedger = pgTable('transaction_ledger', {
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }),
   foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }),
   foreignKey({ columns: [t.receiptUploadId], foreignColumns: [paymentReceiptUploads.id] }).onDelete('set null'),
-])
-
-// ===== SCHOOL REGISTRATION APPLICATIONS =====
-export const schoolRegistrationApplication = pgTable('school_registration_application', {
-  id: text('id').primaryKey(),
-  schoolId: text('school_id'),
-  applicantEmail: text('applicant_email').notNull(),
-  applicantPhone: text('applicant_phone').notNull(),
-  applicantName: text('applicant_name').notNull(),
-  schoolName: text('school_name').notNull(),
-  schoolAddress: text('school_address').notNull(),
-  proofOfAddressType: text('proof_of_address_type').notNull().default('ELECTRICITY_BILL'),
-  proofOfAddressFileUrl: text('proof_of_address_file_url'),
-  documentVerificationStatus: text('document_verification_status').notNull().default('PENDING'), // PENDING, VERIFIED, REJECTED
-  paymentStatus: text('payment_status').notNull().default('PENDING'), // PENDING, SUCCESS, FAILED, REFUNDED
-  approvalStatus: text('approval_status').notNull().default('PENDING_REVIEW'), // PENDING_REVIEW, APPROVED, REJECTED, SUSPENDED
-  submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
-  reviewedBy: text('reviewed_by'),
-  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
-  rejectionReason: text('rejection_reason'),
-  adminLevel: text('admin_level').default('PRIMARY_ADMIN'),
-  registeredClasses: jsonb('registered_classes'),
-  allowParents: boolean('allow_parents').default(true),
-  paymentReference: text('payment_reference').unique(),
-  logoUrl: text('logo_url'),
-  logoPath: text('logo_path'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [
-  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('set null'),
-  foreignKey({ columns: [t.reviewedBy], foreignColumns: [user.id] }).onDelete('set null'),
 ])
 
 // ===== SCHOOL ADMIN ROLES =====
