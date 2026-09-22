@@ -177,6 +177,9 @@ export async function getTeacherProfile(userId?: string) {
 }
 
 export async function getUserRole(userId: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized session')
+
   const roleRec = await db.query.userRole.findFirst({
     where: eq(userRole.userId, userId)
   })

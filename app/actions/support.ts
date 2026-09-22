@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { dispute, disputeMessage, supportTicket } from '@/lib/db/schema'
+import { dispute, disputeMessage, supportTicket, supportTicketReply } from '@/lib/db/schema'
 import { eq, desc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
@@ -76,6 +76,20 @@ export async function createSupportTicket(data: {
     ...data,
     status: 'OPEN',
   } as any).returning()
+
+  // Auto-generate quick response from Super Admin into support_ticket_replies
+  try {
+    await db.insert(supportTicketReply).values({
+      id: crypto.randomUUID(),
+      ticketId: newTicket[0].id,
+      senderId: 'SUPER_ADMIN',
+      replyMessage: "We have taken note of the support submitted, we'll get back to you shortly",
+      senderRole: 'SUPER_ADMIN',
+      createdAt: new Date(),
+    } as any)
+  } catch (e) {
+    console.warn('Super Admin quick reply insertion error:', e)
+  }
 
   revalidatePath('/dashboard/communication/support')
   return newTicket[0]

@@ -124,16 +124,61 @@ export default async function LandingPage() {
           </div>
         </section>
 
+        {/* Gallery / Campus Spotlight */}
+        <section className="py-12 bg-white border-b border-slate-100">
+          <div className="container mx-auto px-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="relative h-64 rounded-3xl overflow-hidden shadow-lg group">
+                <img
+                  src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=800"
+                  alt="Students Studying"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent p-6 flex items-end">
+                  <span className="text-white font-black text-lg tracking-tight">Interactive Learning Hub</span>
+                </div>
+              </div>
+              <div className="relative h-64 rounded-3xl overflow-hidden shadow-lg group">
+                <img
+                  src="https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=800"
+                  alt="Modern Classroom"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent p-6 flex items-end">
+                  <span className="text-white font-black text-lg tracking-tight">State-of-the-Art Classrooms</span>
+                </div>
+              </div>
+              <div className="relative h-64 rounded-3xl overflow-hidden shadow-lg group">
+                <img
+                  src="https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=800"
+                  alt="School Campus"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent p-6 flex items-end">
+                  <span className="text-white font-black text-lg tracking-tight">Modern Educational Environment</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* About Us */}
         <section id="about" className="py-20 sm:py-32 bg-white">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
               <div className="relative group">
                 <div className="aspect-[4/3] sm:aspect-[3/4] bg-slate-900 rounded-3xl sm:rounded-[3rem] overflow-hidden shadow-2xl relative border-8 sm:border-[12px] border-slate-100 flex items-center justify-center p-8">
-                   <div className="text-center space-y-4">
-                     <GraduationCap className="w-24 h-24 text-amber-500 mx-auto" />
-                     <h3 className="text-2xl font-black text-white uppercase tracking-wider">EL LEARNERS APP</h3>
-                     <p className="text-slate-400 text-sm font-bold max-w-xs mx-auto">Empowering Educational Excellence across Nigeria</p>
+                   <img
+                     src="https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1000"
+                     alt="EL Learners School Facility"
+                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                   />
+                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent p-8 flex flex-col justify-end relative z-10">
+                     <div className="text-left space-y-2">
+                       <GraduationCap className="w-12 h-12 text-amber-500" />
+                       <h3 className="text-2xl font-black text-white uppercase tracking-wider">EL LEARNERS CAMPUS</h3>
+                       <p className="text-slate-200 text-sm font-bold max-w-xs">Empowering Educational Excellence across Nigeria</p>
+                     </div>
                    </div>
                 </div>
               </div>
