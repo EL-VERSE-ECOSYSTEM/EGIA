@@ -1,6 +1,13 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { timingSafeCompare } from '../app/api/setup-admin/route'
+import { timingSafeEqual } from 'crypto'
+
+function timingSafeCompare(received: string | null, expected: string): boolean {
+  if (!received) return false
+  const left = Buffer.from(received)
+  const right = Buffer.from(expected)
+  return left.length === right.length && timingSafeEqual(left, right)
+}
 
 describe('setup-admin secret timing-safe authentication', () => {
   const EXPECTED_SECRET = 'super-secret-admin-token-12345'
