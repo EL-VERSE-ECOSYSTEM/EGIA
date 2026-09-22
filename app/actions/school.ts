@@ -127,37 +127,43 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
   }
 }
 
-export async function uploadApplicationProofOfAddressAction(applicationId: string, fileUrl: string) {
+export async function uploadSchoolApplicationDocumentAction(input: {
+  applicationId: string
+  proofOfAddressType?: string
+  proofOfAddressFileUrl: string
+}) {
   try {
-    const existing = await db.select().from(schoolRegistrationApplication).where(eq(schoolRegistrationApplication.id, applicationId))
+    const existing = await db.select().from(schoolRegistrationApplication).where(eq(schoolRegistrationApplication.id, input.applicationId))
     if (!existing.length) {
       return { success: false, error: 'Application not found.' }
     }
 
     await db.update(schoolRegistrationApplication)
       .set({
-        proofOfAddressFileUrl: fileUrl,
+        proofOfAddressType: input.proofOfAddressType || 'ELECTRICITY_BILL',
+        proofOfAddressFileUrl: input.proofOfAddressFileUrl,
         documentVerificationStatus: 'PENDING',
         updatedAt: new Date(),
       })
-      .where(eq(schoolRegistrationApplication.id, applicationId))
+      .where(eq(schoolRegistrationApplication.id, input.applicationId))
 
     return { success: true }
   } catch (error: any) {
-    return sanitizeServerError('uploadApplicationProofOfAddressAction', error, 'Failed to update proof of address document.')
+    return sanitizeServerError('uploadSchoolApplicationDocumentAction', error, 'Failed to update proof of address document.')
   }
 }
 
 export async function getSchoolApplicationStatusAction(applicationId: string) {
+  const requestId = randomUUID()
   try {
-    if (!applicationId) return { success: false, error: 'Application ID is required.' }
+    if (!applicationId) return { success: false, error: 'Application ID is required.', requestId }
 
     const appRecord = await db.query.schoolRegistrationApplication.findFirst({
       where: eq(schoolRegistrationApplication.id, applicationId)
     })
 
     if (!appRecord) {
-      return { success: false, error: 'Application not found.' }
+      return { success: false, error: 'Application not found.', requestId }
     }
 
     const schRecord = appRecord.schoolId ? await db.query.school.findFirst({

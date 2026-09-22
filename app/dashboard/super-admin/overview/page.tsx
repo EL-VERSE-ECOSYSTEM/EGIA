@@ -448,7 +448,7 @@ export default function SuperAdminOverviewPage() {
                 : 'text-slate-400 hover:bg-slate-900'
             }`}
           >
-            <ShieldAlert className="w-4 h-4" /> Pending Applications Queue ({applicationsData.length})
+            <ShieldAlert className="w-4 h-4" /> Applications Queue ({applicationsData.length})
           </button>
           <button
             onClick={() => setActiveTab('SUPPORT')}
