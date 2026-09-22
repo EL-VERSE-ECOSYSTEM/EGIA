@@ -47,7 +47,7 @@ export function ReceiptUploadField({
     }
 
     const { data: { publicUrl } } = supabase.storage.from("school-receipts").getPublicUrl(path);
-    const user = (await supabase.auth.getUser()).data.user;
+    const user = (await supabase.auth.getUser())?.data?.user;
 
     const { error: dbErr } = await supabase.from("payment_receipt_uploads").insert({
       schoolid: schoolId,

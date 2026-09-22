@@ -15,6 +15,14 @@ const publicRoutes = [
   '/faq',
   '/gallery',
   '/results-checker',
+  '/sw.js',
+  '/firebase-messaging-sw.js',
+  '/manifest.json',
+  '/manifest.webmanifest',
+  '/robots.txt',
+  '/sitemap.xml',
+  '/favicon.ico',
+  '/logo.svg',
   '/api/webhooks/korapay',
   '/api/webhooks/supabase',
   '/api/korapay/webhook',
@@ -156,6 +164,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|sw\\.js|firebase-messaging-sw\\.js|manifest\\.json|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|json|webmanifest|txt|xml)$).*)',
   ],
 }
