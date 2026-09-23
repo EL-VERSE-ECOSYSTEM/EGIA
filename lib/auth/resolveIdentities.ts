@@ -65,6 +65,22 @@ export async function resolveIdentities(userId: string): Promise<LoginContext> {
   }
 
   if (!userRecord) {
+    // Auto-provision public.user if lookup by ID didn't find record yet
+    const userName = targetUserId.includes('@') ? targetUserId.split('@')[0] : 'User'
+    await db.insert(userTable).values({
+      id: targetUserId,
+      email: targetUserId.includes('@') ? targetUserId : `${targetUserId}@el-learners.local`,
+      name: userName,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).onConflictDoNothing()
+
+    userRecord = await db.query.user.findFirst({
+      where: eq(userTable.id, targetUserId),
+    })
+  }
+
+  if (!userRecord) {
     throw new Error('User record not found in database.')
   }
 
