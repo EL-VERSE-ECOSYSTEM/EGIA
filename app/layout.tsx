@@ -64,7 +64,10 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'default',
     title: "EL LEARNERS APP",
-  }
+  },
+  verification: {
+    google: "KVhChvalPrqDzEZblsbANYolEv7pN-G7oJVqbGwONBg",
+  },
 }
 
 export default function RootLayout({
