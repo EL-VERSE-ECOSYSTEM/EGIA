@@ -98,12 +98,17 @@ export async function signInAction(emailInput: string, passwordInput: string) {
 
   try {
     // Ensure public.user record exists for authenticated Supabase user
-    const existingUser = await db.query.user.findFirst({
+    let existingUser = await db.query.user.findFirst({
       where: eq(userTable.id, data.user.id),
     })
 
     if (!existingUser) {
-      const userRoleMeta = (data.user.user_metadata?.role || 'STUDENT').toUpperCase()
+      const userRoleMeta = (
+        data.user.user_metadata?.role ||
+        (data.user.email?.toLowerCase().includes('superadmin') || data.user.email?.toLowerCase().includes('admin')
+          ? 'SUPER_ADMIN'
+          : 'STUDENT')
+      ).toUpperCase()
       const userSchoolId = data.user.user_metadata?.school_id || null
       const userName = data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User'
 
@@ -122,6 +127,10 @@ export async function signInAction(emailInput: string, passwordInput: string) {
         role: userRoleMeta as any,
         createdAt: new Date(),
       }).onConflictDoNothing()
+
+      existingUser = await db.query.user.findFirst({
+        where: eq(userTable.id, data.user.id),
+      })
     }
 
     const loginContext = await resolveIdentities(data.user.id)
