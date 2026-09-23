@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Footer } from '@/components/footer'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { ContactForm } from '@/components/ContactForm'
+import { RealtimeStats } from '@/components/realtime/RealtimeStats'
 import {
   CheckCircle2,
   Users,
@@ -16,7 +17,16 @@ import {
   ArrowRight,
   GraduationCap,
   MessageSquare,
-  Phone
+  Phone,
+  Sparkles,
+  Zap,
+  BarChart3,
+  Clock,
+  Award,
+  Lock,
+  Smartphone,
+  Layers,
+  Search
 } from 'lucide-react'
 import {
   Accordion,
@@ -104,25 +114,8 @@ export default async function LandingPage() {
           <div className="absolute bottom-0 right-0 w-[350px] sm:w-[600px] h-[350px] sm:h-[600px] bg-blue-400/5 rounded-full blur-[140px] translate-x-1/3 translate-y-1/3" />
         </section>
 
-        {/* Stats Bar */}
-        <section className="py-16 sm:py-24 bg-slate-950 text-white relative z-20">
-          <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-16 text-center">
-              <div className="space-y-2 sm:space-y-4">
-                <div className="text-4xl sm:text-6xl font-black text-amber-500 tracking-tighter">50+</div>
-                <div className="text-slate-400 font-black uppercase tracking-[0.2em] text-xs">Partner Schools</div>
-              </div>
-              <div className="space-y-2 sm:space-y-4">
-                <div className="text-4xl sm:text-6xl font-black text-amber-500 tracking-tighter">10,000+</div>
-                <div className="text-slate-400 font-black uppercase tracking-[0.2em] text-xs">Active Students</div>
-              </div>
-              <div className="space-y-2 sm:space-y-4">
-                <div className="text-4xl sm:text-6xl font-black text-amber-500 tracking-tighter">500+</div>
-                <div className="text-slate-400 font-black uppercase tracking-[0.2em] text-xs">Certified Educators</div>
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* Realtime Supabase Database Powered Stats */}
+        <RealtimeStats />
 
         {/* Gallery / Campus Spotlight */}
         <section className="py-12 bg-white border-b border-slate-100">
@@ -215,46 +208,77 @@ export default async function LandingPage() {
         </section>
 
         {/* Features Grid */}
-        <section id="features" className="py-40 bg-[#F8FAFC] relative overflow-hidden perspective-[1200px]">
+        <section id="features" className="py-28 sm:py-36 bg-[#F8FAFC] relative overflow-hidden">
           <div className="container mx-auto px-4 relative z-10">
-            <div className="text-center mb-32 space-y-6">
-               <div className="inline-block px-8 py-2 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.4em]">Technology</div>
-              <h2 className="text-6xl md:text-7xl font-black text-slate-900 tracking-tighter">Advanced Infrastructure</h2>
+            <div className="text-center mb-20 space-y-4 max-w-3xl mx-auto">
+              <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-slate-900 text-amber-400 text-xs font-black uppercase tracking-[0.3em]">
+                <Sparkles className="w-4 h-4 text-amber-400" /> Platform Superpowers
+              </div>
+              <h2 className="text-4xl sm:text-6xl font-black text-slate-900 tracking-tight">
+                All-in-One Smart Educational Infrastructure
+              </h2>
+              <p className="text-slate-600 text-lg sm:text-xl font-medium">
+                Designed for modern schools, dedicated teachers, ambitious students, and engaged parents across Nigeria.
+              </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[
                 {
-                  title: "CBT Portal",
-                  desc: "Digital examination system with anti-cheat and instant analytics.",
+                  title: "Smart CBT & Exams",
+                  desc: "Anti-cheat timed examinations with instant automatic grading, item bank management, and subject performance breakdown.",
                   icon: Monitor,
-                  color: "bg-blue-600"
+                  color: "bg-blue-600 shadow-blue-200",
+                  badge: "Realtime Grading"
                 },
                 {
-                  title: "E-Library",
-                  desc: "Global access to academic journals and digital textbooks.",
-                  icon: BookOpen,
-                  color: "bg-amber-600"
-                },
-                {
-                  title: "Verified Staff",
-                  desc: "All educators are internationally certified and vetted.",
-                  icon: GraduationCap,
-                  color: "bg-purple-600"
-                },
-                {
-                  title: "Parent Sync",
-                  desc: "Real-time performance tracking and fee management.",
+                  title: "Parent Sync Portal",
+                  desc: "Parents receive live updates on child attendance, CBT test scores, report cards, and fee receipts directly on their dashboard.",
                   icon: ShieldCheck,
-                  color: "bg-emerald-600"
+                  color: "bg-emerald-600 shadow-emerald-200",
+                  badge: "Live Notifications"
+                },
+                {
+                  title: "Digital E-Library",
+                  desc: "Comprehensive repository of approved syllabus textbooks, digital notes, video tutorials, and past exam questions.",
+                  icon: BookOpen,
+                  color: "bg-amber-600 shadow-amber-200",
+                  badge: "Curriculum Aligned"
+                },
+                {
+                  title: "Automated Report Cards",
+                  desc: "Instant generation of Broadsheets and termly report cards with automated grade calculation and principal remarks.",
+                  icon: BarChart3,
+                  color: "bg-purple-600 shadow-purple-200",
+                  badge: "One-Click Export"
+                },
+                {
+                  title: "Smart Attendance Tracking",
+                  desc: "Clock-in and clock-out for teachers and students with automatic SMS/email absence notifications to parents.",
+                  icon: Clock,
+                  color: "bg-rose-600 shadow-rose-200",
+                  badge: "Geofenced & Vetted"
+                },
+                {
+                  title: "Instant Korapay Billing",
+                  desc: "PCI-DSS certified online tuition fee collection, auto-receipt generation, and real-time financial tracking for school admins.",
+                  icon: Lock,
+                  color: "bg-indigo-600 shadow-indigo-200",
+                  badge: "Military-Grade Security"
                 }
               ].map((f, i) => (
-                <Card key={i} className="border-none shadow-[0_30px_100px_rgba(0,0,0,0.08)] hover:shadow-[0_40px_120px_rgba(0,0,0,0.15)] hover:-translate-y-4 hover:rotate-1 transition-all duration-700 rounded-[3rem] bg-white group border-t border-l border-slate-100">
-                  <CardContent className="p-14 space-y-8">
-                    <div className={`w-20 h-20 rounded-3xl flex items-center justify-center ${f.color} text-white shadow-2xl group-hover:scale-110 transition-transform duration-700`}>
-                      <f.icon size={36} />
+                <Card key={i} className="border border-slate-200/80 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 rounded-3xl bg-white group overflow-hidden">
+                  <CardContent className="p-8 sm:p-10 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${f.color} text-white shadow-lg group-hover:scale-110 transition-transform duration-500`}>
+                        <f.icon size={30} />
+                      </div>
+                      <span className="text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-slate-100 text-slate-700">
+                        {f.badge}
+                      </span>
                     </div>
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">{f.title}</h3>
-                    <p className="text-slate-500 text-lg leading-relaxed font-medium">{f.desc}</p>
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">{f.title}</h3>
+                    <p className="text-slate-600 text-base leading-relaxed font-medium">{f.desc}</p>
                   </CardContent>
                 </Card>
               ))}
