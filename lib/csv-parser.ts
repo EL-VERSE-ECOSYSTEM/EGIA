@@ -12,6 +12,11 @@ export function parseCSV(text: string): Record<string, string>[] {
 
 export function sanitizeCSVFormula(val: string): string {
   if (typeof val === 'string' && /^[=+\-@\t\r]/.test(val)) {
+    // Preserve valid numeric values (e.g. -5, +12, -100.5, -0.01) rather than treating as formula injection
+    const trimmed = val.trim()
+    if (/^[-+]?\d+(\.\d+)?$/.test(trimmed)) {
+      return val
+    }
     return `'${val}`
   }
   return val
@@ -29,10 +34,11 @@ export function parseCSVAdvanced(text: string): CSVParseResult {
 
     if (char === '"') {
       if (inQuotes && nextChar === '"') {
-        currentLine += '"'
+        currentLine += '""'
         i++
       } else {
         inQuotes = !inQuotes
+        currentLine += '"'
       }
     } else if ((char === '\r' || char === '\n') && !inQuotes) {
       if (char === '\r' && nextChar === '\n') {
@@ -92,7 +98,52 @@ export function parseCSVAdvanced(text: string): CSVParseResult {
 
     const row: Record<string, string> = {}
     headers.forEach((header, idx) => {
-      row[header] = values[idx] !== undefined ? values[idx] : ''
+      const val = values[idx] !== undefined ? values[idx] : ''
+      row[header] = val
+
+      // Generate normalized alias keys so callers can look up properties flexibly
+      const trimmedHeader = header.trim()
+      const lower = trimmedHeader.toLowerCase()
+      const stripped = lower.replace(/[^a-z0-9]/g, '')
+      const snake = lower.replace(/[\s-]+/g, '_')
+      const camel = lower.replace(/[\s_-]+([a-z0-9])/g, (_, c) => c.toUpperCase())
+
+      if (trimmedHeader && !(trimmedHeader in row)) row[trimmedHeader] = val
+      if (lower && !(lower in row)) row[lower] = val
+      if (stripped && !(stripped in row)) row[stripped] = val
+      if (snake && !(snake in row)) row[snake] = val
+      if (camel && !(camel in row)) row[camel] = val
+
+      // Common domain aliases for question/assessment and library uploads
+      if (['questiontext', 'question_text', 'question'].includes(snake) || stripped.includes('question')) {
+        if (!('question' in row)) row['question'] = val
+        if (!('questionText' in row)) row['questionText'] = val
+      }
+      if (['correctanswer', 'correct_answer', 'correct', 'answer'].includes(snake) || stripped.includes('correct') || stripped.includes('answer')) {
+        if (!('correct' in row)) row['correct'] = val
+        if (!('answer' in row)) row['answer'] = val
+        if (!('correctAnswer' in row)) row['correctAnswer'] = val
+      }
+      if (['optiona', 'option_a'].includes(snake) || stripped === 'optiona') {
+        if (!('optionA' in row)) row['optionA'] = val
+      }
+      if (['optionb', 'option_b'].includes(snake) || stripped === 'optionb') {
+        if (!('optionB' in row)) row['optionB'] = val
+      }
+      if (['optionc', 'option_c'].includes(snake) || stripped === 'optionc') {
+        if (!('optionC' in row)) row['optionC'] = val
+      }
+      if (['optiond', 'option_d'].includes(snake) || stripped === 'optiond') {
+        if (!('optionD' in row)) row['optionD'] = val
+      }
+      if (['classlevel', 'class_level', 'class'].includes(snake) || stripped === 'classlevel' || stripped === 'class') {
+        if (!('classLevel' in row)) row['classLevel'] = val
+        if (!('class_level' in row)) row['class_level'] = val
+      }
+      if (['publicationyear', 'publication_year', 'year'].includes(snake) || stripped === 'publicationyear' || stripped === 'year') {
+        if (!('publicationYear' in row)) row['publicationYear'] = val
+        if (!('publication_year' in row)) row['publication_year'] = val
+      }
     })
     rows.push(row)
   }
@@ -152,7 +203,11 @@ export function mapCSVFields<T = any>(
   return rows.map(row => {
     const mapped: any = {}
     for (const [targetKey, sourceColumn] of Object.entries(fieldMapping)) {
-      mapped[targetKey] = row[sourceColumn] || ''
+      mapped[targetKey] =
+        row[sourceColumn] ||
+        row[sourceColumn.toLowerCase()] ||
+        row[sourceColumn.replace(/[^a-zA-Z0-9]/g, '')] ||
+        ''
     }
     return mapped as T
   })
