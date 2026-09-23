@@ -114,9 +114,6 @@ export default async function LandingPage() {
           <div className="absolute bottom-0 right-0 w-[350px] sm:w-[600px] h-[350px] sm:h-[600px] bg-blue-400/5 rounded-full blur-[140px] translate-x-1/3 translate-y-1/3" />
         </section>
 
-        {/* Realtime Supabase Database Powered Stats */}
-        <RealtimeStats />
-
         {/* Gallery / Campus Spotlight */}
         <section className="py-12 bg-white border-b border-slate-100">
           <div className="container mx-auto px-4">
@@ -374,6 +371,9 @@ export default async function LandingPage() {
             </div>
           </div>
         </section>
+
+        {/* Real-time Performance Metrics Bar */}
+        <RealtimeStats />
 
         {/* Contact Section */}
         <section id="contact" className="py-40 bg-white">
