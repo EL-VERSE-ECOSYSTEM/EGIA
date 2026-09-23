@@ -1,50 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { parseCSV } from '@/lib/csv-parser'
 import { randomUUID } from 'crypto'
-import { eq, and, sql } from 'drizzle-orm'
-
-// Custom robust parser for CSV files to avoid importing heavy third-party parsers
-function parseCSV(content: string): any[] {
-  const lines = content.split(/\r?\n/)
-  if (lines.length === 0) return []
-
-  // Parse headers
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
-  const records: any[] = []
-
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim()
-    if (!line) continue
-
-    // Parse values respecting quoted commas
-    const values: string[] = []
-    let current = ''
-    let inQuotes = false
-
-    for (let j = 0; j < line.length; j++) {
-      const char = line[j]
-      if (char === '"') {
-        inQuotes = !inQuotes
-      } else if (char === ',' && !inQuotes) {
-        values.push(current.trim().replace(/^"|"$/g, ''))
-        current = ''
-      } else {
-        current += char
-      }
-    }
-    values.push(current.trim().replace(/^"|"$/g, ''))
-
-    if (values.length > 0) {
-      const record: any = {}
-      headers.forEach((header, index) => {
-        record[header] = values[index] || ''
-      })
-      records.push(record)
-    }
-  }
-  return records
-}
+import { sql } from 'drizzle-orm'
 
 export async function POST(request: NextRequest) {
   // Check auth session
@@ -88,23 +47,28 @@ export async function POST(request: NextRequest) {
 
       try {
         const isbn = record.isbn ? record.isbn.trim() : null
-        const title = record.title ? record.title.trim() : ''
-        const subtitle = record.subtitle ? record.subtitle.trim() : null
-        const authors = record.authors ? record.authors.split(',').map((a: string) => a.trim()) : []
-        const publisher = record.publisher ? record.publisher.trim() : null
-        const publication_year = record.publication_year ? parseInt(record.publication_year) : null
-        const edition = record.edition ? record.edition.trim() : null
-        const volume = record.volume ? record.volume.trim() : null
-        const language = record.language ? record.language.trim() : 'English'
-        const pages = record.pages ? parseInt(record.pages) : null
-        const category = record.category ? record.category.trim() : null
-        const sub_category = record.sub_category ? record.sub_category.trim() : null
-        const description = record.description ? record.description.trim() : null
-        const total_copies = record.total_copies ? parseInt(record.total_copies) : 1
-        const physical_location = record.physical_location ? record.physical_location.trim() : null
-        const class_level = record.class_level ? record.class_level.trim() : null
-        const keywords = record.keywords ? record.keywords.split(',').map((k: string) => k.trim()) : []
-        const is_digital = record.is_digital === 'true'
+        const title = (record.title || record.Title || '').trim()
+        const subtitle = (record.subtitle || record.Subtitle || '').trim() || null
+        const authorsRaw = record.authors || record.Authors || record.author || record.Author || ''
+        const authors = authorsRaw ? authorsRaw.split(',').map((a: string) => a.trim()) : []
+        const publisher = (record.publisher || record.Publisher || '').trim() || null
+        const pubYearRaw = record.publication_year || record.publicationYear || record.year || record.Year
+        const publication_year = pubYearRaw ? parseInt(pubYearRaw) : null
+        const edition = (record.edition || record.Edition || '').trim() || null
+        const volume = (record.volume || record.Volume || '').trim() || null
+        const language = (record.language || record.Language || 'English').trim()
+        const pagesRaw = record.pages || record.Pages
+        const pages = pagesRaw ? parseInt(pagesRaw) : null
+        const category = (record.category || record.Category || record.genre || record.Genre || '').trim() || null
+        const sub_category = (record.sub_category || record.subCategory || record.SubCategory || '').trim() || null
+        const description = (record.description || record.Description || record.content || '').trim() || null
+        const totalCopiesRaw = record.total_copies || record.totalCopies || record.total_copies
+        const total_copies = totalCopiesRaw ? parseInt(totalCopiesRaw) : 1
+        const physical_location = (record.physical_location || record.location || record.Location || '').trim() || null
+        const class_level = (record.class_level || record.classLevel || record.class || '').trim() || null
+        const keywordsRaw = record.keywords || record.Keywords || ''
+        const keywords = keywordsRaw ? keywordsRaw.split(',').map((k: string) => k.trim()) : []
+        const is_digital = String(record.is_digital || record.isDigital || '').toLowerCase() === 'true'
 
         if (!title) {
           throw new Error('Title is required')
