@@ -59,20 +59,23 @@ export async function createSupportTicket(data: {
 }) {
   const ticketNumber = `SUP-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
+  let resolvedUserId: string | null = data.userId || null
+
   // If userId not provided, attempt to resolve from session
-  if (!data.userId) {
+  if (!resolvedUserId) {
     try {
       const { auth } = await import('@/lib/auth')
       const session = await auth.getSession()
-      if (session?.user) data.userId = session.user.id
+      if (session?.user?.id) resolvedUserId = session.user.id
     } catch (e) {
-      // ignore
+      // ignore session resolution errors
     }
   }
 
   const newTicket = await db.insert(supportTicket).values({
     id: crypto.randomUUID(),
     ticketNumber,
+    userId: resolvedUserId,
     ...data,
     status: 'OPEN',
   } as any).returning()
