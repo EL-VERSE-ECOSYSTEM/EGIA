@@ -123,10 +123,10 @@ export function RealtimeStats({ initialStats }: RealtimeStatsProps) {
             </div>
             <div>
               <h3 className="text-xl font-black tracking-tight text-white uppercase">
-                Real-Time Platform Metrics
+                Real-Time Performance Metrics
               </h3>
               <p className="text-xs text-slate-400 font-medium">
-                Synchronized live with Supabase database
+                Synchronized Live with Database
               </p>
             </div>
           </div>
@@ -136,7 +136,7 @@ export function RealtimeStats({ initialStats }: RealtimeStatsProps) {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </span>
-            <span>LIVE SUPABASE SYNC</span>
+            <span>ACTIVE SYNC</span>
             {lastEventTime && (
               <span className="text-slate-500 text-[10px] ml-1">
                 ({lastEventTime})
