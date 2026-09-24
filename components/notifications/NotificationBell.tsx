@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Bell, Check, Sparkles, Inbox, ExternalLink, ShieldAlert } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { Bell, Sparkles, Inbox } from "lucide-react";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { getNotificationBellAriaLabel } from "@/lib/notifications/bell-utils";
 
 type Item = {
   id: string;
@@ -13,10 +14,13 @@ type Item = {
   createdAt?: string;
 };
 
+export { getNotificationBellAriaLabel };
+
 export function NotificationBell() {
   const [items, setItems] = useState<Item[]>([]);
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const load = async () => {
     try {
@@ -37,6 +41,30 @@ export function NotificationBell() {
   useRealtimeSubscription("notification", () => {
     void load();
   });
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && open) {
+        setOpen(false);
+      }
+    }
+
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    if (open) {
+      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
 
   const unread = items.filter((item) => !item.readAt).length;
 
@@ -61,27 +89,35 @@ export function NotificationBell() {
   const filteredItems = items.filter(item => filter === 'all' || !item.readAt);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
-        aria-label="Notifications"
+        type="button"
+        aria-label={getNotificationBellAriaLabel(unread)}
+        aria-expanded={open}
+        aria-controls="notification-popover"
         onClick={() => setOpen(!open)}
-        className="relative p-2.5 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 active:translate-y-0 group"
+        className="relative p-2.5 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 motion-reduce:hover:transform-none motion-reduce:transition-none group"
       >
-        <Bell className={`w-5 h-5 transition-transform ${unread > 0 ? "animate-bounce text-orange-600" : "group-hover:rotate-12 text-slate-600"}`} />
+        <Bell className={`w-5 h-5 transition-transform motion-reduce:transition-none motion-reduce:animate-none ${unread > 0 ? "animate-bounce text-orange-600" : "group-hover:rotate-12 text-slate-600"}`} aria-hidden="true" />
         {unread > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-orange-600 px-1 text-[10px] font-black text-white shadow-lg shadow-rose-500/30 border-2 border-white animate-pulse">
+          <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-orange-600 px-1 text-[10px] font-black text-white shadow-lg shadow-rose-500/30 border-2 border-white animate-pulse motion-reduce:animate-none">
             {unread > 99 ? "99+" : unread}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-14 z-50 w-80 sm:w-96 overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white/95 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in fade-in slide-in-from-top-3 duration-300">
+        <div
+          id="notification-popover"
+          role="region"
+          aria-label="Notifications inbox"
+          className="absolute right-0 top-14 z-50 w-80 sm:w-96 overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white/95 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in fade-in slide-in-from-top-3 duration-300 motion-reduce:animate-none motion-reduce:transition-none"
+        >
           {/* Header Banner */}
           <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-orange-950 p-5 text-white flex items-center justify-between border-b border-white/10">
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-orange-500/20 border border-orange-500/30 text-orange-400">
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-4 h-4" aria-hidden="true" />
               </div>
               <div>
                 <h3 className="font-black text-sm tracking-tight text-white flex items-center gap-2">
@@ -98,7 +134,8 @@ export function NotificationBell() {
 
             {unread > 0 && (
               <button
-                className="text-[10px] font-black text-orange-400 hover:text-orange-300 uppercase tracking-wider bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 transition"
+                type="button"
+                className="text-[10px] font-black text-orange-400 hover:text-orange-300 uppercase tracking-wider bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 motion-reduce:transition-none"
                 onClick={() =>
                   void markRead(items.filter((item) => !item.readAt).map((item) => item.id))
                 }
@@ -109,10 +146,14 @@ export function NotificationBell() {
           </div>
 
           {/* Filter Bar */}
-          <div className="flex border-b border-slate-100 bg-slate-50/50 p-2 gap-1">
+          <div className="flex border-b border-slate-100 bg-slate-50/50 p-2 gap-1" role="tablist" aria-label="Notification filters">
             <button
+              type="button"
+              role="tab"
+              aria-selected={filter === 'all'}
+              aria-pressed={filter === 'all'}
               onClick={() => setFilter('all')}
-              className={`flex-1 py-1.5 rounded-xl text-[11px] font-black transition ${
+              className={`flex-1 py-1.5 rounded-xl text-[11px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 motion-reduce:transition-none ${
                 filter === 'all'
                   ? 'bg-white shadow-sm text-slate-900'
                   : 'text-slate-400 hover:text-slate-600'
@@ -121,8 +162,12 @@ export function NotificationBell() {
               All ({items.length})
             </button>
             <button
+              type="button"
+              role="tab"
+              aria-selected={filter === 'unread'}
+              aria-pressed={filter === 'unread'}
               onClick={() => setFilter('unread')}
-              className={`flex-1 py-1.5 rounded-xl text-[11px] font-black transition ${
+              className={`flex-1 py-1.5 rounded-xl text-[11px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 motion-reduce:transition-none ${
                 filter === 'unread'
                   ? 'bg-white shadow-sm text-orange-600'
                   : 'text-slate-400 hover:text-slate-600'
@@ -137,8 +182,9 @@ export function NotificationBell() {
             {filteredItems.length ? (
               filteredItems.map((item) => (
                 <button
+                  type="button"
                   key={item.id}
-                  className={`block w-full p-4 text-left transition-all hover:bg-slate-50/80 ${
+                  className={`block w-full p-4 text-left transition-all hover:bg-slate-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-inset motion-reduce:transition-none ${
                     !item.readAt ? "bg-orange-500/5 font-semibold" : "opacity-80"
                   }`}
                   onClick={() => {
@@ -151,7 +197,7 @@ export function NotificationBell() {
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                         !item.readAt ? "bg-orange-100 text-orange-600" : "bg-slate-100 text-slate-400"
                       }`}>
-                        <Bell className="w-4 h-4" />
+                        <Bell className="w-4 h-4" aria-hidden="true" />
                       </div>
                       <div className="space-y-1">
                         <p className={`text-xs ${!item.readAt ? "font-black text-slate-900" : "font-bold text-slate-700"}`}>
@@ -163,14 +209,14 @@ export function NotificationBell() {
                       </div>
                     </div>
                     {!item.readAt && (
-                      <span className="w-2 h-2 rounded-full bg-orange-600 shrink-0 mt-1.5 animate-ping" />
+                      <span className="w-2 h-2 rounded-full bg-orange-600 shrink-0 mt-1.5 animate-ping motion-reduce:animate-none" />
                     )}
                   </div>
                 </button>
               ))
             ) : (
               <div className="p-8 text-center space-y-2">
-                <Inbox className="w-10 h-10 text-slate-300 mx-auto" />
+                <Inbox className="w-10 h-10 text-slate-300 mx-auto" aria-hidden="true" />
                 <p className="text-xs font-black text-slate-500">No notifications found</p>
                 <p className="text-[10px] text-slate-400 font-bold">You are completely up to date.</p>
               </div>
