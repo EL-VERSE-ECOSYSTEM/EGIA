@@ -238,7 +238,7 @@ export default function StudentRegistrationPage() {
           </Button>
         </Card>
       ) : (
-        <Card className="max-w-xl w-full border border-slate-800 shadow-2xl rounded-[2.5rem] overflow-hidden bg-slate-900 text-white">
+        <Card className="max-w-xl w-full border border-white/20 shadow-[0_30px_100px_rgba(0,0,0,0.6)] rounded-[2.5rem] overflow-hidden bg-white/10 backdrop-blur-3xl text-white">
           <div className="h-2 bg-orange-600 w-full" />
           <CardHeader className="text-center pt-10">
             <div className="mx-auto bg-orange-500/10 border border-orange-500/30 p-4 rounded-2xl w-fit mb-4">

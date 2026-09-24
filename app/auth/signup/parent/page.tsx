@@ -191,7 +191,7 @@ export default function ParentSignUpPage() {
           transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
           transition: 'transform 0.15s ease-out'
         }}
-        className="relative max-w-3xl mx-auto w-full my-8 bg-slate-900/90 backdrop-blur-2xl border border-white/15 rounded-[2.5rem] p-6 sm:p-10 shadow-[0_30px_100px_rgba(0,0,0,0.5)] z-10"
+        className="relative max-w-3xl mx-auto w-full my-8 bg-white/10 backdrop-blur-3xl border border-white/20 rounded-[2.5rem] p-6 sm:p-10 shadow-[0_30px_100px_rgba(0,0,0,0.6)] z-10"
       >
         <div className="mb-8 text-center sm:text-left space-y-2">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-black uppercase tracking-widest">
