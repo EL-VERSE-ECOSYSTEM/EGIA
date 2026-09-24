@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseCSVAdvanced, mapCSVFields } from '@/lib/csv-parser'
 import { db } from '@/lib/db'
-import { libraryBooks, assessmentQuestion, assessment } from '@/lib/db/schema'
+import { libraryBooks, assessmentQuestion, assessment, user as userTable } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { createClient } from '@/utils/supabase/server'
@@ -127,6 +127,24 @@ export async function POST(req: NextRequest) {
 
       if (!existingAssessment) {
         return NextResponse.json({ error: 'Target assessment not found.' }, { status: 404 })
+      }
+
+      // Enforce school tenant isolation for non-SUPER_ADMIN users
+      if (role !== 'SUPER_ADMIN') {
+        let userSchoolId = user.user_metadata?.school_id || null
+
+        if (!userSchoolId) {
+          const userRecord = await db.query.user.findFirst({
+            where: eq(userTable.id, user.id)
+          })
+          userSchoolId = userRecord?.schoolId || null
+        }
+
+        if (existingAssessment.schoolId && existingAssessment.schoolId !== userSchoolId) {
+          return NextResponse.json({
+            error: 'Forbidden: School tenant isolation mismatch. You cannot modify assessments belonging to another school.'
+          }, { status: 403 })
+        }
       }
 
       const mappedQuestions = mapCSVFields(parsed.rows, {

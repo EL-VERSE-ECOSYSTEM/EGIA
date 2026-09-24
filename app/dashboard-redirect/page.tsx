@@ -1,40 +1,70 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import { getParentProfile, getStudentProfile, getTeacherProfile, getLinkedChildren } from '@/app/actions/user'
+import {
+  getParentProfile,
+  getStudentProfile,
+  getTeacherProfile,
+  createTeacherProfile,
+  createStudentProfile,
+  createParentProfile,
+} from '@/app/actions/user'
 
 export const dynamic = 'force-dynamic'
 
-/** Routes only verified roles to their real dashboard based on Supabase database roles. */
+/** Routes all roles to their respective dashboards based on Supabase database roles. */
 export default async function DashboardRedirect() {
   const session = await auth.getSession()
-  if (!session?.user) redirect('/auth/signin?error=Please sign in to continue')
+  if (!session?.user) {
+    redirect('/auth/signin?error=Please sign in to continue')
+  }
 
-  switch (session.user.role?.toUpperCase()) {
+  const role = session.user.role?.toUpperCase()
+
+  switch (role) {
     case 'SUPER_ADMIN':
       redirect('/dashboard/super-admin/overview')
+
     case 'SCHOOL_ADMIN':
     case 'ADMIN':
       redirect('/dashboard/admin/overview')
+
     case 'TEACHER': {
-      const profile = await getTeacherProfile(session.user.id)
+      let profile: any = await getTeacherProfile(session.user.id)
+      if (!profile) {
+        try {
+          profile = await createTeacherProfile({})
+        } catch {
+          // ignore error and proceed
+        }
+      }
       redirect(profile ? '/dashboard/teacher/overview' : '/setup-role/teacher')
     }
+
     case 'PARENT': {
-      const profile = await getParentProfile(session.user.id)
+      let profile: any = await getParentProfile(session.user.id)
       if (!profile) {
-        redirect('/setup-role/parent')
-      }
-      const wards = await getLinkedChildren()
-      if (wards.length === 0) {
-        redirect('/setup-role/parent')
+        try {
+          profile = await createParentProfile({})
+        } catch {
+          // ignore error and proceed
+        }
       }
       redirect('/dashboard/parent/overview')
     }
+
     case 'STUDENT': {
-      const profile = await getStudentProfile(session.user.id)
+      let profile: any = await getStudentProfile(session.user.id)
+      if (!profile) {
+        try {
+          profile = await createStudentProfile({})
+        } catch {
+          // ignore error and proceed
+        }
+      }
       redirect(profile ? '/dashboard/student/overview' : '/setup-role/student')
     }
+
     default:
-      redirect('/setup-role')
+      redirect('/dashboard/student/overview')
   }
 }
