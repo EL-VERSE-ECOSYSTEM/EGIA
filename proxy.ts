@@ -141,20 +141,28 @@ export async function proxy(request: NextRequest) {
     return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
   }
 
+  // Direct base /dashboard path to /dashboard-redirect
+  if (isAuthenticated && (pathname === '/dashboard' || pathname === '/dashboard/')) {
+    return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
+  }
+
   // Protect role-specific sub-dashboards
   if (isAuthenticated && pathname.startsWith('/dashboard/')) {
     const role = (user?.user_metadata?.role || '').toUpperCase()
 
+    if (pathname.startsWith('/dashboard/super-admin') && role !== 'SUPER_ADMIN') {
+      return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
+    }
     if (pathname.startsWith('/dashboard/admin') && !adminRoles.includes(role)) {
       return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
     }
-    if (pathname.startsWith('/dashboard/teacher') && role !== 'TEACHER') {
+    if (pathname.startsWith('/dashboard/teacher') && role !== 'TEACHER' && role !== 'SUPER_ADMIN') {
       return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
     }
-    if (pathname.startsWith('/dashboard/parent') && role !== 'PARENT') {
+    if (pathname.startsWith('/dashboard/parent') && role !== 'PARENT' && role !== 'SUPER_ADMIN') {
       return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
     }
-    if (pathname.startsWith('/dashboard/student') && role !== 'STUDENT') {
+    if (pathname.startsWith('/dashboard/student') && role !== 'STUDENT' && role !== 'SUPER_ADMIN') {
       return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
     }
   }

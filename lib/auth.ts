@@ -1,8 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from './db'
-import { userRole, user as userTable, schoolAdminRoles } from './db/schema'
-import { eq } from 'drizzle-orm'
+import { userRole, user as userTable } from './db/schema'
+import { resolveIdentities } from './auth/resolveIdentities'
 
 async function getSessionImpl() {
   const cookieStore = await cookies()
@@ -18,31 +18,28 @@ async function getSessionImpl() {
     return null
   }
 
-  const roleRecord = await db.select()
-    .from(userRole)
-    .where(eq(userRole.userId, user.id))
+  const loginContext = await resolveIdentities(user.id)
 
-  const adminRoleRec = await db.query.schoolAdminRoles.findFirst({
-    where: eq(schoolAdminRoles.userId, user.id)
-  })
+  const activeIdentityId = user.user_metadata?.active_identity_id
+  const matchedIdentity = activeIdentityId
+    ? loginContext.identities.find((i) => i.id === activeIdentityId)
+    : null
 
-  let dbRole = roleRecord?.[0]?.role
-  if (!dbRole && adminRoleRec) {
-    dbRole = 'SCHOOL_ADMIN'
+  const primaryIdentity = matchedIdentity || loginContext.identities[0]
+  const finalRole = (primaryIdentity?.role || user.user_metadata?.role || 'STUDENT').toUpperCase()
+  const schoolId = primaryIdentity?.schoolId || user.user_metadata?.school_id || null
+  const adminLevel = primaryIdentity?.adminLevel || user.user_metadata?.admin_level || null
+
+  try {
+    await db.insert(userRole).values({
+      id: crypto.randomUUID(),
+      userId: user.id,
+      role: finalRole as any,
+      createdAt: new Date(),
+    }).onConflictDoNothing()
+  } catch {
+    // ignore duplicate conflict
   }
-
-  // Fail closed if user has no matching database role record
-  if (!dbRole && !adminRoleRec) {
-    return null
-  }
-
-  const dbUser = await db.select({ schoolId: userTable.schoolId })
-    .from(userTable)
-    .where(eq(userTable.id, user.id))
-    .limit(1)
-
-  const finalRole = dbRole ? dbRole.toUpperCase() : 'SCHOOL_ADMIN'
-  const schoolId = dbUser?.[0]?.schoolId || adminRoleRec?.schoolId || null
 
   return {
     ...session,
@@ -50,9 +47,9 @@ async function getSessionImpl() {
       ...user,
       id: user.id,
       email: user.email || '',
-      name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+      name: user.user_metadata?.full_name || user.user_metadata?.name || loginContext.fullName || 'User',
       role: finalRole,
-      adminLevel: adminRoleRec?.level || null,
+      adminLevel,
       schoolId,
     }
   }
@@ -67,35 +64,21 @@ async function getUserImpl() {
     return null
   }
 
-  const roleRecord = await db.select()
-    .from(userRole)
-    .where(eq(userRole.userId, user.id))
+  const loginContext = await resolveIdentities(user.id)
+  const activeIdentityId = user.user_metadata?.active_identity_id
+  const matchedIdentity = activeIdentityId
+    ? loginContext.identities.find((i) => i.id === activeIdentityId)
+    : null
 
-  const adminRoleRec = await db.query.schoolAdminRoles.findFirst({
-    where: eq(schoolAdminRoles.userId, user.id)
-  })
-
-  let dbRole = roleRecord?.[0]?.role
-  if (!dbRole && adminRoleRec) {
-    dbRole = 'SCHOOL_ADMIN'
-  }
-
-  if (!dbRole && !adminRoleRec) {
-    return null
-  }
-
-  const dbUser = await db.select({ schoolId: userTable.schoolId })
-    .from(userTable)
-    .where(eq(userTable.id, user.id))
-    .limit(1)
-
-  const finalRole = dbRole ? dbRole.toUpperCase() : 'SCHOOL_ADMIN'
-  const schoolId = dbUser?.[0]?.schoolId || adminRoleRec?.schoolId || null
+  const primaryIdentity = matchedIdentity || loginContext.identities[0]
+  const finalRole = (primaryIdentity?.role || user.user_metadata?.role || 'STUDENT').toUpperCase()
+  const schoolId = primaryIdentity?.schoolId || user.user_metadata?.school_id || null
+  const adminLevel = primaryIdentity?.adminLevel || user.user_metadata?.admin_level || null
 
   return {
     ...user,
     role: finalRole,
-    adminLevel: adminRoleRec?.level || null,
+    adminLevel,
     schoolId,
   }
 }
