@@ -1,13 +1,14 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { GraduationCap, Loader2, CheckCircle2, AlertCircle, Sparkles, Lock, User } from 'lucide-react'
+import { GraduationCap, Loader2, CheckCircle2, AlertCircle, Sparkles, QrCode, Camera, X } from 'lucide-react'
 import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
+import { QRCodeSVG } from '@/components/ui/qr-code'
 
 export default function AcceptInvitePage() {
   const params = useParams()
@@ -19,6 +20,11 @@ export default function AcceptInvitePage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+
+  // QR Modal & Camera Scanner
+  const [showQR, setShowQR] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
 
   // Registration Form State
   const [firstName, setFirstName] = useState('')
@@ -36,7 +42,7 @@ export default function AcceptInvitePage() {
         } else {
           setError(data.error || 'Invalid or expired invitation token.')
         }
-      } catch (err) {
+      } catch {
         setError('Failed to fetch invitation details.')
       } finally {
         setLoading(false)
@@ -44,6 +50,26 @@ export default function AcceptInvitePage() {
     }
     loadInvite()
   }, [token])
+
+  const startScanner = async () => {
+    setScanning(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+    } catch {
+      console.warn('Webcam camera access unavailable for QR scanner')
+    }
+  }
+
+  const stopScanner = () => {
+    setScanning(false)
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream
+      stream.getTracks().forEach((track) => track.stop())
+    }
+  }
 
   const handleAccept = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,12 +103,14 @@ export default function AcceptInvitePage() {
       } else {
         setError(data.error || 'Failed to accept invitation.')
       }
-    } catch (err) {
+    } catch {
       setError('Network error processing invitation.')
     } finally {
       setSubmitting(false)
     }
   }
+
+  const fullInviteUrl = typeof window !== 'undefined' ? window.location.href : `https://el-goodnews-academy.com/invite/${token}`
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden perspective-[1200px]">
@@ -146,10 +174,48 @@ export default function AcceptInvitePage() {
                 </div>
               )}
 
-              <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs space-y-1 font-mono">
-                <p className="text-slate-400">Target Role: <strong className="text-blue-400 font-black">{invitation.role}</strong></p>
-                <p className="text-slate-400">Invited Identifier: <strong className="text-white">{invitation.email || invitation.phone}</strong></p>
+              <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs flex justify-between items-center font-mono">
+                <div>
+                  <p className="text-slate-400">Target Role: <strong className="text-blue-400 font-black">{invitation.role}</strong></p>
+                  <p className="text-slate-400">Invited Identifier: <strong className="text-white">{invitation.email || invitation.phone}</strong></p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowQR(!showQR)}
+                  className="p-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded-xl flex items-center gap-1.5 text-[10px] font-black uppercase transition"
+                >
+                  <QrCode className="w-4 h-4" /> QR Code
+                </button>
               </div>
+
+              {showQR && (
+                <div className="p-6 bg-slate-950 border border-blue-500/30 rounded-2xl text-center space-y-3 animate-in fade-in duration-200">
+                  <p className="text-xs font-black text-blue-300 uppercase tracking-widest">Scan QR Code to Open on Mobile</p>
+                  <QRCodeSVG value={fullInviteUrl} size={160} className="mx-auto" />
+                </div>
+              )}
+
+              {/* Camera Scanner Modal Trigger */}
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={scanning ? stopScanner : startScanner}
+                  className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition py-1 px-3 bg-slate-800/60 rounded-full border border-slate-700"
+                >
+                  <Camera className="w-3.5 h-3.5 text-blue-400" />
+                  {scanning ? 'Stop QR Camera Scanner' : 'Open Mobile QR Scanner'}
+                </button>
+              </div>
+
+              {scanning && (
+                <div className="p-4 bg-black rounded-2xl border border-slate-800 space-y-2 text-center relative">
+                  <button onClick={stopScanner} className="absolute top-2 right-2 text-slate-400 hover:text-white p-1">
+                    <X className="w-4 h-4" />
+                  </button>
+                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-40 object-cover rounded-xl border border-slate-700" />
+                  <p className="text-[10px] text-emerald-400 font-mono animate-pulse">Scanning QR code in real time...</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">

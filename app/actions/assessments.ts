@@ -16,29 +16,7 @@ function calculateGrade(percentage: number) {
   return 'F'
 }
 
-export async function fisherYatesShuffle<T>(array: T[]): Promise<T[]> {
-  const result = [...array]
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = randomInt(0, i + 1)
-    const temp = result[i]
-    result[i] = result[j]
-    result[j] = temp
-  }
-  return result
-}
-
-export async function submitCBT(
-  assessmentId: string,
-  studentId: string,
-  answers: { questionId: string; answer: any }[],
-  proctoring?: {
-    warningCount?: number
-    proctorLogs?: any
-    assessmentVideo?: string
-    status?: string
-    timeSpent?: number
-  }
-) {
+export async function submitCBT(assessmentId: string, studentId: string, answers: { questionId: string, answer: any }[]) {
   const session = await auth.getSession()
   if (!session?.user || session.user.role !== 'STUDENT') throw new Error('Unauthorized')
 
@@ -78,9 +56,6 @@ export async function submitCBT(
   let totalScore = 0
   const studentAnswersToInsert: any[] = []
   let correctCount = 0
-  const reviewQuestions: any[] = []
-
-  const possiblePoints = assessmentData.questions.reduce((sum, q) => sum + (q.points || 1), 0)
 
   for (const q of assessmentData.questions) {
     const studentAns = answers.find(a => a.questionId === q.id)
@@ -89,35 +64,21 @@ export async function submitCBT(
     let isCorrect = false
     let score = 0
 
-    const rawOptions = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : []
-
     if (q.questionType === 'MCQ_SINGLE' || q.questionType === 'TRUE_FALSE') {
-      isCorrect = typeof submittedAnswer === 'string' &&
-        typeof q.correctAnswer === 'string' &&
-        submittedAnswer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()
+      isCorrect = submittedAnswer === q.correctAnswer
     } else if (q.questionType === 'MCQ_MULTIPLE') {
-      const correctOptions = q.correctAnswer?.split(',').map(s => s.trim().toLowerCase()).sort() || []
-      const submittedOptions = Array.isArray(submittedAnswer)
-        ? submittedAnswer.map(s => String(s).trim().toLowerCase()).sort()
-        : [String(submittedAnswer || '').trim().toLowerCase()]
+      const correctOptions = q.correctAnswer?.split(',').map(s => s.trim()).sort() || []
+      const submittedOptions = Array.isArray(submittedAnswer) ? [...submittedAnswer].sort() : []
       isCorrect = JSON.stringify(correctOptions) === JSON.stringify(submittedOptions)
     } else if (q.questionType === 'FILL_BLANK') {
       const correctBlanks = q.correctAnswer?.split(',').map(s => s.trim().toLowerCase()) || []
-      const submittedBlanks = Array.isArray(submittedAnswer)
-        ? submittedAnswer.map(s => String(s).trim().toLowerCase())
-        : [String(submittedAnswer || '').trim().toLowerCase()]
+      const submittedBlanks = Array.isArray(submittedAnswer) ? submittedAnswer.map(s => s.trim().toLowerCase()) : []
       isCorrect = JSON.stringify(correctBlanks) === JSON.stringify(submittedBlanks)
     } else if (q.questionType === 'SHORT_ANSWER') {
-      isCorrect = typeof submittedAnswer === 'string' &&
-        typeof q.correctAnswer === 'string' &&
-        submittedAnswer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()
-    } else {
-      isCorrect = typeof submittedAnswer === 'string' &&
-        typeof q.correctAnswer === 'string' &&
-        submittedAnswer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()
+      isCorrect = submittedAnswer?.trim().toLowerCase() === q.correctAnswer?.trim().toLowerCase()
     }
 
-    score = isCorrect ? (q.points || 1) : 0
+    score = isCorrect ? (q.points || 0) : 0
     if (isCorrect) {
       totalScore += score
       correctCount += 1
@@ -131,26 +92,10 @@ export async function submitCBT(
       pointsEarned: score,
       isCorrect,
     })
-
-    reviewQuestions.push({
-      id: q.id,
-      text: q.questionText,
-      options: rawOptions,
-      submittedAnswer: submittedAnswer || null,
-      correctAnswer: q.correctAnswer,
-      isCorrect,
-      explanation: q.explanation || null,
-      points: q.points || 1,
-    })
   }
 
-  const percentage = possiblePoints > 0 ? (totalScore / possiblePoints) * 100 : 0
+  const percentage = (totalScore / (assessmentData.totalPoints || 1)) * 100
   const grade = calculateGrade(percentage)
-  const status = proctoring?.status || 'completed'
-  const warningCount = proctoring?.warningCount || 0
-  const proctorLogs = proctoring?.proctorLogs
-    ? (typeof proctoring.proctorLogs === 'string' ? proctoring.proctorLogs : JSON.stringify(proctoring.proctorLogs))
-    : null
 
   return await db.transaction(async (tx) => {
     await tx.insert(assessmentResult).values({
@@ -160,12 +105,12 @@ export async function submitCBT(
       score: Number(percentage.toFixed(2)).toString(),
       totalQuestions: assessmentData.questions.length,
       correctAnswers: correctCount,
-      timeSpent: proctoring?.timeSpent || 0,
-      status,
+      timeSpent: 0,
+      status: 'completed',
       gradedBy: null,
-      assessmentVideo: proctoring?.assessmentVideo || null,
-      warningCount,
-      proctorLogs,
+      assessmentVideo: null,
+      warningCount: 0,
+      proctorLogs: null,
       createdAt: new Date(),
     } as any)
 
@@ -174,16 +119,7 @@ export async function submitCBT(
     }
 
     revalidatePath('/dashboard/student/results')
-    return {
-      resultId,
-      totalScore,
-      possiblePoints,
-      percentage: Number(percentage.toFixed(2)),
-      grade,
-      correctCount,
-      totalQuestions: assessmentData.questions.length,
-      reviewQuestions,
-    }
+    return { resultId, totalScore, percentage, grade }
   })
 }
 
@@ -413,18 +349,18 @@ export async function getLoggedInStudentAndQuestions(assessmentId: string, provi
   }
 
   // Omit correctAnswer and explanation from student response entirely
-  const questionsList = await Promise.all(dbAssessment.questions.map(async q => {
+  const questionsList = dbAssessment.questions.map(q => {
     const rawOptions = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : []
-    const shuffledOptions = Array.isArray(rawOptions) ? await fisherYatesShuffle(rawOptions) : rawOptions
+    const shuffledOptions = Array.isArray(rawOptions) ? [...rawOptions].sort(() => Math.random() - 0.5) : rawOptions
     return {
       id: q.id,
       text: q.questionText,
       options: shuffledOptions,
       points: q.points || 1,
     }
-  }))
+  })
 
-  const shuffledQuestions = await fisherYatesShuffle(questionsList)
+  const shuffledQuestions = [...questionsList].sort(() => Math.random() - 0.5)
 
   return {
     studentId: studentProfile.id,

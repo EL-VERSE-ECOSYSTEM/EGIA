@@ -8,14 +8,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Send, Mail, Smartphone, Plus, RefreshCw, CheckCircle2, Clock, XCircle, Copy, Sparkles, Loader2 } from 'lucide-react'
+import { Send, Mail, Smartphone, RefreshCw, CheckCircle2, Clock, XCircle, Copy, Sparkles, Loader2, QrCode, X } from 'lucide-react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { toast } from 'sonner'
+import { QRCodeSVG } from '@/components/ui/qr-code'
 
 export default function AdminInvitationsPage() {
   const [invitationsList, setInvitationsList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [activeQR, setActiveQR] = useState<{ email: string; link: string } | null>(null)
 
   // Form State
   const [email, setEmail] = useState('')
@@ -77,7 +79,7 @@ export default function AdminInvitationsPage() {
       } else {
         toast.error(data.error || 'Failed to send invitation')
       }
-    } catch (err) {
+    } catch {
       toast.error('Network error sending invitation')
     } finally {
       setSending(false)
@@ -99,9 +101,29 @@ export default function AdminInvitationsPage() {
               <Sparkles className="w-4 h-4 text-blue-400" /> Onboarding Management
             </div>
             <h1 className="text-4xl font-black tracking-tight text-white">Teacher & Staff Invitations</h1>
-            <p className="text-slate-300 font-bold text-sm">Send email & SMS invitations to Teachers, Parents, and Students with automatic school registration linkage.</p>
+            <p className="text-slate-300 font-bold text-sm">Send email & SMS invitations to Teachers, Parents, and Students with automatic QR code onboarding.</p>
           </div>
         </div>
+
+        {/* QR Modal */}
+        {activeQR && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <Card className="max-w-sm w-full bg-white p-6 rounded-[2rem] text-center space-y-4 relative shadow-2xl animate-in fade-in">
+              <button
+                onClick={() => setActiveQR(null)}
+                className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="space-y-1">
+                <h3 className="font-black text-slate-900 text-lg">Invitation QR Code</h3>
+                <p className="text-xs text-slate-500 font-bold">{activeQR.email}</p>
+              </div>
+              <QRCodeSVG value={activeQR.link} size={200} className="mx-auto" />
+              <p className="text-[11px] text-slate-400 font-medium">Scan with camera to instantly open invitation page</p>
+            </Card>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Send Invitation Form */}
@@ -111,7 +133,7 @@ export default function AdminInvitationsPage() {
                 <Send className="w-5 h-5 text-[#1E3A8A]" /> Send New Invitation
               </CardTitle>
               <CardDescription className="text-slate-400 font-bold text-xs">
-                Invitee receives a secure onboarding link
+                Invitee receives a secure onboarding link & QR code
               </CardDescription>
             </CardHeader>
 
@@ -204,44 +226,55 @@ export default function AdminInvitationsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody className="divide-y divide-slate-100 font-medium text-xs">
-                      {invitationsList.map((inv) => (
-                        <TableRow key={inv.id}>
-                          <TableCell className="p-4">
-                            <p className="font-black text-slate-900">{inv.email || inv.phone}</p>
-                            <p className="text-[10px] text-slate-400 font-bold">Expires {new Date(inv.expiresAt).toLocaleDateString()}</p>
-                          </TableCell>
-                          <TableCell className="p-4">
-                            <Badge className="bg-blue-50 text-[#1E3A8A] border border-blue-200 font-black text-[10px]">
-                              {inv.role}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="p-4">
-                            {inv.status === 'ACCEPTED' ? (
-                              <Badge className="bg-emerald-100 text-emerald-800 border-none font-black text-[10px] gap-1">
-                                <CheckCircle2 className="w-3 h-3" /> ACCEPTED
+                      {invitationsList.map((inv) => {
+                        const link = `https://el-goodnews-academy.com/invite/${inv.token}`
+                        return (
+                          <TableRow key={inv.id}>
+                            <TableCell className="p-4">
+                              <p className="font-black text-slate-900">{inv.email || inv.phone}</p>
+                              <p className="text-[10px] text-slate-400 font-bold">Expires {new Date(inv.expiresAt).toLocaleDateString()}</p>
+                            </TableCell>
+                            <TableCell className="p-4">
+                              <Badge className="bg-blue-50 text-[#1E3A8A] border border-blue-200 font-black text-[10px]">
+                                {inv.role}
                               </Badge>
-                            ) : inv.status === 'EXPIRED' ? (
-                              <Badge className="bg-red-100 text-red-800 border-none font-black text-[10px] gap-1">
-                                <XCircle className="w-3 h-3" /> EXPIRED
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-amber-100 text-amber-800 border-none font-black text-[10px] gap-1">
-                                <Clock className="w-3 h-3" /> PENDING
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="p-4 text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => copyInviteLink(`http://localhost:3000/invite/${inv.token}`)}
-                              className="rounded-xl h-8 text-[11px] font-bold gap-1 border-slate-200"
-                            >
-                              <Copy className="w-3 h-3" /> Copy Link
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            <TableCell className="p-4">
+                              {inv.status === 'ACCEPTED' ? (
+                                <Badge className="bg-emerald-100 text-emerald-800 border-none font-black text-[10px] gap-1">
+                                  <CheckCircle2 className="w-3 h-3" /> ACCEPTED
+                                </Badge>
+                              ) : inv.status === 'EXPIRED' ? (
+                                <Badge className="bg-red-100 text-red-800 border-none font-black text-[10px] gap-1">
+                                  <XCircle className="w-3 h-3" /> EXPIRED
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-amber-100 text-amber-800 border-none font-black text-[10px] gap-1">
+                                  <Clock className="w-3 h-3" /> PENDING
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="p-4 text-right space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setActiveQR({ email: inv.email || inv.phone, link })}
+                                className="rounded-xl h-8 text-[11px] font-bold gap-1 border-slate-200"
+                              >
+                                <QrCode className="w-3 h-3 text-blue-600" /> QR
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => copyInviteLink(link)}
+                                className="rounded-xl h-8 text-[11px] font-bold gap-1 border-slate-200"
+                              >
+                                <Copy className="w-3 h-3" /> Link
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 )}
