@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { AlertCircle, ShieldAlert, Camera, CheckCircle2, Clock, Play, EyeOff, AlertOctagon, Loader2 } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
-import { submitCBT, getLoggedInStudentAndQuestions } from '@/app/actions/assessments'
+import { saveProctoredAssessmentResult, getLoggedInStudentAndQuestions } from '@/app/actions/assessments'
 
 export default function CBTExamTakingPage() {
   const router = useRouter()
@@ -26,18 +26,6 @@ export default function CBTExamTakingPage() {
   const [questions, setQuestions] = useState<any[]>([])
   const [assessmentTitle, setAssessmentTitle] = useState<string>('CBT Assessment')
   const [loading, setLoading] = useState(true)
-
-  // Server-Graded Result Summary state
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [resultSummary, setResultSummary] = useState<{
-    totalScore: number
-    possiblePoints: number
-    percentage: number
-    grade: string
-    correctCount: number
-    totalQuestions: number
-    reviewQuestions: any[]
-  } | null>(null)
 
   // Active Warning Overlay state (blocks exam progression)
   const [activeWarning, setActiveWarning] = useState<{
@@ -322,65 +310,55 @@ export default function CBTExamTakingPage() {
   }
 
   const autoSubmitExam = async (reason = 'Proctoring violation detected.') => {
-    if (examFinished || isSubmitting) return
-    setIsSubmitting(true)
+    if (examFinished) return
     setExamFinished(true)
     setActiveWarning(null)
     const base64Vid = await compileVideoBlobAndSave()
 
-    const formattedAnswers = Object.entries(selectedAnswers).map(([qId, ans]) => ({
-      questionId: qId,
-      answer: ans
-    }))
-
-    try {
-      const res = await submitCBT(assessmentId, studentId, formattedAnswers, {
-        warningCount: warningCount + 1,
-        proctorLogs: [...proctorLogs, { timestamp: new Date().toLocaleTimeString(), type: 'AUTO_SUBMIT', message: `Exam auto-submitted: ${reason}` }],
-        assessmentVideo: base64Vid,
-        status: 'failed_proctoring',
-        timeSpent: 1800 - timeLeft
-      })
-      if (res) {
-        setResultSummary(res)
-      }
-    } catch (err) {
-      console.error('Failed auto-submitting CBT assessment:', err)
-    } finally {
-      setIsSubmitting(false)
-    }
+    // Save to PostgreSQL database via action in real time
+    await saveProctoredAssessmentResult({
+      assessmentId,
+      studentId,
+      score: 0,
+      totalQuestions: questions.length || 3,
+      correctAnswers: 0,
+      timeSpent: 1800 - timeLeft,
+      status: 'failed_proctoring',
+      assessmentVideo: base64Vid,
+      warningCount: warningCount + 1,
+      proctorLogs: [...proctorLogs, { timestamp: new Date().toLocaleTimeString(), type: 'AUTO_SUBMIT', message: `Exam auto-submitted: ${reason}` }]
+    })
 
     alert(`EXAM AUTO-SUBMITTED: ${reason}`)
   }
 
   const manualSubmitExam = async () => {
-    if (isSubmitting || examFinished) return
     if (confirm('Are you sure you want to submit your assessment?')) {
-      setIsSubmitting(true)
       setExamFinished(true)
       const base64Vid = await compileVideoBlobAndSave()
 
-      const formattedAnswers = Object.entries(selectedAnswers).map(([qId, ans]) => ({
-        questionId: qId,
-        answer: ans
-      }))
-
-      try {
-        const res = await submitCBT(assessmentId, studentId, formattedAnswers, {
-          warningCount,
-          proctorLogs: [...proctorLogs, { timestamp: new Date().toLocaleTimeString(), type: 'MANUAL_SUBMIT', message: 'Exam manually submitted.' }],
-          assessmentVideo: base64Vid,
-          status: 'completed',
-          timeSpent: 1800 - timeLeft
-        })
-        if (res) {
-          setResultSummary(res)
+      // Calculate score
+      let correct = 0
+      questions.forEach(q => {
+        if (selectedAnswers[q.id] === q.answer) {
+          correct++
         }
-      } catch (err) {
-        console.error('Failed submitting CBT assessment:', err)
-      } finally {
-        setIsSubmitting(false)
-      }
+      })
+      const finalScore = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0
+
+      // Save to PostgreSQL database via action
+      await saveProctoredAssessmentResult({
+        assessmentId,
+        studentId,
+        score: finalScore,
+        totalQuestions: questions.length || 3,
+        correctAnswers: correct,
+        timeSpent: 1800 - timeLeft,
+        status: 'completed',
+        assessmentVideo: base64Vid,
+        warningCount,
+        proctorLogs: [...proctorLogs, { timestamp: new Date().toLocaleTimeString(), type: 'MANUAL_SUBMIT', message: 'Exam manually submitted.' }]
+      })
     }
   }
 
@@ -466,24 +444,8 @@ export default function CBTExamTakingPage() {
                 <CheckCircle2 className="w-14 h-14 text-emerald-600" />
               </div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">CBT Submitted Successfully</h1>
-              {resultSummary && (
-                <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
-                  <div className="bg-emerald-50 border border-emerald-100 px-6 py-3 rounded-2xl text-center">
-                    <p className="text-[10px] font-black uppercase text-emerald-700 tracking-wider">Final Score</p>
-                    <p className="text-3xl font-black text-emerald-900">{resultSummary.percentage}%</p>
-                  </div>
-                  <div className="bg-slate-50 border border-slate-100 px-6 py-3 rounded-2xl text-center">
-                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Grade</p>
-                    <p className="text-3xl font-black text-slate-900">{resultSummary.grade}</p>
-                  </div>
-                  <div className="bg-slate-50 border border-slate-100 px-6 py-3 rounded-2xl text-center">
-                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Correct Answers</p>
-                    <p className="text-3xl font-black text-slate-900">{resultSummary.correctCount} / {resultSummary.totalQuestions}</p>
-                  </div>
-                </div>
-              )}
-              <p className="text-slate-500 font-bold mt-4 leading-relaxed text-sm">
-                Your answers and proctoring video feed have been securely graded on the server. See below for your complete review.
+              <p className="text-slate-500 font-bold mt-2 leading-relaxed text-sm">
+                Your answers and proctoring video feed have been securely synced to our databases. See below for your complete review.
               </p>
               <div className="mt-4 text-xs text-slate-400 font-bold uppercase tracking-widest">Logged Warnings: {warningCount}</div>
             </Card>
@@ -491,14 +453,13 @@ export default function CBTExamTakingPage() {
             <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] bg-white p-8">
               <CardHeader className="px-0 pb-6 border-b border-slate-100 mb-6">
                 <CardTitle className="text-xl font-black text-slate-900">Performance Review & Correct Answers</CardTitle>
-                <CardDescription className="text-slate-500 font-medium text-xs mt-1">Review your selections against the correct answer keys verified by the server.</CardDescription>
+                <CardDescription className="text-slate-500 font-medium text-xs mt-1">Review your selections against the correct answer keys below.</CardDescription>
               </CardHeader>
               <div className="space-y-8">
-                {(resultSummary?.reviewQuestions || questions).map((q, idx) => {
-                  const selected = q.submittedAnswer || selectedAnswers[q.id]
-                  const correct = q.correctAnswer
-                  const isCorrect = q.isCorrect !== undefined ? q.isCorrect : selected === correct
-                  const options = Array.isArray(q.options) ? q.options : []
+                {questions.map((q, idx) => {
+                  const selected = selectedAnswers[q.id]
+                  const correct = q.answer
+                  const isCorrect = selected === correct
 
                   return (
                     <div key={q.id} className="p-6 rounded-2xl bg-slate-50/50 border border-slate-100 space-y-4">
@@ -512,42 +473,34 @@ export default function CBTExamTakingPage() {
                         </span>
                       </div>
 
-                      {options.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {options.map((opt: string) => {
-                            const isSelectedOpt = String(selected).trim().toLowerCase() === String(opt).trim().toLowerCase()
-                            const isCorrectOpt = String(correct).trim().toLowerCase() === String(opt).trim().toLowerCase()
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {q.options.map((opt: string) => {
+                          const isSelectedOpt = selected === opt
+                          const isCorrectOpt = correct === opt
 
-                            let borderStyle = 'border-slate-200 bg-white text-slate-700'
-                            if (isCorrectOpt) {
-                              borderStyle = 'border-emerald-500 bg-emerald-50 text-emerald-950 font-black'
-                            } else if (isSelectedOpt) {
-                              borderStyle = 'border-rose-500 bg-rose-50 text-rose-950 font-black'
-                            }
+                          let borderStyle = 'border-slate-200 bg-white text-slate-700'
+                          if (isCorrectOpt) {
+                            borderStyle = 'border-emerald-500 bg-emerald-50 text-emerald-950 font-black'
+                          } else if (isSelectedOpt) {
+                            borderStyle = 'border-rose-500 bg-rose-50 text-rose-950 font-black'
+                          }
 
-                            return (
-                              <div key={opt} className={`p-4 rounded-xl border-2 text-xs flex justify-between items-center ${borderStyle}`}>
-                                <span>{opt}</span>
-                                {isCorrectOpt && <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">Correct Answer</span>}
-                                {isSelectedOpt && !isCorrectOpt && <span className="text-[10px] font-black uppercase text-rose-800 tracking-wider">Your Selection</span>}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-
-                      {q.explanation && (
-                        <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-900 font-medium">
-                          <strong>Explanation:</strong> {q.explanation}
-                        </div>
-                      )}
+                          return (
+                            <div key={opt} className={`p-4 rounded-xl border-2 text-xs flex justify-between items-center ${borderStyle}`}>
+                              <span>{opt}</span>
+                              {isCorrectOpt && <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">Correct Answer</span>}
+                              {isSelectedOpt && !isCorrectOpt && <span className="text-[10px] font-black uppercase text-rose-800 tracking-wider">Your Selection</span>}
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
                   )
                 })}
               </div>
               <div className="mt-8 flex justify-center">
-                <Button onClick={() => router.push('/dashboard/student/results')} className="bg-slate-900 hover:bg-slate-800 text-white h-14 px-8 rounded-2xl font-black text-sm uppercase tracking-wider">
-                  View All Results
+                <Button onClick={() => router.push('/dashboard/student/assessments/weekend')} className="bg-slate-900 hover:bg-slate-800 text-white h-14 px-8 rounded-2xl font-black text-sm uppercase tracking-wider">
+                  Back to Assessments
                 </Button>
               </div>
             </Card>
