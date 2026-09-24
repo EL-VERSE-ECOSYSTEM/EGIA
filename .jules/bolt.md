@@ -7,3 +7,8 @@
 **Context:** Fixing CSV formula injection sanitization converting valid negative numbers into strings and adding unit tests with Node native test runner.
 **Learning:** Prepending single quote `'` for CSV formula injection must exclude valid negative/positive numbers (`/^[-+]?\d+(\.\d+)?$/`) to prevent string conversion of negative grades/scores/balances. In Node.js native test runner (`node --test`), relative imports in TS test files require standard module resolution without `.ts` extension when compiled/typechecked via `tsc --noEmit`.
 **Action:** Use `/^[-+]?\d+(\.\d+)?$/` check in `sanitizeCSVFormula` to preserve numeric values, and import TS files without `.ts` extension in test suites.
+
+## 2026-03-31 — Next.js 'use server' Export Constraints & Server-Side CBT Assessment Grading
+**Context:** Fixing CBT assessment submission bug where client-side score evaluation always returned 0% due to sanitized question answer fields, and adding Fisher-Yates shuffle.
+**Learning:** Every exported function in a file marked with `'use server'` must be an `async function` (e.g., `export async function fisherYatesShuffle`), otherwise Next.js build (`pnpm build`) fails with `Server Actions must be async functions`. In CBT taking workflows, `getLoggedInStudentAndQuestions` strips `correctAnswer` for anti-cheat security, so grading must take place on the server in `submitCBT` with answers evaluated against `correctAnswer` in database transactions.
+**Action:** Always mark exported functions in `'use server'` files as `async`, perform CBT answer evaluation and score calculation server-side, and return `reviewQuestions` post-submission for student review.
