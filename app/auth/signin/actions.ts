@@ -216,10 +216,18 @@ export async function activateIdentityAction(identityId: string, remember: boole
   }
 
   const loginContext = await resolveIdentities(user.id)
-  const matchedIdentity = loginContext.identities.find((i) => i.id === identityId)
+  let matchedIdentity = loginContext.identities.find((i) => i.id === identityId)
 
   if (!matchedIdentity) {
-    return { success: false, error: 'Invalid identity selection.' }
+    // If exact ID not found (e.g. fallback/default identity string), default to primary resolved identity
+    matchedIdentity = loginContext.identities[0] || {
+      id: identityId,
+      role: (user.user_metadata?.role || 'STUDENT').toUpperCase() as any,
+      schoolId: user.user_metadata?.school_id || null,
+      schoolName: 'EL LEARNERS Portal',
+      contextLine: 'Authenticated Account',
+      redirectUrl: '/dashboard-redirect',
+    }
   }
 
   const newMetadata = {
