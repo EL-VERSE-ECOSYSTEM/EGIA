@@ -7,3 +7,8 @@
 **Context:** Fixing CSV formula injection sanitization converting valid negative numbers into strings and adding unit tests with Node native test runner.
 **Learning:** Prepending single quote `'` for CSV formula injection must exclude valid negative/positive numbers (`/^[-+]?\d+(\.\d+)?$/`) to prevent string conversion of negative grades/scores/balances. In Node.js native test runner (`node --test`), relative imports in TS test files require standard module resolution without `.ts` extension when compiled/typechecked via `tsc --noEmit`.
 **Action:** Use `/^[-+]?\d+(\.\d+)?$/` check in `sanitizeCSVFormula` to preserve numeric values, and import TS files without `.ts` extension in test suites.
+
+## 2026-03-31 — Korapay Webhook Signature Case Normalization & Constant-Time Comparison
+**Context:** Hardening Korapay payment webhook verification against header variations and whitespace formatting issues.
+**Learning:** Korapay HMAC SHA256 signatures generated via Node `crypto` produce lowercase hex strings. Webhook headers passed through reverse proxies or CDNs may introduce trailing whitespace or uppercase characters. Normalizing signature strings with `.trim().toLowerCase()` before converting to `Buffer` and comparing via `crypto.timingSafeEqual` prevents spurious verification failures without compromising side-channel protection.
+**Action:** Always normalize incoming hex signatures with `.trim().toLowerCase()` before `crypto.timingSafeEqual` buffer comparisons.

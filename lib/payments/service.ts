@@ -46,12 +46,12 @@ export interface WebhookProcessResult {
   error?: string
 }
 
-function validKorapaySignature(rawBody: string, signature: string | null): boolean {
+export function validKorapaySignature(rawBody: string, signature: string | null): boolean {
   const secret = process.env.KORAPAY_SECRET_KEY
   if (!secret || !signature) return false
   try {
     const expected = createHmac('sha256', secret).update(rawBody).digest('hex')
-    const supplied = Buffer.from(signature, 'utf8')
+    const supplied = Buffer.from(signature.trim().toLowerCase(), 'utf8')
     const calculated = Buffer.from(expected, 'utf8')
     return supplied.length === calculated.length && timingSafeEqual(supplied, calculated)
   } catch {
