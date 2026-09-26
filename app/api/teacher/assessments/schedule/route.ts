@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { assessmentSchedule, assessment } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { assessmentSchedule, assessment, teacher as teacherTable, user as userTable } from '@/lib/db/schema'
+import { eq, desc, inArray, and } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
-import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
+import { sanitizeServerError } from '@/lib/errors'
 
 export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createClient(cookieStore)
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
+    const session = await auth.getSession()
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized session.' }, { status: 401 })
     }
 
-    const role = (user.user_metadata?.role || '').toUpperCase()
+    const role = (session.user.role || '').toUpperCase()
     if (!['TEACHER', 'ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(role)) {
       return NextResponse.json({ error: 'Forbidden: Insufficient permissions.' }, { status: 403 })
     }
@@ -48,6 +45,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Assessment record not found.' }, { status: 404 })
     }
 
+    // Tenant and ownership isolation
+    if (role !== 'SUPER_ADMIN') {
+      let userSchoolId = session.user.schoolId || null
+
+      if (!userSchoolId) {
+        const userRecord = await db.query.user.findFirst({
+          where: eq(userTable.id, session.user.id)
+        })
+        userSchoolId = userRecord?.schoolId || null
+      }
+
+      if (role === 'TEACHER') {
+        const teacherProfile = await db.query.teacher.findFirst({
+          where: eq(teacherTable.userId, session.user.id)
+        })
+
+        const teacherSchoolId = teacherProfile?.schoolId || userSchoolId
+        const isCreator = teacherProfile && existingAssessment.createdBy === teacherProfile.id
+        const isSameSchool = existingAssessment.schoolId && teacherSchoolId && existingAssessment.schoolId === teacherSchoolId
+
+        if (!isCreator && !isSameSchool) {
+          return NextResponse.json({
+            error: 'Forbidden: You do not have permission to schedule this assessment.'
+          }, { status: 403 })
+        }
+      } else {
+        // ADMIN / SCHOOL_ADMIN
+        if (existingAssessment.schoolId && existingAssessment.schoolId !== userSchoolId) {
+          return NextResponse.json({
+            error: 'Forbidden: Assessment belongs to a different school tenant.'
+          }, { status: 403 })
+        }
+      }
+    }
+
     const id = randomUUID()
     await db.insert(assessmentSchedule).values({
       id,
@@ -68,33 +100,75 @@ export async function POST(req: NextRequest) {
       }
     })
   } catch (error: any) {
-    console.error('Error creating assessment schedule:', error)
-    return NextResponse.json({ error: error.message || 'Failed to schedule assessment' }, { status: 500 })
+    const safeErr = sanitizeServerError('POST /api/teacher/assessments/schedule', error, 'Failed to schedule assessment.')
+    return NextResponse.json({ error: safeErr.error, requestId: safeErr.requestId }, { status: 500 })
   }
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createClient(cookieStore)
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
+    const session = await auth.getSession()
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized session.' }, { status: 401 })
+    }
+
+    const role = (session.user.role || '').toUpperCase()
+    if (!['TEACHER', 'ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN', 'STUDENT'].includes(role)) {
+      return NextResponse.json({ error: 'Forbidden: Insufficient permissions.' }, { status: 403 })
     }
 
     const { searchParams } = new URL(req.url)
     const classId = searchParams.get('classId')
 
     let list
-    if (classId) {
-      list = await db.select().from(assessmentSchedule).where(eq(assessmentSchedule.classId, classId)).orderBy(desc(assessmentSchedule.startTime))
+    if (role === 'SUPER_ADMIN') {
+      if (classId) {
+        list = await db.select().from(assessmentSchedule).where(eq(assessmentSchedule.classId, classId)).orderBy(desc(assessmentSchedule.startTime))
+      } else {
+        list = await db.select().from(assessmentSchedule).orderBy(desc(assessmentSchedule.startTime))
+      }
     } else {
-      list = await db.select().from(assessmentSchedule).orderBy(desc(assessmentSchedule.startTime))
+      let userSchoolId = session.user.schoolId || null
+
+      if (!userSchoolId) {
+        const userRecord = await db.query.user.findFirst({
+          where: eq(userTable.id, session.user.id)
+        })
+        userSchoolId = userRecord?.schoolId || null
+      }
+
+      if (!userSchoolId) {
+        return NextResponse.json({ success: true, data: [] })
+      }
+
+      // Query assessments matching current user's schoolId
+      const schoolAssessments = await db.query.assessment.findMany({
+        where: eq(assessment.schoolId, userSchoolId),
+        columns: { id: true }
+      })
+
+      const assessmentIds = schoolAssessments.map(a => a.id)
+
+      if (assessmentIds.length === 0) {
+        return NextResponse.json({ success: true, data: [] })
+      }
+
+      if (classId) {
+        list = await db.select()
+          .from(assessmentSchedule)
+          .where(and(inArray(assessmentSchedule.assessmentId, assessmentIds), eq(assessmentSchedule.classId, classId)))
+          .orderBy(desc(assessmentSchedule.startTime))
+      } else {
+        list = await db.select()
+          .from(assessmentSchedule)
+          .where(inArray(assessmentSchedule.assessmentId, assessmentIds))
+          .orderBy(desc(assessmentSchedule.startTime))
+      }
     }
 
     return NextResponse.json({ success: true, data: list })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to fetch assessment schedules' }, { status: 500 })
+    const safeErr = sanitizeServerError('GET /api/teacher/assessments/schedule', error, 'Failed to fetch assessment schedules.')
+    return NextResponse.json({ error: safeErr.error, requestId: safeErr.requestId }, { status: 500 })
   }
 }
