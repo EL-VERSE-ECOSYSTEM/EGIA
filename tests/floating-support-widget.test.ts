@@ -7,8 +7,12 @@ export function getSupportToggleAriaLabel(isOpen: boolean): string {
   return isOpen ? 'Close live support panel' : 'Open live support panel'
 }
 
-export function getWhatsAppAriaLabel(phoneNumber: string): string {
-  return `Contact WhatsApp Support at ${phoneNumber} (opens in a new tab)`
+export function getWhatsAppAriaLabel(): string {
+  return 'Contact WhatsApp Support (opens in a new tab)'
+}
+
+export function getEmailAriaLabel(email: string): string {
+  return `Send email to Support at ${email}`
 }
 
 export function isEscapeKey(key: string): boolean {
@@ -28,9 +32,14 @@ test('FloatingSupportWidget Accessibility Helpers', async (t) => {
   })
 
   await t.test('returns accessible WhatsApp link label', () => {
-    const label = getWhatsAppAriaLabel('+2348061908715')
-    assert.match(label, /Contact WhatsApp Support at \+2348061908715/)
+    const label = getWhatsAppAriaLabel()
+    assert.match(label, /Contact WhatsApp Support/)
     assert.match(label, /opens in a new tab/)
+  })
+
+  await t.test('returns accessible Email link label', () => {
+    const label = getEmailAriaLabel('elcoderssoftwares12@gmail.com')
+    assert.match(label, /Send email to Support at elcoderssoftwares12@gmail.com/)
   })
 
   await t.test('detects Escape key correctly for modal dismissal', () => {
