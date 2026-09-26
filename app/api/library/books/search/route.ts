@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
+import { sanitizeServerError } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,60 +29,55 @@ export async function GET(request: NextRequest) {
 
     const sanitizedQuery = rawQuery.trim().slice(0, 200)
 
-    let whereClause = "WHERE deleted_at IS NULL"
-    const params: any[] = []
-    let paramIndex = 1
+    const conditions = [sql`deleted_at IS NULL`]
 
     if (sanitizedQuery) {
-      whereClause += ` AND (title ILIKE $${paramIndex} OR array_to_string(authors, ' ') ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`
-      params.push(`%${sanitizedQuery}%`)
-      paramIndex++
+      const pattern = `%${sanitizedQuery}%`
+      conditions.push(sql`(title ILIKE ${pattern} OR array_to_string(authors, ' ') ILIKE ${pattern} OR description ILIKE ${pattern})`)
     }
 
     if (category) {
-      whereClause += ` AND category = $${paramIndex}`
-      params.push(category)
-      paramIndex++
+      conditions.push(sql`category = ${category}`)
     }
 
     if (classLevel) {
-      whereClause += ` AND class_level = $${paramIndex}`
-      params.push(classLevel)
-      paramIndex++
+      conditions.push(sql`class_level = ${classLevel}`)
     }
 
     if (availability === 'available') {
-      whereClause += " AND available_copies > 0"
+      conditions.push(sql`available_copies > 0`)
     }
 
-    let orderClause = "ORDER BY title ASC"
+    const whereSql = sql.join(conditions, sql` AND `)
+
+    let orderSql = sql`ORDER BY title ASC`
     if (sortBy === 'rating') {
-      orderClause = "ORDER BY rating DESC"
+      orderSql = sql`ORDER BY rating DESC`
     } else if (sortBy === 'popular') {
-      orderClause = "ORDER BY borrowed_count DESC"
+      orderSql = sql`ORDER BY borrowed_count DESC`
     } else if (sortBy === 'newest') {
-      orderClause = "ORDER BY created_at DESC"
+      orderSql = sql`ORDER BY created_at DESC`
     }
 
-    const booksQuery = `
+    const booksQuery = sql`
       SELECT id, isbn, title, subtitle, authors, publisher, publication_year as "publicationYear",
              edition, volume, language, pages, category, sub_category as "subCategory", description,
              cover_image_url as "coverImageUrl", location as "physicalLocation",
              total_copies as "totalCopies", available_copies as "availableCopies", borrowed_count as "borrowedCount",
              rating, rating_count as "ratingCount", is_digital as "isDigital", class_level as "classLevel"
       FROM library_books
-      ${whereClause}
-      ${orderClause}
+      WHERE ${whereSql}
+      ${orderSql}
       LIMIT ${limit} OFFSET ${offset};
     `
 
-    const countQuery = `
-      SELECT count(*)::integer as total FROM library_books ${whereClause};
+    const countQuery = sql`
+      SELECT count(*)::integer as total FROM library_books WHERE ${whereSql};
     `
 
-    const books = await db.execute(sql.raw(booksQuery))
-    const counts = await db.execute(sql.raw(countQuery))
-    const total = Number(counts[0]?.total || 0)
+    const books = await db.execute(booksQuery)
+    const counts = await db.execute(countQuery)
+    const total = Number((counts as any)?.[0]?.total || 0)
 
     if (sanitizedQuery) {
       try {
@@ -105,7 +101,7 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error: any) {
-    console.error('Library search failed:', error)
-    return NextResponse.json({ error: 'Library search failed' }, { status: 500 })
+    const safeErr = sanitizeServerError('GET /api/library/books/search', error, 'Library search failed')
+    return NextResponse.json({ error: safeErr.error, requestId: safeErr.requestId }, { status: 500 })
   }
 }
