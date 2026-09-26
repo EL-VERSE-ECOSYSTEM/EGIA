@@ -86,12 +86,13 @@ export function FloatingSupportWidget() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-[999] font-sans">
+    <div className="fixed bottom-24 right-6 z-[999] font-sans">
       {isOpen && (
         <div
           id="support-widget-panel"
           role="dialog"
-          aria-label="Live Support Gateway"
+          aria-label="EL LEARNERS Support Panel"
+          aria-modal="true"
           className="mb-4 bg-slate-950 border border-slate-800 rounded-3xl p-5 shadow-2xl text-white w-80 sm:w-96 animate-in fade-in slide-in-from-bottom-4 duration-300 motion-reduce:animate-none motion-reduce:transition-none space-y-4"
         >
           {/* Header */}
@@ -185,11 +186,11 @@ export function FloatingSupportWidget() {
           {mode === 'SUBMIT' && (
             <form onSubmit={handleSubmitSupport} className="space-y-3 pt-1">
               <div>
-                <label htmlFor="support-title" className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+                <label htmlFor="support-subject" className="block text-[10px] font-black uppercase text-slate-400 mb-1">
                   Issue Title <span aria-hidden="true" className="text-emerald-400">*</span>
                 </label>
                 <input
-                  id="support-title"
+                  id="support-subject"
                   type="text"
                   required
                   aria-required="true"
@@ -216,11 +217,11 @@ export function FloatingSupportWidget() {
               </div>
 
               <div>
-                <label htmlFor="support-description" className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+                <label htmlFor="support-message" className="block text-[10px] font-black uppercase text-slate-400 mb-1">
                   Detailed Message <span aria-hidden="true" className="text-emerald-400">*</span>
                 </label>
                 <textarea
-                  id="support-description"
+                  id="support-message"
                   required
                   aria-required="true"
                   rows={3}
