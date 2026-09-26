@@ -396,9 +396,9 @@ export default async function LandingPage() {
                              href="https://wa.me/2348061908715"
                              target="_blank"
                              rel="noopener noreferrer"
-                             className="text-emerald-600 hover:underline text-2xl font-black"
+                             className="text-emerald-600 hover:underline text-xl sm:text-2xl font-black"
                            >
-                             (234)8061908715
+                             (234)-80-EL LEARN OR EMAIL - elcoderssoftwares12@gmail.com
                            </a>
                         </div>
                      </div>

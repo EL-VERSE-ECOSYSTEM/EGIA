@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { MessageSquare, Phone, X, ExternalLink, HelpCircle, Send, CheckCircle2, Loader2, Sparkles, CornerDownLeft } from 'lucide-react'
+import { MessageSquare, Phone, Mail, X, ExternalLink, HelpCircle, Send, CheckCircle2, Loader2, Sparkles, CornerDownLeft } from 'lucide-react'
 import { subscribeToTable, unsubscribeFromTable } from '@/utils/supabase/client'
 import { createSupportTicket } from '@/app/actions/support'
 import { toast } from 'sonner'
@@ -152,14 +152,27 @@ export function FloatingSupportWidget() {
                 href="https://wa.me/2348061908715"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Contact WhatsApp Support at +2348061908715 (opens in a new tab)"
+                aria-label="Contact WhatsApp Support (opens in a new tab)"
                 className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-between shadow-lg shadow-emerald-600/20 transition motion-reduce:transition-none group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
               >
                 <div className="flex items-center gap-2">
                   <Phone className="w-4 h-4 text-emerald-200" aria-hidden="true" />
-                  <span>WhatsApp Support: +2348061908715</span>
+                  <span>WhatsApp Support</span>
                 </div>
                 <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition motion-reduce:transition-none" aria-hidden="true" />
+              </a>
+
+              {/* Email Support */}
+              <a
+                href="mailto:elcoderssoftwares12@gmail.com"
+                aria-label="Send email to Support at elcoderssoftwares12@gmail.com"
+                className="w-full py-3 px-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs flex items-center justify-between shadow-lg shadow-blue-600/20 transition motion-reduce:transition-none group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+              >
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <Mail className="w-4 h-4 text-blue-200 shrink-0" aria-hidden="true" />
+                  <span className="truncate">Email: elcoderssoftwares12@gmail.com</span>
+                </div>
+                <ExternalLink className="w-3.5 h-3.5 shrink-0 group-hover:translate-x-0.5 transition motion-reduce:transition-none" aria-hidden="true" />
               </a>
 
               <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
