@@ -18,6 +18,41 @@ export interface TimetableEntry {
   room?: string
 }
 
+export const ALLOWED_TIMETABLE_ROLES = ['TEACHER', 'ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN']
+export const VALID_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+export function canModifyTimetableRole(role?: string | null): boolean {
+  if (!role) return false
+  return ALLOWED_TIMETABLE_ROLES.includes(role.toUpperCase())
+}
+
+export function validateAndSanitizeTimetableEntry(e: Partial<TimetableEntry>, schoolId: string, className: string) {
+  const rawDay = (e.dayOfWeek || 'Monday').trim()
+  const dayOfWeek = VALID_DAYS.find(d => d.toLowerCase() === rawDay.toLowerCase()) || 'Monday'
+
+  const rawPeriod = Number(e.periodNumber)
+  const periodNumber = Number.isInteger(rawPeriod) && rawPeriod >= 1 && rawPeriod <= 20 ? rawPeriod : 1
+
+  const startTime = (e.startTime || '08:00').trim().slice(0, 20)
+  const endTime = (e.endTime || '08:40').trim().slice(0, 20)
+  const subjectName = (e.subjectName || 'Free Period').trim().slice(0, 100)
+  const teacherName = e.teacherName && e.teacherName.trim() ? e.teacherName.trim().slice(0, 100) : null
+  const room = e.room && e.room.trim() ? e.room.trim().slice(0, 50) : null
+
+  return {
+    schoolId,
+    className,
+    dayOfWeek,
+    periodNumber,
+    startTime,
+    endTime,
+    subjectName,
+    teacherName,
+    room,
+    updatedAt: new Date()
+  }
+}
+
 async function getUserSchoolId(sessionUserId: string, sessionSchoolId?: string | null): Promise<string | null> {
   if (sessionSchoolId) return sessionSchoolId
   const uRec = await db.query.user.findFirst({ where: eq(userTable.id, sessionUserId) })
@@ -25,7 +60,7 @@ async function getUserSchoolId(sessionUserId: string, sessionSchoolId?: string |
 }
 
 export async function getTimetableAction(classNameInput: string) {
-  const cleanClassName = classNameInput.trim()
+  const cleanClassName = (classNameInput || '').trim().slice(0, 100)
   if (!cleanClassName) return { success: true, entries: [] }
 
   try {
@@ -35,15 +70,17 @@ export async function getTimetableAction(classNameInput: string) {
     }
 
     const schoolId = await getUserSchoolId(session.user.id, session.user.schoolId)
-    if (!schoolId) {
+    if (!schoolId && session.user.role !== 'SUPER_ADMIN') {
       return { success: false, error: 'School context is required to view timetable.' }
     }
 
+    const conditions = [eq(timetables.className, cleanClassName)]
+    if (schoolId) {
+      conditions.push(eq(timetables.schoolId, schoolId))
+    }
+
     const list = await db.query.timetables.findMany({
-      where: and(
-        eq(timetables.schoolId, schoolId),
-        eq(timetables.className, cleanClassName)
-      ),
+      where: and(...conditions),
       orderBy: (t, { asc }) => [asc(t.dayOfWeek), asc(t.periodNumber)]
     })
     return { success: true, entries: list }
@@ -55,19 +92,34 @@ export async function getTimetableAction(classNameInput: string) {
 export async function saveTimetableAction(data: {
   className: string
   entries: TimetableEntry[]
+  schoolId?: string
 }) {
   try {
     const session = await auth.getSession()
-    if (!session?.user) throw new Error('Unauthorized session.')
+    if (!session?.user) {
+      return { success: false, error: 'Unauthorized session.' }
+    }
 
-    const schoolId = await getUserSchoolId(session.user.id, session.user.schoolId)
-    if (!schoolId) throw new Error('School context is required to save timetable.')
+    const userRole = session.user.role || ''
+    if (!canModifyTimetableRole(userRole)) {
+      return { success: false, error: 'Forbidden: Insufficient permissions to modify timetable.' }
+    }
 
-    const cleanClassName = data.className.trim()
-    if (!cleanClassName) throw new Error('Class name is required.')
+    const schoolId = (await getUserSchoolId(session.user.id, session.user.schoolId)) || data.schoolId || null
+    if (!schoolId) {
+      return { success: false, error: 'School context (schoolId) is required to save timetable.' }
+    }
+
+    const cleanClassName = (data.className || '').trim().slice(0, 100)
+    if (!cleanClassName) {
+      return { success: false, error: 'Class name is required.' }
+    }
+
+    const rawEntries = Array.isArray(data.entries) ? data.entries.slice(0, 100) : []
+    const validatedEntries = rawEntries.map(e => validateAndSanitizeTimetableEntry(e, schoolId, cleanClassName))
 
     await db.transaction(async (tx) => {
-      // Clear existing timetable entries for this specific school and class
+      // Deletion is strictly scoped to the specific schoolId and className
       await tx.delete(timetables).where(
         and(
           eq(timetables.schoolId, schoolId),
@@ -75,20 +127,8 @@ export async function saveTimetableAction(data: {
         )
       )
 
-      if (data.entries && data.entries.length > 0) {
-        const inserts = data.entries.map(e => ({
-          schoolId,
-          className: cleanClassName,
-          dayOfWeek: e.dayOfWeek,
-          periodNumber: e.periodNumber || 1,
-          startTime: e.startTime || '08:00',
-          endTime: e.endTime || '08:40',
-          subjectName: e.subjectName || 'Free Period',
-          teacherName: e.teacherName || null,
-          room: e.room || null,
-          updatedAt: new Date()
-        }))
-        await tx.insert(timetables).values(inserts)
+      if (validatedEntries.length > 0) {
+        await tx.insert(timetables).values(validatedEntries)
       }
     })
 
