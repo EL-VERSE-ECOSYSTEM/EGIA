@@ -4,7 +4,7 @@ import {
   canModifyTimetableRole,
   validateAndSanitizeTimetableEntry,
   ALLOWED_TIMETABLE_ROLES
-} from '../app/actions/timetable'
+} from '../lib/timetable'
 
 interface MockUser {
   id: string
