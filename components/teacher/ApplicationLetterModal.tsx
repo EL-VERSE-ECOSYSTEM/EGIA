@@ -38,6 +38,18 @@ export function ApplicationLetterModal({
     }
   }, [existingLetterUrl, existingLetterText])
 
+  // Handle Escape key to dismiss modal
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsModalOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen])
+
   if (!isOpen) return null
 
   const handleSave = async (e: React.FormEvent) => {
@@ -80,22 +92,28 @@ export function ApplicationLetterModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="app-letter-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300"
+    >
       <Card className="max-w-xl w-full border border-purple-500/30 shadow-2xl rounded-[2.5rem] bg-slate-950 text-white overflow-hidden relative">
         <button
           type="button"
           onClick={() => setIsModalOpen(false)}
-          className="absolute top-6 right-6 p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition"
+          aria-label="Dismiss application letter modal"
           title="Dismiss for this session"
+          className="absolute top-6 right-6 p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
         <CardHeader className="p-8 pb-4 text-center">
           <div className="mx-auto bg-purple-500/20 border border-purple-500/40 p-4 rounded-full w-fit mb-3 text-purple-400">
-            <FileText className="w-8 h-8" />
+            <FileText className="w-8 h-8" aria-hidden="true" />
           </div>
-          <CardTitle className="text-2xl font-black text-white">Application Letter Required</CardTitle>
+          <CardTitle id="app-letter-modal-title" className="text-2xl font-black text-white">Application Letter Required</CardTitle>
           <CardDescription className="text-slate-400 font-bold text-xs uppercase tracking-wider mt-1">
             Faculty Compliance Requirement
           </CardDescription>
@@ -144,15 +162,16 @@ export function ApplicationLetterModal({
 
               {mode === 'TYPE' ? (
                 <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">
+                  <Label htmlFor="app-letter-text" className="text-xs font-black uppercase text-slate-400 tracking-wider">
                     Application Letter Content
                   </Label>
                   <textarea
+                    id="app-letter-text"
                     rows={7}
                     placeholder="Type your formal application letter here..."
                     value={letterText}
                     onChange={(e) => setLetterText(e.target.value)}
-                    className="w-full p-4 rounded-2xl border border-slate-800 bg-slate-900 text-white text-xs font-medium focus:outline-none focus:border-purple-500 transition leading-relaxed"
+                    className="w-full p-4 rounded-2xl border border-slate-800 bg-slate-900 text-white text-xs font-medium focus:outline-none focus:border-purple-500 focus-visible:ring-2 focus-visible:ring-purple-500 transition leading-relaxed"
                   />
                 </div>
               ) : (
