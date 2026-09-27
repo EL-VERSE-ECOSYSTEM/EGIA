@@ -12,3 +12,8 @@
 **Context:** Hardening Korapay payment webhook verification against header variations and whitespace formatting issues.
 **Learning:** Korapay HMAC SHA256 signatures generated via Node `crypto` produce lowercase hex strings. Webhook headers passed through reverse proxies or CDNs may introduce trailing whitespace or uppercase characters. Normalizing signature strings with `.trim().toLowerCase()` before converting to `Buffer` and comparing via `crypto.timingSafeEqual` prevents spurious verification failures without compromising side-channel protection.
 **Action:** Always normalize incoming hex signatures with `.trim().toLowerCase()` before `crypto.timingSafeEqual` buffer comparisons.
+
+## 2026-03-31 — Multi-Tenant Deletion Scoping & Exporting Pure Validation Helpers
+**Context:** Hardening timetable server actions and writing unit tests against authorization bypasses and multi-tenant data leaks.
+**Learning:** Deleting multi-tenant DB records matching a non-unique attribute (e.g. `className`) without requiring an explicit `schoolId` causes catastrophic cross-tenant data deletion when invoked by users lacking a session `schoolId` (e.g. `SUPER_ADMIN`). Furthermore, unit test suites must import pure exported helper/validator functions from server action modules rather than re-implementing mock logic internally.
+**Action:** Require explicit `schoolId` in multi-tenant table mutation actions and export validation helper functions to share across server actions and unit test suites.
