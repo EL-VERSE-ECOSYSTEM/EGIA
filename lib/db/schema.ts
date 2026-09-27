@@ -185,7 +185,7 @@ export const parent = pgTable('parent', {
   userId: text('userid').notNull().unique(),
   schoolId: text('schoolid'),
   firstName: text('firstname').notNull(),
-  lastName: text('lastName').notNull(),
+  lastName: text('lastname').notNull(),
   gender: text('gender'),
   phoneNumber: text('phonenumber'),
   address: text('address'),
