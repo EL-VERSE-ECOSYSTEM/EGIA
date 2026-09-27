@@ -4,23 +4,21 @@ import { db } from '@/lib/db'
 import { libraryBooks, assessmentQuestion, assessment, user as userTable } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
-import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
+import { auth } from '@/lib/auth'
+import { sanitizeServerError } from '@/lib/errors'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const MAX_ROWS = 500
 
 export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createClient(cookieStore)
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized session.' }, { status: 401 })
+    // 1. Authenticate user session
+    const session = await auth.getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized: Valid user session required.' }, { status: 401 })
     }
 
-    const role = (user.user_metadata?.role || '').toUpperCase()
+    const role = (session.user.role || '').toUpperCase()
     if (!['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN', 'TEACHER'].includes(role)) {
       return NextResponse.json({ error: 'Forbidden: Insufficient permissions to upload CSV.' }, { status: 403 })
     }
@@ -131,11 +129,11 @@ export async function POST(req: NextRequest) {
 
       // Enforce school tenant isolation for non-SUPER_ADMIN users
       if (role !== 'SUPER_ADMIN') {
-        let userSchoolId = user.user_metadata?.school_id || null
+        let userSchoolId = session.user.schoolId || null
 
         if (!userSchoolId) {
           const userRecord = await db.query.user.findFirst({
-            where: eq(userTable.id, user.id)
+            where: eq(userTable.id, session.user.id)
           })
           userSchoolId = userRecord?.schoolId || null
         }
@@ -183,10 +181,7 @@ export async function POST(req: NextRequest) {
       insertedRecordsCount,
     })
   } catch (error) {
-    console.error('Error in POST /upload-csv:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to process CSV file' },
-      { status: 500 }
-    )
+    const sanitized = sanitizeServerError('POST /api/upload-csv', error, 'Failed to process CSV file')
+    return NextResponse.json({ error: sanitized.error, requestId: sanitized.requestId }, { status: 500 })
   }
 }

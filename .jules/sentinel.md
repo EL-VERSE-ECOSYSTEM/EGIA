@@ -9,8 +9,15 @@
 **Context:** Searching library books with filter parameters caused query execution failures due to missing positional parameters, risking SQL injection or raw string interpolation fixes.
 **Learning:** `sql.raw()` in Drizzle bypasses parameter binding. Constructing positional `$1` parameter markers manually and passing raw SQL strings without bound parameter arrays breaks Postgres execution and invites unsafe string interpolation.
 **Prevention:** Always construct dynamic SQL conditions as Drizzle `sql` template fragments and combine them using `sql.join(conditions, sql\` AND \`)`. This guarantees proper parameter binding for every user input and prevents SQL injection.
+
 ## 2026-03-31 — Assessment Schedule Cross-Tenant IDOR and Data Leakage
 **Vulnerability:** Unrestricted GET and cross-tenant POST operations on `/api/teacher/assessments/schedule`.
 **Context:** Route handler permitted POST requests from any teacher or admin to schedule assessments belonging to other schools without tenant or creator authorization checks. GET handler returned all assessment schedules across all schools without authentication or school scoping, and catch blocks exposed raw database error messages (`error.message`).
 **Learning:** API routes performing read or write operations on assessment sub-resources (such as schedules or questions) must check session authentication, verify role permissions, enforce `schoolId` tenant scoping via assessment lookups, and sanitize server errors using `sanitizeServerError`.
 **Prevention:** Always authenticate requests via `auth.getSession()`, verify resource ownership/school tenant isolation before mutation, filter GET list queries by `assessment.schoolId = session.user.schoolId`, and sanitize catch-block error responses.
+
+## 2026-04-02 — Unauthenticated CSV Upload Endpoint & Info Leak
+**Vulnerability:** Unsanitized catch block error messages leaked raw database exception details, and Supabase auth client bypass allowed inconsistent session/tenant context resolution on `POST /api/upload-csv`.
+**Context:** Upload endpoint previously relied on Supabase auth helpers without checking `auth.getSession()` and exposed `error.message` in HTTP 500 error responses.
+**Learning:** CSV processing endpoints handling quiz or resource bulk imports must enforce `@/lib/auth` session authentication, verify `schoolId` tenant isolation when modifying target assessments, and sanitize server error responses using `sanitizeServerError`.
+**Prevention:** Always authenticate CSV handlers via `auth.getSession()`, check tenant context for target resources, and sanitize internal error messages before returning JSON error responses.
