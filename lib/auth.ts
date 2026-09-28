@@ -18,14 +18,25 @@ async function getSessionImpl() {
     return null
   }
 
-  const loginContext = await resolveIdentities(user.id)
+  let loginContext
+  try {
+    loginContext = await resolveIdentities(user.id)
+  } catch (err) {
+    console.warn('resolveIdentities failed in getSessionImpl:', err)
+    loginContext = {
+      userId: user.id,
+      email: user.email || '',
+      fullName: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
+      identities: [],
+    }
+  }
 
   const activeIdentityId = user.user_metadata?.active_identity_id
   const matchedIdentity = activeIdentityId
-    ? loginContext.identities.find((i) => i.id === activeIdentityId)
+    ? loginContext.identities?.find((i) => i.id === activeIdentityId)
     : null
 
-  const primaryIdentity = matchedIdentity || loginContext.identities[0]
+  const primaryIdentity = matchedIdentity || loginContext.identities?.[0]
   const finalRole = (primaryIdentity?.role || user.user_metadata?.role || 'STUDENT').toUpperCase()
   const schoolId = primaryIdentity?.schoolId || user.user_metadata?.school_id || null
   const adminLevel = primaryIdentity?.adminLevel || user.user_metadata?.admin_level || null
@@ -39,6 +50,25 @@ async function getSessionImpl() {
     }).onConflictDoNothing()
   } catch {
     // ignore duplicate conflict
+  }
+
+  // Sync user_metadata if role or school_id in Supabase auth metadata is missing or out of sync
+  if (
+    user.user_metadata?.role?.toUpperCase() !== finalRole ||
+    (schoolId && user.user_metadata?.school_id !== schoolId)
+  ) {
+    try {
+      await supabase.auth.updateUser({
+        data: {
+          ...user.user_metadata,
+          role: finalRole,
+          school_id: schoolId,
+          admin_level: adminLevel,
+        },
+      })
+    } catch {
+      // ignore user metadata sync error
+    }
   }
 
   return {
@@ -64,13 +94,25 @@ async function getUserImpl() {
     return null
   }
 
-  const loginContext = await resolveIdentities(user.id)
+  let loginContext
+  try {
+    loginContext = await resolveIdentities(user.id)
+  } catch (err) {
+    console.warn('resolveIdentities failed in getUserImpl:', err)
+    loginContext = {
+      userId: user.id,
+      email: user.email || '',
+      fullName: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
+      identities: [],
+    }
+  }
+
   const activeIdentityId = user.user_metadata?.active_identity_id
   const matchedIdentity = activeIdentityId
-    ? loginContext.identities.find((i) => i.id === activeIdentityId)
+    ? loginContext.identities?.find((i) => i.id === activeIdentityId)
     : null
 
-  const primaryIdentity = matchedIdentity || loginContext.identities[0]
+  const primaryIdentity = matchedIdentity || loginContext.identities?.[0]
   const finalRole = (primaryIdentity?.role || user.user_metadata?.role || 'STUDENT').toUpperCase()
   const schoolId = primaryIdentity?.schoolId || user.user_metadata?.school_id || null
   const adminLevel = primaryIdentity?.adminLevel || user.user_metadata?.admin_level || null

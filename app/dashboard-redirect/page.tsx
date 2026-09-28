@@ -13,58 +13,74 @@ export const dynamic = 'force-dynamic'
 
 /** Routes all roles to their respective dashboards based on Supabase database roles. */
 export default async function DashboardRedirect() {
-  const session = await auth.getSession()
-  if (!session?.user) {
-    redirect('/auth/signin?error=Please sign in to continue')
-  }
-
-  const role = session.user.role?.toUpperCase()
-
-  switch (role) {
-    case 'SUPER_ADMIN':
-      redirect('/dashboard/super-admin/overview')
-
-    case 'SCHOOL_ADMIN':
-    case 'ADMIN':
-      redirect('/dashboard/admin/overview')
-
-    case 'TEACHER': {
-      let profile: any = await getTeacherProfile(session.user.id)
-      if (!profile) {
-        try {
-          profile = await createTeacherProfile({})
-        } catch {
-          // ignore error and proceed
-        }
-      }
-      redirect(profile ? '/dashboard/teacher/overview' : '/setup-role/teacher')
+  try {
+    const session = await auth.getSession()
+    if (!session?.user) {
+      redirect('/auth/signin?error=Please sign in to continue')
     }
 
-    case 'PARENT': {
-      let profile: any = await getParentProfile(session.user.id)
-      if (!profile) {
+    const role = (session.user.role || 'STUDENT').toUpperCase()
+
+    switch (role) {
+      case 'SUPER_ADMIN':
+        redirect('/dashboard/super-admin/overview')
+
+      case 'SCHOOL_ADMIN':
+      case 'ADMIN':
+        redirect('/dashboard/admin/overview')
+
+      case 'TEACHER': {
+        let profile: any = null
         try {
-          profile = await createParentProfile({})
-        } catch {
-          // ignore error and proceed
+          profile = await getTeacherProfile(session.user.id)
+          if (!profile) {
+            profile = await createTeacherProfile({})
+          }
+        } catch (e) {
+          console.warn('Teacher profile resolution error in DashboardRedirect:', e)
         }
+        redirect(profile ? '/dashboard/teacher/overview' : '/setup-role/teacher')
       }
-      redirect('/dashboard/parent/overview')
+
+      case 'PARENT': {
+        let profile: any = null
+        try {
+          profile = await getParentProfile(session.user.id)
+          if (!profile) {
+            profile = await createParentProfile({})
+          }
+        } catch (e) {
+          console.warn('Parent profile resolution error in DashboardRedirect:', e)
+        }
+        redirect('/dashboard/parent/overview')
+      }
+
+      case 'STUDENT': {
+        let profile: any = null
+        try {
+          profile = await getStudentProfile(session.user.id)
+          if (!profile) {
+            profile = await createStudentProfile({})
+          }
+        } catch (e) {
+          console.warn('Student profile resolution error in DashboardRedirect:', e)
+        }
+        redirect(profile ? '/dashboard/student/overview' : '/setup-role/student')
+      }
+
+      default:
+        redirect('/dashboard/student/overview')
+    }
+  } catch (err: any) {
+    if (
+      err?.digest?.startsWith('NEXT_REDIRECT') ||
+      err?.message === 'NEXT_REDIRECT' ||
+      err?.name === 'RedirectError'
+    ) {
+      throw err
     }
 
-    case 'STUDENT': {
-      let profile: any = await getStudentProfile(session.user.id)
-      if (!profile) {
-        try {
-          profile = await createStudentProfile({})
-        } catch {
-          // ignore error and proceed
-        }
-      }
-      redirect(profile ? '/dashboard/student/overview' : '/setup-role/student')
-    }
-
-    default:
-      redirect('/dashboard/student/overview')
+    console.error('DashboardRedirect uncaught exception:', err)
+    redirect('/auth/signin?error=Dashboard redirection error. Please sign in again.')
   }
 }
