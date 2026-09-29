@@ -168,7 +168,16 @@ export function IdentitySwitcher({
             </button>
 
             <button
-              onClick={() => onSignOut ? onSignOut() : router.push('/auth/signin')}
+              onClick={async () => {
+                if (onSignOut) {
+                  onSignOut()
+                } else {
+                  const { createClient } = await import('@/utils/supabase/client')
+                  const supabase = createClient()
+                  await supabase.auth.signOut()
+                  window.location.href = '/auth/signin'
+                }
+              }}
               className="w-full text-left p-2.5 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 mt-1"
             >
               <LogOut className="w-4 h-4 text-rose-400" />
