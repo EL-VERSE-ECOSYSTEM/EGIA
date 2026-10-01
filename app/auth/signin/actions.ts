@@ -105,7 +105,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
     if (!existingUser) {
       const userRoleMeta = (
         data.user.user_metadata?.role ||
-        (data.user.email?.toLowerCase().includes('superadmin') || data.user.email?.toLowerCase().includes('admin')
+        (data.user.email?.toLowerCase() === 'ixoralyon013@gmail.com'
           ? 'SUPER_ADMIN'
           : 'STUDENT')
       ).toUpperCase()

@@ -113,14 +113,9 @@ export async function resolveIdentities(userId: string): Promise<LoginContext> {
 
   const identities: UserIdentity[] = []
 
-  // Check Super Admin email detection
+  // Check Super Admin email detection (Protected to designated account)
   const lowerEmail = email.toLowerCase()
-  const isSuperAdminEmail =
-    lowerEmail.includes('superadmin') ||
-    lowerEmail.includes('super_admin') ||
-    lowerEmail === 'admin@goodnews.com' ||
-    lowerEmail === 'superadmin@goodnews.com' ||
-    lowerEmail === 'ixoralyon013@gmail.com'
+  const isSuperAdminEmail = lowerEmail === 'ixoralyon013@gmail.com'
 
   // 1. Check Super Admin / Base User Roles
   try {
