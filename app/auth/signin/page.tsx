@@ -30,11 +30,8 @@ export default function SignInPage() {
   const handleModeSwitch = (mode: 'standard' | 'superadmin') => {
     setLoginMode(mode)
     setError('')
-    if (mode === 'superadmin') {
-      setEmail(process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL || '')
-    } else {
-      setEmail('')
-    }
+    setEmail('')
+    setPassword('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -131,7 +128,7 @@ export default function SignInPage() {
     } catch (err: any) {
       setError(err.message || 'An error occurred while activating your identity.')
       setLoading(false)
-    } finally {
+    } fontally {
       setLoading(false)
     }
   }
@@ -265,7 +262,7 @@ export default function SignInPage() {
                     aria-pressed={showPassword}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
                   </button>
                 </div>
               </div>
