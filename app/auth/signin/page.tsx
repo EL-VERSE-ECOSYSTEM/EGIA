@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Shield, Mail, Lock, Loader2, ArrowRight, CheckCircle2, GraduationCap, Eye, EyeOff } from 'lucide-react'
+import { Shield, Mail, Lock, Loader2, ArrowRight, GraduationCap, Eye, EyeOff, Crown, UserCheck } from 'lucide-react'
 import { signInAction, activateIdentityAction } from './actions'
 import { RolePickerModal } from '@/components/auth/RolePickerModal'
 import { LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 
 export default function SignInPage() {
   const router = useRouter()
+  const [loginMode, setLoginMode] = useState<'standard' | 'superadmin'>('standard')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -26,10 +27,23 @@ export default function SignInPage() {
   const [loginContext, setLoginContext] = useState<LoginContext | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
+  const handleModeSwitch = (mode: 'standard' | 'superadmin') => {
+    setLoginMode(mode)
+    setError('')
+    if (mode === 'superadmin') {
+      setEmail(process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL || '')
+    } else {
+      setEmail('')
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password) {
-      setError('Please provide both your email address and password.')
+    const targetEmail = email.trim()
+    const targetPassword = password.trim()
+
+    if (!targetEmail || !targetPassword) {
+      setError('Please provide both your account identifier and password.')
       return
     }
 
@@ -37,7 +51,7 @@ export default function SignInPage() {
     setError('')
 
     try {
-      const res = await signInAction(email, password)
+      const res = await signInAction(targetEmail, targetPassword)
 
       if (!res.success || !res.context) {
         setError(res.error || 'Authentication failed. Please verify your credentials.')
@@ -46,6 +60,19 @@ export default function SignInPage() {
       }
 
       const { identities, lastIdentityId } = res.context
+
+      // If Super Admin easy login mode was used, find Super Admin identity or proceed
+      if (loginMode === 'superadmin') {
+        const superAdminIdent = identities.find((i) => i.role === 'SUPER_ADMIN')
+        if (superAdminIdent) {
+          const activateRes = await activateIdentityAction(superAdminIdent.id, rememberMe)
+          if (activateRes.success && activateRes.redirectTo) {
+            toast.success('Welcome Super Admin! Direct access granted.')
+            router.push(activateRes.redirectTo)
+            return
+          }
+        }
+      }
 
       // Scenario A: Single identity -> Instant direct navigation without modal
       if (identities.length === 1) {
@@ -121,10 +148,42 @@ export default function SignInPage() {
             <GraduationCap className="w-4 h-4" />
             <span>EL LEARNERS APP</span>
           </div>
-          <h1 className="text-3xl font-black tracking-tight">Welcome Back</h1>
+          <h1 className="text-3xl font-black tracking-tight">
+            {loginMode === 'superadmin' ? 'Super Admin Portal' : 'Welcome Back'}
+          </h1>
           <p className="text-xs font-bold text-slate-300">
-            Sign in using Email Address, Staff ID (Teacher), or Admission Number (Student).
+            {loginMode === 'superadmin'
+              ? 'Secure easy login for Global Platform Administrators.'
+              : 'Sign in using Email Address, Staff ID (Teacher), or Admission Number (Student).'}
           </p>
+        </div>
+
+        {/* Mode Switcher Tabs */}
+        <div className="grid grid-cols-2 p-1.5 bg-slate-900/90 border border-slate-800 rounded-2xl gap-1">
+          <button
+            type="button"
+            onClick={() => handleModeSwitch('standard')}
+            className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+              loginMode === 'standard'
+                ? 'bg-blue-600 text-white shadow-lg'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <UserCheck className="w-4 h-4" />
+            <span>Standard Sign In</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleModeSwitch('superadmin')}
+            className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+              loginMode === 'superadmin'
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg border border-purple-400/30'
+                : 'text-purple-400 hover:text-purple-300'
+            }`}
+          >
+            <Crown className="w-4 h-4 text-amber-400" />
+            <span>Super Admin</span>
+          </button>
         </div>
 
         {/* Card Form */}
@@ -137,10 +196,17 @@ export default function SignInPage() {
               </div>
             )}
 
+            {loginMode === 'superadmin' && (
+              <div className="p-3.5 bg-purple-500/10 border border-purple-500/20 rounded-2xl text-xs font-bold text-purple-300 flex items-center gap-2.5">
+                <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Super Admin Mode Active: Authenticate with password to access system controls.</span>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-xs font-black uppercase tracking-wider text-slate-300">
-                  Email, Staff ID, or Admission Number
+                  {loginMode === 'superadmin' ? 'Super Admin Email' : 'Email, Staff ID, or Admission Number'}
                 </Label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
@@ -149,7 +215,11 @@ export default function SignInPage() {
                     type="text"
                     autoComplete="username"
                     inputMode="email"
-                    placeholder="Enter your email, staff ID, or admission number"
+                    placeholder={
+                      loginMode === 'superadmin'
+                        ? 'Super admin email address'
+                        : 'Enter your email, staff ID, or admission number'
+                    }
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -158,7 +228,9 @@ export default function SignInPage() {
                   />
                 </div>
                 <p id="email-hint" className="text-[11px] font-bold text-slate-400 pl-1">
-                  Use your registered school email address, staff code, or admission number.
+                  {loginMode === 'superadmin'
+                    ? 'Enter your designated Super Admin email account.'
+                    : 'Use your registered school email address, staff code, or admission number.'}
                 </p>
               </div>
 
@@ -214,7 +286,11 @@ export default function SignInPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white h-12 rounded-2xl font-black tracking-wide text-sm shadow-xl shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
+                className={`w-full text-white h-12 rounded-2xl font-black tracking-wide text-sm shadow-xl transition-all flex items-center justify-center gap-2 ${
+                  loginMode === 'superadmin'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-600/20'
+                    : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20'
+                }`}
               >
                 {loading ? (
                   <>
@@ -223,7 +299,7 @@ export default function SignInPage() {
                   </>
                 ) : (
                   <>
-                    <span>SIGN IN</span>
+                    <span>{loginMode === 'superadmin' ? 'SUPER ADMIN SIGN IN' : 'SIGN IN'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

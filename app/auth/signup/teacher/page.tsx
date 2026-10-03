@@ -62,7 +62,7 @@ export default function TeacherSignUpPage() {
 
   const handleAddTeachingSubject = (name: string) => {
     if (!name || teachingSubjects.some(s => s.toLowerCase() === name.toLowerCase())) return
-    setTeachingSubjects([...teachingSubjects, name])
+    setTeachingSubjects([...teachingSubjects, name.trim()])
   }
 
   const addManualTeachingSubject = () => {
@@ -120,6 +120,11 @@ export default function TeacherSignUpPage() {
     e.preventDefault()
     setError(null)
 
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long.')
+      return
+    }
+
     if (!passportImage) {
       return alert('Please upload a passport photograph.')
     }
@@ -128,8 +133,14 @@ export default function TeacherSignUpPage() {
 
     const payload = {
       ...formData,
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      email: formData.email.trim().toLowerCase(),
+      phoneNumber: formData.phoneNumber.trim(),
+      schoolCode: formData.schoolCode.trim().toUpperCase(),
+      bio: formData.bio.trim(),
       handlingClasses,
-      teachingSubjects,
+      teachingSubjects: teachingSubjects.map(s => s.trim()),
       presentDays,
       profileImage: passportImage,
       facialVerificationVideo: null
