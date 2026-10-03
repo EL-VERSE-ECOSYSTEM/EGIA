@@ -1,10 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { GraduationCap, Users, Laptop, Briefcase, ArrowRight, ClipboardCheck, Building2, Sparkles, UserCheck } from 'lucide-react'
+import { GraduationCap, Users, Laptop, ClipboardCheck, Building2, ArrowRight } from 'lucide-react'
 
 export default function SignUpPage() {
   const options = [
@@ -115,11 +114,22 @@ export default function SignUpPage() {
         })}
       </div>
 
-      <div className="mt-12 text-center text-xs font-bold text-slate-400 relative z-10">
-        Already registered? <Link href="/auth/signin" className="text-orange-400 font-black hover:underline ml-1">Sign In Now</Link>
+      <div className="mt-12 text-center text-xs font-bold text-slate-400 relative z-10 space-y-3">
+        <p>
+          Already registered? <Link href="/auth/signin" className="text-orange-400 font-black hover:underline ml-1">Sign In Now</Link>
+        </p>
+        <div className="flex justify-center gap-4 text-[11px] font-semibold text-slate-500">
+          <Link href="/terms" className="hover:text-slate-300 transition-colors">
+            Terms & Conditions
+          </Link>
+          <span>•</span>
+          <Link href="/privacy" className="hover:text-slate-300 transition-colors">
+            Privacy Policy
+          </Link>
+        </div>
       </div>
 
-      <p className="mt-16 text-[10px] text-slate-500 font-black uppercase tracking-[0.25em] relative z-10">
+      <p className="mt-12 text-[10px] text-slate-500 font-black uppercase tracking-[0.25em] relative z-10">
         EL LEARNERS APP • Multi-Tenant Educational Platform
       </p>
     </div>

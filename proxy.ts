@@ -15,6 +15,8 @@ const publicRoutes = [
   '/faq',
   '/gallery',
   '/results-checker',
+  '/terms',
+  '/privacy',
   '/llms.txt',
   '/llms-full.txt',
   '/og',
