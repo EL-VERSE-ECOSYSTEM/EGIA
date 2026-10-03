@@ -128,7 +128,7 @@ export default function SignInPage() {
     } catch (err: any) {
       setError(err.message || 'An error occurred while activating your identity.')
       setLoading(false)
-    } fontally {
+    } finally {
       setLoading(false)
     }
   }
@@ -323,6 +323,15 @@ export default function SignInPage() {
                   Create School Account
                 </Link>
               </p>
+              <div className="flex justify-center gap-4 text-[11px] font-semibold text-slate-500 pt-1">
+                <Link href="/terms" className="hover:text-slate-300 transition-colors">
+                  Terms & Conditions
+                </Link>
+                <span>•</span>
+                <Link href="/privacy" className="hover:text-slate-300 transition-colors">
+                  Privacy Policy
+                </Link>
+              </div>
             </div>
           </CardContent>
         </Card>
