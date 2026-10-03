@@ -10,19 +10,26 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_SITE_URL ||
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "EL LEARNERS APP - Next-Gen Smart School Management & CBT Portal",
+    default: "EL LEARNERS APP - Smart School Management System & CBT Portal 2026",
     template: "%s | EL LEARNERS APP",
   },
-  description: "Transform education with EL LEARNERS APP. Features real-time CBT examinations, instant automated grading, parent monitoring, live school analytics, and seamless AI assistance.",
+  description: "All-in-one Smart School Management System & CBT Exam Portal. Features instant automated grading, real-time parent monitoring, primary and secondary school report cards, online fee payment, and multi-tenant administration.",
   keywords: [
     "EL LEARNERS APP",
     "School Management System",
+    "Smart School Management Portal",
     "CBT Portal",
     "Realtime Student Portal",
+    "Primary School Portal",
+    "Secondary School Portal",
     "Nigerian Education Tech",
     "Automated Report Cards",
     "Parent Portal Nigeria",
-    "Digital Learning Platform"
+    "Online Result Checker",
+    "School Administration Software",
+    "Digital Learning Platform",
+    "New School Portal 2026",
+    "Computer Based Test Software"
   ],
   authors: [{ name: "ELCODERS", url: siteUrl }],
   creator: "ELCODERS",
@@ -46,10 +53,10 @@ export const metadata: Metadata = {
     siteName: 'EL LEARNERS APP',
     images: [
       {
-        url: '/logo.svg',
+        url: `${siteUrl}/og`,
         width: 1200,
         height: 630,
-        alt: 'EL LEARNERS APP Logo & Preview',
+        alt: 'EL LEARNERS APP - Next-Gen Smart School Management & CBT Portal',
       },
     ],
   },
@@ -57,7 +64,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'EL LEARNERS APP - Next-Gen Smart School Management & CBT Portal',
     description: 'Revolutionizing school administration, CBT examinations, parent updates, and real-time student tracking.',
-    images: ['/logo.svg'],
+    images: [`${siteUrl}/og`],
     creator: '@elcoders',
   },
   appleWebApp: {

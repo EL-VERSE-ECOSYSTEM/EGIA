@@ -114,6 +114,12 @@ export default function ParentSignUpPage() {
     e.preventDefault()
     setError(null)
 
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long.')
+      toast.error('Password must be at least 8 characters long.')
+      return
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
       toast.error('Passwords do not match')
@@ -134,6 +140,12 @@ export default function ParentSignUpPage() {
 
     const payload = {
       ...formData,
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      email: formData.email.trim().toLowerCase(),
+      phone: formData.phone.trim(),
+      occupation: formData.occupation.trim(),
+      schoolCode: formData.schoolCode.trim().toUpperCase(),
       profileImage,
       facialVerificationVideo: null,
       wardAdmissionNumbers: addedWards.map(w => w.admissionNumber)

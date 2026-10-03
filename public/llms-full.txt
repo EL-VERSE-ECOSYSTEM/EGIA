@@ -1,0 +1,48 @@
+# EL LEARNERS APP - Full System Documentation & Technical Reference
+
+## Executive Summary
+EL LEARNERS APP is a modern, enterprise-grade Next.js multi-tenant school management system and Computer-Based Testing (CBT) portal. Designed specifically for primary and secondary educational institutions, it streamlines administration, examination, grading, communication, and fee processing into a single real-time ecosystem.
+
+---
+
+## Key Modules & Functional Architecture
+
+### 1. Multi-Tenant Institution Management
+- Unique School Registration Codes for each institutional tenant.
+- School Admin dashboard for managing academic sessions, terms, classes, arms, and staff accounts.
+- Document verification, proof of address verification, and Korapay automated payment onboarding.
+
+### 2. Computer-Based Testing (CBT) & Assessment Engine
+- Live timed examinations with web proctoring (camera snapshots, tab switch detection, cheating telemetry).
+- Support for multiple-choice questions, short answers, essay questions, and file uploads.
+- Instant server-side grading and automatic percentage score calculation.
+- Post-exam detailed review and strength/weakness diagnostics.
+
+### 3. Automated Academic Report Cards
+- Subject score aggregation across Continuous Assessment (CA1, CA2, CA3) and End-of-Term Examinations.
+- Automated grade letter assignment (A, B, C, D, F) and position ranking within class/arm.
+- Role-based workflow: Teachers draft and enter scores; School Admins / Principals review, endorse, or reject report cards.
+- PDF generation and instant parent portal delivery.
+
+### 4. Multi-Role Portals & Dashboards
+- **Super Admin**: Platform-wide control, tenant activation, subscription management, global logs, support tickets.
+- **School Admin**: School staff management, fee tracking, timetable scheduling, class assignment, report card approval.
+- **Teacher**: Lesson planning, grade entry, attendance taking, CBT test creation, student proctoring.
+- **Student**: CBT exam launcher, live grade tracking, timetable viewer, digital library access, homework submission.
+- **Parent**: Multi-child linking via admission numbers, real-time attendance alerts, fee invoice payments, direct teacher chat.
+
+### 5. Security & Isolation Guarantee
+- Role-Based Access Control (RBAC) and Attribute-Based Access Control (ABAC).
+- Fail-closed tenant isolation (`schoolId` enforcement across all database queries).
+- Constant-time secret comparison for webhooks (`crypto.timingSafeEqual`).
+- Strict rate-limiting on sensitive API and authentication endpoints.
+
+---
+
+## Technical Stack
+- **Framework**: Next.js 15 (App Router, React 19, TypeScript)
+- **Database**: PostgreSQL (Supabase) with Drizzle ORM
+- **Authentication**: Supabase Auth with custom multi-identity resolution (`resolveIdentities`)
+- **Real-time Sync**: Supabase Realtime (WebSockets)
+- **Payments**: Korapay Payment Gateway Integration
+- **Styling**: Tailwind CSS & Lucide React

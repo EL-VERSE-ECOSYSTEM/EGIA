@@ -102,7 +102,7 @@ export default function StudentRegistrationPage() {
 
   const handleAddSubject = (name: string) => {
     if (!name || subjectsDone.some(s => s.toLowerCase() === name.toLowerCase())) return
-    setSubjectsDone([...subjectsDone, name])
+    setSubjectsDone([...subjectsDone, name.trim()])
   }
 
   const addManualSubject = () => {
@@ -142,6 +142,11 @@ export default function StudentRegistrationPage() {
       return
     }
 
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long.')
+      return
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
       return
@@ -162,9 +167,13 @@ export default function StudentRegistrationPage() {
     try {
       const payload = {
         ...formData,
+        firstName: formData.firstName.trim(),
+        middleName: formData.middleName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim().toLowerCase(),
         schoolCode: formData.schoolCode.trim().toUpperCase(),
         department: isSeniorClass ? (formData.department || 'SCIENCE') : 'GENERAL',
-        subjectsDone,
+        subjectsDone: subjectsDone.map(s => s.trim()),
         profileImage: passportImage,
         facialVerificationVideo: null
       }

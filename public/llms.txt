@@ -1,0 +1,20 @@
+# EL LEARNERS APP - Next-Gen Smart School Management & CBT Portal
+
+> EL LEARNERS APP is an all-in-one educational platform and multi-tenant school management software designed for primary schools, secondary schools, colleges, and educational institutions.
+
+## Core Capabilities
+- **CBT Examination & Automated Grading**: Real-time Computer Based Testing (CBT) portal with automated scoring, proctoring telemetry, instant result generation, and performance breakdown.
+- **Automated Report Cards**: End-to-end report card compilation, grade calculations, principal endorsement, and automated parent dispatch.
+- **Multi-Tenant School Administration**: Complete tenant isolation, school registration code management, staff management, and school level authorization (SUPER_ADMIN, SCHOOL_ADMIN, TEACHER, PARENT, STUDENT).
+- **Parent & Student Workspace**: Real-time academic tracking, attendance monitoring, fee payments, and direct teacher-parent messaging.
+- **Digital Library & E-Learning**: Centralized resource management, e-books, course materials, and study resources.
+- **Timetable & Attendance System**: Smart automated clash-free timetable generation and daily attendance tracking.
+
+## Target Audience & Keywords
+- School Management System, CBT Portal, School Administration Software, Automated Report Card Generator, Primary School Portal, Secondary School Management Software, Parent Portal Nigeria, Realtime CBT Examination, Student Result Management System, Digital Learning Platform, School Fees Payment Portal.
+
+## Official Links
+- Home: https://el-goodnews-academy.com
+- Admissions: https://el-goodnews-academy.com/admissions
+- School Registration: https://el-goodnews-academy.com/school-registration
+- Full LLM Documentation: https://el-goodnews-academy.com/llms-full.txt
