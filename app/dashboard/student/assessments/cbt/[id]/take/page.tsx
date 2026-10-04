@@ -115,13 +115,33 @@ export default function CBTExamTakingPage() {
     }
   }, [examStarted, examFinished])
 
+  // Clean up media tracks on unmount
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try { mediaRecorderRef.current.stop() } catch {}
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [])
+
   // 2. Active Webcam proctoring, MediaRecorder, and Real-time Object/Face Detection simulation loop
   const startWebcamAndRecorder = async () => {
     recordedChunksRef.current = []
     setProctorLogs([])
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      let stream: MediaStream
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        logProctorEvent('MEDIA_STREAM_SUCCESS', 'Webcam and microphone feed activated.')
+      } catch (mediaErr) {
+        console.warn('Audio/Video request failed. Attempting video-only fallback...', mediaErr)
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        logProctorEvent('MEDIA_STREAM_FALLBACK', 'Microphone disabled or unavailable. Video feed active.')
+      }
       streamRef.current = stream
 
       if (videoRef.current) {
