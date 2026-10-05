@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
+import { sendFCMOtp } from '@/lib/services/notifications'
 
 export async function getStudentEmailByAdmissionNumber(admissionNumber: string) {
   const session = await auth.getSession()
@@ -321,6 +322,19 @@ export async function updateStudentPassword(newPassword: string) {
 
   if (updateError) {
     throw new Error(updateError.message)
+  }
+
+  // Transmit FCM OTP alert to the student's registered device informing of password change
+  const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString()
+  try {
+    await sendFCMOtp({
+      userId: session.user.id,
+      title: 'Security Alert: Password Changed',
+      otpCode: generatedOtp,
+      type: 'CHANGE_PASSWORD',
+    })
+  } catch (err) {
+    console.warn('FCM OTP dispatch for password change encountered non-fatal error:', err)
   }
 
   return { success: true }

@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { user as userTable, userRole, parent, teacher, student, school } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { createClient } from '@supabase/supabase-js'
+import { sendFCMOtp } from '@/lib/services/notifications'
 
 function getSupabaseAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
@@ -49,6 +50,19 @@ export async function verifyForgotPasswordEmailAction(emailInput: string): Promi
 
   const isStudentRole = primaryRole === 'STUDENT' || primaryRole === 'PUPIL'
   const verificationType = isStudentRole ? 'SCHOOL_CODE' : 'PHONE'
+
+  // Transmit real-time high-priority FCM OTP to the user's registered device
+  const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString()
+  try {
+    await sendFCMOtp({
+      userId: userRecord.id,
+      title: 'Password Reset Verification Code',
+      otpCode: generatedOtp,
+      type: 'FORGOT_PASSWORD',
+    })
+  } catch (err) {
+    console.warn('FCM OTP dispatch for forgot password encountered non-fatal error:', err)
+  }
 
   return {
     success: true,
