@@ -34,29 +34,7 @@ Build a comprehensive school management application with RBAC (Role-Based Access
 - **Primary**: PostgreSQL (Supabase Session Pooler on Port 6543)
 - **Realtime**: Supabase Realtime Server
 
-## Environment Configuration
-
-Ensure the following variables are configured in `.env` or Vercel environment settings:
-
-```text
-NEXT_PUBLIC_SUPABASE_URL=https://qpqkpqnoffjlnjbxoiwz.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_mRo_lTAhIWmPNPb4LJFYkw_wDvhboyW
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_URL=https://qpqkpqnoffjlnjbxoiwz.supabase.co
-SUPABASE_PUBLISHABLE_KEY=sb_publishable_mRo_lTAhIWmPNPb4LJFYkw_wDvhboyW
-SUPABASE_SECRET_KEY=sb_secret_Tu60LjPwLiWq2n1ramQqpg_kRmTwbFF
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_JWKS_URL=https://qpqkpqnoffjlnjbxoiwz.supabase.co/auth/v1/.well-known/jwks.json
-DATABASE_URL=postgresql://postgres.qpqkpqnoffjlnjbxoiwz:Amunra123%40%40@aws-1-eu-west-1.pooler.supabase.com:6543/postgres
-SUPABASE_DATABASE_POOLER_URL=postgresql://postgres.qpqkpqnoffjlnjbxoiwz:Amunra123%40%40@aws-1-eu-west-1.pooler.supabase.com:6543/postgres
 ```
-
-Run the connection verification script to test Supabase Auth and Database connection:
-
-```bash
-npm run verify:supabase
-```
-
 ## Role-Based Color Scheme
 | Role | Primary Color | Gradient | Badge Color | Icon Color |
 | :--- | :--- | :--- | :--- | :--- |
