@@ -20,10 +20,19 @@ export default function ProctorPage() {
 
   const startWebcam = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 1280, height: 720 },
-        audio: true,
-      })
+      let mediaStream: MediaStream
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720 },
+          audio: true,
+        })
+      } catch (audioErr) {
+        console.warn('Audio device missing or access denied. Falling back to video only.', audioErr)
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720 },
+          audio: false,
+        })
+      }
       setStream(mediaStream)
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream
