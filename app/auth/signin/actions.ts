@@ -134,7 +134,18 @@ export async function signInAction(emailInput: string, passwordInput: string) {
       })
     }
 
+    // Enforce Super Admin email restriction: Only ixoralyon013@gmail.com can log in as SUPER_ADMIN
+    const isSuperAdminEmail = (data.user.email || resolvedEmail).toLowerCase() === 'ixoralyon013@gmail.com'
+
     const loginContext = await resolveIdentities(data.user.id)
+
+    // Filter identities to prevent unauthorized users from acquiring SUPER_ADMIN identity
+    loginContext.identities = loginContext.identities.filter(identity => {
+      if (identity.role === 'SUPER_ADMIN' && !isSuperAdminEmail) {
+        return false
+      }
+      return true
+    })
 
     if (!loginContext.identities || loginContext.identities.length === 0) {
       // Fallback: If no specialized identity profiles (teacher/student/parent/admin) exist,
