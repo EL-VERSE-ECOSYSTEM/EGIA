@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm'
 import { resolveIdentities, LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
+import { sendPushNotification } from '@/lib/services/notifications'
 
 function authAdminClient() {
   const secretKey = getSupabaseSecretKey()
@@ -166,6 +167,19 @@ export async function signInAction(emailInput: string, passwordInput: string) {
           identities: [defaultIdentity],
         },
       }
+    }
+
+    // Transmit FCM push notification alert informing registered device of login event
+    try {
+      await sendPushNotification({
+        userId: data.user.id,
+        title: 'Login Security Alert',
+        body: 'Your account was just logged into from a browser device.',
+        type: 'LOGIN_ALERT',
+        eventKey: `login_${data.user.id}_${Date.now()}`,
+      })
+    } catch (pushErr) {
+      console.warn('FCM login notification dispatch error:', pushErr)
     }
 
     return {

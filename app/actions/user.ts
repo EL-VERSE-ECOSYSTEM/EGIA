@@ -316,6 +316,21 @@ export async function updateStudentPassword(newPassword: string) {
     throw new Error('New password must be at least 8 characters long.')
   }
 
+  const userRec = await db.query.user.findFirst({
+    where: eq(userTable.id, session.user.id),
+  })
+
+  // Enforce 3-day minimum interval between password changes
+  if (userRec?.updatedAt) {
+    const lastChange = new Date(userRec.updatedAt).getTime()
+    const now = Date.now()
+    const threeDaysMs = 3 * 24 * 60 * 60 * 1000
+    if (now - lastChange < threeDaysMs) {
+      const remainingDays = Math.ceil((threeDaysMs - (now - lastChange)) / (24 * 60 * 60 * 1000))
+      throw new Error(`Password can only be changed once every 3 days. Please try again in ${remainingDays} day(s).`)
+    }
+  }
+
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
   const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
@@ -323,6 +338,8 @@ export async function updateStudentPassword(newPassword: string) {
   if (updateError) {
     throw new Error(updateError.message)
   }
+
+  await db.update(userTable).set({ updatedAt: new Date() }).where(eq(userTable.id, session.user.id))
 
   // Transmit FCM OTP alert to the student's registered device informing of password change
   const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString()
