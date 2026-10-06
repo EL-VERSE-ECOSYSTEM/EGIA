@@ -959,6 +959,55 @@ export const adultEducationEnrollment = pgTable('adult_education_enrollments', {
   foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('set null'),
 ])
 
+// ===== SSS2/SSS3 ONLINE EXAM PREP (WAEC/NECO/JAMB) =====
+export const onlinePrepSubscriptions = pgTable('online_prep_subscriptions', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  studentId: text('student_id').notNull(),
+  schoolId: text('school_id').notNull(),
+  department: text('department').notNull(), // Science, Arts, Commercial
+  accessCode: text('access_code').notNull().unique(), // Username access code created by student
+  paymentReference: text('payment_reference').notNull().unique(),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull().default('3161.25'),
+  status: text('status').notNull().default('ACTIVE'), // ACTIVE, EXPIRED, PENDING
+  paidAt: timestamp('paid_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(), // 3 weeks (21 days) from payment
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.studentId], foreignColumns: [student.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+])
+
+export const onlinePrepQuestions = pgTable('online_prep_questions', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('school_id').notNull(),
+  subjectName: text('subject_name').notNull(),
+  examType: text('exam_type').notNull().default('WAEC'), // WAEC, NECO, JAMB
+  department: text('department'), // Science, Arts, Commercial
+  questionText: text('question_text').notNull(),
+  options: jsonb('options').notNull(),
+  correctAnswer: text('correct_answer').notNull(),
+  uploadedBy: text('uploaded_by').notNull(),
+  uploadedByRole: text('uploaded_by_role').notNull(), // TEACHER, SUPER_ADMIN, SCHOOL_ADMIN
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+])
+
+export const onlinePrepLessons = pgTable('online_prep_lessons', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('school_id').notNull(),
+  title: text('title').notNull(),
+  subjectName: text('subject_name').notNull(),
+  department: text('department').notNull(), // Science, Arts, Commercial
+  videoUrl: text('video_url').notNull(),
+  description: text('description'),
+  teacherId: text('teacher_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+])
+
 // ===== CLASS COMMENTS TABLE (For Video Classes & Live Sessions) =====
 export const classComments = pgTable('class_comments', {
   id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
