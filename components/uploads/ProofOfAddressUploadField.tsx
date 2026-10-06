@@ -29,13 +29,16 @@ export function ProofOfAddressUploadField({
 
     const allowed = [
       "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword",
       "image/png",
       "image/jpeg",
       "image/jpg",
       "image/webp",
     ];
-    if (!allowed.includes(file.type)) {
-      return setError("Only PDF, PNG, JPG, or WebP files are allowed");
+    const isDocxExt = file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc');
+    if (!allowed.includes(file.type) && !isDocxExt) {
+      return setError("Only PDF, DOCX, DOC, PNG, JPG, or WebP document files are allowed");
     }
     if (file.size > 10 * 1024 * 1024) {
       return setError("File size must be 10 MB or less");
@@ -158,7 +161,7 @@ export function ProofOfAddressUploadField({
           <input
             ref={inputRef}
             type="file"
-            accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp"
+            accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,.doc,.docx,image/png,image/jpeg,image/jpg,image/webp"
             disabled={busy}
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
             className="hidden"
