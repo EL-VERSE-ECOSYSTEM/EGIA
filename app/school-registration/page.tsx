@@ -76,6 +76,10 @@ export default function SchoolRegistrationPage() {
   const [documentUrl, setDocumentTypeUrl] = useState('')
   const [uploadingDoc, setUploadingDoc] = useState(false)
 
+  // Logo Re-upload Modal State
+  const [showLogoModal, setShowLogoModal] = useState(false)
+  const [reuploadingLogo, setReuploadingLogo] = useState(false)
+
   // Post-payment OTP Verification & Glassy UI state
   const [showOtpStep, setShowOtpStep] = useState(false)
   const [otpInput, setOtpInput] = useState('')
@@ -486,11 +490,53 @@ export default function SchoolRegistrationPage() {
               <h2 className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-2">
                 <Building2 className="w-4 h-4" /> School Profile & Branding
               </h2>
-              <LogoUploadField
-                schoolId=""
-                existingUrl={formData.logo_url}
-                onUploaded={(url, path) => setFormData(prev => ({ ...prev, logo_url: url, logo_path: path }))}
-              />
+              <div className="flex justify-between items-center">
+                <div className="flex-1">
+                  <LogoUploadField
+                    schoolId=""
+                    existingUrl={formData.logo_url}
+                    onUploaded={(url, path) => setFormData(prev => ({ ...prev, logo_url: url, logo_path: path }))}
+                  />
+                </div>
+                {!formData.logo_url && (
+                  <button
+                    type="button"
+                    onClick={() => setShowLogoModal(true)}
+                    className="ml-4 px-3 py-2 bg-blue-600/30 hover:bg-blue-600/50 border border-blue-400 text-blue-300 rounded-xl text-xs font-bold transition"
+                  >
+                    Re-upload Logo Modal
+                  </button>
+                )}
+              </div>
+
+              {/* Re-upload Logo Modal */}
+              {showLogoModal && (
+                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                  <div className="bg-slate-900 border border-white/20 p-6 rounded-3xl max-w-md w-full space-y-4 shadow-2xl relative">
+                    <h3 className="text-lg font-black text-white">Re-upload School Logo</h3>
+                    <p className="text-xs text-slate-300">
+                      If your uploaded logo is not reflecting in Supabase Database tables, select and re-upload your logo file below.
+                    </p>
+                    <LogoUploadField
+                      schoolId=""
+                      existingUrl={formData.logo_url}
+                      onUploaded={(url, path) => {
+                        setFormData(prev => ({ ...prev, logo_url: url, logo_path: path }))
+                        setShowLogoModal(false)
+                      }}
+                    />
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowLogoModal(false)}
+                        className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-bold"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-black uppercase text-slate-400 mb-1">Name of School *</label>
