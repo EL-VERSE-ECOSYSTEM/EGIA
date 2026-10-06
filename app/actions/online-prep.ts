@@ -286,3 +286,60 @@ export async function getPrepQuestionsAction(subjectName?: string) {
     orderBy: [desc(onlinePrepQuestions.createdAt)],
   })
 }
+
+export async function uploadPrepLessonAction(input: {
+  title: string
+  subjectName: string
+  department: string
+  videoUrl: string
+  description?: string
+  targetClass?: string // SSS2 or SSS3
+}) {
+  const session = await auth.getSession()
+  if (!session?.user) return { success: false, error: 'Unauthorized' }
+
+  const allowedRoles = ['TEACHER', 'ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN']
+  if (!allowedRoles.includes(session.user.role?.toUpperCase())) {
+    return { success: false, error: 'Forbidden: Insufficient privileges.' }
+  }
+
+  let schoolId = session.user.schoolId
+  if (!schoolId && session.user.role === 'SUPER_ADMIN') {
+    schoolId = '00000000-0000-0000-0000-000000000001'
+  }
+
+  if (!schoolId) {
+    return { success: false, error: 'School ID required.' }
+  }
+
+  const lessonId = randomUUID()
+  await db.insert(onlinePrepLessons).values({
+    id: lessonId,
+    schoolId,
+    title: input.title.trim(),
+    subjectName: input.subjectName.trim(),
+    department: input.department || 'Science',
+    videoUrl: input.videoUrl.trim(),
+    description: input.description || null,
+    teacherId: session.user.id,
+  })
+
+  return { success: true, lessonId }
+}
+
+export async function getPrepLessonsAction(department?: string) {
+  const session = await auth.getSession()
+  if (!session?.user) return []
+
+  const studentProfile = await db.query.student.findFirst({
+    where: eq(student.userId, session.user.id),
+  })
+
+  const schoolId = studentProfile?.schoolId || session.user.schoolId
+  if (!schoolId) return []
+
+  return db.query.onlinePrepLessons.findMany({
+    where: eq(onlinePrepLessons.schoolId, schoolId),
+    orderBy: [desc(onlinePrepLessons.createdAt)],
+  })
+}

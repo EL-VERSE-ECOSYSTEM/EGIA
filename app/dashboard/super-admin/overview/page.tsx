@@ -41,7 +41,8 @@ import {
   Ban,
   CheckCircle,
   Trash2,
-  Award
+  Award,
+  Video
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -399,6 +400,24 @@ export default function SuperAdminOverviewPage() {
       </header>
 
       <main className="max-w-7xl mx-auto space-y-8 my-8">
+        {/* Quick Online Prep Upload Link */}
+        <div className="p-6 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+          <div className="space-y-1">
+            <h2 className="text-lg font-black flex items-center gap-2">
+              <Video className="w-5 h-5" /> SSS2/SSS3 Online Exam Prep Management
+            </h2>
+            <p className="text-xs text-orange-100 font-medium">
+              Publish platform-wide WAEC, NECO & JAMB practice questions and video classes across all registered schools.
+            </p>
+          </div>
+          <a
+            href="/dashboard/super-admin/online-prep"
+            className="px-5 py-2.5 rounded-xl bg-slate-950 text-white font-black text-xs uppercase tracking-wider hover:bg-slate-900 transition shadow-lg shrink-0"
+          >
+            Manage Prep Lessons
+          </a>
+        </div>
+
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
