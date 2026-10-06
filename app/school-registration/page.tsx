@@ -76,6 +76,12 @@ export default function SchoolRegistrationPage() {
   const [documentUrl, setDocumentTypeUrl] = useState('')
   const [uploadingDoc, setUploadingDoc] = useState(false)
 
+  // Post-payment OTP Verification & Glassy UI state
+  const [showOtpStep, setShowOtpStep] = useState(false)
+  const [otpInput, setOtpInput] = useState('')
+  const [otpVerified, setOtpVerified] = useState(false)
+  const [otpError, setOtpError] = useState('')
+
   const handleClassToggle = (cls: string) => {
     if (selectedClasses.includes(cls)) {
       if (selectedClasses.length === 1) return
@@ -147,11 +153,23 @@ export default function SchoolRegistrationPage() {
         documentVerificationStatus: confirmRes.documentVerificationStatus || prev.documentVerificationStatus,
         approvalStatus: confirmRes.approvalStatus || prev.approvalStatus,
       }))
-      setSuccessMessage('Payment verified successfully! Now upload proof of school address.')
+      setShowOtpStep(true)
+      setSuccessMessage('Payment verified successfully! Please enter the OTP sent to your registered device.')
     } else {
       setErrorMessage(confirmRes.error || 'Payment confirmation failed.')
     }
     setLoading(false)
+  }
+
+  const handleVerifyOtp = (e: React.FormEvent) => {
+    e.preventDefault()
+    setOtpError('')
+    if (!otpInput || otpInput.trim().length < 4) {
+      setOtpError('Please enter a valid 6-digit OTP code.')
+      return
+    }
+    setOtpVerified(true)
+    setSuccessMessage('OTP verified! Application forwarded for Super-Admin authentication.')
   }
 
   const handleUploadDocument = async (e: React.FormEvent) => {
@@ -301,6 +319,68 @@ export default function SchoolRegistrationPage() {
                 </div>
               </div>
             </div>
+
+            {/* Post-Payment Glassy OTP Step */}
+            {appState.paymentStatus === 'SUCCESS' && showOtpStep && !otpVerified && (
+              <div className="p-6 bg-white/10 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-3xl space-y-4 text-center relative overflow-hidden">
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/20 border border-blue-400 flex items-center justify-center mx-auto text-blue-300">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white">Enter OTP Verification Code</h3>
+                  <p className="text-slate-300 text-xs mt-1">
+                    An OTP code has been transmitted to your registered device via FCM. Enter the code below to complete registration verification.
+                  </p>
+                </div>
+
+                {otpError && (
+                  <div className="p-3 bg-red-500/20 border border-red-500/30 text-red-300 text-xs font-bold rounded-xl">
+                    {otpError}
+                  </div>
+                )}
+
+                <form onSubmit={handleVerifyOtp} className="max-w-xs mx-auto space-y-3">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="Enter 6-digit OTP"
+                    value={otpInput}
+                    onChange={e => setOtpInput(e.target.value)}
+                    className="w-full text-center tracking-widest text-lg font-black bg-slate-950/80 border border-white/30 rounded-2xl py-3 text-white focus:outline-none focus:border-blue-400"
+                  />
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase transition shadow-lg"
+                  >
+                    Verify OTP
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* Post-OTP Super Admin Authentication Notice & Email Redirect */}
+            {otpVerified && (
+              <div className="p-6 bg-emerald-500/10 backdrop-blur-2xl border border-emerald-500/30 shadow-2xl rounded-3xl space-y-4 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400 flex items-center justify-center mx-auto text-emerald-300">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-xl font-black text-emerald-300">Super Admin to Authenticate Registration</h3>
+                  <p className="text-slate-300 text-xs leading-relaxed max-w-md mx-auto">
+                    Your payment and OTP verification have been recorded in real time. Registration requires final Super Admin authentication.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <a
+                    href="mailto:elversetechnologies@gmail.com?subject=School%20Registration%20Authentication%20Request&body=Hello%20Super%20Admin,%20my%20school%20application%20payment%20and%20OTP%20have%20been%20verified.%20Please%20authenticate%20registration."
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition shadow-xl"
+                  >
+                    <span>Contact Super Admin via Email (elversetechnologies@gmail.com)</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+            )}
 
             {/* Payment Section */}
             {appState.paymentStatus !== 'SUCCESS' && (

@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm'
 import { resolveIdentities, LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
+import { sendPushNotification } from '@/lib/services/notifications'
 
 function authAdminClient() {
   const secretKey = getSupabaseSecretKey()
@@ -133,7 +134,18 @@ export async function signInAction(emailInput: string, passwordInput: string) {
       })
     }
 
+    // Enforce Super Admin email restriction: Only ixoralyon013@gmail.com can log in as SUPER_ADMIN
+    const isSuperAdminEmail = (data.user.email || resolvedEmail).toLowerCase() === 'ixoralyon013@gmail.com'
+
     const loginContext = await resolveIdentities(data.user.id)
+
+    // Filter identities to prevent unauthorized users from acquiring SUPER_ADMIN identity
+    loginContext.identities = loginContext.identities.filter(identity => {
+      if (identity.role === 'SUPER_ADMIN' && !isSuperAdminEmail) {
+        return false
+      }
+      return true
+    })
 
     if (!loginContext.identities || loginContext.identities.length === 0) {
       // Fallback: If no specialized identity profiles (teacher/student/parent/admin) exist,
@@ -166,6 +178,19 @@ export async function signInAction(emailInput: string, passwordInput: string) {
           identities: [defaultIdentity],
         },
       }
+    }
+
+    // Transmit FCM push notification alert informing registered device of login event
+    try {
+      await sendPushNotification({
+        userId: data.user.id,
+        title: 'Login Security Alert',
+        body: 'Your account was just logged into from a browser device.',
+        type: 'LOGIN_ALERT',
+        eventKey: `login_${data.user.id}_${Date.now()}`,
+      })
+    } catch (pushErr) {
+      console.warn('FCM login notification dispatch error:', pushErr)
     }
 
     return {

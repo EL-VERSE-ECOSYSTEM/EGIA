@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
+import { sendFCMOtp } from '@/lib/services/notifications'
 
 export async function getStudentEmailByAdmissionNumber(admissionNumber: string) {
   const session = await auth.getSession()
@@ -315,12 +316,42 @@ export async function updateStudentPassword(newPassword: string) {
     throw new Error('New password must be at least 8 characters long.')
   }
 
+  const userRec = await db.query.user.findFirst({
+    where: eq(userTable.id, session.user.id),
+  })
+
+  // Enforce 3-day minimum interval between password changes
+  if (userRec?.updatedAt) {
+    const lastChange = new Date(userRec.updatedAt).getTime()
+    const now = Date.now()
+    const threeDaysMs = 3 * 24 * 60 * 60 * 1000
+    if (now - lastChange < threeDaysMs) {
+      const remainingDays = Math.ceil((threeDaysMs - (now - lastChange)) / (24 * 60 * 60 * 1000))
+      throw new Error(`Password can only be changed once every 3 days. Please try again in ${remainingDays} day(s).`)
+    }
+  }
+
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
   const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
 
   if (updateError) {
     throw new Error(updateError.message)
+  }
+
+  await db.update(userTable).set({ updatedAt: new Date() }).where(eq(userTable.id, session.user.id))
+
+  // Transmit FCM OTP alert to the student's registered device informing of password change
+  const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString()
+  try {
+    await sendFCMOtp({
+      userId: session.user.id,
+      title: 'Security Alert: Password Changed',
+      otpCode: generatedOtp,
+      type: 'CHANGE_PASSWORD',
+    })
+  } catch (err) {
+    console.warn('FCM OTP dispatch for password change encountered non-fatal error:', err)
   }
 
   return { success: true }

@@ -683,6 +683,11 @@ export async function loginRole(data: {
 
   let email = normalizeEmail(identifier)
 
+  // Enforce Super Admin email restriction: Only ixoralyon013@gmail.com can log in as SUPER_ADMIN
+  if (selectedRole === 'SUPER_ADMIN' && email !== 'ixoralyon013@gmail.com') {
+    return { error: 'Access denied: Only authorized Super Admin email can access this portal.' }
+  }
+
   if (selectedRole === 'TEACHER' && identifier.includes('-ST-')) {
     const teacherProfile = await db.query.teacher.findFirst({
       where: eq(teacher.staffCode, identifier.toUpperCase()),

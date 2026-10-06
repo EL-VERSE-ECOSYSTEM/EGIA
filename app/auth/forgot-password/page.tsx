@@ -146,8 +146,9 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
 
-        {/* Card Form */}
-        <Card className="border-slate-800 bg-slate-900/90 shadow-2xl backdrop-blur-xl rounded-3xl overflow-hidden">
+        {/* Card Form with Glassy UI */}
+        <Card className="border border-white/20 bg-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] backdrop-blur-2xl rounded-3xl overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent pointer-events-none" />
           <CardContent className="p-8 space-y-6">
             {error && (
               <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold leading-relaxed flex items-center gap-3">

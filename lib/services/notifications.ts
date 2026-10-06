@@ -84,3 +84,30 @@ export async function sendPushNotification(notification: NotificationData): Prom
     failureCount
   };
 }
+
+/** Helper to generate and transmit high-priority FCM push OTP codes directly to a user's registered device. */
+export async function sendFCMOtp(params: {
+  userId: string;
+  title?: string;
+  otpCode: string;
+  type: 'SCHOOL_REGISTRATION' | 'FORGOT_PASSWORD' | 'CHANGE_PASSWORD';
+}): Promise<{ sent: boolean; tokenCount: number }> {
+  const title = params.title || `Verification Code for ${params.type.replace('_', ' ')}`;
+  const body = `Your verification OTP code is: ${params.otpCode}. Do not share this code with anyone.`;
+  const eventKey = `otp_${params.userId}_${params.type}_${Date.now()}`;
+
+  try {
+    const result = await sendPushNotification({
+      userId: params.userId,
+      title,
+      body,
+      type: `OTP_${params.type}`,
+      data: { otpCode: params.otpCode, actionType: params.type },
+      eventKey,
+    });
+    return { sent: result.pushDelivered || result.successCount > 0, tokenCount: result.tokenCount };
+  } catch (err) {
+    console.warn("FCM OTP push dispatch failed:", err);
+    return { sent: false, tokenCount: 0 };
+  }
+}
