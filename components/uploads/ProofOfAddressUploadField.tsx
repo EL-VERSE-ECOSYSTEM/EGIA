@@ -102,14 +102,6 @@ export function ProofOfAddressUploadField({
         <label className="block text-xs font-black uppercase text-slate-400">
           Proof of School Address (Electricity Bill, Utility Receipt, or Official Document) *
         </label>
-        <button
-          type="button"
-          onClick={() => setManualMode(!manualMode)}
-          className="text-[11px] font-bold text-blue-400 hover:underline flex items-center gap-1"
-        >
-          <LinkIcon className="w-3 h-3" />
-          {manualMode ? "Upload File" : "Paste Document URL"}
-        </button>
       </div>
 
       {fileUrl && (
@@ -134,10 +126,10 @@ export function ProofOfAddressUploadField({
           <button
             type="button"
             onClick={removeDocument}
-            className="p-2 rounded-xl text-rose-400 hover:bg-rose-500/20 transition"
-            title="Remove document"
+            className="p-2 rounded-xl text-amber-400 hover:bg-amber-500/20 transition text-[11px] font-bold"
+            title="Re-upload or replace document"
           >
-            <Trash2 className="w-4 h-4" />
+            Re-upload Document
           </button>
         </div>
       )}
