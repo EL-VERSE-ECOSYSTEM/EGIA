@@ -64,6 +64,8 @@ export default async function LandingPage() {
             <Link href="#features" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">Features</Link>
             <Link href="#testimonials" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">Success</Link>
             <Link href="#faq" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">FAQ</Link>
+            <Link href="/privacy" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">Privacy</Link>
+            <Link href="/terms" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">Terms</Link>
             <ThemeToggle />
             {user ? (
               <Link href="/dashboard-redirect">
@@ -222,11 +224,18 @@ export default async function LandingPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[
                 {
-                  title: "Smart CBT & Exams",
-                  desc: "Anti-cheat timed examinations with instant automatic grading, item bank management, and subject performance breakdown.",
+                  title: "Online Exam Prep (SSS2/SSS3)",
+                  desc: "WAEC, NECO & JAMB intensive practice questions and video classes across Science, Arts, and Commercial departments with custom username access codes and 3-week subscription locking.",
+                  icon: GraduationCap,
+                  color: "bg-amber-600 shadow-amber-200",
+                  badge: "WAEC / NECO / JAMB"
+                },
+                {
+                  title: "Dual-Stream CBT Proctoring",
+                  desc: "Anti-cheat timed examinations with dual webcam and audio stream monitoring, face obstruction telemetry, and auto-submission algorithms.",
                   icon: Monitor,
                   color: "bg-blue-600 shadow-blue-200",
-                  badge: "Realtime Grading"
+                  badge: "Webcam & Mic AI"
                 },
                 {
                   title: "Parent Sync Portal",
@@ -236,29 +245,22 @@ export default async function LandingPage() {
                   badge: "Live Notifications"
                 },
                 {
-                  title: "Digital E-Library",
-                  desc: "Comprehensive repository of approved syllabus textbooks, digital notes, video tutorials, and past exam questions.",
+                  title: "Digital E-Library & Notes",
+                  desc: "Comprehensive repository of approved syllabus textbooks, digital notes, video tutorials, and past exam questions with DOCX and PDF uploads.",
                   icon: BookOpen,
-                  color: "bg-amber-600 shadow-amber-200",
+                  color: "bg-purple-600 shadow-purple-200",
                   badge: "Curriculum Aligned"
                 },
                 {
                   title: "Automated Report Cards",
-                  desc: "Instant generation of Broadsheets and termly report cards with automated grade calculation and principal remarks.",
+                  desc: "Instant generation of Broadsheets and termly report cards with automated grade calculation, endorsement workflows, and principal remarks.",
                   icon: BarChart3,
-                  color: "bg-purple-600 shadow-purple-200",
+                  color: "bg-rose-600 shadow-rose-200",
                   badge: "One-Click Export"
                 },
                 {
-                  title: "Smart Attendance Tracking",
-                  desc: "Clock-in and clock-out for teachers and students with automatic SMS/email absence notifications to parents.",
-                  icon: Clock,
-                  color: "bg-rose-600 shadow-rose-200",
-                  badge: "Geofenced & Vetted"
-                },
-                {
-                  title: "Instant Korapay Billing",
-                  desc: "PCI-DSS certified online tuition fee collection, auto-receipt generation, and real-time financial tracking for school admins.",
+                  title: "Korapay Billing & Ledger",
+                  desc: "PCI-DSS certified online tuition fee collection, auto-receipt generation, dual database verification, and real-time financial ledger tracking.",
                   icon: Lock,
                   color: "bg-indigo-600 shadow-indigo-200",
                   badge: "Military-Grade Security"
