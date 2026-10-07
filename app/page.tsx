@@ -49,71 +49,82 @@ export default async function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] font-sans">
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-slate-950 font-sans transition-colors duration-300">
       {/* Navigation */}
-      <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
+      <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="bg-amber-600 p-2 rounded-lg">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="bg-amber-600 group-hover:bg-amber-500 p-2 rounded-xl transition-all shadow-md shadow-amber-600/20">
               <GraduationCap className="text-white w-6 h-6" />
             </div>
-            <span className="font-black text-xl tracking-tight text-slate-900 uppercase">EL LEARNERS <span className="text-amber-600">APP</span></span>
-          </div>
+            <span className="font-black text-xl tracking-tight text-slate-900 dark:text-white uppercase">
+              EL LEARNERS <span className="text-amber-600 dark:text-amber-500">APP</span>
+            </span>
+          </Link>
+
           <nav className="hidden md:flex items-center gap-6">
-            <Link href="#about" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">About</Link>
-            <Link href="#features" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">Features</Link>
-            <Link href="#testimonials" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">Success</Link>
-            <Link href="#faq" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">FAQ</Link>
-            <Link href="/privacy" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">Privacy</Link>
-            <Link href="/terms" className="text-sm font-bold text-slate-600 hover:text-amber-600 transition-colors">Terms</Link>
+            <Link href="#about" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">About</Link>
+            <Link href="#features" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">Features</Link>
+            <Link href="#testimonials" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">Success</Link>
+            <Link href="#faq" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">FAQ</Link>
+            <Link href="/privacy" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">Privacy</Link>
+            <Link href="/terms" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">Terms</Link>
             <ThemeToggle />
             {user ? (
               <Link href="/dashboard-redirect">
-                <Button className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-6 font-black shadow-lg">DASHBOARD</Button>
+                <Button className="bg-slate-900 hover:bg-slate-800 dark:bg-amber-600 dark:hover:bg-amber-500 text-white rounded-xl px-6 font-black shadow-lg">DASHBOARD</Button>
               </Link>
             ) : (
               <div className="flex items-center gap-3">
                 <Link href="/auth/signin">
-                  <Button variant="ghost" className="text-slate-600 font-black">LOGIN</Button>
+                  <Button variant="ghost" className="text-slate-600 dark:text-slate-300 font-black hover:text-amber-600">LOGIN</Button>
                 </Link>
                 <Link href="/auth/signup">
-                  <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-6 font-black shadow-lg shadow-amber-200">JOIN US</Button>
+                  <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-6 font-black shadow-lg shadow-amber-200 dark:shadow-amber-900/30">JOIN US</Button>
                 </Link>
               </div>
             )}
           </nav>
+
+          {/* Mobile Actions */}
+          <div className="flex md:hidden items-center gap-3">
+            <ThemeToggle />
+            <Link href="/auth/signin">
+              <Button size="sm" className="bg-amber-600 text-white font-black rounded-lg">LOGIN</Button>
+            </Link>
+          </div>
         </div>
       </header>
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative pt-16 sm:pt-24 pb-20 sm:pb-32 overflow-hidden bg-gradient-to-br from-amber-500/10 via-blue-500/10 to-purple-500/10">
+        <section className="relative pt-16 sm:pt-24 pb-20 sm:pb-32 overflow-hidden bg-gradient-to-br from-amber-500/10 via-blue-500/10 to-purple-500/10 dark:from-amber-950/20 dark:via-slate-950 dark:to-purple-950/20">
           <div className="container mx-auto px-4 relative z-10 text-center max-w-5xl">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-100 text-amber-700 text-xs sm:text-sm font-black mb-6 sm:mb-10 tracking-widest uppercase">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-xs sm:text-sm font-black mb-6 sm:mb-10 tracking-widest uppercase">
               <Trophy className="w-4 h-4" /> Academic Excellence in Nigeria
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-slate-900 mb-6 sm:mb-8 leading-tight tracking-tighter">
-              Inspiring <span className="text-amber-600">Greatness</span> In Every Student
+            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-slate-900 dark:text-white mb-6 sm:mb-8 leading-tight tracking-tighter">
+              Inspiring <span className="text-amber-600 dark:text-amber-500">Greatness</span> In Every Student
             </h1>
-            <p className="text-base sm:text-xl text-slate-600 mb-8 sm:mb-12 leading-relaxed max-w-3xl mx-auto font-medium">
+            <p className="text-base sm:text-xl text-slate-600 dark:text-slate-300 mb-8 sm:mb-12 leading-relaxed max-w-3xl mx-auto font-medium">
               EL LEARNERS is where traditional values meet 21st-century innovation.
-              Join a community committed to nurturing the total child.
+              Join a community committed to nurturing the total child with real-time CBT, Online Prep, and instant parent engagement.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
               <Link href="/auth/signup" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white h-12 sm:h-16 px-6 sm:px-10 rounded-2xl font-black text-base sm:text-lg shadow-xl shadow-amber-200 group transition-all">
+                <Button size="lg" className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white h-12 sm:h-16 px-6 sm:px-10 rounded-2xl font-black text-base sm:text-lg shadow-xl shadow-amber-200 dark:shadow-none group transition-all">
                   START REGISTRATION <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
               <Link href="/auth/signin" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white h-12 sm:h-16 px-6 sm:px-10 rounded-2xl font-black text-base sm:text-lg shadow-xl shadow-slate-200 transition-all">
+                <Button size="lg" className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white h-12 sm:h-16 px-6 sm:px-10 rounded-2xl font-black text-base sm:text-lg shadow-xl shadow-slate-200 dark:shadow-none transition-all">
                   PORTAL LOGIN
                 </Button>
               </Link>
             </div>
           </div>
-          <div className="absolute top-1/2 left-0 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-amber-400/5 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-[350px] sm:w-[600px] h-[350px] sm:h-[600px] bg-blue-400/5 rounded-full blur-[140px] translate-x-1/3 translate-y-1/3" />
+          <div className="absolute top-1/2 left-0 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-amber-400/10 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-[350px] sm:w-[600px] h-[350px] sm:h-[600px] bg-blue-400/10 rounded-full blur-[140px] translate-x-1/3 translate-y-1/3" />
         </section>
 
         {/* Gallery / Campus Spotlight */}

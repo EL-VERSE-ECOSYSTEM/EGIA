@@ -108,7 +108,7 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] relative">
-      {mounted && <DashboardRealtimeSync role={activeRole} />}
+      {mounted && <DashboardRealtimeSync role={role} />}
       {/* Mobile Sidebar backdrop overlay */}
       {isSidebarOpen && (
         <div

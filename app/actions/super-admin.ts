@@ -12,12 +12,8 @@ async function checkSuperAdminPermission() {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized: Session required.')
 
-  const roleRecord = await db.query.userRole.findFirst({
-    where: and(eq(userRole.userId, session.user.id), eq(userRole.role, 'SUPER_ADMIN'))
-  })
-
-  if (!roleRecord && session.user.role !== 'SUPER_ADMIN') {
-    throw new Error('Forbidden: Super Admin access required.')
+  if (session.user.email?.trim().toLowerCase() !== 'ixoralyon013@gmail.com') {
+    throw new Error('Forbidden: Super Admin access strictly restricted to ixoralyon013@gmail.com.')
   }
 
   return session.user

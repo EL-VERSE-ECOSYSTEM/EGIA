@@ -35,7 +35,7 @@ export interface LoginContext {
   identities: UserIdentity[]
 }
 
-export async function resolveIdentities(userId: string): Promise<LoginContext> {
+export async function resolveIdentities(userId: string, emailHint?: string): Promise<LoginContext> {
   let targetUserId = userId
   let userRecord: any = null
 
@@ -107,22 +107,19 @@ export async function resolveIdentities(userId: string): Promise<LoginContext> {
   } as typeof userTable.$inferSelect)
 
   userId = activeUser.id
-  const email = activeUser.email || ''
+  const resolvedEmail = (emailHint || activeUser.email || '').trim().toLowerCase()
+  const email = resolvedEmail || activeUser.email || ''
   const fullName = activeUser.name || 'User'
   const lastIdentityId = activeUser.lastIdentityId || null
 
   const identities: UserIdentity[] = []
 
-  // Check Super Admin email detection (Protected to designated account)
-  const lowerEmail = email.toLowerCase()
-  const isSuperAdminEmail = lowerEmail === 'ixoralyon013@gmail.com'
+  // Check Super Admin email detection (Protected exclusively to designated account ixoralyon013@gmail.com)
+  const isSuperAdminEmail = resolvedEmail === 'ixoralyon013@gmail.com'
 
   // 1. Check Super Admin / Base User Roles
   try {
-    const roles = await db.select().from(userRole).where(eq(userRole.userId, userId))
-    const hasSuperAdminRole = roles.some((r) => r.role.toUpperCase() === 'SUPER_ADMIN') || isSuperAdminEmail
-
-    if (hasSuperAdminRole) {
+    if (isSuperAdminEmail) {
       const identityId = `super_admin_${userId}`
       identities.push({
         id: identityId,

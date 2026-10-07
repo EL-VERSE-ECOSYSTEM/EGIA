@@ -18,14 +18,17 @@ async function getSessionImpl() {
     return null
   }
 
+  const userEmail = (user.email || '').trim().toLowerCase()
+  const isSuperAdminEmail = userEmail === 'ixoralyon013@gmail.com'
+
   let loginContext
   try {
-    loginContext = await resolveIdentities(user.id)
+    loginContext = await resolveIdentities(user.id, userEmail)
   } catch (err) {
     console.warn('resolveIdentities failed in getSessionImpl:', err)
     loginContext = {
       userId: user.id,
-      email: user.email || '',
+      email: userEmail,
       fullName: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
       identities: [],
     }
@@ -37,7 +40,13 @@ async function getSessionImpl() {
     : null
 
   const primaryIdentity = matchedIdentity || loginContext.identities?.[0]
-  const finalRole = (primaryIdentity?.role || user.user_metadata?.role || 'STUDENT').toUpperCase()
+  let rawRole = (primaryIdentity?.role || user.user_metadata?.role || 'STUDENT').toUpperCase()
+  if (isSuperAdminEmail) {
+    rawRole = 'SUPER_ADMIN'
+  } else if (rawRole === 'SUPER_ADMIN') {
+    rawRole = 'STUDENT'
+  }
+  const finalRole = rawRole
   const schoolId = primaryIdentity?.schoolId || user.user_metadata?.school_id || null
   const adminLevel = primaryIdentity?.adminLevel || user.user_metadata?.admin_level || null
 
@@ -94,14 +103,17 @@ async function getUserImpl() {
     return null
   }
 
+  const userEmail = (user.email || '').trim().toLowerCase()
+  const isSuperAdminEmail = userEmail === 'ixoralyon013@gmail.com'
+
   let loginContext
   try {
-    loginContext = await resolveIdentities(user.id)
+    loginContext = await resolveIdentities(user.id, userEmail)
   } catch (err) {
     console.warn('resolveIdentities failed in getUserImpl:', err)
     loginContext = {
       userId: user.id,
-      email: user.email || '',
+      email: userEmail,
       fullName: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
       identities: [],
     }
@@ -113,7 +125,13 @@ async function getUserImpl() {
     : null
 
   const primaryIdentity = matchedIdentity || loginContext.identities?.[0]
-  const finalRole = (primaryIdentity?.role || user.user_metadata?.role || 'STUDENT').toUpperCase()
+  let rawRole = (primaryIdentity?.role || user.user_metadata?.role || 'STUDENT').toUpperCase()
+  if (isSuperAdminEmail) {
+    rawRole = 'SUPER_ADMIN'
+  } else if (rawRole === 'SUPER_ADMIN') {
+    rawRole = 'STUDENT'
+  }
+  const finalRole = rawRole
   const schoolId = primaryIdentity?.schoolId || user.user_metadata?.school_id || null
   const adminLevel = primaryIdentity?.adminLevel || user.user_metadata?.admin_level || null
 
