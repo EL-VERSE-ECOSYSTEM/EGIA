@@ -17,12 +17,12 @@ export default function DashboardLayout({
   ...rest
 }: {
   children: React.ReactNode
-  role?: 'admin' | 'teacher' | 'parent' | 'student'
+  role?: 'admin' | 'teacher' | 'parent' | 'student' | 'super-admin'
   userEmail?: string
   navItems?: any[]
   [key: string]: any
 }) {
-  const activeRole = role || 'admin'
+  const activeRole = (role === 'super-admin' ? 'admin' : role) || 'admin'
   const [mounted, setMounted] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showInstallBtn, setShowInstallBtn] = useState(false)

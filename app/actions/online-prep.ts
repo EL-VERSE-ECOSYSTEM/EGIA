@@ -12,7 +12,7 @@ import {
   transactionLedger,
   notification,
 } from '@/lib/db/schema'
-import { eq, and, gt, desc } from 'drizzle-orm'
+import { eq, and, or, gt, desc } from 'drizzle-orm'
 import { initializeKorapayPayment, verifyKorapayPayment } from '@/lib/payments/service'
 import { randomUUID } from 'crypto'
 import { sanitizeServerError } from '@/lib/errors'
@@ -279,10 +279,12 @@ export async function getPrepQuestionsAction(subjectName?: string) {
   })
 
   const schoolId = studentProfile?.schoolId || session.user.schoolId
-  if (!schoolId) return []
+  const globalSchoolId = '00000000-0000-0000-0000-000000000001'
 
   return db.query.onlinePrepQuestions.findMany({
-    where: eq(onlinePrepQuestions.schoolId, schoolId),
+    where: schoolId
+      ? or(eq(onlinePrepQuestions.schoolId, schoolId), eq(onlinePrepQuestions.schoolId, globalSchoolId))
+      : eq(onlinePrepQuestions.schoolId, globalSchoolId),
     orderBy: [desc(onlinePrepQuestions.createdAt)],
   })
 }
@@ -336,10 +338,12 @@ export async function getPrepLessonsAction(department?: string) {
   })
 
   const schoolId = studentProfile?.schoolId || session.user.schoolId
-  if (!schoolId) return []
+  const globalSchoolId = '00000000-0000-0000-0000-000000000001'
 
   return db.query.onlinePrepLessons.findMany({
-    where: eq(onlinePrepLessons.schoolId, schoolId),
+    where: schoolId
+      ? or(eq(onlinePrepLessons.schoolId, schoolId), eq(onlinePrepLessons.schoolId, globalSchoolId))
+      : eq(onlinePrepLessons.schoolId, globalSchoolId),
     orderBy: [desc(onlinePrepLessons.createdAt)],
   })
 }
