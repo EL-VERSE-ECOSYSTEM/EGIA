@@ -153,9 +153,16 @@ export async function proxy(request: NextRequest) {
 
   // Protect role-specific sub-dashboards
   if (isAuthenticated && pathname.startsWith('/dashboard/')) {
-    const role = (user?.user_metadata?.role || '').toUpperCase()
+    const isSuperAdminEmail = (user?.email || '').trim().toLowerCase() === 'ixoralyon013@gmail.com'
+    let role = (user?.user_metadata?.role || '').toUpperCase()
 
-    if (pathname.startsWith('/dashboard/super-admin') && role !== 'SUPER_ADMIN') {
+    if (isSuperAdminEmail) {
+      role = 'SUPER_ADMIN'
+    } else if (role === 'SUPER_ADMIN') {
+      role = 'STUDENT'
+    }
+
+    if (pathname.startsWith('/dashboard/super-admin') && !isSuperAdminEmail) {
       return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
     }
     if (pathname.startsWith('/dashboard/admin') && !adminRoles.includes(role)) {

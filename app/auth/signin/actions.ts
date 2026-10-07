@@ -98,24 +98,22 @@ export async function signInAction(emailInput: string, passwordInput: string) {
   }
 
   try {
+    const userEmail = (data.user.email || resolvedEmail).toLowerCase()
+    const isSuperAdminEmail = userEmail === 'ixoralyon013@gmail.com'
+
     // Ensure public.user record exists for authenticated Supabase user
     let existingUser = await db.query.user.findFirst({
       where: eq(userTable.id, data.user.id),
     })
 
     if (!existingUser) {
-      const userRoleMeta = (
-        data.user.user_metadata?.role ||
-        (data.user.email?.toLowerCase() === 'ixoralyon013@gmail.com'
-          ? 'SUPER_ADMIN'
-          : 'STUDENT')
-      ).toUpperCase()
-      const userSchoolId = data.user.user_metadata?.school_id || null
-      const userName = data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User'
+      const userRoleMeta = isSuperAdminEmail ? 'SUPER_ADMIN' : (data.user.user_metadata?.role || 'STUDENT').toUpperCase()
+      const userSchoolId = isSuperAdminEmail ? null : (data.user.user_metadata?.school_id || null)
+      const userName = data.user.user_metadata?.name || userEmail.split('@')[0] || 'User'
 
       await db.insert(userTable).values({
         id: data.user.id,
-        email: data.user.email || resolvedEmail,
+        email: userEmail,
         name: userName,
         schoolId: userSchoolId,
         createdAt: new Date(),
@@ -132,12 +130,26 @@ export async function signInAction(emailInput: string, passwordInput: string) {
       existingUser = await db.query.user.findFirst({
         where: eq(userTable.id, data.user.id),
       })
+    } else if (isSuperAdminEmail && existingUser.email?.toLowerCase() !== 'ixoralyon013@gmail.com') {
+      await db.update(userTable)
+        .set({ email: 'ixoralyon013@gmail.com', updatedAt: new Date() })
+        .where(eq(userTable.id, data.user.id))
     }
 
-    // Enforce Super Admin email restriction: Only ixoralyon013@gmail.com can log in as SUPER_ADMIN
-    const isSuperAdminEmail = (data.user.email || resolvedEmail).toLowerCase() === 'ixoralyon013@gmail.com'
+    if (isSuperAdminEmail) {
+      // Ensure user_metadata in Supabase auth is set to SUPER_ADMIN
+      if (data.user.user_metadata?.role !== 'SUPER_ADMIN') {
+        try {
+          await supabase.auth.updateUser({
+            data: { ...data.user.user_metadata, role: 'SUPER_ADMIN' }
+          })
+        } catch {
+          // Ignore
+        }
+      }
+    }
 
-    const loginContext = await resolveIdentities(data.user.id)
+    const loginContext = await resolveIdentities(data.user.id, userEmail)
 
     // Filter identities to prevent unauthorized users from acquiring SUPER_ADMIN identity
     loginContext.identities = loginContext.identities.filter(identity => {

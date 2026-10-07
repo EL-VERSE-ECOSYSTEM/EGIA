@@ -19,6 +19,11 @@ export default async function DashboardRedirect() {
       redirect('/auth/signin?error=Please sign in to continue')
     }
 
+    const userEmail = (session.user.email || '').trim().toLowerCase()
+    if (userEmail === 'ixoralyon013@gmail.com') {
+      redirect('/dashboard/super-admin/overview')
+    }
+
     const role = (session.user.role || 'STUDENT').toUpperCase()
 
     switch (role) {
