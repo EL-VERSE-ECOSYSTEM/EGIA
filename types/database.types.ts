@@ -29,7 +29,8 @@ type PublicTable = {
 export type RealtimeTable =
   | "user" | "student" | "teacher" | "parent" | "assessment" | "assessment_result"
   | "payment" | "message" | "notification" | "library_books" | "attendance"
-  | "dispute" | "support_ticket" | "fee_structure" | "cbt_attempt" | "book_borrowing"
+  | "dispute" | "support_ticket" | "support_ticket_replies" | "school_registration_application"
+  | "student_gifts" | "fee_structure" | "cbt_attempt" | "book_borrowing"
   | "conversation" | "conversation_participant" | "invitations" | "assessment_schedule"
   | "student_badges" | "faq_articles" | "school" | "audit_log" | "transaction_ledger"
   | "assessment_logs" | "school_admin_roles" | "school_payment_config" | "payment_receipt_uploads"
