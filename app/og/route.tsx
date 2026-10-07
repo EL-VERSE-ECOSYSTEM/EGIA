@@ -1,8 +1,11 @@
 import { ImageResponse } from 'next/og'
+import { getSiteUrl } from '@/utils/supabase/config'
 
 export const runtime = 'nodejs'
 
 export async function GET() {
+  const logoUrl = `${getSiteUrl()}/logo.png`
+
   return new ImageResponse(
     (
       <div
@@ -14,11 +17,11 @@ export async function GET() {
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: '#020617',
-          backgroundImage: 'radial-gradient(circle at 25px 25px, rgba(59, 130, 246, 0.15) 2%, transparent 0%), radial-gradient(circle at 75px 75px, rgba(147, 51, 234, 0.15) 2%, transparent 0%)',
+          backgroundImage: 'radial-gradient(circle at 25px 25px, rgba(59, 130, 246, 0.15) 2%, transparent 0%), radial-gradient(circle at 75px 75px, rgba(217, 119, 6, 0.15) 2%, transparent 0%)',
           backgroundSize: '100px 100px',
           fontFamily: 'sans-serif',
           color: 'white',
-          padding: '60px',
+          padding: '40px',
           position: 'relative',
         }}
       >
@@ -28,19 +31,6 @@ export async function GET() {
             position: 'absolute',
             top: '-100px',
             left: '200px',
-            width: '400px',
-            height: '400px',
-            borderRadius: '50%',
-            backgroundColor: '#2563eb',
-            opacity: 0.25,
-            filter: 'blur(120px)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '-100px',
-            right: '200px',
             width: '400px',
             height: '400px',
             borderRadius: '50%',
@@ -61,38 +51,31 @@ export async function GET() {
             zIndex: 10,
           }}
         >
-          {/* Badge */}
-          <div
+          {/* Logo Image */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoUrl}
+            alt="EL LEARNERS APP Logo"
+            width="120"
+            height="120"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              backgroundColor: 'rgba(249, 115, 22, 0.15)',
-              border: '1px solid rgba(249, 115, 22, 0.4)',
-              borderRadius: '9999px',
-              padding: '10px 24px',
-              color: '#fb923c',
-              fontSize: '18px',
-              fontWeight: 800,
-              letterSpacing: '2px',
-              marginBottom: '28px',
-              textTransform: 'uppercase',
+              borderRadius: '24px',
+              border: '2px solid rgba(217, 119, 6, 0.4)',
+              boxShadow: '0 20px 50px rgba(217, 119, 6, 0.3)',
+              marginBottom: '20px',
+              objectFit: 'contain',
             }}
-          >
-            <span>🎓 NEXT-GEN SCHOOL MANAGEMENT & CBT PORTAL</span>
-          </div>
+          />
 
           {/* Title */}
           <div
             style={{
-              fontSize: '56px',
+              fontSize: '52px',
               fontWeight: 900,
               lineHeight: 1.1,
               letterSpacing: '-1px',
-              marginBottom: '20px',
-              background: 'linear-gradient(to right, #ffffff, #93c5fd, #f97316)',
-              backgroundClip: 'text',
-              color: 'transparent',
+              marginBottom: '16px',
+              color: '#ffffff',
               maxWidth: '1000px',
             }}
           >
@@ -102,64 +85,50 @@ export async function GET() {
           {/* Subtitle */}
           <div
             style={{
-              fontSize: '24px',
-              color: '#94a3b8',
+              fontSize: '22px',
+              color: '#cbd5e1',
               fontWeight: 600,
               maxWidth: '850px',
               lineHeight: 1.4,
-              marginBottom: '36px',
+              marginBottom: '32px',
             }}
           >
-            Empowering Schools with Real-time CBT Exams, Automated Report Cards, Parent Portal Sync & Smart School Administration
+            Modern School Management System • Real-Time CBT Exams • Automated Report Cards • Parent Sync Portal
           </div>
 
-          {/* Feature Badges Grid */}
+          {/* Feature Badges */}
           <div
             style={{
               display: 'flex',
               gap: '16px',
-              flexWrap: 'wrap',
               justifyContent: 'center',
             }}
           >
             <div
               style={{
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
+                backgroundColor: 'rgba(217, 119, 6, 0.15)',
+                border: '1px solid rgba(217, 119, 6, 0.4)',
                 borderRadius: '16px',
-                padding: '12px 20px',
-                color: '#38bdf8',
+                padding: '10px 20px',
+                color: '#f59e0b',
                 fontSize: '16px',
-                fontWeight: 700,
+                fontWeight: 800,
               }}
             >
-              ⚡ Automated CBT Exams & Grading
+              🎓 Modern Educational Management
             </div>
             <div
               style={{
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
+                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                border: '1px solid rgba(59, 130, 246, 0.4)',
                 borderRadius: '16px',
-                padding: '12px 20px',
-                color: '#4ade80',
+                padding: '10px 20px',
+                color: '#60a5fa',
                 fontSize: '16px',
-                fontWeight: 700,
+                fontWeight: 800,
               }}
             >
-              📊 Instant Parent Report Cards
-            </div>
-            <div
-              style={{
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
-                borderRadius: '16px',
-                padding: '12px 20px',
-                color: '#c084fc',
-                fontSize: '16px',
-                fontWeight: 700,
-              }}
-            >
-              🏫 Primary & Secondary School Portal
+              ⚡ CBT Exams & Live Telemetry
             </div>
           </div>
         </div>
