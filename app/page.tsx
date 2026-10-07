@@ -304,12 +304,12 @@ export default async function LandingPage() {
                  },
                  {
                    name: "Olawale John",
-                   role: "Class of 2018",
+                   role: "Student on EL LEARNERS",
                    quote: "The academic rigor at EL LEARNERS prepared me for the competitive world of STEM. I am forever grateful."
                  },
                  {
                    name: "Dr. Evans",
-                   role: "International Alumni",
+                   role: "A School Admin",
                    quote: "Truly a world-class academy. The digital library and expert tutors make it a center of excellence."
                  }
                ].map((t, i) => (
