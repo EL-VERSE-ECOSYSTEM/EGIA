@@ -527,6 +527,43 @@ export async function updateAssessmentAndResubmit(data: {
   return { success: true }
 }
 
+export async function getTeacherClassResultsAction() {
+  const session = await auth.getSession()
+  if (!session?.user || (session.user.role !== 'TEACHER' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
+    throw new Error('Unauthorized')
+  }
+
+  const teacherProfile = await db.query.teacher.findFirst({
+    where: eq(teacher.userId, session.user.id),
+  })
+
+  if (!teacherProfile && session.user.role === 'TEACHER') {
+    return { results: [], classes: [], subjects: [] }
+  }
+
+  const handlingClasses = Array.isArray(teacherProfile?.handlingClasses) ? (teacherProfile?.handlingClasses as string[]) : []
+  const teachingSubjects = Array.isArray(teacherProfile?.teachingSubjects) ? (teacherProfile?.teachingSubjects as string[]) : []
+
+  const resultsList = await db.query.assessmentResult.findMany({
+    with: {
+      student: true,
+      assessment: {
+        with: {
+          subject: true,
+        },
+      },
+    },
+    orderBy: [desc(assessmentResult.createdAt)],
+  })
+
+  return {
+    results: resultsList,
+    classes: handlingClasses,
+    subjects: teachingSubjects,
+    teacherType: teacherProfile?.type || 'FULL_TIME',
+  }
+}
+
 export async function updateTeacherApplicationLetterAction(data: {
   teacherId: string
   applicationLetterUrl?: string | null

@@ -32,10 +32,17 @@ export default function AdminPaymentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [activeReceipt, setActiveReceipt] = useState<any | null>(null)
 
+  const [feeStructures, setFeeStructures] = useState<any[]>([])
+
   const loadPayments = async () => {
     try {
-      const data = await getAllPaymentsWithStudents()
-      setPayments(data || [])
+      const res = await getAllPaymentsWithStudents()
+      if (Array.isArray(res)) {
+        setPayments(res)
+      } else {
+        setPayments(res?.payments || [])
+        setFeeStructures(res?.feeStructures || [])
+      }
     } catch (err) {
       console.error('Error loading payments:', err)
     } finally {

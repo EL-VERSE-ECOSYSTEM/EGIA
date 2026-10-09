@@ -3,7 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
-import { user as userTable, userRole as userRoleTable, teacher, student } from '@/lib/db/schema'
+import { user as userTable, userRole as userRoleTable, teacher, student, school as schoolTable, schoolRegistrationApplication as schoolAppTable } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { resolveIdentities, LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
@@ -77,6 +77,41 @@ export async function signInAction(emailInput: string, passwordInput: string) {
           const uRec = await db.select({ email: userTable.email }).from(userTable).where(eq(userTable.id, directStudent[0].userId)).limit(1)
           if (uRec[0]?.email) resolvedEmail = uRec[0].email
         }
+      }
+    }
+
+    if (!resolvedEmail || !resolvedEmail.includes('@')) {
+      // 3. Check School Registration Code / School Code in school table
+      const schoolMatch = await db
+        .select({ id: schoolTable.id, code: schoolTable.code })
+        .from(schoolTable)
+        .where(eq(schoolTable.code, cleanId))
+        .limit(1)
+
+      if (schoolMatch[0]?.id) {
+        // Find school admin user corresponding to this school
+        const adminUserMatch = await db
+          .select({ email: userTable.email })
+          .from(userTable)
+          .where(eq(userTable.schoolId, schoolMatch[0].id))
+          .limit(1)
+
+        if (adminUserMatch[0]?.email) {
+          resolvedEmail = adminUserMatch[0].email
+        }
+      }
+    }
+
+    if (!resolvedEmail || !resolvedEmail.includes('@')) {
+      // 4. Check school registration application code
+      const appMatch = await db
+        .select({ email: schoolAppTable.applicantEmail, adminEmail: schoolAppTable.adminEmail })
+        .from(schoolAppTable)
+        .where(eq(schoolAppTable.id, inputIdentifier.trim()))
+        .limit(1)
+
+      if (appMatch[0]?.adminEmail || appMatch[0]?.email) {
+        resolvedEmail = (appMatch[0].adminEmail || appMatch[0].email)!.toLowerCase()
       }
     }
 

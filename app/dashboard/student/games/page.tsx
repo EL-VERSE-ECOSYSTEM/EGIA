@@ -461,6 +461,7 @@ function ChessGame({ onBack }: { onBack: () => void }) {
    2. SPEED MATH ARITHMETIC CHALLENGE
    ==================================================================== */
 function MathChallenge({ onBack }: { onBack: () => void }) {
+  const [classLevel, setClassLevel] = useState<'P1_2' | 'P3_6' | 'JSS' | 'SSS'>('P3_6')
   const [gameState, setGameState] = useState<'START' | 'PLAYING' | 'END'>('START')
   const [question, setQuestion] = useState({ expression: '', answer: 0 })
   const [userInput, setUserInput] = useState('')
@@ -470,25 +471,87 @@ function MathChallenge({ onBack }: { onBack: () => void }) {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   const generateQuestion = () => {
-    const operators = ['+', '−', '×']
-    const op = operators[Math.floor(Math.random() * operators.length)]
-    let num1 = 0, num2 = 0, ans = 0
+    let expr = ''
+    let ans = 0
 
-    if (op === '+') {
-      num1 = Math.floor(Math.random() * 50) + 1
-      num2 = Math.floor(Math.random() * 50) + 1
-      ans = num1 + num2
-    } else if (op === '−') {
-      num1 = Math.floor(Math.random() * 50) + 10
-      num2 = Math.floor(Math.random() * num1) + 1
-      ans = num1 - num2
+    if (classLevel === 'P1_2') {
+      // Primary 1-2: Simple addition / subtraction up to 20
+      const op = Math.random() > 0.5 ? '+' : '−'
+      if (op === '+') {
+        const n1 = Math.floor(Math.random() * 10) + 1
+        const n2 = Math.floor(Math.random() * 10) + 1
+        expr = `${n1} + ${n2}`
+        ans = n1 + n2
+      } else {
+        const n1 = Math.floor(Math.random() * 15) + 5
+        const n2 = Math.floor(Math.random() * n1) + 1
+        expr = `${n1} − ${n2}`
+        ans = n1 - n2
+      }
+    } else if (classLevel === 'P3_6') {
+      // Primary 3-6: Addition, Subtraction, Multiplication up to 50
+      const ops = ['+', '−', '×']
+      const op = ops[Math.floor(Math.random() * ops.length)]
+      if (op === '+') {
+        const n1 = Math.floor(Math.random() * 50) + 5
+        const n2 = Math.floor(Math.random() * 50) + 5
+        expr = `${n1} + ${n2}`
+        ans = n1 + n2
+      } else if (op === '−') {
+        const n1 = Math.floor(Math.random() * 50) + 20
+        const n2 = Math.floor(Math.random() * n1) + 1
+        expr = `${n1} − ${n2}`
+        ans = n1 - n2
+      } else {
+        const n1 = Math.floor(Math.random() * 12) + 2
+        const n2 = Math.floor(Math.random() * 12) + 2
+        expr = `${n1} × ${n2}`
+        ans = n1 * n2
+      }
+    } else if (classLevel === 'JSS') {
+      // JSS 1-3: Squares, Division, Multiplication up to 100
+      const mode = Math.floor(Math.random() * 3)
+      if (mode === 0) {
+        const base = Math.floor(Math.random() * 15) + 2
+        expr = `${base}²`
+        ans = base * base
+      } else if (mode === 1) {
+        const divisor = Math.floor(Math.random() * 10) + 2
+        ans = Math.floor(Math.random() * 12) + 2
+        const dividend = divisor * ans
+        expr = `${dividend} ÷ ${divisor}`
+      } else {
+        const n1 = Math.floor(Math.random() * 20) + 5
+        const n2 = Math.floor(Math.random() * 15) + 3
+        expr = `${n1} × ${n2}`
+        ans = n1 * n2
+      }
     } else {
-      num1 = Math.floor(Math.random() * 12) + 2
-      num2 = Math.floor(Math.random() * 12) + 2
-      ans = num1 * num2
+      // SSS 1-3: Multi-term algebra and roots
+      const mode = Math.floor(Math.random() * 3)
+      if (mode === 0) {
+        // e.g., 3x + 5 = 20 -> x = 5
+        const xVal = Math.floor(Math.random() * 10) + 2
+        const coeff = Math.floor(Math.random() * 5) + 2
+        const constVal = Math.floor(Math.random() * 15) + 1
+        const rightHand = coeff * xVal + constVal
+        expr = `Solve x: ${coeff}x + ${constVal} = ${rightHand}`
+        ans = xVal
+      } else if (mode === 1) {
+        const base = Math.floor(Math.random() * 15) + 3
+        const sq = base * base
+        expr = `√${sq}`
+        ans = base
+      } else {
+        const n1 = Math.floor(Math.random() * 30) + 10
+        const n2 = Math.floor(Math.random() * 20) + 5
+        const n3 = Math.floor(Math.random() * 15) + 2
+        expr = `${n1} + ${n2} × ${n3}`
+        ans = n1 + n2 * n3
+      }
     }
 
-    setQuestion({ expression: `${num1} ${op} ${num2}`, answer: ans })
+    setQuestion({ expression: expr, answer: ans })
     setUserInput('')
   }
 
@@ -555,9 +618,38 @@ function MathChallenge({ onBack }: { onBack: () => void }) {
           <div>
             <h3 className="text-2xl font-black text-slate-900">Are you ready to race?</h3>
             <p className="text-slate-400 text-sm font-semibold max-w-sm mx-auto mt-2">
-              Each correct answer awards 10 points. Wrong answers don't penalize, but cost precious seconds!
+              Select your class level for tailored difficulty, then solve equations in 30 seconds!
             </p>
           </div>
+
+          {/* Class Difficulty Selector */}
+          <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl font-black text-xs">
+            <button
+              onClick={() => setClassLevel('P1_2')}
+              className={`px-4 py-2 rounded-xl transition ${classLevel === 'P1_2' ? 'bg-orange-600 text-white shadow' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              Primary 1 - 2
+            </button>
+            <button
+              onClick={() => setClassLevel('P3_6')}
+              className={`px-4 py-2 rounded-xl transition ${classLevel === 'P3_6' ? 'bg-orange-600 text-white shadow' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              Primary 3 - 6
+            </button>
+            <button
+              onClick={() => setClassLevel('JSS')}
+              className={`px-4 py-2 rounded-xl transition ${classLevel === 'JSS' ? 'bg-orange-600 text-white shadow' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              JSS 1 - 3
+            </button>
+            <button
+              onClick={() => setClassLevel('SSS')}
+              className={`px-4 py-2 rounded-xl transition ${classLevel === 'SSS' ? 'bg-orange-600 text-white shadow' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              SSS 1 - 3
+            </button>
+          </div>
+
           <Button onClick={startGame} className="bg-orange-600 hover:bg-orange-700 text-white font-black text-sm h-14 px-10 rounded-2xl shadow-xl shadow-orange-100">
             START CHALLENGE
           </Button>
