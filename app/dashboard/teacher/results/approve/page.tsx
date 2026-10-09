@@ -214,7 +214,7 @@ export default function TeacherResultsPage() {
                 </tbody>
               </table>
             </div>
-          CardContent>
+          </CardContent>
         </Card>
       </div>
     </DashboardLayout>
