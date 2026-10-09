@@ -26,19 +26,35 @@ export default function StudentGamesPage() {
   return (
     <DashboardLayout role="student">
       <div className="p-8 max-w-6xl mx-auto space-y-10 min-h-screen bg-slate-50/20">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-12 text-white shadow-2xl">
+        {/* Header & Inter-School Friday League Banner */}
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-8 md:p-12 text-white shadow-2xl space-y-6">
           <div className="absolute top-0 right-0 p-8 opacity-10">
             <Gamepad2 size={240} />
           </div>
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest mb-6">
+          <div className="relative z-10 space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest">
               <Star size={12} className="fill-orange-400" /> EL LEARN App PLAY & LEARN
             </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">Interactive Learning Arena</h1>
-            <p className="text-slate-400 text-lg font-medium max-w-2xl text-pretty">
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight">Interactive Learning Arena</h1>
+            <p className="text-slate-400 text-base md:text-lg font-medium max-w-2xl">
               Boost your intellectual thinking, strategic skills, and mental math capability through fun, engaging games designed for young leaders!
             </p>
+
+            {/* Friday Inter-School Match Banner */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900/80 to-indigo-900/80 border border-purple-500/40 text-purple-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-6 h-6 text-amber-400 shrink-0 animate-pulse" />
+                <div>
+                  <h4 className="font-black text-sm text-white flex items-center gap-2">
+                    BI-WEEKLY FRIDAY INTER-SCHOOL LEAGUE MATCHES
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500 text-slate-950 uppercase">ACTIVE TODAY</span>
+                  </h4>
+                  <p className="text-xs text-purple-200 mt-0.5">
+                    Students and pupils across all registered schools compete together on Friday every 2 weeks! Level difficulty automatically hardens per class.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

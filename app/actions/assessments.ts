@@ -368,3 +368,36 @@ export async function getLoggedInStudentAndQuestions(assessmentId: string, provi
     title: dbAssessment?.title || 'Assessment CBT'
   }
 }
+
+export async function getTeacherAssessmentResultsAction(classNameInput?: string, subjectIdInput?: string) {
+  const session = await auth.getSession()
+  if (!session?.user || (session.user.role !== 'TEACHER' && session.user.role !== 'ADMIN' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
+    throw new Error('Unauthorized')
+  }
+
+  const results = await db.query.assessmentResult.findMany({
+    with: {
+      student: true,
+      assessment: {
+        with: {
+          subject: true,
+        }
+      }
+    },
+    orderBy: (r, { desc }) => [desc(r.createdAt)]
+  })
+
+  return results.filter(r => {
+    if (classNameInput && classNameInput !== 'ALL') {
+      if ((r.student?.class || '').trim().toLowerCase() !== classNameInput.trim().toLowerCase()) {
+        return false
+      }
+    }
+    if (subjectIdInput && subjectIdInput !== 'ALL') {
+      if (r.assessment?.subjectId !== subjectIdInput && r.assessment?.subject?.name?.toLowerCase() !== subjectIdInput.toLowerCase()) {
+        return false
+      }
+    }
+    return true
+  })
+}

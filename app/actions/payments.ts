@@ -88,18 +88,22 @@ export async function initializeKorapayPayment(data: { studentId: string; amount
 
   const totalAmount = Number((data.amount + KORAPAY_GATEWAY_FEE).toFixed(2))
 
+  const paymentConfirmationMessage = data.description || `Payment of ₦${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} for ${data.feeType.toUpperCase()} (${child.firstName} ${child.lastName}, Class: ${child.class || 'N/A'}) + Korapay Gateway Fee (₦161.25)`
+
   const paymentRes = await serviceInitializeKorapayPayment({
     schoolId: child.schoolId || null,
     studentId: child.id,
     parentId: child.parentId || null,
     amount: totalAmount,
     feeType: data.feeType,
-    description: data.description || `${data.feeType} fee payment for ${child.firstName} ${child.lastName}`,
+    description: paymentConfirmationMessage,
     customerEmail: session.user.email || `student_${child.id}@ellearners.app`,
     customerName: `${child.firstName} ${child.lastName}`,
     metadata: {
       studentId: child.id,
       type: data.feeType,
+      baseAmount: data.amount,
+      gatewayFee: KORAPAY_GATEWAY_FEE,
     },
   })
 
