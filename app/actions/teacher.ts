@@ -255,11 +255,60 @@ export async function getAllTeachersWithWallets() {
   return result
 }
 
+const DIRECTCOUPON_TOKEN = '31e8e1c081276940fce3b3568dcdbbd506e4be2346688b09649ca5340c781a22'
+const DIRECTCOUPON_BASE_URL = 'https://directcoupon.com.ng'
+
 export async function approveTeacherRequest(requestId: string, status: 'approved' | 'rejected') {
   const requestRecord = await db.query.teacherRequest.findFirst({
     where: eq(teacherRequest.id, requestId)
   })
   if (!requestRecord) throw new Error('Request not found')
+
+  if (status === 'approved') {
+    try {
+      const isDataRequest = requestRecord.type?.toLowerCase().includes('data') || requestRecord.details?.toLowerCase().includes('plan_id')
+      if (isDataRequest) {
+        let planId = 1
+        try {
+          const match = requestRecord.details?.match(/plan_id[:=]\s*(\d+)/i)
+          if (match && match[1]) planId = parseInt(match[1])
+        } catch {}
+
+        await fetch(`${DIRECTCOUPON_BASE_URL}/api/loadCoupon`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${DIRECTCOUPON_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            plan_id: planId,
+            phone_number: requestRecord.phoneNumber || '08000000000',
+            custom_ref: requestRecord.id,
+          }),
+        })
+      } else {
+        let networkId = 'mtn'
+        if (requestRecord.details?.toLowerCase().includes('airtel')) networkId = 'airtel'
+        if (requestRecord.details?.toLowerCase().includes('glo')) networkId = 'glo'
+        if (requestRecord.details?.toLowerCase().includes('9mobile')) networkId = '9mobile'
+
+        await fetch(`${DIRECTCOUPON_BASE_URL}/api/airtime`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${DIRECTCOUPON_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            network_id: networkId,
+            phone: requestRecord.phoneNumber || '08000000000',
+            amount: parseFloat(requestRecord.amount || '100'),
+          }),
+        })
+      }
+    } catch (apiErr) {
+      console.warn('DirectCoupon API dispatch failed:', apiErr)
+    }
+  }
 
   const result = await db.update(teacherRequest)
     .set({ status, updatedAt: new Date() })
