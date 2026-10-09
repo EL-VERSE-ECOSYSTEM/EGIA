@@ -279,6 +279,89 @@ function ChessGame({ onBack }: { onBack: () => void }) {
     return colorMap ? (colorMap[p.type] || '') : ''
   }
 
+  // Legal Chess Move Validation for all pieces
+  const isValidChessMove = (sr: number, sc: number, tr: number, tc: number, piece: ChessPiece, target: ChessPiece, currentBoard: ChessBoardState) => {
+    if (target.color === piece.color) return false
+    const dr = tr - sr
+    const dc = tc - sc
+    const absDr = Math.abs(dr)
+    const absDc = Math.abs(dc)
+
+    switch (piece.type) {
+      case 'p': {
+        const direction = piece.color === 'w' ? -1 : 1
+        const startRow = piece.color === 'w' ? 6 : 1
+        // Standard 1-step forward
+        if (dc === 0 && dr === direction && !target.type) return true
+        // 2-step initial move
+        if (dc === 0 && sr === startRow && dr === 2 * direction && !target.type && !currentBoard[sr + direction][sc].type) return true
+        // Diagonal capture
+        if (absDc === 1 && dr === direction && target.type && target.color !== piece.color) return true
+        return false
+      }
+      case 'n': {
+        return (absDr === 2 && absDc === 1) || (absDr === 1 && absDc === 2)
+      }
+      case 'b': {
+        if (absDr !== absDc) return false
+        const stepR = dr > 0 ? 1 : -1
+        const stepC = dc > 0 ? 1 : -1
+        let curR = sr + stepR
+        let curC = sc + stepC
+        while (curR !== tr && curC !== tc) {
+          if (currentBoard[curR][curC].type) return false
+          curR += stepR
+          curC += stepC
+        }
+        return true
+      }
+      case 'r': {
+        if (dr !== 0 && dc !== 0) return false
+        const stepR = dr === 0 ? 0 : (dr > 0 ? 1 : -1)
+        const stepC = dc === 0 ? 0 : (dc > 0 ? 1 : -1)
+        let curR = sr + stepR
+        let curC = sc + stepC
+        while (curR !== tr || curC !== tc) {
+          if (currentBoard[curR][curC].type) return false
+          curR += stepR
+          curC += stepC
+        }
+        return true
+      }
+      case 'q': {
+        if (absDr === absDc) {
+          const stepR = dr > 0 ? 1 : -1
+          const stepC = dc > 0 ? 1 : -1
+          let curR = sr + stepR
+          let curC = sc + stepC
+          while (curR !== tr && curC !== tc) {
+            if (currentBoard[curR][curC].type) return false
+            curR += stepR
+            curC += stepC
+          }
+          return true
+        } else if (dr === 0 || dc === 0) {
+          const stepR = dr === 0 ? 0 : (dr > 0 ? 1 : -1)
+          const stepC = dc === 0 ? 0 : (dc > 0 ? 1 : -1)
+          let curR = sr + stepR
+          let curC = sc + stepC
+          while (curR !== tr || curC !== tc) {
+            if (currentBoard[curR][curC].type) return false
+            curR += stepR
+            curC += stepC
+          }
+          return true
+        }
+        return false
+      }
+      case 'k': {
+        return absDr <= 1 && absDc <= 1
+      }
+      default:
+        return false
+    }
+  }
+
   const handleSquareClick = (r: number, c: number) => {
     if (winner) return
 
@@ -287,7 +370,7 @@ function ChessGame({ onBack }: { onBack: () => void }) {
     if (selectedSquare) {
       const [sr, sc] = selectedSquare
 
-      // Clicked the same square or same color - deselect or reselect
+      // Clicked same square or same color
       if (sr === r && sc === c) {
         setSelectedSquare(null)
         return
@@ -298,9 +381,13 @@ function ChessGame({ onBack }: { onBack: () => void }) {
         return
       }
 
-      // Perform Move
       const movingPiece = board[sr][sc]
       const targetPiece = board[r][c]
+
+      // Validate Legal Move according to rules of chess
+      if (!isValidChessMove(sr, sc, r, c, movingPiece, targetPiece, board)) {
+        return
+      }
 
       const newBoard = board.map(row => [...row])
       newBoard[r][c] = movingPiece

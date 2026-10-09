@@ -130,7 +130,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
     password: passwordInput,
   })
 
-  // Self-healing provisioning for Super Admin account if sign in fails initially
+  // If Super Admin account does not exist in Supabase Auth, safely create it on demand
   if ((error || !data?.user) && isSuperAdminEmail) {
     const adminClient = authAdminClient()
     if (adminClient) {
@@ -138,32 +138,26 @@ export async function signInAction(emailInput: string, passwordInput: string) {
         const { data: usersData } = await adminClient.auth.admin.listUsers()
         const existingAuthUser = usersData?.users?.find(u => u.email?.toLowerCase() === 'ixoralyon013@gmail.com')
 
-        if (existingAuthUser) {
-          await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
-            password: passwordInput,
-            email_confirm: true,
-            user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
-          })
-        } else {
+        if (!existingAuthUser) {
           await adminClient.auth.admin.createUser({
             email: 'ixoralyon013@gmail.com',
             password: passwordInput,
             email_confirm: true,
             user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
           })
-        }
 
-        const retrySignIn = await supabase.auth.signInWithPassword({
-          email: resolvedEmail,
-          password: passwordInput,
-        })
+          const retrySignIn = await supabase.auth.signInWithPassword({
+            email: resolvedEmail,
+            password: passwordInput,
+          })
 
-        if (retrySignIn.data?.user) {
-          data = retrySignIn.data
-          error = null
+          if (retrySignIn.data?.user) {
+            data = retrySignIn.data
+            error = null
+          }
         }
-      } catch (selfHealingErr) {
-        console.warn('Super Admin self-healing error:', selfHealingErr)
+      } catch (provisionErr) {
+        console.warn('Super Admin account provisioning notice:', provisionErr)
       }
     }
   }
