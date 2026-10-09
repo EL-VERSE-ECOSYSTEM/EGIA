@@ -1,21 +1,51 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Video, MessageSquare, Send, Sparkles, Play } from 'lucide-react'
+import { Video, MessageSquare, Send, Sparkles, Play, Loader2 } from 'lucide-react'
 import { OnlinePrepModal } from '@/components/online-prep/OnlinePrepModal'
 import { ClassCommentsSection } from '@/components/comments/ClassCommentsSection'
+import { getPrepLessonsAction } from '@/app/actions/online-prep'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
 export default function OnlinePrepLessonsPage() {
-  const [selectedVideo, setSelectedVideo] = useState({
+  const [lessons, setLessons] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedVideo, setSelectedVideo] = useState<any>({
     id: 'prep-lesson-1',
     title: 'Mathematics: WAEC/JAMB Calculus & Trigonometry Intensive',
     subject: 'Mathematics',
     url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
   })
+
+  const loadLessons = async () => {
+    try {
+      const data = await getPrepLessonsAction()
+      if (data && data.length > 0) {
+        setLessons(data)
+        const first = data[0]
+        setSelectedVideo({
+          id: first.id,
+          title: first.title,
+          subject: first.subjectName,
+          url: first.videoUrl.includes('embed') ? first.videoUrl : first.videoUrl.replace('watch?v=', 'embed/'),
+        })
+      }
+    } catch (err) {
+      console.error('Error loading prep lessons:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadLessons()
+  }, [])
+
+  useRealtimeSubscription('online_prep_lessons', () => { loadLessons() })
 
   return (
     <DashboardLayout role="student">

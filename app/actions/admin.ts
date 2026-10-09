@@ -174,13 +174,27 @@ export async function getPendingPayments() {
 export async function getAllPaymentsWithStudents() {
   await checkAdminPermission('read', 'payment')
   const schoolId = await getAdminSchoolId()
-  return await db.query.payment.findMany({
+  const paymentsList = await db.query.payment.findMany({
     where: eq(payment.schoolId, schoolId),
     with: {
-       student: true
+       student: true,
+       parent: {
+         with: {
+           user: true
+         }
+       }
     },
     orderBy: (p, { desc }) => [desc(p.createdAt)]
   })
+
+  const schoolFeeStructures = await db.query.feeStructure.findMany({
+    where: eq(feeStructure.schoolId, schoolId)
+  })
+
+  return {
+    payments: paymentsList,
+    feeStructures: schoolFeeStructures
+  }
 }
 
 export async function verifyPayment(paymentId: string, status: 'success' | 'failed') {
