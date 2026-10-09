@@ -39,7 +39,21 @@ export async function getStudentStudyVideos() {
   if (!session?.user || session.user.role !== 'STUDENT') throw new Error('Unauthorized')
   const profile = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
   if (!profile) throw new Error('Student profile not found')
-  return db.query.studyVideo.findMany({ where: and(eq(studyVideo.className, profile.class), eq(studyVideo.isPublished, true)), orderBy: [desc(studyVideo.createdAt)] })
+
+  const studentClass = (profile.class || '').trim().toUpperCase()
+  const isPrepClass = studentClass.includes('SSS') || studentClass.includes('SS') || studentClass.includes('WAEC') || studentClass.includes('JAMB')
+
+  const videos = await db.query.studyVideo.findMany({
+    where: eq(studyVideo.isPublished, true),
+    orderBy: [desc(studyVideo.createdAt)]
+  })
+
+  return videos.filter(v => {
+    const vClass = (v.className || '').trim().toUpperCase()
+    if (vClass === 'ALL' || vClass === studentClass) return true
+    if (isPrepClass && (vClass.includes('SSS') || vClass.includes('PREP') || vClass.includes('SENIOR'))) return true
+    return false
+  })
 }
 
 export async function askStudyVideoQuestion(videoId: string, content: string) {

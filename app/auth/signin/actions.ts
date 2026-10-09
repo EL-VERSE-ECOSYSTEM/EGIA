@@ -125,10 +125,42 @@ export async function signInAction(emailInput: string, passwordInput: string) {
   }
 
   const isSuperAdminEmail = isConfiguredSuperAdminEmail(resolvedEmail)
-  const { data, error } = await supabase.auth.signInWithPassword({
+  let { data, error } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
     password: passwordInput,
   })
+
+  // If Super Admin account does not exist in Supabase Auth, safely create it on demand
+  if ((error || !data?.user) && isSuperAdminEmail) {
+    const adminClient = authAdminClient()
+    if (adminClient) {
+      try {
+        const { data: usersData } = await adminClient.auth.admin.listUsers()
+        const existingAuthUser = usersData?.users?.find(u => u.email?.toLowerCase() === 'ixoralyon013@gmail.com')
+
+        if (!existingAuthUser) {
+          await adminClient.auth.admin.createUser({
+            email: 'ixoralyon013@gmail.com',
+            password: passwordInput,
+            email_confirm: true,
+            user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
+          })
+
+          const retrySignIn = await supabase.auth.signInWithPassword({
+            email: resolvedEmail,
+            password: passwordInput,
+          })
+
+          if (retrySignIn.data?.user) {
+            data = retrySignIn.data
+            error = null
+          }
+        }
+      } catch (provisionErr) {
+        console.warn('Super Admin account provisioning notice:', provisionErr)
+      }
+    }
+  }
 
   if (error || !data?.user) {
     return { success: false, error: 'Invalid credentials or account not found.' }

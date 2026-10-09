@@ -26,19 +26,35 @@ export default function StudentGamesPage() {
   return (
     <DashboardLayout role="student">
       <div className="p-8 max-w-6xl mx-auto space-y-10 min-h-screen bg-slate-50/20">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-12 text-white shadow-2xl">
+        {/* Header & Inter-School Friday League Banner */}
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-8 md:p-12 text-white shadow-2xl space-y-6">
           <div className="absolute top-0 right-0 p-8 opacity-10">
             <Gamepad2 size={240} />
           </div>
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest mb-6">
+          <div className="relative z-10 space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest">
               <Star size={12} className="fill-orange-400" /> EL LEARN App PLAY & LEARN
             </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">Interactive Learning Arena</h1>
-            <p className="text-slate-400 text-lg font-medium max-w-2xl text-pretty">
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight">Interactive Learning Arena</h1>
+            <p className="text-slate-400 text-base md:text-lg font-medium max-w-2xl">
               Boost your intellectual thinking, strategic skills, and mental math capability through fun, engaging games designed for young leaders!
             </p>
+
+            {/* Friday Inter-School Match Banner */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900/80 to-indigo-900/80 border border-purple-500/40 text-purple-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-6 h-6 text-amber-400 shrink-0 animate-pulse" />
+                <div>
+                  <h4 className="font-black text-sm text-white flex items-center gap-2">
+                    BI-WEEKLY FRIDAY INTER-SCHOOL LEAGUE MATCHES
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500 text-slate-950 uppercase">ACTIVE TODAY</span>
+                  </h4>
+                  <p className="text-xs text-purple-200 mt-0.5">
+                    Students and pupils across all registered schools compete together on Friday every 2 weeks! Level difficulty automatically hardens per class.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -263,6 +279,89 @@ function ChessGame({ onBack }: { onBack: () => void }) {
     return colorMap ? (colorMap[p.type] || '') : ''
   }
 
+  // Legal Chess Move Validation for all pieces
+  const isValidChessMove = (sr: number, sc: number, tr: number, tc: number, piece: ChessPiece, target: ChessPiece, currentBoard: ChessBoardState) => {
+    if (target.color === piece.color) return false
+    const dr = tr - sr
+    const dc = tc - sc
+    const absDr = Math.abs(dr)
+    const absDc = Math.abs(dc)
+
+    switch (piece.type) {
+      case 'p': {
+        const direction = piece.color === 'w' ? -1 : 1
+        const startRow = piece.color === 'w' ? 6 : 1
+        // Standard 1-step forward
+        if (dc === 0 && dr === direction && !target.type) return true
+        // 2-step initial move
+        if (dc === 0 && sr === startRow && dr === 2 * direction && !target.type && !currentBoard[sr + direction][sc].type) return true
+        // Diagonal capture
+        if (absDc === 1 && dr === direction && target.type && target.color !== piece.color) return true
+        return false
+      }
+      case 'n': {
+        return (absDr === 2 && absDc === 1) || (absDr === 1 && absDc === 2)
+      }
+      case 'b': {
+        if (absDr !== absDc) return false
+        const stepR = dr > 0 ? 1 : -1
+        const stepC = dc > 0 ? 1 : -1
+        let curR = sr + stepR
+        let curC = sc + stepC
+        while (curR !== tr && curC !== tc) {
+          if (currentBoard[curR][curC].type) return false
+          curR += stepR
+          curC += stepC
+        }
+        return true
+      }
+      case 'r': {
+        if (dr !== 0 && dc !== 0) return false
+        const stepR = dr === 0 ? 0 : (dr > 0 ? 1 : -1)
+        const stepC = dc === 0 ? 0 : (dc > 0 ? 1 : -1)
+        let curR = sr + stepR
+        let curC = sc + stepC
+        while (curR !== tr || curC !== tc) {
+          if (currentBoard[curR][curC].type) return false
+          curR += stepR
+          curC += stepC
+        }
+        return true
+      }
+      case 'q': {
+        if (absDr === absDc) {
+          const stepR = dr > 0 ? 1 : -1
+          const stepC = dc > 0 ? 1 : -1
+          let curR = sr + stepR
+          let curC = sc + stepC
+          while (curR !== tr && curC !== tc) {
+            if (currentBoard[curR][curC].type) return false
+            curR += stepR
+            curC += stepC
+          }
+          return true
+        } else if (dr === 0 || dc === 0) {
+          const stepR = dr === 0 ? 0 : (dr > 0 ? 1 : -1)
+          const stepC = dc === 0 ? 0 : (dc > 0 ? 1 : -1)
+          let curR = sr + stepR
+          let curC = sc + stepC
+          while (curR !== tr || curC !== tc) {
+            if (currentBoard[curR][curC].type) return false
+            curR += stepR
+            curC += stepC
+          }
+          return true
+        }
+        return false
+      }
+      case 'k': {
+        return absDr <= 1 && absDc <= 1
+      }
+      default:
+        return false
+    }
+  }
+
   const handleSquareClick = (r: number, c: number) => {
     if (winner) return
 
@@ -271,7 +370,7 @@ function ChessGame({ onBack }: { onBack: () => void }) {
     if (selectedSquare) {
       const [sr, sc] = selectedSquare
 
-      // Clicked the same square or same color - deselect or reselect
+      // Clicked same square or same color
       if (sr === r && sc === c) {
         setSelectedSquare(null)
         return
@@ -282,9 +381,13 @@ function ChessGame({ onBack }: { onBack: () => void }) {
         return
       }
 
-      // Perform Move
       const movingPiece = board[sr][sc]
       const targetPiece = board[r][c]
+
+      // Validate Legal Move according to rules of chess
+      if (!isValidChessMove(sr, sc, r, c, movingPiece, targetPiece, board)) {
+        return
+      }
 
       const newBoard = board.map(row => [...row])
       newBoard[r][c] = movingPiece
