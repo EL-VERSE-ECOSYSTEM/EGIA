@@ -3,7 +3,7 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { teacherAttendance, teacher, schoolAttendanceConfig } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 
@@ -22,19 +22,6 @@ export async function clockIn(deviceInfo?: string, ipAddress?: string) {
   const now = new Date()
   const today = now.toISOString().slice(0, 10)
 
-  // Check if already clocked in
-  const existing = await db.query.teacherAttendance.findFirst({
-    where: and(
-      eq(teacherAttendance.schoolId, schoolId),
-      eq(teacherAttendance.teacherId, teacherProfile.id),
-      eq(teacherAttendance.workDate, today)
-    )
-  })
-
-  if (existing?.clockInAt) {
-    throw new Error('Already clocked in for today')
-  }
-
   // Fetch school config for late threshold
   const config = await db.query.schoolAttendanceConfig.findFirst({
     where: eq(schoolAttendanceConfig.schoolId, schoolId)
@@ -50,25 +37,37 @@ export async function clockIn(deviceInfo?: string, ipAddress?: string) {
   const lateMinutes = Math.max(0, Math.floor((now.getTime() - start.getTime()) / 60000))
   const status = lateMinutes >= lateThreshold ? 'LATE' : 'PRESENT'
 
-  const recordId = existing?.id || randomUUID()
+  const updatedRecord = await db.transaction(async (tx) => {
+    const lockKey = `${schoolId}:${teacherProfile.id}:${today}`
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`)
 
-  if (existing) {
-    await db.update(teacherAttendance)
-      .set({
-        clockInAt: now,
-        clockInIp: ipAddress || null,
-        clockInDevice: deviceInfo || 'Web Browser',
-        status,
-        lateMinutes,
-        updatedAt: now,
-      })
-      .where(and(
-        eq(teacherAttendance.id, existing.id),
-        eq(teacherAttendance.schoolId, schoolId)
-      ))
-  } else {
-    await db.insert(teacherAttendance).values({
-      id: recordId,
+    const existing = await tx.query.teacherAttendance.findFirst({
+      where: and(
+        eq(teacherAttendance.schoolId, schoolId),
+        eq(teacherAttendance.teacherId, teacherProfile.id),
+        eq(teacherAttendance.workDate, today),
+      ),
+    })
+    if (existing?.clockInAt) throw new Error('Already clocked in for today')
+
+    if (existing) {
+      const updated = await tx.update(teacherAttendance)
+        .set({
+          clockInAt: now,
+          clockInIp: ipAddress || null,
+          clockInDevice: deviceInfo || 'Web Browser',
+          status,
+          lateMinutes,
+          updatedAt: now,
+        })
+        .where(and(eq(teacherAttendance.id, existing.id), eq(teacherAttendance.schoolId, schoolId)))
+        .returning()
+      if (!updated[0]) throw new Error('Unable to record clock-in.')
+      return updated[0]
+    }
+
+    const inserted = await tx.insert(teacherAttendance).values({
+      id: randomUUID(),
       schoolId,
       teacherId: teacherProfile.id,
       workDate: today,
@@ -79,19 +78,13 @@ export async function clockIn(deviceInfo?: string, ipAddress?: string) {
       lateMinutes,
       createdAt: now,
       updatedAt: now,
-    }).onConflictDoNothing()
-  }
+    }).returning()
+    if (!inserted[0]) throw new Error('Unable to record clock-in.')
+    return inserted[0]
+  })
 
   revalidatePath('/dashboard/teacher/attendance')
   revalidatePath('/dashboard/admin/attendance')
-
-  const updatedRecord = await db.query.teacherAttendance.findFirst({
-    where: and(
-      eq(teacherAttendance.teacherId, teacherProfile.id),
-      eq(teacherAttendance.workDate, today),
-      eq(teacherAttendance.schoolId, schoolId)
-    )
-  })
 
   return { success: true, record: updatedRecord }
 }

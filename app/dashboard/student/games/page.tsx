@@ -1219,3 +1219,151 @@ function TriviaGame({ onBack }: { onBack: () => void }) {
     </Card>
   )
 }
+
+function ScrabbleGame({ onBack }: { onBack: () => void }) {
+  const [word, setWord] = useState('')
+  const [score, setScore] = useState(0)
+  const [message, setMessage] = useState('')
+  const practiceWords = new Set([
+    'ACADEMY', 'ALGEBRA', 'BIOLOGY', 'CHESS', 'CLASS', 'EARTH', 'ENERGY',
+    'FRACTION', 'HISTORY', 'LEARN', 'MATH', 'PLANET', 'SCIENCE', 'SPELL',
+    'STUDENT', 'TEACHER', 'WORD',
+  ])
+  const letterValues: Record<string, number> = {
+    A: 1, B: 3, C: 3, D: 2, E: 1, F: 4, G: 2, H: 4, I: 1, J: 8,
+    K: 5, L: 1, M: 3, N: 1, O: 1, P: 3, Q: 10, R: 1, S: 1, T: 1,
+    U: 1, V: 4, W: 4, X: 8, Y: 4, Z: 10,
+  }
+
+  const submitWord = () => {
+    const normalized = word.trim().toUpperCase()
+    if (!practiceWords.has(normalized)) {
+      setMessage('That word is not in this practice dictionary. Try a displayed word such as SCIENCE or TEACHER.')
+      return
+    }
+    setScore((current) => current + [...normalized].reduce((total, letter) => total + letterValues[letter], 0))
+    setMessage(`${normalized} accepted! Points added.`)
+    setWord('')
+  }
+
+  return (
+    <Card className="border-none shadow-2xl rounded-[2.5rem] bg-white p-8 space-y-6">
+      <div className="flex justify-between gap-4">
+        <div>
+          <button onClick={onBack} className="text-red-600 font-black text-xs uppercase tracking-widest hover:underline mb-2 block">← BACK TO ARENA</button>
+          <CardTitle className="text-3xl font-black text-slate-900">Word Tile Practice</CardTitle>
+          <p className="text-slate-600 mt-2">Make a word from the practice list and score its letter values.</p>
+        </div>
+        <Badge className="h-fit bg-red-600 text-white">{score} points</Badge>
+      </div>
+      <div className="rounded-2xl bg-amber-50 p-5 text-amber-950">
+        <p className="font-bold">Practice words: ACADEMY · ALGEBRA · BIOLOGY · FRACTION · HISTORY · PLANET · SCIENCE · STUDENT · TEACHER</p>
+        <p className="text-sm mt-2">Practice mode only: this word exercise does not yet save scores or support live multiplayer.</p>
+      </div>
+      <div className="flex flex-wrap gap-3">
+        <Input aria-label="Word to score" value={word} onChange={(event) => setWord(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') submitWord() }} placeholder="Type a practice word" className="max-w-sm" />
+        <Button onClick={submitWord} disabled={!word.trim()} className="bg-red-600 hover:bg-red-700">Submit word</Button>
+      </div>
+      {message && <p aria-live="polite" className="text-sm font-semibold text-slate-700">{message}</p>}
+    </Card>
+  )
+}
+
+function MonopolyGame({ onBack }: { onBack: () => void }) {
+  const spaces = [
+    { name: 'Start', price: 0, rent: 0 },
+    { name: 'Science Lab', price: 80, rent: 15 },
+    { name: 'School Library', price: 100, rent: 20 },
+    { name: 'Community Chest', price: 0, rent: 0 },
+    { name: 'Sports Field', price: 120, rent: 25 },
+    { name: 'School Cafe', price: 140, rent: 30 },
+    { name: 'Quiz Challenge', price: 0, rent: 0 },
+    { name: 'Art Studio', price: 160, rent: 35 },
+  ]
+  const [positions, setPositions] = useState([0, 0])
+  const [cash, setCash] = useState([500, 500])
+  const [owners, setOwners] = useState<number[]>(Array(spaces.length).fill(-1))
+  const [turn, setTurn] = useState(0)
+  const [message, setMessage] = useState('You go first. Roll the die to move.')
+  const [finished, setFinished] = useState(false)
+
+  const takeTurn = () => {
+    if (finished) return
+    const roll = Math.floor(Math.random() * 6) + 1
+    const oldPosition = positions[turn]
+    const newPosition = (oldPosition + roll) % spaces.length
+    const nextPositions = [...positions]
+    const nextCash = [...cash]
+    const nextOwners = [...owners]
+    let outcome = `${turn === 0 ? 'You' : 'Academy opponent'} rolled ${roll} and landed on ${spaces[newPosition].name}.`
+    if (newPosition < oldPosition) {
+      nextCash[turn] += 100
+      outcome += ' Collected 100 for passing Start.'
+    }
+    const space = spaces[newPosition]
+    if (space.price && nextOwners[newPosition] === -1 && nextCash[turn] >= space.price) {
+      if (turn === 0) {
+        nextCash[turn] -= space.price
+        nextOwners[newPosition] = turn
+        outcome += ` You bought it for ${space.price}.`
+      } else if (Math.random() > 0.5) {
+        nextCash[turn] -= space.price
+        nextOwners[newPosition] = turn
+        outcome += ` Academy bought it for ${space.price}.`
+      } else {
+        outcome += ' It remains available.'
+      }
+    } else if (space.price && nextOwners[newPosition] >= 0 && nextOwners[newPosition] !== turn) {
+      const owner = nextOwners[newPosition]
+      nextCash[turn] -= space.rent
+      nextCash[owner] += space.rent
+      outcome += ` Paid ${space.rent} rent.`
+    } else if (space.name === 'Community Chest') {
+      nextCash[turn] += 50
+      outcome += ' Community Chest awarded 50.'
+    } else if (space.name === 'Quiz Challenge') {
+      nextCash[turn] += 25
+      outcome += ' Correct quiz answer: earned 25.'
+    }
+    nextPositions[turn] = newPosition
+    const bankrupt = nextCash[turn] <= 0
+    setPositions(nextPositions)
+    setCash(nextCash)
+    setOwners(nextOwners)
+    setMessage(outcome)
+    setFinished(bankrupt)
+    if (!bankrupt) setTurn((current) => 1 - current)
+  }
+
+  return (
+    <Card className="border-none shadow-2xl rounded-[2.5rem] bg-white p-8 space-y-6">
+      <div>
+        <button onClick={onBack} className="text-amber-700 font-black text-xs uppercase tracking-widest hover:underline mb-2 block">← BACK TO ARENA</button>
+        <CardTitle className="text-3xl font-black text-slate-900">Academy Property Practice</CardTitle>
+      </div>
+      <p className="text-sm text-amber-950 bg-amber-50 rounded-2xl p-4">Practice mode against a local opponent; games and scores are not persisted or synchronized with other players.</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {spaces.map((space, index) => <div key={space.name} className={`rounded-xl border p-4 ${positions.includes(index) ? 'border-amber-500 bg-amber-50' : 'border-slate-200'}`}>
+          <p className="font-bold text-slate-900">{space.name}</p>
+          <p className="text-sm text-slate-600">{space.price ? `Price ${space.price} · Rent ${space.rent}` : 'Special space'}</p>
+          {space.price > 0 && <p className="text-xs text-slate-500">{owners[index] < 0 ? 'Unowned' : owners[index] === 0 ? 'Owned by you' : 'Owned by Academy'}</p>}
+        </div>)}
+      </div>
+      <div className="flex flex-wrap gap-6 text-sm font-bold text-slate-800">
+        <p>Your cash: {cash[0]} · Position: {spaces[positions[0]].name}</p>
+        <p>Academy cash: {cash[1]} · Position: {spaces[positions[1]].name}</p>
+      </div>
+      <p aria-live="polite" className="text-sm text-slate-700">{message}</p>
+      <Button onClick={takeTurn} disabled={finished || turn !== 0} className="bg-amber-600 hover:bg-amber-700">{finished ? 'Game over' : turn === 0 ? 'Roll your turn' : 'Academy is taking a turn…'}</Button>
+      {!finished && turn === 1 && <AutoMonopolyTurn takeTurn={takeTurn} />}
+    </Card>
+  )
+}
+
+function AutoMonopolyTurn({ takeTurn }: { takeTurn: () => void }) {
+  React.useEffect(() => {
+    const timer = window.setTimeout(takeTurn, 700)
+    return () => window.clearTimeout(timer)
+  }, [takeTurn])
+  return null
+}

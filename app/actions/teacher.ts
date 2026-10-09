@@ -2,8 +2,8 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { assessment, assessmentQuestion, assessmentResult, term, teacher, class_, student, teacherWallet, teacherRequest, subject } from '@/lib/db/schema'
-import { eq, desc, sql } from 'drizzle-orm'
+import { assessment, assessmentQuestion, assessmentResult, term, teacher, class_, student, teacherWallet, teacherRequest, subject, teacherOnSubject } from '@/lib/db/schema'
+import { eq, desc, sql, and, inArray, type SQL } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { getCachedData } from '@/lib/cache'
@@ -12,6 +12,17 @@ async function getUserId() {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
   return session.user.id
+}
+
+async function getTeacherRequestAdminScope() {
+  const session = await auth.getSession()
+  if (!session?.user || !['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(session.user.role)) {
+    throw new Error('Unauthorized')
+  }
+  if (session.user.role !== 'SUPER_ADMIN' && !session.user.schoolId) {
+    throw new Error('School identity context missing for administrative action.')
+  }
+  return { user: session.user, schoolId: session.user.schoolId }
 }
 
 export async function createAssessment(data: any) {
@@ -189,49 +200,71 @@ export async function createDataAirtimeRequest(data: {
   })
   if (!teacherProfile) throw new Error('Teacher not found')
 
-  const wallet = await getTeacherWallet()
-  if (parseFloat(wallet.balance || '0') < data.amount) {
-    throw new Error('Insufficient wallet balance.')
-  }
+  const requestType = data.type.trim().toUpperCase()
+  const phoneNumber = data.phoneNumber.replace(/\D/g, '')
+  const details = data.details.trim()
+  if (!['DATA', 'AIRTIME'].includes(requestType)) throw new Error('Request type must be DATA or AIRTIME.')
+  if (!Number.isFinite(data.amount) || data.amount <= 0) throw new Error('Request amount must be positive.')
+  if (phoneNumber.length < 10 || phoneNumber.length > 15) throw new Error('Enter a valid phone number.')
+  if (!details || details.length > 500) throw new Error('Request details must contain 1 to 500 characters.')
 
-  const result = await db.insert(teacherRequest).values({
-    id: randomUUID(),
-    teacherId: teacherProfile.id,
-    type: data.type,
-    amount: data.amount.toString(),
-    details: data.details,
-    phoneNumber: data.phoneNumber,
-    status: 'pending',
-  }).returning()
+  const request = await db.transaction(async (tx) => {
+    const wallet = await tx.query.teacherWallet.findFirst({
+      where: eq(teacherWallet.teacherId, teacherProfile.id),
+    })
+    if (!wallet) throw new Error('Teacher wallet not found.')
 
-  // Deduct from wallet balance immediately (pending deduction)
-  const newBalance = (parseFloat(wallet.balance || '0') - data.amount).toFixed(2)
-  await db.update(teacherWallet)
-    .set({ balance: newBalance, updatedAt: new Date() })
-    .where(eq(teacherWallet.id, wallet.id))
+    const deducted = await tx.update(teacherWallet)
+      .set({
+        balance: sql`${teacherWallet.balance} - ${data.amount.toFixed(2)}`,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(teacherWallet.id, wallet.id),
+        sql`${teacherWallet.balance} >= ${data.amount.toFixed(2)}`,
+      ))
+      .returning({ id: teacherWallet.id })
+    if (!deducted[0]) throw new Error('Insufficient wallet balance.')
+
+    const inserted = await tx.insert(teacherRequest).values({
+      id: randomUUID(),
+      teacherId: teacherProfile.id,
+      type: requestType,
+      amount: data.amount.toFixed(2),
+      details,
+      phoneNumber,
+      status: 'pending',
+    }).returning()
+    if (!inserted[0]) throw new Error('Unable to create teacher request.')
+    return inserted[0]
+  })
 
   revalidatePath('/dashboard/teacher/wallet')
-  return result[0]
+  return request
 }
 
 export async function getAdminTeacherRequests() {
-  // Query requests with teacher profile names
-  const list = await db.select().from(teacherRequest).orderBy(desc(teacherRequest.createdAt))
-  const result: Array<any> = []
-  for (const item of list) {
-    const t = await db.query.teacher.findFirst({
-      where: eq(teacher.id, item.teacherId)
+  const { user: currentUser, schoolId } = await getTeacherRequestAdminScope()
+  const rows = await db
+    .select({
+      request: teacherRequest,
+      firstName: teacher.firstName,
+      lastName: teacher.lastName,
     })
-    result.push({
-      ...item,
-      teacherName: t ? `${t.firstName} ${t.lastName}` : 'Academy Staff'
-    })
-  }
-  return result
+    .from(teacherRequest)
+    .innerJoin(teacher, eq(teacherRequest.teacherId, teacher.id))
+    .where(currentUser.role === 'SUPER_ADMIN' ? undefined : eq(teacher.schoolId, schoolId!))
+    .orderBy(desc(teacherRequest.createdAt))
+  return rows.map(({ request, firstName, lastName }) => ({
+    ...request,
+    teacherName: `${firstName} ${lastName}`,
+  }))
 }
 
 export async function getAllTeachersWithWallets() {
+  const { user: currentUser, schoolId } = await getTeacherRequestAdminScope()
   const list = await db.select().from(teacher)
+    .where(currentUser.role === 'SUPER_ADMIN' ? undefined : eq(teacher.schoolId, schoolId!))
   const result: Array<any> = []
   for (const t of list) {
     let wallet = await db.query.teacherWallet.findFirst({
@@ -255,97 +288,114 @@ export async function getAllTeachersWithWallets() {
   return result
 }
 
-const DIRECTCOUPON_TOKEN = '31e8e1c081276940fce3b3568dcdbbd506e4be2346688b09649ca5340c781a22'
 const DIRECTCOUPON_BASE_URL = 'https://directcoupon.com.ng'
 
 export async function approveTeacherRequest(requestId: string, status: 'approved' | 'rejected') {
+  const { user: currentUser, schoolId } = await getTeacherRequestAdminScope()
+  if (status !== 'approved' && status !== 'rejected') throw new Error('Invalid request decision.')
+
   const requestRecord = await db.query.teacherRequest.findFirst({
     where: eq(teacherRequest.id, requestId)
   })
   if (!requestRecord) throw new Error('Request not found')
+  const requestTeacher = await db.query.teacher.findFirst({
+    where: eq(teacher.id, requestRecord.teacherId)
+  })
+  if (!requestTeacher || (currentUser.role !== 'SUPER_ADMIN' && requestTeacher.schoolId !== schoolId)) {
+    throw new Error('Forbidden: Request is outside your school.')
+  }
+  if (requestRecord.status !== 'pending') throw new Error('This request has already been processed.')
 
   if (status === 'approved') {
-    try {
-      const isDataRequest = requestRecord.type?.toLowerCase().includes('data') || requestRecord.details?.toLowerCase().includes('plan_id')
-      if (isDataRequest) {
-        let planId = 1
-        try {
-          const match = requestRecord.details?.match(/plan_id[:=]\s*(\d+)/i)
-          if (match && match[1]) planId = parseInt(match[1])
-        } catch {}
+    const token = process.env.DIRECTCOUPON_TOKEN
+    if (!token) {
+      throw new Error('Fulfilment is unavailable because DIRECTCOUPON_TOKEN is not configured.')
+    }
+    const requestType = requestRecord.type.toUpperCase()
+    if (requestType !== 'DATA' && requestType !== 'AIRTIME') throw new Error('Unsupported teacher wallet request type.')
 
-        await fetch(`${DIRECTCOUPON_BASE_URL}/api/loadCoupon`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Token ${DIRECTCOUPON_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            plan_id: planId,
-            phone_number: requestRecord.phoneNumber || '08000000000',
-            custom_ref: requestRecord.id,
-          }),
-        })
-      } else {
-        let networkId = 'mtn'
-        if (requestRecord.details?.toLowerCase().includes('airtel')) networkId = 'airtel'
-        if (requestRecord.details?.toLowerCase().includes('glo')) networkId = 'glo'
-        if (requestRecord.details?.toLowerCase().includes('9mobile')) networkId = '9mobile'
-
-        await fetch(`${DIRECTCOUPON_BASE_URL}/api/airtime`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Token ${DIRECTCOUPON_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            network_id: networkId,
-            phone: requestRecord.phoneNumber || '08000000000',
-            amount: parseFloat(requestRecord.amount || '100'),
-          }),
-        })
-      }
-    } catch (apiErr) {
-      console.warn('DirectCoupon API dispatch failed:', apiErr)
+    const isDataRequest = requestType === 'DATA'
+    const endpoint = isDataRequest
+      ? `${DIRECTCOUPON_BASE_URL}/api/loadCoupon`
+      : `${DIRECTCOUPON_BASE_URL}/api/airtime`
+    const payload = isDataRequest
+      ? {
+          plan_id: Number(requestRecord.details?.match(/plan_id[:=]\s*(\d+)/i)?.[1] || '1'),
+          phone_number: requestRecord.phoneNumber,
+          custom_ref: requestRecord.id,
+        }
+      : {
+          network_id: /airtel/i.test(requestRecord.details || '') ? 'airtel'
+            : /glo/i.test(requestRecord.details || '') ? 'glo'
+            : /9mobile/i.test(requestRecord.details || '') ? '9mobile' : 'mtn',
+          phone: requestRecord.phoneNumber,
+          amount: Number(requestRecord.amount),
+        }
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Token ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (!response.ok) {
+      const providerError = (await response.text()).slice(0, 500)
+      throw new Error(`Provider fulfilment failed (${response.status}): ${providerError}`)
     }
   }
 
-  const result = await db.update(teacherRequest)
-    .set({ status, updatedAt: new Date() })
-    .where(eq(teacherRequest.id, requestId))
-    .returning()
+  const result = await db.transaction(async (tx) => {
+    const updated = await tx.update(teacherRequest)
+      .set({ status, updatedAt: new Date() })
+      .where(and(
+        eq(teacherRequest.id, requestId),
+        eq(teacherRequest.status, 'pending'),
+      ))
+      .returning()
+    if (!updated[0]) throw new Error('This request has already been processed.')
 
-  // If rejected, refund the deducted amount back to their wallet
-  if (status === 'rejected') {
-    const wallet = await db.query.teacherWallet.findFirst({
-      where: eq(teacherWallet.teacherId, requestRecord.teacherId)
-    })
-    if (wallet) {
-      const refundedBalance = (parseFloat(wallet.balance || '0') + parseFloat(requestRecord.amount)).toFixed(2)
-      await db.update(teacherWallet)
-        .set({ balance: refundedBalance, updatedAt: new Date() })
+    if (status === 'rejected') {
+      const wallet = await tx.query.teacherWallet.findFirst({
+        where: eq(teacherWallet.teacherId, requestRecord.teacherId),
+      })
+      if (!wallet) throw new Error('Teacher wallet not found; cannot refund rejected request.')
+      await tx.update(teacherWallet)
+        .set({
+          balance: sql`${teacherWallet.balance} + ${requestRecord.amount}`,
+          updatedAt: new Date(),
+        })
         .where(eq(teacherWallet.id, wallet.id))
     }
-  }
+    return updated[0]
+  })
 
   revalidatePath('/dashboard/teacher/wallet')
   revalidatePath('/dashboard/admin/finance/teacher-requests')
-  return result[0]
+  return result
 }
 
 export async function updateTeacherSalaryAmount(teacherId: string, salaryAmount: string) {
+  const { user: currentUser, schoolId } = await getTeacherRequestAdminScope()
   const numericAmount = parseFloat(salaryAmount)
-  if (isNaN(numericAmount) || numericAmount < 0) {
+  if (!Number.isFinite(numericAmount) || numericAmount < 0) {
     throw new Error('Please enter a valid salary amount.')
   }
 
-  // Ensure wallet exists
-  let wallet = await db.query.teacherWallet.findFirst({
+  const targetTeacher = await db.query.teacher.findFirst({
+    where: and(
+      eq(teacher.id, teacherId),
+      currentUser.role === 'SUPER_ADMIN' ? undefined : eq(teacher.schoolId, schoolId!),
+    ),
+  })
+  if (!targetTeacher) throw new Error('Teacher not found in your school.')
+
+  const wallet = await db.query.teacherWallet.findFirst({
     where: eq(teacherWallet.teacherId, teacherId)
   })
 
   if (!wallet) {
-    // Insert new wallet row if missing
     await db.insert(teacherWallet).values({
       id: randomUUID(),
       teacherId,
@@ -353,9 +403,8 @@ export async function updateTeacherSalaryAmount(teacherId: string, salaryAmount:
       balance: '0.00',
       salaryStatus: 'pending',
       updatedAt: new Date()
-    } as any)
+    })
   } else {
-    // Update salary amount
     await db.update(teacherWallet)
       .set({
         salaryAmount: numericAmount.toFixed(2),
@@ -369,19 +418,35 @@ export async function updateTeacherSalaryAmount(teacherId: string, salaryAmount:
 }
 
 export async function payTeacherSalary(teacherId: string) {
+  const { user: currentUser, schoolId } = await getTeacherRequestAdminScope()
+  const targetTeacher = await db.query.teacher.findFirst({
+    where: and(
+      eq(teacher.id, teacherId),
+      currentUser.role === 'SUPER_ADMIN' ? undefined : eq(teacher.schoolId, schoolId!),
+    ),
+  })
+  if (!targetTeacher) throw new Error('Teacher not found in your school.')
+
   const wallet = await db.query.teacherWallet.findFirst({
     where: eq(teacherWallet.teacherId, teacherId)
   })
   if (!wallet) throw new Error('Wallet not found')
+  if (!Number.isFinite(Number(wallet.salaryAmount)) || Number(wallet.salaryAmount) <= 0) {
+    throw new Error('Set a valid salary amount before processing payment.')
+  }
 
   const result = await db.update(teacherWallet)
     .set({
       salaryStatus: 'paid',
-      balance: (parseFloat(wallet.balance || '0') + parseFloat(wallet.salaryAmount || '150000.00')).toFixed(2),
+      balance: sql`${teacherWallet.balance} + ${wallet.salaryAmount}`,
       updatedAt: new Date()
     })
-    .where(eq(teacherWallet.id, wallet.id))
+    .where(and(
+      eq(teacherWallet.id, wallet.id),
+      sql`${teacherWallet.salaryStatus} IS DISTINCT FROM 'paid'`,
+    ))
     .returning()
+  if (!result[0]) throw new Error('Salary has already been paid for this period.')
 
   revalidatePath('/dashboard/teacher/wallet')
   revalidatePath('/dashboard/admin/finance/teacher-requests')
@@ -404,15 +469,19 @@ export async function updateTeacherSubjects(subjects: string[]) {
 }
 
 export async function adminUpdateTeacherClassAndSubjects(teacherId: string, classes: string[], subjects: string[]) {
-  // Update classes and subjects in database
+  const { user: currentUser, schoolId } = await getTeacherRequestAdminScope()
   const result = await db.update(teacher)
     .set({
       handlingClasses: classes,
       teachingSubjects: subjects,
       updatedAt: new Date()
     })
-    .where(eq(teacher.id, teacherId))
+    .where(and(
+      eq(teacher.id, teacherId),
+      currentUser.role === 'SUPER_ADMIN' ? undefined : eq(teacher.schoolId, schoolId!),
+    ))
     .returning()
+  if (!result[0]) throw new Error('Teacher not found in your school.')
 
   // Also update plural public.teachers table if it exists
   try {
@@ -447,7 +516,11 @@ export async function getStudentsBySubject(subjectName: string) {
     if (assignedClass) allowedClasses.add(normalizeClass(assignedClass.name))
   }
   if (!allowedClasses.size) return []
-  const studentsList = await db.query.student.findMany({ orderBy: (s, { asc }) => [asc(s.class), asc(s.lastName), asc(s.firstName)] })
+  if (!teacherProfile.schoolId) return []
+  const studentsList = await db.query.student.findMany({
+    where: eq(student.schoolId, teacherProfile.schoolId),
+    orderBy: (s, { asc }) => [asc(s.class), asc(s.lastName), asc(s.firstName)],
+  })
   return studentsList.filter(s => allowedClasses.has(normalizeClass(s.class)) && Array.isArray(s.subjectsDone) && (s.subjectsDone as string[]).some(item => item.toLowerCase() === subjectName.trim().toLowerCase()))
 }
 
@@ -455,8 +528,11 @@ export async function getStudentFullProfile(studentId: string) {
   const session = await auth.getSession()
   if (!session?.user || session.user.role !== 'TEACHER') throw new Error('Unauthorized')
   const profile = await db.query.teacher.findFirst({ where: eq(teacher.userId, session.user.id) })
-  const learner = await db.query.student.findFirst({ where: eq(student.id, studentId) })
-  if (!profile || !learner) return null
+  if (!profile?.schoolId) return null
+  const learner = await db.query.student.findFirst({
+    where: and(eq(student.id, studentId), eq(student.schoolId, profile.schoolId)),
+  })
+  if (!learner) return null
   const normalizeClass = (value: string) => value.replace(/\s+/g, '').toUpperCase()
   const allowedClasses = (Array.isArray(profile.handlingClasses) ? profile.handlingClasses as string[] : []).map(normalizeClass)
   let canView = allowedClasses.includes(normalizeClass(learner.class))
@@ -593,7 +669,60 @@ export async function getTeacherClassResultsAction() {
   const handlingClasses = Array.isArray(teacherProfile?.handlingClasses) ? (teacherProfile?.handlingClasses as string[]) : []
   const teachingSubjects = Array.isArray(teacherProfile?.teachingSubjects) ? (teacherProfile?.teachingSubjects as string[]) : []
 
+  const isTeacher = session.user.role === 'TEACHER'
+  const allowedClasses = new Set(handlingClasses.map((name) => name.trim().toLowerCase()).filter(Boolean))
+  const allowedSubjects = new Set(teachingSubjects.map((name) => name.trim().toLowerCase()).filter(Boolean))
+  if (isTeacher && teacherProfile) {
+    const registrations = await db
+      .select({ className: class_.name, subjectName: subject.name })
+      .from(teacherOnSubject)
+      .innerJoin(class_, eq(teacherOnSubject.classId, class_.id))
+      .innerJoin(subject, eq(teacherOnSubject.subjectId, subject.id))
+      .where(and(
+        eq(teacherOnSubject.teacherId, teacherProfile.id),
+        eq(class_.schoolId, teacherProfile.schoolId || ''),
+      ))
+    for (const registration of registrations) {
+      allowedClasses.add(registration.className.trim().toLowerCase())
+      allowedSubjects.add(registration.subjectName.trim().toLowerCase())
+    }
+  }
+
+  if (isTeacher && teacherProfile?.isClassTeacher && teacherProfile.assignedClassId) {
+    const assignedClasses = await db.select({ name: class_.name }).from(class_).where(and(
+        eq(class_.id, teacherProfile.assignedClassId),
+        eq(class_.schoolId, teacherProfile.schoolId || ''),
+      ))
+    if (assignedClasses[0]) allowedClasses.add(assignedClasses[0].name.trim().toLowerCase())
+  }
+
+  const studentFilters: SQL[] = []
+  if (isTeacher) {
+    if (!teacherProfile?.schoolId || allowedClasses.size === 0) {
+      return { results: [], classes: [], subjects: teachingSubjects, teacherType: teacherProfile?.type || 'FULL_TIME' }
+    }
+    studentFilters.push(eq(student.schoolId, teacherProfile.schoolId))
+    studentFilters.push(inArray(student.class, [...allowedClasses]))
+  } else if (session.user.role !== 'SUPER_ADMIN') {
+    if (!session.user.schoolId) {
+      throw new Error('School identity context missing for results access.')
+    }
+    studentFilters.push(eq(student.schoolId, session.user.schoolId))
+  }
+
+  const allowedStudents = studentFilters.length
+    ? await db.query.student.findMany({
+        where: and(...studentFilters),
+        columns: { id: true },
+      })
+    : null
+  const allowedStudentIds = allowedStudents?.map((record) => record.id)
+  if (allowedStudentIds && allowedStudentIds.length === 0) {
+    return { results: [], classes: [...allowedClasses], subjects: teachingSubjects, teacherType: teacherProfile?.type || 'FULL_TIME' }
+  }
+
   const resultsList = await db.query.assessmentResult.findMany({
+    where: allowedStudentIds ? inArray(assessmentResult.studentId, allowedStudentIds) : undefined,
     with: {
       student: true,
       assessment: {
@@ -604,11 +733,18 @@ export async function getTeacherClassResultsAction() {
     },
     orderBy: [desc(assessmentResult.createdAt)],
   })
+  const filteredResults = isTeacher && allowedSubjects.size > 0
+    ? resultsList.filter((result) =>
+        allowedSubjects.has(result.assessment.subject.name.trim().toLowerCase())
+      )
+    : isTeacher
+      ? []
+      : resultsList
 
   return {
-    results: resultsList,
-    classes: handlingClasses,
-    subjects: teachingSubjects,
+    results: filteredResults,
+    classes: [...allowedClasses],
+    subjects: [...allowedSubjects],
     teacherType: teacherProfile?.type || 'FULL_TIME',
   }
 }
