@@ -269,7 +269,12 @@ export default function AdminPaymentsPage() {
             <h2 className="text-xl font-black text-slate-900 tracking-tight">Active School Fee Categories</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {feeStructures.map((fee) => {
-                const categoryPayments = filteredPayments.filter(p => (p.feeType || '').toLowerCase() === (fee.feeType || '').toLowerCase())
+                const categoryPayments = filteredPayments.filter((p) =>
+                  (p.feeType || '').trim().toLowerCase() === (fee.feeType || '').trim().toLowerCase() &&
+                  (p.student?.class || '').trim().toLowerCase() === (fee.class || '').trim().toLowerCase() &&
+                  (!fee.department ||
+                    (p.student?.department || '').trim().toLowerCase() === fee.department.trim().toLowerCase())
+                )
                 const categoryRevenue = categoryPayments.reduce((sum, p) => sum + parseFloat(p.amount || '0'), 0)
 
                 return (
@@ -328,7 +333,9 @@ export default function AdminPaymentsPage() {
                     filteredPayments.map((p) => {
                       const parentName = p.parent?.fatherName || p.parent?.motherName || p.parent?.guardianName || p.parent?.user?.name || 'Parent / Guardian'
                       const totalAmt = parseFloat(p.amount || '0')
-                      const baseAmt = Math.max(0, totalAmt - 161.25)
+                      const hasKorapayFee = (p.paymentMethod || '').toUpperCase() === 'KORAPAY'
+                      const gatewayFee = hasKorapayFee ? 161.25 : 0
+                      const baseAmt = Math.max(0, totalAmt - gatewayFee)
 
                       return (
                         <tr key={p.id} className="hover:bg-slate-50/30 transition-colors group">
@@ -351,7 +358,9 @@ export default function AdminPaymentsPage() {
                             <div className="text-[10px] font-bold text-slate-500 mt-1 space-y-0.5">
                               <p className="uppercase font-black text-slate-700">{p.feeType || 'GENERAL FEE'}</p>
                               <p>Base Fee: ₦{baseAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                              <p className="text-amber-600">+ Gateway Fee: ₦161.25</p>
+                              {hasKorapayFee && (
+                                <p className="text-amber-600">+ Korapay Fee: ₦{gatewayFee.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                              )}
                             </div>
                           </td>
                           <td className="p-8">

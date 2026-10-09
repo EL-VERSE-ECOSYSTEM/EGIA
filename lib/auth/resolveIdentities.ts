@@ -10,6 +10,7 @@ import {
 } from '@/lib/db/schema'
 import { eq, ilike, sql } from 'drizzle-orm'
 import { getRedirectUrlForIdentity, RoleType } from './redirectMap'
+import { isConfiguredSuperAdminEmail } from './super-admin'
 
 export interface UserIdentity {
   id: string
@@ -114,8 +115,7 @@ export async function resolveIdentities(userId: string, emailHint?: string): Pro
 
   const identities: UserIdentity[] = []
 
-  // Check Super Admin email detection (Protected exclusively to designated account ixoralyon013@gmail.com)
-  const isSuperAdminEmail = resolvedEmail === 'ixoralyon013@gmail.com'
+  const isSuperAdminEmail = isConfiguredSuperAdminEmail(resolvedEmail)
 
   // 1. Check Super Admin / Base User Roles
   try {

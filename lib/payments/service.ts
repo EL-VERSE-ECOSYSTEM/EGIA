@@ -1,7 +1,9 @@
 import { db } from '@/lib/db'
 import { payment, school, transactions, student, paymentWebhookLogs, transactionLedger, schoolRegistrationApplication } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
-import { createHmac, timingSafeEqual, randomUUID } from 'crypto'
+import { randomUUID } from 'crypto'
+import { korapayAmountMatches, validateKorapayWebhook } from './korapay-security'
+export { validKorapaySignature } from './korapay-security'
 
 export interface CreateInvoiceParams {
   schoolId?: string | null
@@ -46,33 +48,6 @@ export interface WebhookProcessResult {
   error?: string
 }
 
-export function validKorapaySignature(rawBody: string, signature: string | null): boolean {
-  const secret = process.env.KORAPAY_SECRET_KEY
-  if (!secret || !signature) return false
-  try {
-    const expected = createHmac('sha256', secret).update(rawBody).digest('hex')
-    const supplied = Buffer.from(signature.trim().toLowerCase(), 'utf8')
-    const calculated = Buffer.from(expected, 'utf8')
-    return supplied.length === calculated.length && timingSafeEqual(supplied, calculated)
-  } catch {
-    return false
-  }
-}
-
-function checkoutUrl(reference: string, redirectUrl?: string): string {
-  const base = process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
-  const url = new URL(base)
-  url.searchParams.set('reference', reference)
-
-  const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
-  const finalRedirect = redirectUrl || (siteUrl ? `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}` : undefined)
-  if (finalRedirect) {
-    url.searchParams.set('redirect_url', finalRedirect)
-  }
-
-  return url.toString()
-}
-
 export async function createInvoice(params: CreateInvoiceParams) {
   const paymentId = randomUUID()
   const reference = `EGIA-INV-${Date.now()}-${randomUUID().slice(0, 8)}`
@@ -97,6 +72,13 @@ export async function createInvoice(params: CreateInvoiceParams) {
 
 export async function initializeKorapayPayment(params: InitializePaymentParams) {
   const secretKey = process.env.KORAPAY_SECRET_KEY
+  if (!secretKey) {
+    throw new Error('Korapay is unavailable because its secret key is not configured.')
+  }
+  if (!Number.isFinite(params.amount) || params.amount <= 0) {
+    throw new Error('Payment amount must be a positive finite number.')
+  }
+
   const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const reference = `EGIA-PAY-${Date.now()}-${randomUUID().slice(0, 8)}`
   const currency = params.currency || 'NGN'
@@ -119,7 +101,7 @@ export async function initializeKorapayPayment(params: InitializePaymentParams) 
     }).returning())[0]
   }
 
-  let checkout = checkoutUrl(reference, params.redirectUrl)
+  let checkout = ''
 
   if (secretKey) {
     try {
@@ -152,14 +134,20 @@ export async function initializeKorapayPayment(params: InitializePaymentParams) 
         body: JSON.stringify(payload),
       })
 
-      if (res.ok) {
-        const koraData = await res.json()
-        if (koraData.status && koraData.data?.checkout_url) {
-          checkout = koraData.data.checkout_url
-        }
+      const koraData = await res.json()
+      if (!res.ok || !koraData.status || !koraData.data?.checkout_url) {
+        throw new Error(koraData.message || 'Korapay did not return a checkout URL.')
       }
-    } catch (err) {
-      console.warn('Failed to initialize Korapay payment via gateway endpoint:', err)
+
+      checkout = koraData.data.checkout_url
+    } catch (error) {
+      if (paymentRecord) {
+        await db.update(payment)
+          .set({ status: 'failed', updatedAt: new Date() })
+          .where(eq(payment.id, paymentRecord.id))
+      }
+
+      throw error
     }
   }
 
@@ -188,25 +176,7 @@ export async function verifyKorapayPayment(params: PaymentVerificationParams) {
   const schoolName = schoolRec?.name || undefined
 
   if (!secretKey) {
-    if (process.env.NODE_ENV === 'production') {
-      return { success: false, status: 'failed', schoolCode, schoolName, error: 'Korapay secret key is unconfigured in production environment.' }
-    }
-    if (paymentRec) {
-      await markPaymentSuccessful(paymentRec.id)
-    } else if (schoolRec) {
-      await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schoolRec.id))
-      await db.update(schoolRegistrationApplication).set({ paymentStatus: 'SUCCESS', updatedAt: new Date() }).where(eq(schoolRegistrationApplication.schoolId, schoolRec.id))
-    }
-
-    return {
-      success: true,
-      status: 'success',
-      payment: paymentRec || null,
-      school: schoolRec || null,
-      schoolCode,
-      schoolName,
-      data: { reference, status: 'success', amount: paymentRec ? Number(paymentRec.amount) : 30161.25, currency: expectedCurrency }
-    }
+    return { success: false, status: 'failed', schoolCode, schoolName, error: 'Korapay secret key is not configured.' }
   }
 
   const res = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(reference)}`, {
@@ -227,8 +197,15 @@ export async function verifyKorapayPayment(params: PaymentVerificationParams) {
   const status = (data.status || '').toLowerCase()
 
   if (status === 'success') {
-    if (expectedAmount !== undefined && Number(data.amount) < expectedAmount) {
-      return { success: false, status: 'failed', schoolCode, schoolName, error: 'Verified payment amount is less than required total.' }
+    const requiredAmount = expectedAmount ?? (paymentRec ? Number(paymentRec.amount) : schoolRec ? 30161.25 : undefined)
+    if (requiredAmount === undefined || !korapayAmountMatches(data.amount, requiredAmount)) {
+      return { success: false, status: 'failed', schoolCode, schoolName, error: 'Verified payment amount does not match the required total.' }
+    }
+    if (data.reference !== reference) {
+      return { success: false, status: 'failed', schoolCode, schoolName, error: 'Verified payment reference does not match.' }
+    }
+    if (data.currency && data.currency.toUpperCase() !== expectedCurrency.toUpperCase()) {
+      return { success: false, status: 'failed', schoolCode, schoolName, error: 'Verified payment currency does not match.' }
     }
 
     if (paymentRec) {
@@ -266,24 +243,13 @@ export async function verifyKorapayPayment(params: PaymentVerificationParams) {
 }
 
 export async function processKorapayWebhook(rawBody: string, signature: string | null): Promise<WebhookProcessResult> {
-  if (process.env.KORAPAY_SECRET_KEY) {
-    if (!validKorapaySignature(rawBody, signature)) {
-      return { success: false, error: 'Invalid or missing webhook signature' }
-    }
+  const validation = validateKorapayWebhook(rawBody, signature)
+  if (!validation.success) return validation
+  if (!validation.body || !validation.event || !validation.reference) {
+    return { success: true, note: validation.note }
   }
 
-  let body: { event?: string | { type?: string }; data?: { reference?: string; amount?: number | string; status?: string } }
-  try {
-    body = JSON.parse(rawBody)
-  } catch {
-    return { success: false, error: 'Invalid JSON payload' }
-  }
-
-  const event = typeof body.event === 'string' ? body.event : body.event?.type
-  const reference = body.data?.reference
-  if (!reference || !event) {
-    return { success: true, note: 'Webhook payload missing reference or event' }
-  }
+  const { body, event, reference } = validation
 
   const existingLog = await db.query.paymentWebhookLogs.findFirst({
     where: and(
@@ -339,7 +305,7 @@ export async function processKorapayWebhook(rawBody: string, signature: string |
   const trxRecord = await db.query.transactions.findFirst({ where: eq(transactions.reference, reference) })
   if (trxRecord) {
     if (isSuccess) {
-      if (body.data?.amount !== undefined && Number(body.data.amount) !== Number(trxRecord.amount)) {
+      if (!korapayAmountMatches(body.data?.amount, Number(trxRecord.amount))) {
         return { success: false, error: 'Payment amount mismatch' }
       }
       await db.update(transactions).set({ status: 'success', updatedAt: new Date() }).where(eq(transactions.id, trxRecord.id))
@@ -353,7 +319,7 @@ export async function processKorapayWebhook(rawBody: string, signature: string |
   const paymentRecord = await db.query.payment.findFirst({ where: eq(payment.transactionReference, reference) })
   if (paymentRecord) {
     if (isSuccess) {
-      if (body.data?.amount !== undefined && Number(body.data.amount) < Number(paymentRecord.amount)) {
+      if (!korapayAmountMatches(body.data?.amount, Number(paymentRecord.amount))) {
         return { success: false, error: 'Payment amount mismatch' }
       }
       await markPaymentSuccessful(paymentRecord.id)

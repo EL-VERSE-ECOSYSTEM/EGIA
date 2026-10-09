@@ -9,6 +9,7 @@ import { resolveIdentities, LoginContext, UserIdentity } from '@/lib/auth/resolv
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
 import { sendPushNotification } from '@/lib/services/notifications'
+import { isConfiguredSuperAdminEmail } from '@/lib/auth/super-admin'
 
 function authAdminClient() {
   const secretKey = getSupabaseSecretKey()
@@ -123,58 +124,11 @@ export async function signInAction(emailInput: string, passwordInput: string) {
     }
   }
 
-  // Super Admin: Strict password enforcement - only allow 'Amunra123@' for ixoralyon013@gmail.com
-  const isSuperAdminEmail = resolvedEmail === 'ixoralyon013@gmail.com'
-  const SUPER_ADMIN_PASSWORD = 'Amunra123@'
-
-  if (isSuperAdminEmail && passwordInput !== SUPER_ADMIN_PASSWORD) {
-    return {
-      success: false,
-      error: 'Super Admin access denied: Invalid credentials. Only authorized password works for ixoralyon013@gmail.com.',
-    }
-  }
-
-  let { data, error } = await supabase.auth.signInWithPassword({
+  const isSuperAdminEmail = isConfiguredSuperAdminEmail(resolvedEmail)
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
     password: passwordInput,
   })
-
-  // Self-heal Super Admin login if initial signInWithPassword failed (only for correct password)
-  if ((error || !data?.user) && isSuperAdminEmail && passwordInput === SUPER_ADMIN_PASSWORD) {
-    const adminClient = authAdminClient()
-    if (adminClient) {
-      try {
-        const { data: usersList } = await adminClient.auth.admin.listUsers()
-        const existingSuperAdmin = usersList?.users?.find(u => u.email?.toLowerCase() === 'ixoralyon013@gmail.com')
-
-        if (existingSuperAdmin) {
-          await adminClient.auth.admin.updateUserById(existingSuperAdmin.id, {
-            password: SUPER_ADMIN_PASSWORD,
-            email_confirm: true,
-            user_metadata: { role: 'SUPER_ADMIN', full_name: 'Super Admin' },
-          })
-        } else {
-          await adminClient.auth.admin.createUser({
-            email: 'ixoralyon013@gmail.com',
-            password: SUPER_ADMIN_PASSWORD,
-            email_confirm: true,
-            user_metadata: { role: 'SUPER_ADMIN', full_name: 'Super Admin' },
-          })
-        }
-
-        const retryRes = await supabase.auth.signInWithPassword({
-          email: 'ixoralyon013@gmail.com',
-          password: SUPER_ADMIN_PASSWORD,
-        })
-        if (retryRes.data?.user) {
-          data = retryRes.data
-          error = null
-        }
-      } catch (selfHealErr) {
-        console.warn('Super Admin self-heal error:', selfHealErr)
-      }
-    }
-  }
 
   if (error || !data?.user) {
     return { success: false, error: 'Invalid credentials or account not found.' }
@@ -182,7 +136,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
 
   try {
     const userEmail = (data.user.email || resolvedEmail).toLowerCase()
-    const isSuperAdminEmail = userEmail === 'ixoralyon013@gmail.com'
+    const isSuperAdminEmail = isConfiguredSuperAdminEmail(userEmail)
 
     // Ensure public.user record exists for authenticated Supabase user
     let existingUser = await db.query.user.findFirst({
@@ -213,23 +167,15 @@ export async function signInAction(emailInput: string, passwordInput: string) {
       existingUser = await db.query.user.findFirst({
         where: eq(userTable.id, data.user.id),
       })
-    } else if (isSuperAdminEmail && existingUser.email?.toLowerCase() !== 'ixoralyon013@gmail.com') {
-      await db.update(userTable)
-        .set({ email: 'ixoralyon013@gmail.com', updatedAt: new Date() })
-        .where(eq(userTable.id, data.user.id))
     }
 
     if (isSuperAdminEmail) {
-      // Ensure user_metadata in Supabase auth is set to SUPER_ADMIN
-      if (data.user.user_metadata?.role !== 'SUPER_ADMIN') {
-        try {
-          await supabase.auth.updateUser({
-            data: { ...data.user.user_metadata, role: 'SUPER_ADMIN' }
-          })
-        } catch {
-          // Ignore
-        }
-      }
+      await db.insert(userRoleTable).values({
+        id: crypto.randomUUID(),
+        userId: data.user.id,
+        role: 'SUPER_ADMIN',
+        createdAt: new Date(),
+      }).onConflictDoNothing()
     }
 
     const loginContext = await resolveIdentities(data.user.id, userEmail)
@@ -245,7 +191,10 @@ export async function signInAction(emailInput: string, passwordInput: string) {
     if (!loginContext.identities || loginContext.identities.length === 0) {
       // Fallback: If no specialized identity profiles (teacher/student/parent/admin) exist,
       // construct default identity from base user role so user logs in without a hitch.
-      const defaultRole = (data.user.user_metadata?.role || 'STUDENT').toUpperCase()
+      const requestedDefaultRole = (data.user.user_metadata?.role || 'STUDENT').toUpperCase()
+      const defaultRole = requestedDefaultRole === 'SUPER_ADMIN' && !isSuperAdminEmail
+        ? 'STUDENT'
+        : isSuperAdminEmail ? 'SUPER_ADMIN' : requestedDefaultRole
       const defaultIdentity: UserIdentity = {
         id: `default_${data.user.id}`,
         role: defaultRole as any,
@@ -295,7 +244,10 @@ export async function signInAction(emailInput: string, passwordInput: string) {
   } catch (err: any) {
     console.error('Login identity resolution failed:', err)
     // Fallback gracefully so authenticated Supabase users log in without a hitch
-    const fallbackRole = (data.user.user_metadata?.role || 'STUDENT').toUpperCase()
+    const requestedFallbackRole = (data.user.user_metadata?.role || 'STUDENT').toUpperCase()
+    const fallbackRole = requestedFallbackRole === 'SUPER_ADMIN' && !isConfiguredSuperAdminEmail(data.user.email)
+      ? 'STUDENT'
+      : isConfiguredSuperAdminEmail(data.user.email) ? 'SUPER_ADMIN' : requestedFallbackRole
     const fallbackIdentity: UserIdentity = {
       id: `fallback_${data.user.id}`,
       role: fallbackRole as any,

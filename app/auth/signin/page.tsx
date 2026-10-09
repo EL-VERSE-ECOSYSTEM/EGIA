@@ -37,7 +37,7 @@ export default function SignInPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const targetEmail = email.trim()
-    const targetPassword = password.trim()
+    const targetPassword = password
 
     if (!targetEmail || !targetPassword) {
       setError('Please provide both your account identifier and password.')

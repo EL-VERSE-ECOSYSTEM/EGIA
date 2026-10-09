@@ -10,6 +10,7 @@ import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
 import { createClient as createSupabaseAdminClient, type User as SupabaseUser } from '@supabase/supabase-js'
 import { withCircuitBreaker } from '@/lib/resilience'
+import { isConfiguredSuperAdminEmail } from '@/lib/auth/super-admin'
 
 type AuthRole = 'STUDENT' | 'TEACHER' | 'PARENT' | 'ADMIN'
 
@@ -683,8 +684,7 @@ export async function loginRole(data: {
 
   let email = normalizeEmail(identifier)
 
-  // Enforce Super Admin email restriction: Only ixoralyon013@gmail.com can log in as SUPER_ADMIN
-  if (selectedRole === 'SUPER_ADMIN' && email !== 'ixoralyon013@gmail.com') {
+  if (selectedRole === 'SUPER_ADMIN' && !isConfiguredSuperAdminEmail(email)) {
     return { error: 'Access denied: Only authorized Super Admin email can access this portal.' }
   }
 
@@ -708,53 +708,6 @@ export async function loginRole(data: {
     )
   } catch (error: any) {
     return { error: error?.message || 'Supabase authentication is temporarily unavailable.' }
-  }
-
-  // Auto-provision or sync accounts in Supabase Auth if found locally in database
-  if (signInResult.error && getSupabaseSecretKey()) {
-    try {
-      const adminClient = authAdminClient()
-      if (adminClient) {
-        const dbUser = await db.query.user.findFirst({
-          where: eq(userTable.email, email)
-        })
-
-        if (dbUser) {
-          let existingAuthUser = await findAuthUserByEmail(adminClient, email)
-
-          if (!existingAuthUser) {
-            console.log(`[Auth] Auto-provisioning ${selectedRole} ${email} in Supabase Auth...`)
-            const { data: created, error: createError } = await adminClient.auth.admin.createUser({
-              id: dbUser.id || undefined,
-              email,
-              password: data.password,
-              email_confirm: true,
-              user_metadata: {
-                full_name: dbUser.name || 'User',
-                role: selectedRole
-              }
-            })
-            if (!createError && created.user) {
-              signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
-            }
-          } else {
-            console.log(`[Auth] Syncing password for ${selectedRole} ${email} in Supabase Auth...`)
-            const { error: updateError } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
-              password: data.password,
-              user_metadata: {
-                ...existingAuthUser.user_metadata,
-                role: selectedRole
-              }
-            })
-            if (!updateError) {
-              signInResult = await supabase.auth.signInWithPassword({ email, password: data.password })
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('[Auth] Could not auto-provision/sync Supabase Auth record on login:', err)
-    }
   }
 
   if (signInResult.error) return { error: signInResult.error.message }

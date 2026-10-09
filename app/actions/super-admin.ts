@@ -7,13 +7,14 @@ import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { randomUUID } from 'crypto'
 import { sanitizeServerError } from '@/lib/errors'
+import { isConfiguredSuperAdminEmail } from '@/lib/auth/super-admin'
 
 async function checkSuperAdminPermission() {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized: Session required.')
 
-  if (session.user.email?.trim().toLowerCase() !== 'ixoralyon013@gmail.com') {
-    throw new Error('Forbidden: Super Admin access strictly restricted to ixoralyon013@gmail.com.')
+  if (!isConfiguredSuperAdminEmail(session.user.email)) {
+    throw new Error('Forbidden: This account is not authorized for Super Admin access.')
   }
 
   return session.user

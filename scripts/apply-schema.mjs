@@ -40,18 +40,27 @@ function loadLocalEnvironment() {
 async function applySchema() {
   loadLocalEnvironment()
 
-  if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_DESTRUCTIVE_SCHEMA_APPLY) {
-    console.error('CRITICAL: Refusing to execute schema reset script in production without ALLOW_DESTRUCTIVE_SCHEMA_APPLY=true')
-    process.exit(1)
+  const sqlFilePath = path.join(process.cwd(), 'schema_complete.sql')
+  const sqlScript = fs.readFileSync(sqlFilePath, 'utf8')
+  const hasDestructiveStatements =
+    /\bDROP\s+(?:TABLE|SCHEMA|DATABASE|TYPE)\b/i.test(sqlScript) ||
+    /\bTRUNCATE\b/i.test(sqlScript) ||
+    /\bDELETE\s+FROM\b/i.test(sqlScript)
+
+  if (hasDestructiveStatements && process.env.ALLOW_DESTRUCTIVE_SCHEMA_APPLY !== 'true') {
+    console.error(
+      'CRITICAL: schema_complete.sql contains destructive statements. ' +
+      'No database changes were made. Back up the database and set ' +
+      'ALLOW_DESTRUCTIVE_SCHEMA_APPLY=true only when a full reset is intended.'
+    )
+    process.exitCode = 1
+    return
   }
 
   const databaseUrl = process.env.SUPABASE_DATABASE_POOLER_URL || process.env.DATABASE_URL
   if (!databaseUrl) {
     throw new Error('Database connection string missing in environment.')
   }
-
-  const sqlFilePath = path.join(process.cwd(), 'schema_complete.sql')
-  const sqlScript = fs.readFileSync(sqlFilePath, 'utf8')
 
   console.log('Connecting to Supabase Database...')
   const sql = postgres(databaseUrl, {
