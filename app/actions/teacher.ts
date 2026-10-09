@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { assessment, assessmentQuestion, term, teacher, class_, student, teacherWallet, teacherRequest, subject } from '@/lib/db/schema'
+import { assessment, assessmentQuestion, assessmentResult, term, teacher, class_, student, teacherWallet, teacherRequest, subject } from '@/lib/db/schema'
 import { eq, desc, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'

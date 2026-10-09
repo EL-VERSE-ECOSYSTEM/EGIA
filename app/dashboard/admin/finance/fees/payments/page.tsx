@@ -263,15 +263,47 @@ export default function AdminPaymentsPage() {
           </div>
         </div>
 
-        {/* Payments Table */}
+        {/* Fee Structures Grouping Summary */}
+        {feeStructures.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-black text-slate-900 tracking-tight">Active School Fee Categories</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {feeStructures.map((fee) => {
+                const categoryPayments = filteredPayments.filter(p => (p.feeType || '').toLowerCase() === (fee.feeType || '').toLowerCase())
+                const categoryRevenue = categoryPayments.reduce((sum, p) => sum + parseFloat(p.amount || '0'), 0)
+
+                return (
+                  <Card key={fee.id} className="border-none shadow-lg rounded-2xl bg-white p-5 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-black uppercase text-slate-400">{fee.feeType || 'General Fee'}</span>
+                      <Badge className="bg-emerald-100 text-emerald-800 font-black border-none text-[10px]">
+                        Class: {fee.class}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <p className="text-lg font-black text-slate-900">₦{categoryRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        <p className="text-[11px] font-bold text-slate-500">{categoryPayments.length} Transactions</p>
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-400">Target: ₦{parseFloat(fee.amount || '0').toLocaleString()}</span>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Payments Table Grouped by Fee Structure */}
         <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">
-                    <th className="p-8">Student / Payer</th>
-                    <th className="p-8">Payment Info</th>
+                    <th className="p-8">Parent Paying</th>
+                    <th className="p-8">Child / Ward Paid For</th>
+                    <th className="p-8">Fee Category & Breakdown</th>
                     <th className="p-8">Reference</th>
                     <th className="p-8">Timeline</th>
                     <th className="p-8">Status</th>
@@ -281,83 +313,95 @@ export default function AdminPaymentsPage() {
                 <tbody className="divide-y divide-slate-50">
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="p-24 text-center text-slate-400 italic font-bold">
+                      <td colSpan={7} className="p-24 text-center text-slate-400 italic font-bold">
                         <Loader2 className="w-10 h-10 animate-spin text-emerald-600 mx-auto mb-4" />
                         Accessing real-time ledger...
                       </td>
                     </tr>
                   ) : filteredPayments.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-24 text-center text-slate-400 italic font-bold">
+                      <td colSpan={7} className="p-24 text-center text-slate-400 italic font-bold">
                         No transactions found matching your criteria.
                       </td>
                     </tr>
                   ) : (
-                    filteredPayments.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-50/30 transition-colors group">
-                        <td className="p-8">
-                          <p className="font-black text-slate-900">
-                            {p.student?.firstName} {p.student?.lastName}
-                          </p>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                            {p.student?.admissionNumber || 'N/A'}
-                          </p>
-                        </td>
-                        <td className="p-8">
-                          <p className="font-black text-emerald-600 text-lg">
-                            ₦{parseFloat(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </p>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                            {p.feeType || 'GENERAL'}
-                          </p>
-                        </td>
-                        <td className="p-8">
-                          <p className="font-mono text-xs text-slate-600">{p.transactionReference || 'N/A'}</p>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                            {p.paymentMethod || 'ONLINE'}
-                          </p>
-                        </td>
-                        <td className="p-8">
-                          <div className="flex items-center gap-2 text-slate-500 font-bold text-sm">
-                            <Calendar size={14} className="text-amber-500" />{' '}
-                            {new Date(p.createdAt || p.paymentDate || Date.now()).toLocaleDateString()}
-                          </div>
-                        </td>
-                        <td className="p-8">{getStatusBadge(p.status)}</td>
-                        <td className="p-8 text-right">
-                          {p.status?.toLowerCase() === 'pending' ? (
-                            <div className="flex justify-end gap-3">
-                              <Button
-                                onClick={() => handleVerify(p.id, 'success')}
-                                disabled={processingId === p.id}
-                                className="h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 font-black shadow-lg shadow-emerald-100 transition-all active:scale-95 text-xs text-white"
-                              >
-                                {processingId === p.id ? <Loader2 className="animate-spin w-4 h-4" /> : 'CONFIRM'}
-                              </Button>
-                              <Button
-                                onClick={() => handleVerify(p.id, 'failed')}
-                                disabled={processingId === p.id}
-                                variant="outline"
-                                className="h-11 px-5 rounded-xl border-2 border-red-50 text-red-600 font-black hover:bg-red-50 hover:border-red-100 transition-all active:scale-95 text-xs"
-                              >
-                                REJECT
-                              </Button>
+                    filteredPayments.map((p) => {
+                      const parentName = p.parent?.fatherName || p.parent?.motherName || p.parent?.guardianName || p.parent?.user?.name || 'Parent / Guardian'
+                      const totalAmt = parseFloat(p.amount || '0')
+                      const baseAmt = Math.max(0, totalAmt - 161.25)
+
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-50/30 transition-colors group">
+                          <td className="p-8">
+                            <p className="font-black text-slate-900">{parentName}</p>
+                            <p className="text-xs font-bold text-slate-400 mt-0.5">{p.parent?.user?.email || 'N/A'}</p>
+                          </td>
+                          <td className="p-8">
+                            <p className="font-black text-slate-900">
+                              {p.student?.firstName} {p.student?.lastName}
+                            </p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                              Class: {p.student?.class || 'N/A'} • {p.student?.admissionNumber || 'N/A'}
+                            </p>
+                          </td>
+                          <td className="p-8">
+                            <p className="font-black text-emerald-600 text-lg">
+                              ₦{totalAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </p>
+                            <div className="text-[10px] font-bold text-slate-500 mt-1 space-y-0.5">
+                              <p className="uppercase font-black text-slate-700">{p.feeType || 'GENERAL FEE'}</p>
+                              <p>Base Fee: ₦{baseAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                              <p className="text-amber-600">+ Gateway Fee: ₦161.25</p>
                             </div>
-                          ) : (
-                            <div className="flex justify-end items-center gap-2">
-                              <Button
-                                onClick={() => setActiveReceipt(p)}
-                                size="sm"
-                                variant="outline"
-                                className="h-9 font-black text-xs rounded-xl border-slate-200 text-slate-700 hover:bg-slate-100"
-                              >
-                                <Download className="w-3.5 h-3.5 mr-1" /> Slip
-                              </Button>
+                          </td>
+                          <td className="p-8">
+                            <p className="font-mono text-xs text-slate-600">{p.transactionReference || 'N/A'}</p>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                              {p.paymentMethod || 'KORAPAY'}
+                            </p>
+                          </td>
+                          <td className="p-8">
+                            <div className="flex items-center gap-2 text-slate-500 font-bold text-sm">
+                              <Calendar size={14} className="text-amber-500" />{' '}
+                              {new Date(p.createdAt || p.paymentDate || Date.now()).toLocaleDateString()}
                             </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                          <td className="p-8">{getStatusBadge(p.status)}</td>
+                          <td className="p-8 text-right">
+                            {p.status?.toLowerCase() === 'pending' ? (
+                              <div className="flex justify-end gap-3">
+                                <Button
+                                  onClick={() => handleVerify(p.id, 'success')}
+                                  disabled={processingId === p.id}
+                                  className="h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 font-black shadow-lg shadow-emerald-100 transition-all active:scale-95 text-xs text-white"
+                                >
+                                  {processingId === p.id ? <Loader2 className="animate-spin w-4 h-4" /> : 'CONFIRM'}
+                                </Button>
+                                <Button
+                                  onClick={() => handleVerify(p.id, 'failed')}
+                                  disabled={processingId === p.id}
+                                  variant="outline"
+                                  className="h-11 px-5 rounded-xl border-2 border-red-50 text-red-600 font-black hover:bg-red-50 hover:border-red-100 transition-all active:scale-95 text-xs"
+                                >
+                                  REJECT
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex justify-end items-center gap-2">
+                                <Button
+                                  onClick={() => setActiveReceipt(p)}
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-9 font-black text-xs rounded-xl border-slate-200 text-slate-700 hover:bg-slate-100"
+                                >
+                                  <Download className="w-3.5 h-3.5 mr-1" /> Slip
+                                </Button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })
                   )}
                 </tbody>
               </table>
