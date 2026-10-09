@@ -123,13 +123,24 @@ export async function signInAction(emailInput: string, passwordInput: string) {
     }
   }
 
+  // Super Admin: Strict password enforcement - only allow 'Amunra123@' for ixoralyon013@gmail.com
+  const isSuperAdminEmail = resolvedEmail === 'ixoralyon013@gmail.com'
+  const SUPER_ADMIN_PASSWORD = 'Amunra123@'
+
+  if (isSuperAdminEmail && passwordInput !== SUPER_ADMIN_PASSWORD) {
+    return {
+      success: false,
+      error: 'Super Admin access denied: Invalid credentials. Only authorized password works for ixoralyon013@gmail.com.',
+    }
+  }
+
   let { data, error } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
     password: passwordInput,
   })
 
-  // Self-heal Super Admin login if initial signInWithPassword failed
-  if ((error || !data?.user) && resolvedEmail === 'ixoralyon013@gmail.com') {
+  // Self-heal Super Admin login if initial signInWithPassword failed (only for correct password)
+  if ((error || !data?.user) && isSuperAdminEmail && passwordInput === SUPER_ADMIN_PASSWORD) {
     const adminClient = authAdminClient()
     if (adminClient) {
       try {
@@ -138,14 +149,14 @@ export async function signInAction(emailInput: string, passwordInput: string) {
 
         if (existingSuperAdmin) {
           await adminClient.auth.admin.updateUserById(existingSuperAdmin.id, {
-            password: passwordInput,
+            password: SUPER_ADMIN_PASSWORD,
             email_confirm: true,
             user_metadata: { role: 'SUPER_ADMIN', full_name: 'Super Admin' },
           })
         } else {
           await adminClient.auth.admin.createUser({
             email: 'ixoralyon013@gmail.com',
-            password: passwordInput,
+            password: SUPER_ADMIN_PASSWORD,
             email_confirm: true,
             user_metadata: { role: 'SUPER_ADMIN', full_name: 'Super Admin' },
           })
@@ -153,7 +164,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
 
         const retryRes = await supabase.auth.signInWithPassword({
           email: 'ixoralyon013@gmail.com',
-          password: passwordInput,
+          password: SUPER_ADMIN_PASSWORD,
         })
         if (retryRes.data?.user) {
           data = retryRes.data

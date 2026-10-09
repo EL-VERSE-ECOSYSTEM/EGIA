@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Gamepad2, Trophy, Clock, RefreshCw, Star, HelpCircle, ChevronRight, Check, AlertCircle, Sparkles } from 'lucide-react'
 
 // Game Types
-type GameType = 'CHESS' | 'MATH' | 'SCRAMBLE' | 'SUDOKU' | 'TRIVIA' | 'HOME'
+type GameType = 'CHESS' | 'MATH' | 'SCRAMBLE' | 'SUDOKU' | 'TRIVIA' | 'SCRABBLE' | 'MONOPOLY' | 'HOME'
 
 // Chess types
 type PieceType = 'p' | 'r' | 'n' | 'b' | 'q' | 'k' | ''
@@ -153,6 +153,50 @@ export default function StudentGamesPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Scrabble Card */}
+            <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 rounded-[2.5rem] bg-white overflow-hidden flex flex-col justify-between group">
+              <div className="h-3 bg-red-600 w-full" />
+              <CardContent className="p-8 flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="w-16 h-16 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center font-black text-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
+                    📝
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-2">Classic Scrabble</h3>
+                  <p className="text-slate-500 font-medium text-sm leading-relaxed mb-6">
+                    Form words on a 15x15 board using letter tiles with point values! Build vocabulary, strategy, and spelling mastery against the Academy AI.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setActiveGame('SCRABBLE')}
+                  className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs uppercase tracking-widest"
+                >
+                  PLAY SCRABBLE <ChevronRight size={14} className="ml-1" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Monopoly Card */}
+            <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 rounded-[2.5rem] bg-white overflow-hidden flex flex-col justify-between group">
+              <div className="h-3 bg-amber-600 w-full" />
+              <CardContent className="p-8 flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center font-black text-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
+                    🏦
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-2">Academy Monopoly</h3>
+                  <p className="text-slate-500 font-medium text-sm leading-relaxed mb-6">
+                    Buy, sell, and trade school properties! Collect rent, build classrooms, and bankrupt opponents in this educational twist on the classic property trading game.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setActiveGame('MONOPOLY')}
+                  className="w-full h-12 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl text-xs uppercase tracking-widest"
+                >
+                  PLAY MONOPOLY <ChevronRight size={14} className="ml-1" />
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -170,6 +214,12 @@ export default function StudentGamesPage() {
 
         {/* Trivia Game */}
         {activeGame === 'TRIVIA' && <TriviaGame onBack={() => setActiveGame('HOME')} />}
+
+        {/* Scrabble Game */}
+        {activeGame === 'SCRABBLE' && <ScrabbleGame onBack={() => setActiveGame('HOME')} />}
+
+        {/* Monopoly Game */}
+        {activeGame === 'MONOPOLY' && <MonopolyGame onBack={() => setActiveGame('HOME')} />}
       </div>
     </DashboardLayout>
   )
