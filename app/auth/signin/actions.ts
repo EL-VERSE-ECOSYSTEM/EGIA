@@ -105,13 +105,13 @@ export async function signInAction(emailInput: string, passwordInput: string) {
     if (!resolvedEmail || !resolvedEmail.includes('@')) {
       // 4. Check school registration application code
       const appMatch = await db
-        .select({ email: schoolAppTable.applicantEmail, adminEmail: schoolAppTable.adminEmail })
+        .select({ email: schoolAppTable.applicantEmail })
         .from(schoolAppTable)
         .where(eq(schoolAppTable.id, inputIdentifier.trim()))
         .limit(1)
 
-      if (appMatch[0]?.adminEmail || appMatch[0]?.email) {
-        resolvedEmail = (appMatch[0].adminEmail || appMatch[0].email)!.toLowerCase()
+      if (appMatch[0]?.email) {
+        resolvedEmail = appMatch[0].email.toLowerCase()
       }
     }
 
