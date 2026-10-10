@@ -14,7 +14,7 @@ export async function GET() {
     const uRec = await db.query.user.findFirst({ where: eq(user.id, session.user.id) })
     const schoolId = uRec?.schoolId || session.user.schoolId
 
-    let list = []
+    let list: any[] = []
     if (schoolId) {
       list = await db.query.feeStructure.findMany({
         where: eq(feeStructure.schoolId, schoolId),

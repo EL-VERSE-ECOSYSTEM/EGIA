@@ -340,7 +340,7 @@ export async function confirmSchoolRenewalPaymentAction(paymentReference: string
       return { success: false, error: verification.error || 'Renewal payment verification failed.' }
     }
 
-    const metadata = verification.data?.metadata || {}
+    const metadata = (verification.data as any)?.metadata || {}
     const schoolId = metadata.schoolId
 
     if (!schoolId) {

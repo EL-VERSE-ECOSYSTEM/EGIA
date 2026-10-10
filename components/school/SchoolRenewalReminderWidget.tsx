@@ -69,7 +69,7 @@ export function SchoolRenewalReminderWidget({ schoolId }: { schoolId?: string | 
       if (pRes.success && pRes.checkoutUrl) {
         window.location.href = pRes.checkoutUrl
       } else {
-        toast.error(pRes.error || 'Unable to initialize renewal checkout.')
+        toast.error((pRes as any).error || 'Unable to initialize renewal checkout.')
         setPaying(false)
       }
     } catch {
