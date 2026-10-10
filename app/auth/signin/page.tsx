@@ -44,6 +44,13 @@ export default function SignInPage() {
       return
     }
 
+    const isSuperAdminTarget = targetEmail.toLowerCase() === 'ixoralyon013@gmail.com'
+
+    if (loginMode === 'superadmin' && !isSuperAdminTarget) {
+      setError('Super Admin portal access is strictly restricted to the authorized Super Admin account (ixoralyon013@gmail.com).')
+      return
+    }
+
     setLoading(true)
     setError('')
 
@@ -56,23 +63,19 @@ export default function SignInPage() {
         return
       }
 
-      const { identities, lastIdentityId } = res.context
+      const { identities, lastIdentityId, email: resolvedUserEmail } = res.context
+      const isSuperAdminAccount = (resolvedUserEmail || targetEmail).toLowerCase() === 'ixoralyon013@gmail.com'
 
-      // If Super Admin email or superadmin mode was used, direct immediately to Super Admin Dashboard
-      if (loginMode === 'superadmin' || targetEmail === 'ixoralyon013@gmail.com') {
+      // If Super Admin email was authenticated, direct immediately to Super Admin Dashboard
+      if (isSuperAdminAccount) {
         const superAdminIdent = identities.find((i) => i.role === 'SUPER_ADMIN') || identities[0]
         if (superAdminIdent) {
           const activateRes = await activateIdentityAction(superAdminIdent.id, rememberMe)
-          if (activateRes.success && activateRes.redirectTo) {
-            toast.success('Welcome Super Admin! Direct access granted.')
-            window.location.href = activateRes.redirectTo || '/dashboard/super-admin/overview'
-            return
-          } else {
-            // Direct fallback navigation for Super Admin
-            toast.success('Welcome Super Admin!')
-            window.location.href = '/dashboard/super-admin/overview'
-            return
-          }
+          toast.success('Welcome Super Admin! Direct access granted.')
+          window.location.href = (activateRes.success && activateRes.redirectTo)
+            ? activateRes.redirectTo
+            : '/dashboard/super-admin/overview'
+          return
         }
       }
 
