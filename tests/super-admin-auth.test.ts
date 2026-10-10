@@ -1,5 +1,27 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import { getRedirectUrlForIdentity } from '../lib/auth/redirectMap'
+
+function simulateSignInModeValidation(loginMode: 'standard' | 'superadmin', inputEmail: string): { allowed: boolean; error?: string; targetRedirect?: string } {
+  const targetEmail = inputEmail.trim().toLowerCase()
+  const isSuperAdminTarget = targetEmail === 'ixoralyon013@gmail.com'
+
+  if (loginMode === 'superadmin' && !isSuperAdminTarget) {
+    return {
+      allowed: false,
+      error: 'Super Admin portal access is strictly restricted to the authorized Super Admin account (ixoralyon013@gmail.com).'
+    }
+  }
+
+  if (isSuperAdminTarget) {
+    return {
+      allowed: true,
+      targetRedirect: '/dashboard/super-admin/overview'
+    }
+  }
+
+  return { allowed: true }
+}
 
 function simulateProxyRoleCheck(email: string, metadataRole: string): { effectiveRole: string; canAccessSuperAdmin: boolean } {
   const userEmail = (email || '').trim().toLowerCase()
@@ -70,6 +92,31 @@ describe('Super Admin Auth & Access Restriction Tests', () => {
       const res2 = simulateSuperAdminPermissionCheck('random@gmail.com')
       assert.equal(res2.allowed, false)
       assert.equal(res2.error, 'Forbidden: Super Admin access strictly restricted to ixoralyon013@gmail.com.')
+    })
+  })
+
+  describe('Super Admin Sign-In Mode & Redirection Validation', () => {
+    it('redirects SUPER_ADMIN identity to /dashboard/super-admin/overview via redirectMap', () => {
+      const redirectUrl = getRedirectUrlForIdentity({ role: 'SUPER_ADMIN' })
+      assert.equal(redirectUrl, '/dashboard/super-admin/overview')
+    })
+
+    it('rejects non-super-admin email in superadmin login mode', () => {
+      const res = simulateSignInModeValidation('superadmin', 'teacher@school.com')
+      assert.equal(res.allowed, false)
+      assert.match(res.error || '', /strictly restricted to the authorized Super Admin account/)
+    })
+
+    it('allows ixoralyon013@gmail.com in superadmin login mode and sets overview redirect', () => {
+      const res = simulateSignInModeValidation('superadmin', 'ixoralyon013@gmail.com')
+      assert.equal(res.allowed, true)
+      assert.equal(res.targetRedirect, '/dashboard/super-admin/overview')
+    })
+
+    it('allows ixoralyon013@gmail.com case-insensitively in standard mode and sets overview redirect', () => {
+      const res = simulateSignInModeValidation('standard', ' IXORALYON013@GMAIL.COM ')
+      assert.equal(res.allowed, true)
+      assert.equal(res.targetRedirect, '/dashboard/super-admin/overview')
     })
   })
 })

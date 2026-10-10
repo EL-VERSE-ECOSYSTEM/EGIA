@@ -11,7 +11,7 @@ export function getRedirectUrlForIdentity(identity: IdentityRouteInfo): string {
 
   switch (role) {
     case 'SUPER_ADMIN':
-      return '/dashboard/super-admin'
+      return '/dashboard/super-admin/overview'
 
     case 'SCHOOL_ADMIN': {
       const level = (identity.adminLevel || '').toUpperCase()

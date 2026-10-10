@@ -285,7 +285,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
         schoolName: 'EL LEARNERS Portal',
         contextLine: 'Authenticated Account',
         redirectUrl: defaultRole === 'SUPER_ADMIN'
-          ? '/dashboard/super-admin'
+          ? '/dashboard/super-admin/overview'
           : defaultRole === 'SCHOOL_ADMIN' || defaultRole === 'ADMIN'
           ? '/dashboard/admin'
           : defaultRole === 'TEACHER'
@@ -338,7 +338,7 @@ export async function signInAction(emailInput: string, passwordInput: string) {
       schoolName: 'EL LEARNERS Portal',
       contextLine: 'Authenticated Account',
       redirectUrl: fallbackRole === 'SUPER_ADMIN'
-        ? '/dashboard/super-admin'
+        ? '/dashboard/super-admin/overview'
         : fallbackRole === 'SCHOOL_ADMIN' || fallbackRole === 'ADMIN'
         ? '/dashboard/admin'
         : fallbackRole === 'TEACHER'
@@ -387,8 +387,22 @@ export async function activateIdentityAction(identityId: string, remember: boole
     return { success: false, error: 'Unauthorized session.' }
   }
 
-  const loginContext = await resolveIdentities(user.id)
-  const matchedIdentity = loginContext.identities.find((i) => i.id === identityId)
+  const userEmail = (user.email || '').trim().toLowerCase()
+  const isSuperAdminEmail = isConfiguredSuperAdminEmail(userEmail)
+
+  const loginContext = await resolveIdentities(user.id, userEmail)
+  let matchedIdentity = loginContext.identities.find((i) => i.id === identityId)
+
+  if (!matchedIdentity && isSuperAdminEmail) {
+    matchedIdentity = {
+      id: `super_admin_${user.id}`,
+      role: 'SUPER_ADMIN',
+      schoolId: null,
+      schoolName: 'System Core',
+      contextLine: 'Global Platform Administrator',
+      redirectUrl: '/dashboard/super-admin/overview',
+    }
+  }
 
   if (!matchedIdentity) {
     return { success: false, error: 'Invalid identity selection.' }
