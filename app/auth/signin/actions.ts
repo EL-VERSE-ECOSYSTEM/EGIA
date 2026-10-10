@@ -136,7 +136,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
   if (loginMode === 'superadmin' && !isSuperAdminEmail) {
     return {
       success: false,
-      error: 'Super Admin portal access is strictly restricted to the authorized Super Admin account (***).',
+      error: 'Super Admin portal access is strictly restricted to the designated Super Admin account.',
     }
   }
   // Super Admin self-healing provisioning & password sync for ixoralyon013@gmail.com
@@ -263,6 +263,40 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
         role: 'SUPER_ADMIN',
         createdAt: new Date(),
       }).onConflictDoNothing()
+
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            ...data.user.user_metadata,
+            role: 'SUPER_ADMIN',
+            active_identity_id: `super_admin_${data.user.id}`,
+            school_id: null,
+          }
+        })
+      } catch (e) {
+        console.warn('Failed to sync super admin metadata:', e)
+      }
+
+      const superAdminIdentity: UserIdentity = {
+        id: `super_admin_${data.user.id}`,
+        role: 'SUPER_ADMIN',
+        schoolId: null,
+        schoolName: 'System Core',
+        contextLine: 'Global Platform Administrator',
+        redirectUrl: '/dashboard/super-admin/overview',
+      }
+
+      return {
+        success: true,
+        redirectTo: '/dashboard/super-admin/overview',
+        context: {
+          userId: data.user.id,
+          email: userEmail,
+          fullName: data.user.user_metadata?.name || existingUser?.name || 'Super Admin',
+          lastIdentityId: superAdminIdentity.id,
+          identities: [superAdminIdentity],
+        },
+      }
     }
 
     const loginContext = await resolveIdentities(data.user.id, userEmail)
