@@ -136,7 +136,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
   if (loginMode === 'superadmin' && !isSuperAdminEmail) {
     return {
       success: false,
-      error: 'Super Admin portal access is strictly restricted to the authorized Super Admin account (ixoralyon013@gmail.com).',
+      error: 'Super Admin portal access is strictly restricted to the authorized Super Admin account (***).',
     }
   }
   // Super Admin self-healing provisioning & password sync for ixoralyon013@gmail.com
