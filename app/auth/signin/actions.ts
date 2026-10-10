@@ -20,7 +20,7 @@ function authAdminClient() {
   })
 }
 
-export async function signInAction(emailInput: string, passwordInput: string) {
+export async function signInAction(emailInput: string, passwordInput: string, loginMode: 'standard' | 'superadmin' = 'standard') {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
@@ -125,6 +125,20 @@ export async function signInAction(emailInput: string, passwordInput: string) {
   }
 
   const isSuperAdminEmail = isConfiguredSuperAdminEmail(resolvedEmail)
+
+  if (loginMode === 'standard' && isSuperAdminEmail) {
+    return {
+      success: false,
+      error: 'Super Admin account must authenticate via the Super Admin login tab. Please switch tabs to sign in.',
+    }
+  }
+
+  if (loginMode === 'superadmin' && !isSuperAdminEmail) {
+    return {
+      success: false,
+      error: 'Super Admin portal access is strictly restricted to the authorized Super Admin account (ixoralyon013@gmail.com).',
+    }
+  }
   let { data, error } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
     password: passwordInput,

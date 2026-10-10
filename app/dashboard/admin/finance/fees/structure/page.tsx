@@ -25,7 +25,8 @@ export default function FeesStructurePage() {
     department: '',
     feeType: 'Tuition Fees',
     amount: '',
-    dueDate: ''
+    dueDate: '',
+    warningDate: ''
   })
 
   // School Payment Configuration State
@@ -126,11 +127,12 @@ export default function FeesStructurePage() {
           Department: formData.department || 'General',
           'Fee Category': formData.feeType,
           Amount: `₦${Number(formData.amount).toLocaleString()}`,
-          'Due Date': formData.dueDate || 'Standard'
+          'Due Date': formData.dueDate || 'Standard',
+          'Warning Date': formData.warningDate || 'None'
         }
       })
 
-      setFormData({ class: 'JSS1', department: '', feeType: 'Tuition Fees', amount: '', dueDate: '' })
+      setFormData({ class: 'JSS1', department: '', feeType: 'Tuition Fees', amount: '', dueDate: '', warningDate: '' })
       fetchFeeStructures()
     } catch (error: any) {
       toast.error(error.message || 'Failed to save fee structure')
@@ -299,15 +301,25 @@ export default function FeesStructurePage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Standard Due Date</Label>
-                  <Input
-                    type="date"
-                    required
-                    value={formData.dueDate}
-                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    className="h-12 rounded-2xl bg-slate-50 border-slate-200 font-bold text-xs"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Standard Due Date</Label>
+                    <Input
+                      type="date"
+                      value={formData.dueDate}
+                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                      className="h-12 rounded-2xl bg-slate-50 border-slate-200 font-bold text-xs"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-amber-600 tracking-widest ml-1">Date of Warning for Parents (Real-Time Alert)</Label>
+                    <Input
+                      type="date"
+                      value={formData.warningDate}
+                      onChange={(e) => setFormData({ ...formData, warningDate: e.target.value })}
+                      className="h-12 rounded-2xl bg-amber-50/50 border-amber-300 font-bold text-xs text-amber-900"
+                    />
+                  </div>
                 </div>
 
                 <Button
@@ -488,6 +500,7 @@ export default function FeesStructurePage() {
                     <th className="py-3 px-4">Fee Category</th>
                     <th className="py-3 px-4">Amount</th>
                     <th className="py-3 px-4">Due Date</th>
+                    <th className="py-3 px-4 text-amber-600">Warning Date</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -499,6 +512,7 @@ export default function FeesStructurePage() {
                       <td className="py-3.5 px-4">{f.feeType}</td>
                       <td className="py-3.5 px-4 font-black">₦{Number(f.amount).toLocaleString()}</td>
                       <td className="py-3.5 px-4 text-slate-500">{f.dueDate || 'Standard'}</td>
+                      <td className="py-3.5 px-4 text-amber-700 font-bold">{f.warningDate ? new Date(f.warningDate).toLocaleDateString() : 'None'}</td>
                       <td className="py-3.5 px-4 text-right">
                         <button
                           onClick={() => handleDeleteFee(f.id)}

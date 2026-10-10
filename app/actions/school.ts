@@ -256,3 +256,126 @@ export async function getSchoolByCodeAction(code: string) {
     return sanitizeServerError('getSchoolByCodeAction', error, 'Unable to verify school code.')
   }
 }
+
+export async function getSchoolRegistrationRenewalStatusAction(schoolId: string) {
+  try {
+    const sch = await db.query.school.findFirst({
+      where: eq(school.id, schoolId)
+    })
+
+    if (!sch) {
+      return { success: false, error: 'School not found.' }
+    }
+
+    const now = new Date()
+    const paidAt = sch.registrationPaidAt ? new Date(sch.registrationPaidAt) : new Date(sch.createdAt)
+    const dueAt = sch.registrationDueDate
+      ? new Date(sch.registrationDueDate)
+      : new Date(paidAt.getTime() + 60 * 24 * 60 * 60 * 1000) // 2 months (60 days)
+
+    const diffMs = dueAt.getTime() - now.getTime()
+    const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+
+    const isLockedOut = daysRemaining <= 0
+    const isWarningPeriod = daysRemaining > 0 && daysRemaining <= 14
+
+    return {
+      success: true,
+      school: sch,
+      daysRemaining,
+      isLockedOut,
+      isWarningPeriod,
+      dueAt: dueAt.toISOString(),
+      paidAt: paidAt.toISOString(),
+    }
+  } catch (error: any) {
+    return sanitizeServerError('getSchoolRegistrationRenewalStatusAction', error, 'Failed to compute school renewal status.')
+  }
+}
+
+export async function initializeSchoolRenewalPaymentAction(schoolId: string) {
+  try {
+    const sch = await db.query.school.findFirst({
+      where: eq(school.id, schoolId)
+    })
+
+    if (!sch) throw new Error('School not found.')
+
+    const paymentReference = `SCH-RNW-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`
+
+    const initRes = await serviceInitializeKorapayPayment({
+      schoolId: sch.id,
+      amount: 30161.25,
+      currency: 'NGN',
+      feeType: 'SCHOOL_REGISTRATION_RENEWAL',
+      description: `Bi-monthly School Registration Renewal for ${sch.name}`,
+      customerEmail: sch.adminEmail,
+      customerName: sch.adminName,
+      redirectUrl: `${(process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')}/dashboard/admin/overview?renewal_reference=${encodeURIComponent(paymentReference)}`,
+      metadata: {
+        schoolId: sch.id,
+        schoolCode: sch.code,
+        paymentType: 'SCHOOL_REGISTRATION_RENEWAL',
+      },
+    })
+
+    return {
+      success: true,
+      checkoutUrl: initRes.checkoutUrl,
+      reference: initRes.reference || paymentReference,
+    }
+  } catch (error: any) {
+    return sanitizeServerError('initializeSchoolRenewalPaymentAction', error, 'Failed to initialize school renewal payment.')
+  }
+}
+
+export async function confirmSchoolRenewalPaymentAction(paymentReference: string) {
+  try {
+    const verification = await serviceVerifyKorapayPayment({
+      reference: paymentReference,
+      expectedAmount: 30161.25,
+    })
+
+    if (!verification.success) {
+      return { success: false, error: verification.error || 'Renewal payment verification failed.' }
+    }
+
+    const metadata = verification.data?.metadata || {}
+    const schoolId = metadata.schoolId
+
+    if (!schoolId) {
+      return { success: false, error: 'School ID missing from payment metadata.' }
+    }
+
+    const now = new Date()
+    const nextDueDate = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
+
+    await db.update(school).set({
+      paymentStatus: 'PAID',
+      registrationPaidAt: now,
+      registrationDueDate: nextDueDate,
+      updatedAt: now,
+    }).where(eq(school.id, schoolId))
+
+    const { transactionLedger } = await import('@/lib/db/schema')
+    await db.insert(transactionLedger).values({
+      id: randomUUID(),
+      schoolId: schoolId,
+      type: 'REGISTRATION_FEE',
+      direction: 'IN',
+      amount: '30161.25',
+      currency: 'NGN',
+      reference: paymentReference,
+      gateway: 'KORAPAY',
+      status: 'SUCCESS',
+      description: 'Bi-monthly School Registration Renewal Fee Payment',
+      confirmationMethod: 'KORAPAY_AUTO',
+      createdAt: now,
+      updatedAt: now,
+    }).onConflictDoNothing()
+
+    return { success: true, schoolId, nextDueDate: nextDueDate.toISOString() }
+  } catch (error: any) {
+    return sanitizeServerError('confirmSchoolRenewalPaymentAction', error, 'School renewal confirmation failed.')
+  }
+}

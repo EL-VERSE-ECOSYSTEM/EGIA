@@ -1,6 +1,9 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { sql } from 'drizzle-orm'
+function sql(strings: TemplateStringsArray, ...values: any[]) {
+  return { strings, values }
+}
+(sql as any).join = (items: any[], separator: any) => ({ items, separator })
 
 interface SearchParamsInput {
   q?: string
