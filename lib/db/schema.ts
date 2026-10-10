@@ -18,6 +18,9 @@ export const school = pgTable('school', {
   customPaymentLink: text('custompaymentlink'),
   paymentStatus: text('paymentstatus').notNull().default('PENDING'), // PENDING, PAID
   paymentReference: text('paymentreference').unique(),
+  registrationPaidAt: timestamp('registration_paid_at', { withTimezone: true }),
+  registrationDueDate: timestamp('registration_due_date', { withTimezone: true }),
+  salaryPaymentDate: text('salary_payment_date'), // Date string or day of month e.g. '25'
   logoUrl: text('logo_url'),
   logoPath: text('logo_path'),
   logoUploadedAt: timestamp('logo_uploaded_at', { withTimezone: true }),
@@ -135,6 +138,8 @@ export const student = pgTable('student', {
   isActive: boolean('isactive').default(true),
   registrationPaid: boolean('registration_paid').default(false),
   registrationReference: text('registration_reference'),
+  lastRegistrationFeePaidAt: timestamp('last_registration_fee_paid_at', { withTimezone: true }),
+  registrationDueDate: timestamp('registration_due_date', { withTimezone: true }),
   enrollmentType: text('enrollment_type'), // ADMIN or SELF
   registrationStatus: text('registrationstatus').notNull().default('WAIVED'),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
@@ -407,6 +412,7 @@ export const feeStructure = pgTable('fee_structure', {
   feeType: text('feeType').notNull(),
   amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
   dueDate: date('dueDate'),
+  warningDate: date('warning_date'),
   description: text('description'),
   isActive: boolean('isActive').default(true),
   createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),

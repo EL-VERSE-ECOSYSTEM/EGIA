@@ -749,6 +749,41 @@ export async function getTeacherClassResultsAction() {
   }
 }
 
+export async function updateSchoolSalaryPaymentDateAction(salaryPaymentDate: string) {
+  const session = await auth.getSession()
+  if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
+    throw new Error('Unauthorized')
+  }
+
+  const { user: userTable, school: schoolTable } = await import('@/lib/db/schema')
+  const uRec = await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) })
+  const schoolId = uRec?.schoolId || session.user.schoolId
+
+  if (!schoolId) throw new Error('School identity missing')
+
+  await db.update(schoolTable)
+    .set({ salaryPaymentDate: salaryPaymentDate.trim(), updatedAt: new Date() })
+    .where(eq(schoolTable.id, schoolId))
+
+  revalidatePath('/dashboard/admin/payroll/deductions')
+  revalidatePath('/dashboard/teacher/payroll')
+  return { success: true, salaryPaymentDate }
+}
+
+export async function getSchoolSalaryPaymentDateAction() {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const { user: userTable, school: schoolTable } = await import('@/lib/db/schema')
+  const uRec = await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) })
+  const schoolId = uRec?.schoolId || session.user.schoolId
+
+  if (!schoolId) return { salaryPaymentDate: '25' }
+
+  const sch = await db.query.school.findFirst({ where: eq(schoolTable.id, schoolId) })
+  return { salaryPaymentDate: sch?.salaryPaymentDate || '25' }
+}
+
 export async function updateTeacherApplicationLetterAction(data: {
   teacherId: string
   applicationLetterUrl?: string | null

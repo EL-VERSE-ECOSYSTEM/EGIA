@@ -8,6 +8,8 @@ import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSy
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { PermissionRequest } from '@/components/notifications/PermissionRequest'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { SchoolRenewalReminderWidget } from '@/components/school/SchoolRenewalReminderWidget'
+import { StudentRegistrationLockoutWidget } from '@/components/student/StudentRegistrationLockoutWidget'
 
 export default function DashboardLayout({
   children,
@@ -109,6 +111,12 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] relative">
       {mounted && <DashboardRealtimeSync role={role} />}
+      {mounted && (activeRole === 'admin' || role === 'super-admin') && (
+        <SchoolRenewalReminderWidget schoolId={rest.schoolId || null} />
+      )}
+      {mounted && activeRole === 'student' && (
+        <StudentRegistrationLockoutWidget studentId={rest.studentId || null} />
+      )}
       {/* Mobile Sidebar backdrop overlay */}
       {isSidebarOpen && (
         <div

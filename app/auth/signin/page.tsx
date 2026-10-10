@@ -51,11 +51,16 @@ export default function SignInPage() {
       return
     }
 
+    if (loginMode === 'standard' && isSuperAdminTarget) {
+      setError('Super Admin account must authenticate via the Super Admin login tab. Please switch tabs to sign in.')
+      return
+    }
+
     setLoading(true)
     setError('')
 
     try {
-      const res = await signInAction(targetEmail, targetPassword)
+      const res = await signInAction(targetEmail, targetPassword, loginMode)
 
       if (!res.success || !res.context) {
         setError(res.error || 'Authentication failed. Please verify your credentials.')

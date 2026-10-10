@@ -193,11 +193,16 @@ export async function getParentPaymentHistory() {
   const pRec = await db.query.parent.findFirst({ where: eq(parentTable.userId, session.user.id) })
   if (!pRec) return []
 
-  return db.query.payment.findMany({
+  const list = await db.query.payment.findMany({
     where: eq(payment.parentId, pRec.id),
     with: { student: true },
     orderBy: [desc(payment.createdAt)]
   })
+
+  return list.map(p => ({
+    ...p,
+    childName: p.student ? `${p.student.firstName} ${p.student.lastName}` : 'Ward / Child',
+  }))
 }
 
 export async function getStudentIdByAdmissionNumber(admissionNumber: string) {
@@ -452,4 +457,76 @@ export async function awardStudentGiftAction(studentId: string, title: string, r
   }).returning()
 
   return { success: true, gift: inserted[0] }
+}
+
+export async function getStudentRegistrationStatusAction(studentIdInput?: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  let studentRec
+  if (studentIdInput) {
+    studentRec = await db.query.student.findFirst({ where: eq(student.id, studentIdInput) })
+  } else {
+    studentRec = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
+  }
+
+  if (!studentRec) return { success: false, error: 'Student record not found.' }
+
+  const now = new Date()
+  const paidAt = studentRec.lastRegistrationFeePaidAt
+    ? new Date(studentRec.lastRegistrationFeePaidAt)
+    : new Date(studentRec.createdAt)
+
+  const dueAt = studentRec.registrationDueDate
+    ? new Date(studentRec.registrationDueDate)
+    : new Date(paidAt.getTime() + 120 * 24 * 60 * 60 * 1000) // 4 months (120 days)
+
+  const diffMs = dueAt.getTime() - now.getTime()
+  const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+
+  const isWaived = studentRec.registrationStatus === 'WAIVED'
+  const isLockedOut = !isWaived && daysRemaining <= 0
+
+  return {
+    success: true,
+    student: studentRec,
+    paidAt: paidAt.toISOString(),
+    dueAt: dueAt.toISOString(),
+    daysRemaining,
+    isLockedOut,
+    isWaived,
+  }
+}
+
+export async function renewStudentRegistrationFeeAction(studentId: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const child = await db.query.student.findFirst({ where: eq(student.id, studentId) })
+  if (!child) throw new Error('Student record not found.')
+
+  const totalAmount = REGISTRATION_FEE + KORAPAY_GATEWAY_FEE
+  const paymentReference = `STU-RNW-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`
+
+  const paymentRes = await serviceInitializeKorapayPayment({
+    schoolId: child.schoolId || null,
+    studentId: child.id,
+    parentId: child.parentId || null,
+    amount: totalAmount,
+    feeType: 'STUDENT_4MONTH_REGISTRATION',
+    description: `4-Month Registration Renewal for ${child.firstName} ${child.lastName}`,
+    customerEmail: session.user.email || `student_${child.id}@ellearners.app`,
+    customerName: `${child.firstName} ${child.lastName}`,
+    redirectUrl: `${(process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')}/dashboard/student/overview?registration_renewed=true`,
+    metadata: {
+      studentId: child.id,
+      paymentType: 'STUDENT_4MONTH_REGISTRATION',
+    },
+  })
+
+  return {
+    success: true,
+    checkoutUrl: paymentRes.checkoutUrl,
+    reference: paymentRes.reference || paymentReference,
+  }
 }

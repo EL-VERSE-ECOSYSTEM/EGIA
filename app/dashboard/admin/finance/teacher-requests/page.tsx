@@ -19,7 +19,8 @@ import {
   Calendar,
   DollarSign
 } from 'lucide-react'
-import { getAdminTeacherRequests, getAllTeachersWithWallets, approveTeacherRequest, payTeacherSalary, updateTeacherSalaryAmount } from '@/app/actions/teacher'
+import { getAdminTeacherRequests, getAllTeachersWithWallets, approveTeacherRequest, payTeacherSalary, updateTeacherSalaryAmount, updateSchoolSalaryPaymentDateAction, getSchoolSalaryPaymentDateAction } from '@/app/actions/teacher'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { toast } from 'sonner'
 
 export default function AdminTeacherRequestsPage() {
@@ -27,6 +28,8 @@ export default function AdminTeacherRequestsPage() {
   const [teachers, setTeachers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [salaryPaymentDay, setSalaryPaymentDay] = useState<string>('25')
+  const [savingDate, setSavingDate] = useState(false)
 
   // Custom states for interactive salary inputs
   const [salaryEdits, setSalaryEdits] = useState<Record<string, string>>({})
@@ -37,6 +40,10 @@ export default function AdminTeacherRequestsPage() {
       setRequests(r || [])
       const t = await getAllTeachersWithWallets()
       setTeachers(t || [])
+      const dateRes = await getSchoolSalaryPaymentDateAction()
+      if (dateRes?.salaryPaymentDate) {
+        setSalaryPaymentDay(dateRes.salaryPaymentDate)
+      }
 
       // Initialize salary inputs map
       const initialSalaries: Record<string, string> = {}
@@ -65,6 +72,23 @@ export default function AdminTeacherRequestsPage() {
   useEffect(() => {
     loadData()
   }, [])
+
+  // Real-time synchronization on teacher_wallet
+  useRealtimeSubscription('teacher_wallet', () => {
+    loadData()
+  })
+
+  const handleSaveSalaryDate = async () => {
+    setSavingDate(true)
+    try {
+      await updateSchoolSalaryPaymentDateAction(salaryPaymentDay)
+      toast.success(`Date of salary payment set to day ${salaryPaymentDay} of every month in real-time!`)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update salary payment date.')
+    } finally {
+      setSavingDate(false)
+    }
+  }
 
   const handleApproveRequest = async (requestId: string, status: 'approved' | 'rejected') => {
     if (!confirm(`Are you sure you want to mark this request as ${status.toUpperCase()}?`)) return
@@ -217,6 +241,41 @@ export default function AdminTeacherRequestsPage() {
             </TabsContent>
 
             <TabsContent value="payroll" className="space-y-6">
+              {/* Salary Payment Date Configuration Box */}
+              <Card className="border-none shadow-xl shadow-slate-200 rounded-3xl bg-slate-900 text-white p-6 sm:p-8 space-y-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider">Real-Time Payroll Setting</span>
+                    <h3 className="text-xl font-black text-white flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-amber-400" /> Date of Monthly Salary Payment
+                    </h3>
+                    <p className="text-xs text-slate-400 font-medium">
+                      Specify the day of the month when teacher salaries are scheduled and automatically disbursed.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2">
+                      <span className="text-xs text-slate-400 font-bold">Day of Month:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={salaryPaymentDay}
+                        onChange={(e) => setSalaryPaymentDay(e.target.value)}
+                        className="w-16 bg-transparent font-black text-amber-400 text-sm focus:outline-none"
+                      />
+                    </div>
+                    <Button
+                      onClick={handleSaveSalaryDate}
+                      disabled={savingDate}
+                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-2xl h-11 text-xs"
+                    >
+                      {savingDate ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Set Salary Date'}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
               <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">
                 <CardHeader className="p-10 pb-4">
                   <CardTitle className="text-2xl font-black text-slate-900">Salary Disbursal Ledger</CardTitle>

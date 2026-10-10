@@ -524,14 +524,21 @@ export async function processBulkPromotion(data: any) {
   return await promoteStudents(data.studentIds, data.targetClass, data.reason, data.adminComment)
 }
 
-export async function setFees(data: { class: string, department?: string, feeType: string, amount: string, dueDate: string }) {
+export async function setFees(data: { class: string, department?: string, feeType: string, amount: string, dueDate?: string, warningDate?: string }) {
   await checkAdminPermission('create', 'payment')
   const schoolId = await getAdminSchoolId()
 
   const inserted = await db.insert(feeStructure).values({
     id: randomUUID(),
     schoolId,
-    ...data
+    class: data.class,
+    department: data.department || null,
+    feeType: data.feeType,
+    amount: data.amount,
+    dueDate: data.dueDate || null,
+    warningDate: data.warningDate || null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   }).returning()
 
   revalidatePath('/dashboard/admin/finance/fees/structure')
