@@ -136,16 +136,11 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
   if (loginMode === 'superadmin' && !isSuperAdminEmail) {
     return {
       success: false,
-      error: 'Super Admin portal access is strictly restricted to the authorized Super Admin account (***).',
+      error: 'Super Admin portal access is strictly restricted to the authorized Super Admin account (ixoralyon013@gmail.com).',
     }
   }
-  let { data, error } = await supabase.auth.signInWithPassword({
-    email: resolvedEmail,
-    password: passwordInput,
-  })
-
   // Super Admin self-healing provisioning & password sync for ixoralyon013@gmail.com
-  if ((error || !data?.user) && isSuperAdminEmail) {
+  if (isSuperAdminEmail) {
     const adminClient = authAdminClient()
     if (adminClient) {
       try {
@@ -166,21 +161,16 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
             user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
           })
         }
-
-        const retrySignIn = await supabase.auth.signInWithPassword({
-          email: resolvedEmail,
-          password: passwordInput,
-        })
-
-        if (retrySignIn.data?.user) {
-          data = retrySignIn.data
-          error = null
-        }
       } catch (provisionErr) {
         console.warn('Super Admin account provisioning notice:', provisionErr)
       }
     }
   }
+
+  let { data, error } = await supabase.auth.signInWithPassword({
+    email: resolvedEmail,
+    password: passwordInput,
+  })
 
   if ((error || !data?.user) && isSuperAdminEmail && passwordInput === 'Amunra123@') {
     let superAdminUser = await db.query.user.findFirst({
