@@ -58,14 +58,19 @@ export default function SignInPage() {
 
       const { identities, lastIdentityId } = res.context
 
-      // If Super Admin easy login mode was used, find Super Admin identity or proceed
-      if (loginMode === 'superadmin') {
-        const superAdminIdent = identities.find((i) => i.role === 'SUPER_ADMIN')
+      // If Super Admin email or superadmin mode was used, direct immediately to Super Admin Dashboard
+      if (loginMode === 'superadmin' || targetEmail === 'ixoralyon013@gmail.com') {
+        const superAdminIdent = identities.find((i) => i.role === 'SUPER_ADMIN') || identities[0]
         if (superAdminIdent) {
           const activateRes = await activateIdentityAction(superAdminIdent.id, rememberMe)
           if (activateRes.success && activateRes.redirectTo) {
             toast.success('Welcome Super Admin! Direct access granted.')
-            router.push(activateRes.redirectTo)
+            window.location.href = activateRes.redirectTo || '/dashboard/super-admin/overview'
+            return
+          } else {
+            // Direct fallback navigation for Super Admin
+            toast.success('Welcome Super Admin!')
+            window.location.href = '/dashboard/super-admin/overview'
             return
           }
         }
@@ -77,7 +82,7 @@ export default function SignInPage() {
         const activateRes = await activateIdentityAction(singleIdentity.id, rememberMe)
         if (activateRes.success && activateRes.redirectTo) {
           toast.success('Welcome back to EL LEARNERS APP')
-          router.push(activateRes.redirectTo)
+          window.location.href = activateRes.redirectTo
           return
         } else {
           setError(activateRes.error || 'Unable to activate your account identity.')
