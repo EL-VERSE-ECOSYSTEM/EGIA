@@ -14,7 +14,7 @@ export async function isSuperAdminEmail(email: string | null | undefined): Promi
       .select({ userId: userTable.id })
       .from(userTable)
       .innerJoin(userRoleTable, eq(userTable.id, userRoleTable.userId))
-      .where(and(ilike(userTable.email, cleanEmail), eq(userRoleTable.role, 'SUPER_ADMIN')))
+      .where(and(ilike(userTable.email, cleanEmail), ilike(userRoleTable.role, 'SUPER_ADMIN')))
       .limit(1)
 
     return result.length > 0
@@ -33,7 +33,7 @@ export async function isSuperAdminUser(userId: string | null | undefined): Promi
     const result = await db
       .select({ id: userRoleTable.id })
       .from(userRoleTable)
-      .where(and(eq(userRoleTable.userId, userId), eq(userRoleTable.role, 'SUPER_ADMIN')))
+      .where(and(eq(userRoleTable.userId, userId), ilike(userRoleTable.role, 'SUPER_ADMIN')))
       .limit(1)
 
     return result.length > 0
