@@ -73,7 +73,6 @@ export default function SignInPage() {
 
       // If Super Admin email was authenticated, activate Super Admin identity & direct immediately to Super Admin Dashboard
       if (isSuperAdminAccount) {
-        toast.success('Welcome Super Admin! Direct access granted.')
         const superAdminIdentity = identities.find((i) => i.role === 'SUPER_ADMIN') || identities[0]
         if (superAdminIdentity) {
           const activateRes = await activateIdentityAction(superAdminIdentity.id, rememberMe)
@@ -83,6 +82,7 @@ export default function SignInPage() {
             return
           }
         }
+        toast.success('Welcome Super Admin! Direct access granted.')
         window.location.href = res.redirectTo || '/dashboard/super-admin/overview'
         return
       }

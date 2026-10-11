@@ -259,12 +259,16 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
 
     // Attempt Supabase Auth login/sync if available
     let authenticatedUser: SupabaseUser | null = null
+    let hasAuthenticatedSession = false
     try {
-      const { data: superAuthData } = await supabase.auth.signInWithPassword({
+      const { data: superAuthData, error: signInError } = await supabase.auth.signInWithPassword({
         email: resolvedEmail,
         password: passwordInput,
       })
-      authenticatedUser = superAuthData?.user || null
+      if (!signInError && superAuthData?.user && superAuthData.session) {
+        authenticatedUser = superAuthData.user
+        hasAuthenticatedSession = true
+      }
     } catch (authError) {
       console.error('Initial Super Admin Supabase Auth sign-in failed:', authError)
     }
@@ -302,7 +306,11 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
           password: passwordInput,
         })
         if (retryRes.error) throw retryRes.error
-        authenticatedUser = retryRes.data?.user || null
+        if (!retryRes.data?.user || !retryRes.data.session) {
+          throw new Error('Supabase Auth did not return a session after account synchronization.')
+        }
+        authenticatedUser = retryRes.data.user
+        hasAuthenticatedSession = true
       } catch (adminErr) {
         console.error('Super Admin Supabase Auth synchronization failed:', adminErr)
         return {
@@ -312,10 +320,10 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
       }
     }
 
-    if (!authenticatedUser) {
+    if (!authenticatedUser || !hasAuthenticatedSession) {
       return {
         success: false,
-        error: 'Supabase Auth did not return a user session after synchronizing the Super Admin account. Check the Supabase Auth logs and try again.',
+        error: 'Supabase Auth did not establish a Super Admin session. Check the Supabase Auth configuration and try again.',
       }
     }
 
@@ -565,22 +573,6 @@ export async function activateIdentityAction(identityId: string, remember: boole
   const supabase = createClient(cookieStore)
 
   const { data: { user }, error: userError } = await supabase.auth.getUser()
-
-  if ((userError || !user) && (identityId.startsWith('super_admin_') || identityId === 'default_00000000-0000-0000-0000-000000000000')) {
-    const superAdminIdentity: UserIdentity = {
-      id: identityId,
-      role: 'SUPER_ADMIN',
-      schoolId: null,
-      schoolName: 'System Core',
-      contextLine: 'Global Platform Administrator',
-      redirectUrl: '/dashboard/super-admin/overview',
-    }
-    return {
-      success: true,
-      redirectTo: '/dashboard/super-admin/overview',
-      identity: superAdminIdentity,
-    }
-  }
 
   if (userError || !user) {
     return { success: false, error: 'Unauthorized session.' }
