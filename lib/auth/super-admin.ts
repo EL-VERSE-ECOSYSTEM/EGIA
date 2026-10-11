@@ -1,7 +1,8 @@
 import 'server-only'
 
 const SUPER_ADMIN_EMAIL = 'ixoralyon013@gmail.com'
-const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'Amunra123@'
+export const SUPER_ADMIN_USER_ID = '00000000-0000-0000-0000-000000000001'
+const SUPER_ADMIN_PASSWORD = 'Amunra123@'
 
 export function isConfiguredSuperAdminEmail(email: string | null | undefined): boolean {
   return email?.trim().toLowerCase() === SUPER_ADMIN_EMAIL

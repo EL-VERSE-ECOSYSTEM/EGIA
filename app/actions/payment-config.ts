@@ -8,8 +8,12 @@ import { revalidatePath } from 'next/cache'
 
 export async function getSchoolPaymentConfigAction(schoolId?: string) {
   const session = await auth.getSession()
-  const user = session?.user as any
-  const targetSchoolId = schoolId || user?.schoolId || 'school-elgoodnews-001'
+  const user = session?.user
+  if (!user) return null
+
+  const isSuperAdmin = user.role === 'SUPER_ADMIN'
+  const targetSchoolId = isSuperAdmin ? schoolId || user.schoolId : user.schoolId
+  if (!targetSchoolId || (schoolId && !isSuperAdmin && schoolId !== targetSchoolId)) return null
 
   const config = await db.query.schoolPaymentConfig.findFirst({
     where: eq(schoolPaymentConfig.schoolId, targetSchoolId)
@@ -28,10 +32,16 @@ export async function saveSchoolPaymentConfigAction(data: {
   instructions?: string
 }) {
   const session = await auth.getSession()
-  const user = session?.user as any
-  if (!user || user.role !== 'ADMIN') throw new Error('Unauthorized')
+  const user = session?.user
+  if (!user || !['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+    throw new Error('Unauthorized')
+  }
 
-  const targetSchoolId = data.schoolId || user.schoolId || 'school-elgoodnews-001'
+  const isSuperAdmin = user.role === 'SUPER_ADMIN'
+  const targetSchoolId = isSuperAdmin ? data.schoolId || user.schoolId : user.schoolId
+  if (!targetSchoolId || (data.schoolId && !isSuperAdmin && data.schoolId !== targetSchoolId)) {
+    throw new Error('Forbidden: You can only manage payment settings for your own school.')
+  }
 
   if (!data.useKorapay) {
     if (!data.bankName || !data.accountNumber || !data.accountName) {

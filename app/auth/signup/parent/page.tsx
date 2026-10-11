@@ -75,7 +75,10 @@ export default function ParentSignUpPage() {
     setSearching(true)
     setCheckedWard(null)
     try {
-      const res = await checkWardLinkingStatus(wardAdmissionNumber.trim().toUpperCase())
+      const res = await checkWardLinkingStatus(
+        wardAdmissionNumber.trim().toUpperCase(),
+        formData.schoolCode.trim().toUpperCase(),
+      )
       if (res.found) {
         setCheckedWard(res)
       } else {

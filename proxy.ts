@@ -160,6 +160,8 @@ export async function proxy(request: NextRequest) {
       role = 'SUPER_ADMIN'
     } else if (role === 'SUPER_ADMIN') {
       role = 'STUDENT'
+    } else if (role === 'PUPIL') {
+      role = 'STUDENT'
     }
 
     if (pathname.startsWith('/dashboard/super-admin') && !isSuperAdminEmail) {

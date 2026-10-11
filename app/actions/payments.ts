@@ -17,6 +17,38 @@ import {
 const KORAPAY_GATEWAY_FEE = 161.25
 const REGISTRATION_FEE = 2000.00
 
+async function assertStudentPaymentAccess(
+  user: { id: string; role: string; schoolId: string | null },
+  studentRecord: typeof student.$inferSelect,
+) {
+  if (user.role === 'SUPER_ADMIN') return
+  if (['STUDENT', 'PUPIL'].includes(user.role) && studentRecord.userId === user.id) return
+
+  if (user.role === 'PARENT') {
+    const parentRecord = await db.query.parent.findFirst({ where: eq(parentTable.userId, user.id) })
+    if (parentRecord?.id === studentRecord.parentId && parentRecord.schoolId === studentRecord.schoolId) return
+  }
+
+  if (
+    ['ADMIN', 'SCHOOL_ADMIN'].includes(user.role) &&
+    user.schoolId &&
+    studentRecord.schoolId === user.schoolId
+  ) return
+
+  throw new Error('Forbidden: You can only access payment records for your own student or school.')
+}
+
+function assertReceiptSchoolAccess(user: { role: string; schoolId: string | null }, schoolId: string) {
+  if (user.role === 'SUPER_ADMIN') return
+  if (
+    ['ADMIN', 'SCHOOL_ADMIN'].includes(user.role) &&
+    user.schoolId &&
+    user.schoolId === schoolId
+  ) return
+
+  throw new Error('Forbidden: You can only review receipts for your own school.')
+}
+
 export async function getKorapayGatewayFee() {
   return KORAPAY_GATEWAY_FEE
 }
@@ -34,6 +66,7 @@ export async function submitManualPayment(data: { studentId: string; amount: str
 
   const currentStudent = await db.query.student.findFirst({ where: eq(student.id, data.studentId) })
   if (!currentStudent) throw new Error('Student record not found')
+  await assertStudentPaymentAccess(session.user, currentStudent)
 
   const pRec = await db.query.parent.findFirst({ where: eq(parentTable.userId, session.user.id) })
 
@@ -85,24 +118,43 @@ export async function initializeKorapayPayment(data: { studentId: string; amount
 
   const child = await db.query.student.findFirst({ where: eq(student.id, data.studentId) })
   if (!child) throw new Error('Student record was not found.')
+  await assertStudentPaymentAccess(session.user, child)
 
-  const totalAmount = Number((data.amount + KORAPAY_GATEWAY_FEE).toFixed(2))
+  if (!child.schoolId) throw new Error('Student does not have a school fee schedule.')
+  const schoolFees = await db.query.feeStructure.findMany({
+    where: and(
+      eq(feeStructure.schoolId, child.schoolId),
+      eq(feeStructure.class, child.class),
+      eq(feeStructure.isActive, true),
+    ),
+  })
+  const approvedFee = schoolFees.find((fee) =>
+    fee.feeType === data.feeType && fee.department === child.department
+  ) || schoolFees.find((fee) =>
+    fee.feeType === data.feeType && !fee.department
+  )
+  if (!approvedFee || Number(approvedFee.amount) !== Number(data.amount)) {
+    throw new Error('The selected fee or amount is not approved by this school.')
+  }
 
-  const paymentConfirmationMessage = data.description || `Payment of ₦${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} for ${data.feeType.toUpperCase()} (${child.firstName} ${child.lastName}, Class: ${child.class || 'N/A'}) + Korapay Gateway Fee (₦161.25)`
+  const baseAmount = Number(approvedFee.amount)
+  const totalAmount = Number((baseAmount + KORAPAY_GATEWAY_FEE).toFixed(2))
+
+  const paymentConfirmationMessage = `Payment of ₦${baseAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} for ${approvedFee.feeType.toUpperCase()} (${child.firstName} ${child.lastName}, Class: ${child.class}) + Korapay Gateway Fee (₦161.25)`
 
   const paymentRes = await serviceInitializeKorapayPayment({
     schoolId: child.schoolId || null,
     studentId: child.id,
     parentId: child.parentId || null,
     amount: totalAmount,
-    feeType: data.feeType,
+    feeType: approvedFee.feeType,
     description: paymentConfirmationMessage,
     customerEmail: session.user.email || `student_${child.id}@ellearners.app`,
     customerName: `${child.firstName} ${child.lastName}`,
     metadata: {
       studentId: child.id,
       type: data.feeType,
-      baseAmount: data.amount,
+      baseAmount,
       gatewayFee: KORAPAY_GATEWAY_FEE,
     },
   })
@@ -117,10 +169,19 @@ export async function initializeKorapayPayment(data: { studentId: string; amount
 
 export async function initializeStudentRegistrationPayment(studentId: string) {
   const session = await auth.getSession()
-  if (!session?.user) throw new Error('Unauthorized')
-
   const child = await db.query.student.findFirst({ where: eq(student.id, studentId) })
   if (!child) throw new Error('Student registration record was not found.')
+  if (child.registrationStatus !== 'PENDING_PAYMENT' || child.registrationPaid) {
+    throw new Error('This student registration is not awaiting payment.')
+  }
+  if (session?.user && session.user.role !== 'SUPER_ADMIN' && child.userId !== session.user.id) {
+    throw new Error('Forbidden: You can only pay for your own student registration.')
+  }
+
+  const studentAccount = child.userId
+    ? await db.query.user.findFirst({ where: eq(userTable.id, child.userId) })
+    : null
+  if (!studentAccount?.email) throw new Error('Student registration account is missing a payer email.')
 
   const totalAmount = REGISTRATION_FEE + KORAPAY_GATEWAY_FEE
 
@@ -131,7 +192,7 @@ export async function initializeStudentRegistrationPayment(studentId: string) {
     amount: totalAmount,
     feeType: 'registration',
     description: `Session registration for ${child.firstName} ${child.lastName} (NGN 2000 + NGN 161.25 gateway fee)`,
-    customerEmail: session.user.email || `student_${child.id}@ellearners.app`,
+    customerEmail: studentAccount.email,
     customerName: `${child.firstName} ${child.lastName}`,
     metadata: {
       studentId: child.id,
@@ -155,8 +216,12 @@ export async function getPaymentSummary(studentId: string) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
+  const studentRecord = await db.query.student.findFirst({ where: eq(student.id, studentId) })
+  if (!studentRecord) throw new Error('Student record not found')
+  await assertStudentPaymentAccess(session.user, studentRecord)
+
   const payments = await db.query.payment.findMany({
-    where: eq(payment.studentId, studentId),
+    where: eq(payment.studentId, studentRecord.id),
     orderBy: [desc(payment.createdAt)],
   })
 
@@ -180,8 +245,12 @@ export async function getStudentPaymentHistory(studentId?: string) {
     targetStudentId = sRec.id
   }
 
+  const studentRecord = await db.query.student.findFirst({ where: eq(student.id, targetStudentId) })
+  if (!studentRecord) throw new Error('Student record not found')
+  await assertStudentPaymentAccess(session.user, studentRecord)
+
   return db.query.payment.findMany({
-    where: eq(payment.studentId, targetStudentId),
+    where: eq(payment.studentId, studentRecord.id),
     orderBy: [desc(payment.createdAt)]
   })
 }
@@ -206,8 +275,10 @@ export async function getParentPaymentHistory() {
 }
 
 export async function getStudentIdByAdmissionNumber(admissionNumber: string) {
+  const session = await auth.getSession()
+  if (!session?.user) return null
   const child = await db.query.student.findFirst({ where: eq(student.admissionNumber, admissionNumber.trim().toUpperCase()) })
-  return child?.id || null
+  return child?.userId === session.user.id ? child.id : null
 }
 
 export async function getFeeStructuresForClass(className: string, department?: string) {
@@ -218,10 +289,13 @@ export async function getFeeStructuresForClass(className: string, department?: s
   if (!uRec?.schoolId) return []
 
   const list = await db.query.feeStructure.findMany({
-    where: eq(feeStructure.schoolId, uRec.schoolId)
+    where: and(eq(feeStructure.schoolId, uRec.schoolId), eq(feeStructure.isActive, true))
   })
 
-  return list.filter(f => f.class.toLowerCase() === className.toLowerCase())
+  return list.filter(f =>
+    f.class.toLowerCase() === className.toLowerCase() &&
+    (!department || !f.department || f.department.toLowerCase() === department.toLowerCase())
+  )
 }
 
 export async function approveReceipt(uploadId: string) {
@@ -232,6 +306,7 @@ export async function approveReceipt(uploadId: string) {
 
   const upload = await db.query.paymentReceiptUploads.findFirst({ where: eq(paymentReceiptUploads.id, uploadId) })
   if (!upload) throw new Error('Receipt upload record not found')
+  assertReceiptSchoolAccess(session.user, upload.schoolId)
 
   const now = new Date()
 
@@ -259,13 +334,17 @@ export async function rejectReceipt(uploadId: string, reason: string) {
   }
 
   const now = new Date()
+  const upload = await db.query.paymentReceiptUploads.findFirst({ where: eq(paymentReceiptUploads.id, uploadId) })
+  if (!upload) throw new Error('Receipt upload record not found')
+  assertReceiptSchoolAccess(session.user, upload.schoolId)
+
   await db.update(paymentReceiptUploads).set({
     status: 'REJECTED',
     rejectionReason: reason,
     reviewedBy: session.user.id,
     reviewedAt: now,
     updatedAt: now,
-  }).where(eq(paymentReceiptUploads.id, uploadId))
+  }).where(and(eq(paymentReceiptUploads.id, uploadId), eq(paymentReceiptUploads.schoolId, upload.schoolId)))
 
   revalidatePath('/dashboard/admin/payments/pending-receipts')
   return { success: true }
@@ -279,6 +358,13 @@ export async function getReceiptDownloadUrl(uploadId: string) {
     where: eq(paymentReceiptUploads.id, uploadId)
   })
   if (!upload?.generatedReceiptPath) return null
+
+  const isUploader = upload.uploadedBy === session.user.id
+  const isSameSchoolAdmin = ['ADMIN', 'SCHOOL_ADMIN'].includes(session.user.role) &&
+    !!session.user.schoolId && session.user.schoolId === upload.schoolId
+  if (!isUploader && !isSameSchoolAdmin && session.user.role !== 'SUPER_ADMIN') {
+    throw new Error('Forbidden: You cannot access this receipt.')
+  }
 
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
@@ -369,6 +455,7 @@ export async function getStudentWalletStatsAction(studentIdInput?: string) {
   }
 
   if (!studentRec) throw new Error('Student record not found')
+  await assertStudentPaymentAccess(session.user, studentRec)
 
   const now = new Date()
 
@@ -471,6 +558,7 @@ export async function getStudentRegistrationStatusAction(studentIdInput?: string
   }
 
   if (!studentRec) return { success: false, error: 'Student record not found.' }
+  await assertStudentPaymentAccess(session.user, studentRec)
 
   const now = new Date()
   const paidAt = studentRec.lastRegistrationFeePaidAt
@@ -504,6 +592,7 @@ export async function renewStudentRegistrationFeeAction(studentId: string) {
 
   const child = await db.query.student.findFirst({ where: eq(student.id, studentId) })
   if (!child) throw new Error('Student record not found.')
+  await assertStudentPaymentAccess(session.user, child)
 
   const totalAmount = REGISTRATION_FEE + KORAPAY_GATEWAY_FEE
   const paymentReference = `STU-RNW-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`

@@ -15,7 +15,7 @@ export const parentSignupSchema = z.object({
   email: z.string().trim().email('Invalid email address').transform(v => v.toLowerCase()),
   phone: z.string().trim().min(7, 'Phone number must be at least 7 characters').max(20),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  schoolCode: z.string().trim().optional().nullable(),
+  schoolCode: z.string().trim().min(1, 'School Registration Code is required.'),
 })
 
 export async function signUpAsParent(formData: unknown) {
@@ -28,15 +28,16 @@ export async function signUpAsParent(formData: unknown) {
   const { firstName, lastName, email, phone, password, schoolCode } = parsed.data
   const fullName = `${firstName} ${lastName}`
 
-  let verifiedSchoolId: string | null = null
-  if (schoolCode) {
-    const matchingSchool = await db.query.school.findFirst({
-      where: eq(schoolTable.code, schoolCode.toUpperCase()),
-    })
-    if (matchingSchool) {
-      verifiedSchoolId = matchingSchool.id
-    }
+  const matchingSchool = await db.query.school.findFirst({
+    where: eq(schoolTable.code, schoolCode.toUpperCase()),
+  })
+  if (!matchingSchool) {
+    return { success: false, error: 'Invalid School Registration Code.' }
   }
+  if (!matchingSchool.allowParents) {
+    return { success: false, error: 'Parent registration is disabled by this school administration.' }
+  }
+  const verifiedSchoolId = matchingSchool.id
 
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)

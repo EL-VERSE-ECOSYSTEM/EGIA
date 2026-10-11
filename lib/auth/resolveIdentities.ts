@@ -10,7 +10,7 @@ import {
 } from '@/lib/db/schema'
 import { eq, ilike, sql } from 'drizzle-orm'
 import { getRedirectUrlForIdentity, RoleType } from './redirectMap'
-import { isConfiguredSuperAdminEmail } from './super-admin'
+import { isConfiguredSuperAdminEmail, SUPER_ADMIN_USER_ID } from './super-admin'
 
 export interface UserIdentity {
   id: string
@@ -37,7 +37,8 @@ export interface LoginContext {
 }
 
 export async function resolveIdentities(userId: string, emailHint?: string): Promise<LoginContext> {
-  let targetUserId = userId
+  const isSuperAdmin = isConfiguredSuperAdminEmail(emailHint)
+  let targetUserId = isSuperAdmin ? SUPER_ADMIN_USER_ID : userId
   let userRecord: any = null
 
   try {
@@ -77,10 +78,18 @@ export async function resolveIdentities(userId: string, emailHint?: string): Pro
   if (!userRecord) {
     try {
       // Auto-provision public.user if lookup by ID didn't find record yet
-      const userName = targetUserId.includes('@') ? targetUserId.split('@')[0] : 'User'
+      const userName = isSuperAdmin
+        ? 'Super Admin'
+        : targetUserId.includes('@')
+        ? targetUserId.split('@')[0]
+        : 'User'
       await db.insert(userTable).values({
         id: targetUserId,
-        email: targetUserId.includes('@') ? targetUserId : `${targetUserId}@el-learners.local`,
+        email: isSuperAdmin
+          ? emailHint!.trim().toLowerCase()
+          : targetUserId.includes('@')
+          ? targetUserId
+          : `${targetUserId}@el-learners.local`,
         name: userName,
         createdAt: new Date(),
         updatedAt: new Date(),

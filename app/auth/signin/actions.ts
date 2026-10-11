@@ -4,12 +4,12 @@ import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { user as userTable, userRole as userRoleTable, teacher, student, school as schoolTable, schoolRegistrationApplication as schoolAppTable } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, ilike, sql } from 'drizzle-orm'
 import { resolveIdentities, LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
 import { sendPushNotification } from '@/lib/services/notifications'
-import { isConfiguredSuperAdminEmail, isValidSuperAdminPassword } from '@/lib/auth/super-admin'
+import { isConfiguredSuperAdminEmail, isValidSuperAdminPassword, SUPER_ADMIN_USER_ID } from '@/lib/auth/super-admin'
 
 function authAdminClient() {
   const secretKey = getSupabaseSecretKey()
@@ -17,6 +17,98 @@ function authAdminClient() {
 
   return createSupabaseAdminClient(getSupabaseUrl(), secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+  })
+}
+
+async function ensureSuperAdminDatabaseUser() {
+  return db.transaction(async (tx) => {
+    const [existingDbUser] = await tx
+      .select()
+      .from(userTable)
+      .where(ilike(userTable.email, 'ixoralyon013@gmail.com'))
+      .for('update')
+      .limit(1)
+    const [canonicalDbUser] = await tx
+      .select()
+      .from(userTable)
+      .where(eq(userTable.id, SUPER_ADMIN_USER_ID))
+      .limit(1)
+
+    if (canonicalDbUser && canonicalDbUser.email.toLowerCase() !== 'ixoralyon013@gmail.com') {
+      return { error: 'The Super Admin user ID is already assigned to a different account.' }
+    }
+
+    if (existingDbUser?.id === SUPER_ADMIN_USER_ID) {
+      return { user: existingDbUser }
+    }
+
+    if (!existingDbUser && canonicalDbUser) {
+      return { user: canonicalDbUser }
+    }
+
+    const canonicalUser = {
+      ...(existingDbUser || {
+        name: 'Super Admin',
+        image: null,
+        schoolId: null,
+        lastIdentityId: null,
+        lastIdentityAt: null,
+        gender: null,
+        adminLevel: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+      id: SUPER_ADMIN_USER_ID,
+      email: 'ixoralyon013@gmail.com',
+      name: existingDbUser?.name || 'Super Admin',
+      lastIdentityId: `super_admin_${SUPER_ADMIN_USER_ID}`,
+      updatedAt: new Date(),
+    }
+
+    if (existingDbUser) {
+      await tx.update(userTable)
+        .set({ email: `super-admin-migration-${crypto.randomUUID()}@invalid.local` })
+        .where(eq(userTable.id, existingDbUser.id))
+    }
+
+    await tx.insert(userTable).values(canonicalUser)
+
+    if (existingDbUser) {
+      const foreignKeys = await tx.execute(sql`
+        SELECT
+          child_namespace.nspname AS schema_name,
+          child_table.relname AS table_name,
+          child_column.attname AS column_name
+        FROM pg_constraint AS foreign_key
+        JOIN pg_class AS parent_table ON parent_table.oid = foreign_key.confrelid
+        JOIN pg_namespace AS parent_namespace ON parent_namespace.oid = parent_table.relnamespace
+        JOIN pg_class AS child_table ON child_table.oid = foreign_key.conrelid
+        JOIN pg_namespace AS child_namespace ON child_namespace.oid = child_table.relnamespace
+        CROSS JOIN LATERAL unnest(foreign_key.conkey) WITH ORDINALITY AS child_key(attnum, position)
+        CROSS JOIN LATERAL unnest(foreign_key.confkey) WITH ORDINALITY AS parent_key(attnum, position)
+        JOIN pg_attribute AS child_column
+          ON child_column.attrelid = child_table.oid AND child_column.attnum = child_key.attnum
+        JOIN pg_attribute AS parent_column
+          ON parent_column.attrelid = parent_table.oid AND parent_column.attnum = parent_key.attnum
+        WHERE foreign_key.contype = 'f'
+          AND parent_namespace.nspname = 'public'
+          AND parent_table.relname = 'user'
+          AND parent_column.attname = 'id'
+          AND child_key.position = parent_key.position
+      `) as unknown as Array<{ schema_name: string; table_name: string; column_name: string }>
+
+      for (const foreignKey of foreignKeys) {
+        await tx.execute(sql`
+          UPDATE ${sql.identifier(foreignKey.schema_name)}.${sql.identifier(foreignKey.table_name)}
+          SET ${sql.identifier(foreignKey.column_name)} = ${SUPER_ADMIN_USER_ID}
+          WHERE ${sql.identifier(foreignKey.column_name)} = ${existingDbUser.id}
+        `)
+      }
+
+      await tx.delete(userTable).where(eq(userTable.id, existingDbUser.id))
+    }
+
+    return { user: canonicalUser }
   })
 }
 
@@ -145,74 +237,60 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
       return { success: false, error: 'Invalid Super Admin password provided.' }
     }
 
-    let authUserId: string = '00000000-0000-0000-0000-000000000001'
-
     // Attempt Supabase Auth login/sync if available
-    let { data: superAuthData } = await supabase.auth.signInWithPassword({
+    const { data: superAuthData } = await supabase.auth.signInWithPassword({
       email: resolvedEmail,
       password: passwordInput,
     })
+    let authenticatedUser = superAuthData?.user || null
 
-    if (superAuthData?.user) {
-      authUserId = superAuthData.user.id
-    } else {
+    if (!authenticatedUser) {
       const adminClient = authAdminClient()
       if (adminClient) {
         try {
           const { data: usersData } = await adminClient.auth.admin.listUsers()
           const existingAuthUser = usersData?.users?.find(u => u.email?.toLowerCase() === 'ixoralyon013@gmail.com')
           if (existingAuthUser) {
-            authUserId = existingAuthUser.id
             await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
               password: passwordInput,
               email_confirm: true,
               user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
             })
           } else {
-            const createRes = await adminClient.auth.admin.createUser({
+            await adminClient.auth.admin.createUser({
               email: 'ixoralyon013@gmail.com',
               password: passwordInput,
               email_confirm: true,
               user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
             })
-            if (createRes.data?.user?.id) {
-              authUserId = createRes.data.user.id
-            }
           }
           const retryRes = await supabase.auth.signInWithPassword({
             email: resolvedEmail,
             password: passwordInput,
           })
-          if (retryRes.data?.user) {
-            authUserId = retryRes.data.user.id
-          }
+          authenticatedUser = retryRes.data?.user || null
         } catch (adminErr) {
           console.warn('Super Admin Auth Admin sync notice:', adminErr)
         }
       }
     }
 
-    // Ensure Super Admin record in public.user database table in real time
-    let existingDbUser = await db.query.user.findFirst({
-      where: eq(userTable.email, 'ixoralyon013@gmail.com')
-    })
-
-    if (!existingDbUser) {
-      await db.insert(userTable).values({
-        id: authUserId,
-        email: 'ixoralyon013@gmail.com',
-        name: 'Super Admin',
-        schoolId: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }).onConflictDoNothing()
-
-      existingDbUser = await db.query.user.findFirst({
-        where: eq(userTable.email, 'ixoralyon013@gmail.com')
-      })
+    if (!authenticatedUser) {
+      return {
+        success: false,
+        error: 'Unable to establish a Super Admin session. Please try again or contact support.',
+      }
     }
 
-    const finalSuperAdminUserId = existingDbUser?.id || authUserId
+    const provisionResult = await ensureSuperAdminDatabaseUser()
+    if ('error' in provisionResult) {
+      return {
+        success: false,
+        error: provisionResult.error,
+      }
+    }
+
+    const finalSuperAdminUserId = SUPER_ADMIN_USER_ID
 
     await db.insert(userRoleTable).values({
       id: crypto.randomUUID(),
@@ -220,6 +298,9 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
       role: 'SUPER_ADMIN',
       createdAt: new Date(),
     }).onConflictDoNothing()
+    await db.update(userRoleTable)
+      .set({ role: 'SUPER_ADMIN' })
+      .where(eq(userRoleTable.userId, finalSuperAdminUserId))
 
     try {
       await supabase.auth.updateUser({
@@ -248,7 +329,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
       context: {
         userId: finalSuperAdminUserId,
         email: 'ixoralyon013@gmail.com',
-        fullName: existingDbUser?.name || 'Super Admin',
+        fullName: provisionResult.user.name || 'Super Admin',
         lastIdentityId: superAdminIdentity.id,
         identities: [superAdminIdentity],
       },
@@ -274,8 +355,8 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
     })
 
     if (!existingUser) {
-      const userRoleMeta = isSuperAdminEmail ? 'SUPER_ADMIN' : (data.user.user_metadata?.role || 'STUDENT').toUpperCase()
-      const userSchoolId = isSuperAdminEmail ? null : (data.user.user_metadata?.school_id || null)
+      const userRoleMeta = isSuperAdminEmail ? 'SUPER_ADMIN' : 'STUDENT'
+      const userSchoolId = null
       const userName = data.user.user_metadata?.name || userEmail.split('@')[0] || 'User'
 
       await db.insert(userTable).values({

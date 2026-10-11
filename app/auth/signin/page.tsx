@@ -76,7 +76,12 @@ export default function SignInPage() {
         toast.success('Welcome Super Admin! Direct access granted.')
         const superAdminIdentity = identities.find((i) => i.role === 'SUPER_ADMIN') || identities[0]
         if (superAdminIdentity) {
-          await activateIdentityAction(superAdminIdentity.id, rememberMe)
+          const activateRes = await activateIdentityAction(superAdminIdentity.id, rememberMe)
+          if (!activateRes.success) {
+            setError(activateRes.error || 'Unable to activate your Super Admin identity.')
+            setLoading(false)
+            return
+          }
         }
         window.location.href = res.redirectTo || '/dashboard/super-admin/overview'
         return

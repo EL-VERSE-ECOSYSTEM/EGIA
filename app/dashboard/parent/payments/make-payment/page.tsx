@@ -34,7 +34,7 @@ export default function MakePaymentPage() {
 
   useEffect(() => {
     getLinkedChildren().then(setChildren)
-    getSchoolPaymentConfigAction('school-elgoodnews-001').then(setPaymentConfig)
+    getSchoolPaymentConfigAction().then(setPaymentConfig)
   }, [])
 
   // Fetch fees when a child is selected

@@ -106,8 +106,11 @@ export async function createStudent(data: any) {
     } else {
       schoolId = await getAdminSchoolId()
       if (data.parentId) {
-        const pRec = await tx.query.parent.findFirst({ where: eq(parentTable.id, data.parentId) })
-        if (pRec) parentId = pRec.id
+        const pRec = await tx.query.parent.findFirst({
+          where: and(eq(parentTable.id, data.parentId), eq(parentTable.schoolId, schoolId))
+        })
+        if (!pRec) throw new Error('Parent profile not found in this school.')
+        parentId = pRec.id
       }
     }
 

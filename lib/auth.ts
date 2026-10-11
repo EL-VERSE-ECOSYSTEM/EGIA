@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { db } from './db'
 import { userRole, user as userTable } from './db/schema'
 import { resolveIdentities } from './auth/resolveIdentities'
+import { isConfiguredSuperAdminEmail, SUPER_ADMIN_USER_ID } from './auth/super-admin'
 
 async function getSessionImpl() {
   const cookieStore = await cookies()
@@ -20,7 +21,8 @@ async function getSessionImpl() {
   }
 
   const userEmail = (user.email || '').trim().toLowerCase()
-  const isSuperAdminEmail = userEmail === 'ixoralyon013@gmail.com'
+  const isSuperAdminEmail = isConfiguredSuperAdminEmail(userEmail)
+  const applicationUserId = isSuperAdminEmail ? SUPER_ADMIN_USER_ID : user.id
 
   let loginContext
   try {
@@ -28,7 +30,7 @@ async function getSessionImpl() {
   } catch (err) {
     console.warn('resolveIdentities failed in getSessionImpl:', err)
     loginContext = {
-      userId: user.id,
+      userId: applicationUserId,
       email: userEmail,
       fullName: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
       identities: [],
@@ -41,20 +43,20 @@ async function getSessionImpl() {
     : null
 
   const primaryIdentity = matchedIdentity || loginContext.identities?.[0]
-  let rawRole = (primaryIdentity?.role || user.user_metadata?.role || 'STUDENT').toUpperCase()
+  let rawRole = (primaryIdentity?.role || 'STUDENT').toUpperCase()
   if (isSuperAdminEmail) {
     rawRole = 'SUPER_ADMIN'
   } else if (rawRole === 'SUPER_ADMIN') {
     rawRole = 'STUDENT'
   }
   const finalRole = rawRole
-  const schoolId = primaryIdentity?.schoolId || user.user_metadata?.school_id || null
-  const adminLevel = primaryIdentity?.adminLevel || user.user_metadata?.admin_level || null
+  const schoolId = primaryIdentity?.schoolId || null
+  const adminLevel = primaryIdentity?.adminLevel || null
 
   try {
     await db.insert(userRole).values({
       id: crypto.randomUUID(),
-      userId: user.id,
+      userId: applicationUserId,
       role: finalRole as any,
       createdAt: new Date(),
     }).onConflictDoNothing()
@@ -87,7 +89,7 @@ async function getSessionImpl() {
     token_type: session?.token_type || 'bearer',
     user: {
       ...user,
-      id: user.id,
+      id: applicationUserId,
       email: user.email || '',
       name: user.user_metadata?.full_name || user.user_metadata?.name || loginContext.fullName || 'User',
       role: finalRole,
@@ -107,7 +109,8 @@ async function getUserImpl() {
   }
 
   const userEmail = (user.email || '').trim().toLowerCase()
-  const isSuperAdminEmail = userEmail === 'ixoralyon013@gmail.com'
+  const isSuperAdminEmail = isConfiguredSuperAdminEmail(userEmail)
+  const applicationUserId = isSuperAdminEmail ? SUPER_ADMIN_USER_ID : user.id
 
   let loginContext
   try {
@@ -115,7 +118,7 @@ async function getUserImpl() {
   } catch (err) {
     console.warn('resolveIdentities failed in getUserImpl:', err)
     loginContext = {
-      userId: user.id,
+      userId: applicationUserId,
       email: userEmail,
       fullName: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
       identities: [],
@@ -128,18 +131,19 @@ async function getUserImpl() {
     : null
 
   const primaryIdentity = matchedIdentity || loginContext.identities?.[0]
-  let rawRole = (primaryIdentity?.role || user.user_metadata?.role || 'STUDENT').toUpperCase()
+  let rawRole = (primaryIdentity?.role || 'STUDENT').toUpperCase()
   if (isSuperAdminEmail) {
     rawRole = 'SUPER_ADMIN'
   } else if (rawRole === 'SUPER_ADMIN') {
     rawRole = 'STUDENT'
   }
   const finalRole = rawRole
-  const schoolId = primaryIdentity?.schoolId || user.user_metadata?.school_id || null
-  const adminLevel = primaryIdentity?.adminLevel || user.user_metadata?.admin_level || null
+  const schoolId = primaryIdentity?.schoolId || null
+  const adminLevel = primaryIdentity?.adminLevel || null
 
   return {
     ...user,
+    id: applicationUserId,
     role: finalRole,
     adminLevel,
     schoolId,

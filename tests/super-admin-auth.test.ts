@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { getRedirectUrlForIdentity } from '../lib/auth/redirectMap'
+import { getRedirectUrlForIdentity } from '../lib/auth/redirectMap.ts'
 
 function simulateSignInModeValidation(loginMode: 'standard' | 'superadmin', inputEmail: string): { allowed: boolean; error?: string; targetRedirect?: string } {
   const targetEmail = inputEmail.trim().toLowerCase()
@@ -31,6 +31,8 @@ function simulateProxyRoleCheck(email: string, metadataRole: string): { effectiv
   if (isSuperAdminEmail) {
     role = 'SUPER_ADMIN'
   } else if (role === 'SUPER_ADMIN') {
+    role = 'STUDENT'
+  } else if (role === 'PUPIL') {
     role = 'STUDENT'
   }
 
@@ -75,6 +77,12 @@ describe('Super Admin Auth & Access Restriction Tests', () => {
       const adminRes = simulateProxyRoleCheck('admin@school.edu', 'SCHOOL_ADMIN')
       assert.equal(adminRes.effectiveRole, 'SCHOOL_ADMIN')
       assert.equal(adminRes.canAccessSuperAdmin, false)
+    })
+
+    it('maps PUPIL to the student dashboard role', () => {
+      const res = simulateProxyRoleCheck('pupil@school.edu', 'PUPIL')
+      assert.equal(res.effectiveRole, 'STUDENT')
+      assert.equal(res.canAccessSuperAdmin, false)
     })
   })
 

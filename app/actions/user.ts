@@ -2,8 +2,8 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { user as userTable, student, parent as parentTable, teacher as teacherTable, userRole, notification as notificationTable, academicSession, term, payment } from '@/lib/db/schema'
-import { eq, and, count, desc } from 'drizzle-orm'
+import { user as userTable, student, parent as parentTable, teacher as teacherTable, userRole, notification as notificationTable, academicSession, term, payment, school as schoolTable } from '@/lib/db/schema'
+import { eq, and, count, desc, isNull } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
@@ -18,7 +18,7 @@ export async function getStudentEmailByAdmissionNumber(admissionNumber: string) 
     where: eq(student.admissionNumber, admissionNumber.trim().toUpperCase()),
     with: { user: true }
   })
-  return child?.user?.email || null
+  return child?.userId === session.user.id ? child.user?.email || null : null
 }
 
 export async function linkChild(admissionNumber: string) {
@@ -39,7 +39,8 @@ export async function linkChild(admissionNumber: string) {
 
   if (!child) throw new Error('Student with this admission number not found')
 
-  if (parentProfile.schoolId && child.schoolId && parentProfile.schoolId !== child.schoolId) {
+  const parentSchoolId = parentProfile.schoolId
+  if (!parentSchoolId || child.schoolId !== parentSchoolId) {
     throw new Error('You can only link students registered under your school.')
   }
 
@@ -63,7 +64,11 @@ export async function linkChild(admissionNumber: string) {
         sessionId: currentSession?.id || child.sessionId || null,
         updatedAt: new Date()
       })
-      .where(and(eq(student.id, child.id), eq(student.parentId, null as any)))
+      .where(and(
+        eq(student.id, child.id),
+        eq(student.schoolId, parentSchoolId),
+        isNull(student.parentId),
+      ))
       .returning()
 
     if (updated.length === 0) throw new Error('Child link failed due to concurrent update.')
@@ -89,18 +94,44 @@ export async function getLinkedChildren() {
   })
 }
 
-export async function checkWardLinkingStatus(admissionNumber: string) {
+export async function checkWardLinkingStatus(admissionNumber: string, schoolCode?: string) {
   const session = await auth.getSession()
-  if (!session?.user) return { found: false, isLinked: false, canLink: false, message: 'Unauthorized session' }
+  const currentUser = session?.user
+    ? await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) })
+    : null
+  let targetSchoolId = currentUser?.schoolId || null
+
+  if (schoolCode?.trim()) {
+    const matchingSchool = await db.query.school.findFirst({
+      where: eq(schoolTable.code, schoolCode.trim().toUpperCase()),
+    })
+    if (!matchingSchool || (session?.user && session.user.role !== 'SUPER_ADMIN' && matchingSchool.id !== targetSchoolId)) {
+      return { found: false, isLinked: false, canLink: false, message: 'Student with this admission number not found' }
+    }
+    targetSchoolId = matchingSchool.id
+  }
+
+  if (!targetSchoolId) {
+    return { found: false, isLinked: false, canLink: false, message: 'A valid school registration code is required.' }
+  }
 
   const child = await db.query.student.findFirst({
-    where: eq(student.admissionNumber, admissionNumber.trim().toUpperCase())
+    where: and(
+      eq(student.admissionNumber, admissionNumber.trim().toUpperCase()),
+      eq(student.schoolId, targetSchoolId),
+    ),
   })
 
   if (!child) return { found: false, isLinked: false, canLink: false, message: 'Student with this admission number not found' }
+  const studentSummary = {
+    admissionNumber: child.admissionNumber,
+    firstName: child.firstName,
+    lastName: child.lastName,
+    class: child.class,
+  }
   if (child.parentId) return { found: true, isLinked: true, canLink: false, message: 'Student is already linked to a parent account', studentName: `${child.firstName} ${child.lastName}`, studentClass: child.class }
 
-  return { found: true, isLinked: false, canLink: true, student: child, studentName: `${child.firstName} ${child.lastName}`, studentClass: child.class }
+  return { found: true, isLinked: false, canLink: true, student: studentSummary, studentName: `${child.firstName} ${child.lastName}`, studentClass: child.class }
 }
 
 export async function createAdminProfile() {
@@ -116,6 +147,7 @@ export async function getParentProfile(userId?: string) {
   const session = await auth.getSession()
   if (!session?.user) return null
   const targetUserId = userId || session.user.id
+  if (targetUserId !== session.user.id && session.user.role !== 'SUPER_ADMIN') return null
 
   return db.query.parent.findFirst({
     where: eq(parentTable.userId, targetUserId),
@@ -159,6 +191,7 @@ export async function getStudentProfile(userId?: string) {
   const session = await auth.getSession()
   if (!session?.user) return null
   const targetUserId = userId || session.user.id
+  if (targetUserId !== session.user.id && session.user.role !== 'SUPER_ADMIN') return null
 
   return db.query.student.findFirst({
     where: eq(student.userId, targetUserId),
@@ -170,6 +203,7 @@ export async function getTeacherProfile(userId?: string) {
   const session = await auth.getSession()
   if (!session?.user) return null
   const targetUserId = userId || session.user.id
+  if (targetUserId !== session.user.id && session.user.role !== 'SUPER_ADMIN') return null
 
   return db.query.teacher.findFirst({
     where: eq(teacherTable.userId, targetUserId),
@@ -180,6 +214,9 @@ export async function getTeacherProfile(userId?: string) {
 export async function getUserRole(userId: string) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized session')
+  if (userId !== session.user.id && session.user.role !== 'SUPER_ADMIN') {
+    throw new Error('Forbidden: You can only read your own role.')
+  }
 
   const roleRec = await db.query.userRole.findFirst({
     where: eq(userRole.userId, userId)
@@ -204,7 +241,11 @@ export async function createParentProfile(data: any) {
 
   if (existing) return existing
 
-  const targetSchoolId = data.schoolId || session.user.schoolId || null
+  const userRecord = await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) })
+  const targetSchoolId = userRecord?.schoolId || null
+  if (!targetSchoolId) {
+    throw new Error('A verified school registration is required before creating a parent profile.')
+  }
 
   const inserted = await db.insert(parentTable).values({
     id: crypto.randomUUID(),

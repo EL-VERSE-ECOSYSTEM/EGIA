@@ -29,6 +29,20 @@ async function requireAdmin() {
   return session
 }
 
+async function requireSchoolAdminScope(requestedSchoolId?: string) {
+  const session = await auth.getSession()
+  const user = session?.user
+  if (!user || !['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+    throw new Error('Admin authorization is required.')
+  }
+
+  if (user.role === 'SUPER_ADMIN') return requestedSchoolId || null
+  if (!user.schoolId || (requestedSchoolId && requestedSchoolId !== user.schoolId)) {
+    throw new Error('Forbidden: You can only access data for your own school.')
+  }
+  return user.schoolId
+}
+
 // ===== SUPPORT TICKETS ACTIONS =====
 export async function getAdminSupportTickets() {
   await requireAdmin()
@@ -251,9 +265,9 @@ export async function getParentsWithPendingFees() {
 
 // ===== ASSESSMENT LOGS ACTIONS =====
 export async function getAdminAssessmentLogs(schoolId?: string) {
-  await requireAdmin()
-  if (schoolId) {
-    return db.select().from(assessmentLogs).where(eq(assessmentLogs.schoolId, schoolId)).orderBy(desc(assessmentLogs.createdAt)).limit(100)
+  const scopedSchoolId = await requireSchoolAdminScope(schoolId)
+  if (scopedSchoolId) {
+    return db.select().from(assessmentLogs).where(eq(assessmentLogs.schoolId, scopedSchoolId)).orderBy(desc(assessmentLogs.createdAt)).limit(100)
   }
   return db.select().from(assessmentLogs).orderBy(desc(assessmentLogs.createdAt)).limit(100)
 }
@@ -267,6 +281,11 @@ export async function logAssessmentAction(data: {
   ipAddress?: string
   userAgent?: string
 }) {
+  const scopedSchoolId = await requireSchoolAdminScope(data.schoolId)
+  if (scopedSchoolId !== data.schoolId) {
+    throw new Error('Forbidden: Assessment logs must be recorded for your own school.')
+  }
+
   await db.insert(assessmentLogs).values({
     id: randomUUID(),
     schoolId: data.schoolId,
@@ -282,17 +301,17 @@ export async function logAssessmentAction(data: {
 
 // ===== TRANSACTION LEDGER ACTIONS =====
 export async function getTransactionLedger(schoolId?: string) {
-  await requireAdmin()
-  if (schoolId) {
-    return db.select().from(transactionLedger).where(eq(transactionLedger.schoolId, schoolId)).orderBy(desc(transactionLedger.createdAt))
+  const scopedSchoolId = await requireSchoolAdminScope(schoolId)
+  if (scopedSchoolId) {
+    return db.select().from(transactionLedger).where(eq(transactionLedger.schoolId, scopedSchoolId)).orderBy(desc(transactionLedger.createdAt))
   }
   return db.select().from(transactionLedger).orderBy(desc(transactionLedger.createdAt))
 }
 
 export async function getRevenueSummary(schoolId?: string) {
-  await requireAdmin()
-  const ledgerRows = schoolId
-    ? await db.select().from(transactionLedger).where(and(eq(transactionLedger.schoolId, schoolId), eq(transactionLedger.status, 'SUCCESS')))
+  const scopedSchoolId = await requireSchoolAdminScope(schoolId)
+  const ledgerRows = scopedSchoolId
+    ? await db.select().from(transactionLedger).where(and(eq(transactionLedger.schoolId, scopedSchoolId), eq(transactionLedger.status, 'SUCCESS')))
     : await db.select().from(transactionLedger).where(eq(transactionLedger.status, 'SUCCESS'))
 
   let totalRevenueIn = 0
@@ -334,18 +353,24 @@ export async function getRevenueSummary(schoolId?: string) {
 
 // ===== PAYMENT RECONCILIATION ACTIONS =====
 export async function reconcilePaymentAction(paymentId: string, status: 'RECONCILED' | 'DISPUTED') {
-  const session = await requireAdmin()
+  const schoolScope = await requireSchoolAdminScope()
 
-  const paymentRecord = await db.query.payment.findFirst({ where: eq(payment.id, paymentId) })
+  const paymentRecord = await db.query.payment.findFirst({
+    where: schoolScope
+      ? and(eq(payment.id, paymentId), eq(payment.schoolId, schoolScope))
+      : eq(payment.id, paymentId),
+  })
   if (!paymentRecord) throw new Error('Payment record not found')
 
   await db.update(payment).set({
     reconciliationStatus: status,
-    reconciledBy: session.user.id,
+    reconciledBy: (await auth.getSession())!.user!.id,
     reconciledAt: new Date(),
     status: status === 'RECONCILED' ? 'cleared' : 'failed',
     updatedAt: new Date()
-  }).where(eq(payment.id, paymentId))
+  }).where(schoolScope
+    ? and(eq(payment.id, paymentId), eq(payment.schoolId, schoolScope))
+    : eq(payment.id, paymentId))
 
   if (status === 'RECONCILED' && paymentRecord.schoolId) {
     await db.insert(transactionLedger).values({
@@ -374,7 +399,15 @@ export async function assignSchoolAdminRole(data: {
   level: 'PRIMARY_ADMIN' | 'VICE_PRINCIPAL_ACADEMICS' | 'VICE_PRINCIPAL_ADMIN' | 'HOD_SCIENCE' | 'HOD_ARTS' | 'HOD_COMMERCIAL'
   department?: string
 }) {
-  await requireAdmin()
+  const scopedSchoolId = await requireSchoolAdminScope(data.schoolId)
+  if (scopedSchoolId && scopedSchoolId !== data.schoolId) {
+    throw new Error('Forbidden: You can only manage administrator roles for your own school.')
+  }
+
+  const targetUser = await db.query.user.findFirst({ where: eq(userTable.id, data.userId) })
+  if (targetUser?.schoolId && targetUser.schoolId !== data.schoolId) {
+    throw new Error('Forbidden: The selected user belongs to a different school.')
+  }
 
   await db.insert(schoolAdminRoles).values({
     id: randomUUID(),
@@ -397,6 +430,6 @@ export async function assignSchoolAdminRole(data: {
 }
 
 export async function getSchoolAdminRoles(schoolId: string) {
-  await requireAdmin()
-  return db.select().from(schoolAdminRoles).where(and(eq(schoolAdminRoles.schoolId, schoolId), eq(schoolAdminRoles.isActive, true)))
+  const scopedSchoolId = await requireSchoolAdminScope(schoolId)
+  return db.select().from(schoolAdminRoles).where(and(eq(schoolAdminRoles.schoolId, scopedSchoolId || schoolId), eq(schoolAdminRoles.isActive, true)))
 }

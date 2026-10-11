@@ -5,7 +5,7 @@ import { getSiteUrl, getSupabaseSecretKey, getSupabaseUrl, isSupabaseConfigured 
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { user as userTable, userRole, parent, teacher, student, payment, subject, school } from '@/lib/db/schema'
-import { eq, and, or, sql } from 'drizzle-orm'
+import { eq, and, or, sql, isNull } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
 import { createClient as createSupabaseAdminClient, type User as SupabaseUser } from '@supabase/supabase-js'
@@ -177,7 +177,7 @@ export async function checkStudentPasswordRequirement(admissionNumber: string) {
 }
 
 export async function activateStudent(data: any) {
-  return { success: true }
+  return { error: 'Student activation requires verified school registration and a password. Use the Student / Pupil registration form.' }
 }
 
 export async function registerParentTeacher(data: any) {
@@ -199,6 +199,10 @@ export async function registerStudent(data: any) {
     schoolCode
   } = data
   const emailAddress = normalizeEmail(email)
+
+  if (!schoolCode?.trim()) {
+    return { error: 'School Registration Code is required.' }
+  }
 
   let schoolId: string | null = null
   let schoolName: string | null = null
@@ -309,6 +313,18 @@ export async function registerStudent(data: any) {
 export async function registerParent(data: any) {
   const { firstName, lastName, email, phone, occupation, profileImage, password, schoolCode } = data
   const emailAddress = normalizeEmail(email)
+  const wardsList: string[] = Array.isArray(data.wardAdmissionNumbers)
+    ? [...new Set<string>(data.wardAdmissionNumbers.map((value: unknown): string => String(value).trim().toUpperCase()).filter(Boolean))]
+    : data.wardAdmissionNumber
+    ? [String(data.wardAdmissionNumber).trim().toUpperCase()]
+    : []
+
+  if (!schoolCode?.trim()) {
+    return { error: 'A valid school registration code is required to link a ward.' }
+  }
+  if (!wardsList.length) {
+    return { error: 'At least one ward admission number is required.' }
+  }
 
   let schoolId: string | null = null
   if (schoolCode) {
@@ -393,18 +409,24 @@ export async function registerParent(data: any) {
         facialVerificationVideo: data.facialVerificationVideo || null,
       })
 
-      const wardsList = Array.isArray(data.wardAdmissionNumbers)
-        ? data.wardAdmissionNumbers
-        : data.wardAdmissionNumber
-        ? [data.wardAdmissionNumber]
-        : []
-
       for (const wardNum of wardsList) {
+        const normalizedWardNum = String(wardNum)
         const ward = await tx.query.student.findFirst({
-          where: eq(student.admissionNumber, wardNum.trim().toUpperCase())
+          where: and(
+            eq(student.admissionNumber, normalizedWardNum),
+            eq(student.schoolId, schoolId!)
+          )
         })
-        if (ward) {
-          await tx.update(student).set({ parentId }).where(eq(student.id, ward.id))
+        if (!ward || ward.parentId) {
+          throw new Error('Ward could not be linked. Verify that the admission number belongs to this school and is not already linked.')
+        }
+
+        const [linkedWard] = await tx.update(student)
+          .set({ parentId })
+          .where(and(eq(student.id, ward.id), eq(student.schoolId, schoolId!), isNull(student.parentId)))
+          .returning({ id: student.id })
+        if (!linkedWard) {
+          throw new Error('Ward could not be linked. Verify that the admission number belongs to this school and is not already linked.')
         }
       }
     })
@@ -425,6 +447,10 @@ export async function registerTeacher(data: any) {
   const { firstName, lastName, email, phone, phoneNumber, profileImage, password, schoolCode, isAlsoParent, wardAdmissionNumber } = data
   const emailAddress = normalizeEmail(email)
   const teacherPhone = phoneNumber || phone || null
+
+  if (!schoolCode?.trim()) {
+    return { error: 'School Registration Code is required.' }
+  }
 
   let schoolId: string | null = null
   let schoolName: string | null = null
