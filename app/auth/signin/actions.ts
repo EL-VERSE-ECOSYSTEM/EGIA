@@ -33,6 +33,19 @@ async function findSuperAdminAuthUser(adminClient: NonNullable<ReturnType<typeof
   throw new Error('Super Admin Auth account was not found within the supported user listing range.')
 }
 
+function isSupabaseAuthDatabaseError(error: unknown) {
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === 'object' && error !== null && 'message' in error
+    ? String(error.message)
+    : String(error || '')
+
+  return /database error (?:querying schema|finding users)/i.test(message)
+}
+
+const SUPER_ADMIN_AUTH_DATABASE_ERROR =
+  'Supabase Auth cannot query its user database. The Super Admin public.user and user_role records are intact; repair the Supabase Auth database permissions/schema, then retry login.'
+
 async function ensureSuperAdminDatabaseUser() {
   return db.transaction(async (tx) => {
     const [existingDbUser] = await tx
@@ -260,20 +273,27 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
     // Attempt Supabase Auth login/sync if available
     let authenticatedUser: SupabaseUser | null = null
     let hasAuthenticatedSession = false
+    let initialSignInError: unknown = null
     try {
       const { data: superAuthData, error: signInError } = await supabase.auth.signInWithPassword({
         email: resolvedEmail,
         password: passwordInput,
       })
+      initialSignInError = signInError
       if (!signInError && superAuthData?.user && superAuthData.session) {
         authenticatedUser = superAuthData.user
         hasAuthenticatedSession = true
       }
     } catch (authError) {
+      initialSignInError = authError
       console.error('Initial Super Admin Supabase Auth sign-in failed:', authError)
     }
 
     if (!authenticatedUser) {
+      if (isSupabaseAuthDatabaseError(initialSignInError)) {
+        return { success: false, error: SUPER_ADMIN_AUTH_DATABASE_ERROR }
+      }
+
       const adminClient = authAdminClient()
       if (!adminClient) {
         return {
@@ -313,6 +333,9 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
         hasAuthenticatedSession = true
       } catch (adminErr) {
         console.error('Super Admin Supabase Auth synchronization failed:', adminErr)
+        if (isSupabaseAuthDatabaseError(adminErr)) {
+          return { success: false, error: SUPER_ADMIN_AUTH_DATABASE_ERROR }
+        }
         return {
           success: false,
           error: 'Supabase Auth could not synchronize the Super Admin account. Verify the server service-role key and Supabase Auth configuration, then try again.',
