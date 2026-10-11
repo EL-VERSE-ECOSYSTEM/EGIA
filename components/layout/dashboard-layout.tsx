@@ -10,6 +10,7 @@ import { PermissionRequest } from '@/components/notifications/PermissionRequest'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { SchoolRenewalReminderWidget } from '@/components/school/SchoolRenewalReminderWidget'
 import { StudentRegistrationLockoutWidget } from '@/components/student/StudentRegistrationLockoutWidget'
+import { MobileNav } from '@/components/layout/mobile-nav'
 
 export default function DashboardLayout({
   children,
@@ -215,7 +216,7 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-slate-50/50 relative">
+        <main className="flex-1 overflow-y-auto bg-slate-50/50 relative pb-24 lg:pb-0">
           {mounted && <PermissionRequest />}
           {children}
 
@@ -270,6 +271,9 @@ export default function DashboardLayout({
             </div>
           )}
         </main>
+
+        {/* Premium Glassmorphic Mobile Bottom Navigation Bar */}
+        <MobileNav role={role} onOpenSidebar={() => setIsSidebarOpen(true)} />
       </div>
     </div>
   )
