@@ -11,14 +11,37 @@ import { createStudentProfile } from '@/app/actions/user'
 export default function StudentSetupPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [schoolCode, setSchoolCode] = useState('')
+  const [schoolVerified, setSchoolVerified] = useState(false)
+  const [schoolName, setSchoolName] = useState('')
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     class: '',
   })
 
+  const handleVerifySchool = async () => {
+    if (!schoolCode.trim()) {
+      alert('Please enter your School Code.')
+      return
+    }
+    const { getSchoolByCodeAction } = await import('@/app/actions/school')
+    const res = await getSchoolByCodeAction(schoolCode)
+    if (res.success && res.school) {
+      setSchoolVerified(true)
+      setSchoolName(res.school.name)
+    } else {
+      alert(res.error || 'Invalid School Code.')
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!schoolVerified) {
+      alert('Please verify your School Registration Code first.')
+      return
+    }
 
     if (!formData.class) {
       alert('Please select your allocated class to complete setup.')
@@ -31,7 +54,7 @@ export default function StudentSetupPage() {
       await createStudentProfile({
         firstName: formData.firstName,
         lastName: formData.lastName,
-        class: formData.class as 'JSS1' | 'JSS2' | 'JSS3' | 'SSS1' | 'SSS2' | 'SSS3',
+        class: formData.class as any,
       })
 
       router.push('/dashboard/student/overview')
@@ -54,6 +77,32 @@ export default function StudentSetupPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-orange-100">School Registration Code</label>
+              <div className="flex gap-2">
+                <Input
+                  required
+                  value={schoolCode}
+                  onChange={(e) => {
+                    setSchoolCode(e.target.value.toUpperCase())
+                    setSchoolVerified(false)
+                  }}
+                  className="border-slate-700 bg-slate-800 text-white h-12 focus:border-orange-500 uppercase tracking-wider font-bold"
+                  placeholder="EXCE-10015"
+                />
+                <Button
+                  type="button"
+                  onClick={handleVerifySchool}
+                  className="bg-orange-600 hover:bg-orange-700 text-white h-12 px-5 font-bold"
+                >
+                  Verify Code
+                </Button>
+              </div>
+              {schoolVerified && (
+                <p className="text-xs font-bold text-emerald-400">✓ Verified: {schoolName}</p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-orange-100">First Name</label>
@@ -84,6 +133,10 @@ export default function StudentSetupPage() {
                   <SelectValue placeholder="Select your class" />
                 </SelectTrigger>
                 <SelectContent className="border-slate-700 bg-slate-800 text-white">
+                  <SelectItem value="Primary 3">Primary 3</SelectItem>
+                  <SelectItem value="Primary 4">Primary 4</SelectItem>
+                  <SelectItem value="Primary 5">Primary 5</SelectItem>
+                  <SelectItem value="Primary 6">Primary 6</SelectItem>
                   <SelectItem value="JSS1">Junior Secondary 1 (JSS1)</SelectItem>
                   <SelectItem value="JSS2">Junior Secondary 2 (JSS2)</SelectItem>
                   <SelectItem value="JSS3">Junior Secondary 3 (JSS3)</SelectItem>
