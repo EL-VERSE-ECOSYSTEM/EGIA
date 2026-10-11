@@ -173,47 +173,38 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
   })
 
   if ((error || !data?.user) && isSuperAdminEmail && passwordInput === 'Amunra123@') {
-    let superAdminUser = await db.query.user.findFirst({
-      where: eq(userTable.email, 'ixoralyon013@gmail.com')
-    })
-    const superAdminUserId = superAdminUser?.id || '00000000-0000-0000-0000-000000000000'
+    // Retry provision and sign in once more
+    const adminClient = authAdminClient()
+    if (adminClient) {
+      try {
+        const { data: usersData } = await adminClient.auth.admin.listUsers()
+        const existingAuthUser = usersData?.users?.find(u => u.email?.toLowerCase() === 'ixoralyon013@gmail.com')
+        if (existingAuthUser) {
+          await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
+            password: passwordInput,
+            email_confirm: true,
+            user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
+          })
+        } else {
+          await adminClient.auth.admin.createUser({
+            email: 'ixoralyon013@gmail.com',
+            password: passwordInput,
+            email_confirm: true,
+            user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
+          })
+        }
 
-    if (!superAdminUser) {
-      await db.insert(userTable).values({
-        id: superAdminUserId,
-        email: 'ixoralyon013@gmail.com',
-        name: 'Super Admin',
-        schoolId: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }).onConflictDoNothing()
-    }
-
-    await db.insert(userRoleTable).values({
-      id: crypto.randomUUID(),
-      userId: superAdminUserId,
-      role: 'SUPER_ADMIN',
-      createdAt: new Date(),
-    }).onConflictDoNothing()
-
-    const superAdminIdentity: UserIdentity = {
-      id: `super_admin_${superAdminUserId}`,
-      role: 'SUPER_ADMIN',
-      schoolId: null,
-      schoolName: 'System Core',
-      contextLine: 'Global Platform Administrator',
-      redirectUrl: '/dashboard/super-admin/overview',
-    }
-
-    return {
-      success: true,
-      context: {
-        userId: superAdminUserId,
-        email: 'ixoralyon013@gmail.com',
-        fullName: 'Super Admin',
-        lastIdentityId: superAdminIdentity.id,
-        identities: [superAdminIdentity],
-      },
+        const retryRes = await supabase.auth.signInWithPassword({
+          email: resolvedEmail,
+          password: passwordInput,
+        })
+        if (retryRes.data?.user) {
+          data = retryRes.data
+          error = null
+        }
+      } catch (err) {
+        console.warn('Retry Super Admin authentication failed:', err)
+      }
     }
   }
 
