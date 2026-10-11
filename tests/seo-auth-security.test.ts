@@ -19,7 +19,6 @@ test('SEO & User Protection Security Suite', async (t) => {
     const sanitizeName = (input: string) => input.trim()
 
     assert.equal(sanitizeEmail('  John.Doe@Example.COM '), 'john.doe@example.com')
-    assert.equal(sanitizeEmail('IXORALYON013@GMAIL.COM '), 'ixoralyon013@gmail.com')
     assert.equal(sanitizeName('   Chidi   '), 'Chidi')
   })
 
@@ -44,12 +43,12 @@ test('SEO & User Protection Security Suite', async (t) => {
     assert.ok(publicRoutes.includes('/robots.txt'))
   })
 
-  await t.test('Super Admin email privilege check', () => {
-    const isSuperAdmin = (email: string) => email.trim().toLowerCase() === 'ixoralyon013@gmail.com'
+  await t.test('Role-based Super Admin privilege check', () => {
+    const isSuperAdminRole = (role: string) => role.trim().toUpperCase() === 'SUPER_ADMIN'
 
-    assert.equal(isSuperAdmin('ixoralyon013@gmail.com'), true)
-    assert.equal(isSuperAdmin(' IXORALYON013@GMAIL.COM '), true)
-    assert.equal(isSuperAdmin('attacker@malicious.com'), false)
-    assert.equal(isSuperAdmin('student@el-learners.com'), false)
+    assert.equal(isSuperAdminRole('SUPER_ADMIN'), true)
+    assert.equal(isSuperAdminRole(' super_admin '), true)
+    assert.equal(isSuperAdminRole('TEACHER'), false)
+    assert.equal(isSuperAdminRole('STUDENT'), false)
   })
 })

@@ -1,9 +1,9 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from './db'
-import { userRole, user as userTable } from './db/schema'
+import { userRole } from './db/schema'
 import { resolveIdentities } from './auth/resolveIdentities'
-import { isConfiguredSuperAdminEmail, SUPER_ADMIN_USER_ID } from './auth/super-admin'
+import { isSuperAdminEmail, isSuperAdminUser } from './auth/super-admin'
 
 async function getSessionImpl() {
   const cookieStore = await cookies()
@@ -21,8 +21,8 @@ async function getSessionImpl() {
   }
 
   const userEmail = (user.email || '').trim().toLowerCase()
-  const isSuperAdminEmail = isConfiguredSuperAdminEmail(userEmail)
-  const applicationUserId = isSuperAdminEmail ? SUPER_ADMIN_USER_ID : user.id
+  const userIsSuperAdmin = await isSuperAdminUser(user.id) || await isSuperAdminEmail(userEmail)
+  const applicationUserId = user.id
 
   let loginContext
   try {
@@ -44,7 +44,7 @@ async function getSessionImpl() {
 
   const primaryIdentity = matchedIdentity || loginContext.identities?.[0]
   let rawRole = (primaryIdentity?.role || 'STUDENT').toUpperCase()
-  if (isSuperAdminEmail) {
+  if (userIsSuperAdmin) {
     rawRole = 'SUPER_ADMIN'
   } else if (rawRole === 'SUPER_ADMIN') {
     rawRole = 'STUDENT'
@@ -109,8 +109,8 @@ async function getUserImpl() {
   }
 
   const userEmail = (user.email || '').trim().toLowerCase()
-  const isSuperAdminEmail = isConfiguredSuperAdminEmail(userEmail)
-  const applicationUserId = isSuperAdminEmail ? SUPER_ADMIN_USER_ID : user.id
+  const userIsSuperAdmin = await isSuperAdminUser(user.id) || await isSuperAdminEmail(userEmail)
+  const applicationUserId = user.id
 
   let loginContext
   try {
@@ -132,7 +132,7 @@ async function getUserImpl() {
 
   const primaryIdentity = matchedIdentity || loginContext.identities?.[0]
   let rawRole = (primaryIdentity?.role || 'STUDENT').toUpperCase()
-  if (isSuperAdminEmail) {
+  if (userIsSuperAdmin) {
     rawRole = 'SUPER_ADMIN'
   } else if (rawRole === 'SUPER_ADMIN') {
     rawRole = 'STUDENT'

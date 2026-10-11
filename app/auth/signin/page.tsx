@@ -44,18 +44,6 @@ export default function SignInPage() {
       return
     }
 
-    const isSuperAdminTarget = targetEmail.toLowerCase() === 'ixoralyon013@gmail.com'
-
-    if (loginMode === 'superadmin' && !isSuperAdminTarget) {
-      setError('Super Admin portal access is strictly restricted to the designated Super Admin account.')
-      return
-    }
-
-    if (loginMode === 'standard' && isSuperAdminTarget) {
-      setError('Super Admin account must authenticate via the Super Admin login tab. Please switch tabs to sign in.')
-      return
-    }
-
     setLoading(true)
     setError('')
 
@@ -68,19 +56,16 @@ export default function SignInPage() {
         return
       }
 
-      const { identities, lastIdentityId, email: resolvedUserEmail } = res.context
-      const isSuperAdminAccount = (resolvedUserEmail || targetEmail).toLowerCase() === 'ixoralyon013@gmail.com'
+      const { identities, lastIdentityId } = res.context
+      const superAdminIdentity = identities.find((i) => i.role === 'SUPER_ADMIN')
 
-      // If Super Admin email was authenticated, activate Super Admin identity & direct immediately to Super Admin Dashboard
-      if (isSuperAdminAccount) {
-        const superAdminIdentity = identities.find((i) => i.role === 'SUPER_ADMIN') || identities[0]
-        if (superAdminIdentity) {
-          const activateRes = await activateIdentityAction(superAdminIdentity.id, rememberMe)
-          if (!activateRes.success) {
-            setError(activateRes.error || 'Unable to activate your Super Admin identity.')
-            setLoading(false)
-            return
-          }
+      // If Super Admin identity was authenticated, activate Super Admin identity & direct immediately to Super Admin Dashboard
+      if (superAdminIdentity) {
+        const activateRes = await activateIdentityAction(superAdminIdentity.id, rememberMe)
+        if (!activateRes.success) {
+          setError(activateRes.error || 'Unable to activate your Super Admin identity.')
+          setLoading(false)
+          return
         }
         toast.success('Welcome Super Admin! Direct access granted.')
         window.location.href = res.redirectTo || '/dashboard/super-admin/overview'
@@ -242,7 +227,7 @@ export default function SignInPage() {
                 </div>
                 <p id="email-hint" className="text-[11px] font-bold text-slate-400 pl-1">
                   {loginMode === 'superadmin'
-                    ? 'Enter your designated Super Admin email account.'
+                    ? 'Enter your registered Super Admin email account.'
                     : 'Use your registered school email address, staff code, or admission number.'}
                 </p>
               </div>
