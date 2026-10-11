@@ -244,7 +244,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
 
     return {
       success: true,
-      redirectTo: '/dashboard/super-admin/overview',
+      redirectTo: '/dashboard-redirect',
       context: {
         userId: finalSuperAdminUserId,
         email: 'ixoralyon013@gmail.com',
@@ -331,7 +331,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
 
       return {
         success: true,
-        redirectTo: '/dashboard/super-admin/overview',
+        redirectTo: '/dashboard-redirect',
         context: {
           userId: data.user.id,
           email: userEmail,

@@ -133,6 +133,33 @@ create table public."school" (
   "updatedat" timestamptz not null default now()
 );
 
+create table if not exists public.school_registration_application (
+  id text primary key default gen_random_uuid()::text,
+  school_id text references public.school(id) on delete set null,
+  applicant_email text not null,
+  applicant_phone text not null,
+  applicant_name text not null,
+  school_name text not null,
+  school_address text not null,
+  proof_of_address_type text not null default 'ELECTRICITY_BILL',
+  proof_of_address_file_url text,
+  document_verification_status text not null default 'PENDING',
+  payment_status text not null default 'PENDING',
+  approval_status text not null default 'PENDING_REVIEW',
+  submitted_at timestamptz not null default now(),
+  reviewed_by text,
+  reviewed_at timestamptz,
+  rejection_reason text,
+  admin_level text default 'PRIMARY_ADMIN',
+  registered_classes jsonb,
+  allow_parents boolean default true,
+  payment_reference text unique,
+  logo_url text,
+  logo_path text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 -- CORE ACCOUNTS AND PROFILES -------------------------------------------------
 create table public."user" (
   "id" text primary key,
@@ -780,6 +807,8 @@ end $$;
 alter publication supabase_realtime add table
   public."school",
   public."user",
+  public."user_role",
+  public."school_registration_application",
   public."student",
   public."teacher",
   public."parent",

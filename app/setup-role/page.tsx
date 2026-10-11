@@ -41,16 +41,6 @@ export default function SetupRolePage() {
       shadow: 'shadow-[0_20px_50px_rgba(79,70,229,0.2)]',
       badge: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
     },
-    {
-      id: 'admin',
-      name: 'School Administrator',
-      description: 'Oversee school tenancy, staff, student rosters, academic reports, and financial clearance.',
-      icon: School,
-      themeColor: '#1E3A8A',
-      btnBg: 'bg-[#1E3A8A] hover:bg-blue-800',
-      shadow: 'shadow-[0_20px_50px_rgba(30,58,138,0.2)]',
-      badge: 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-    },
   ]
 
   const handleSelectRole = (roleId: string) => {

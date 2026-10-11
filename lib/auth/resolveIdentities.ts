@@ -117,7 +117,7 @@ export async function resolveIdentities(userId: string, emailHint?: string): Pro
 
   const isSuperAdminEmail = isConfiguredSuperAdminEmail(resolvedEmail)
 
-  // 1. Check Super Admin / Base User Roles
+  // 1. Check Super Admin / Base User Roles from Supabase user_role Table
   try {
     if (isSuperAdminEmail) {
       const identityId = `super_admin_${userId}`
@@ -139,6 +139,21 @@ export async function resolveIdentities(userId: string, emailHint?: string): Pro
         }).onConflictDoNothing()
       } catch (e) {
         // Ignore conflict
+      }
+    } else {
+      const dbRole = await db.query.userRole.findFirst({
+        where: eq(userRole.userId, userId),
+      })
+      if (dbRole?.role && dbRole.role !== 'SUPER_ADMIN') {
+        const normalizedRole = dbRole.role.toUpperCase() as RoleType
+        identities.push({
+          id: `db_role_${dbRole.id}`,
+          role: normalizedRole,
+          schoolId: activeUser.schoolId || null,
+          schoolName: 'EL LEARNERS Portal',
+          contextLine: 'Database Assigned Role',
+          redirectUrl: getRedirectUrlForIdentity({ role: normalizedRole }),
+        })
       }
     }
   } catch (err) {

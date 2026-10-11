@@ -106,7 +106,7 @@ export default function ParentSetupPage() {
       toast.error('Please link at least one student/pupil ward to access the portal.')
       return
     }
-    router.push('/dashboard/parent/overview')
+    router.push('/dashboard-redirect')
   }
 
   return (

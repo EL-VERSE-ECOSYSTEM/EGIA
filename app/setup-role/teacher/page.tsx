@@ -10,29 +10,64 @@ import { createTeacherProfile } from '@/app/actions/user'
 export default function TeacherSetupPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [schoolCode, setSchoolCode] = useState('')
+  const [schoolVerified, setSchoolVerified] = useState(false)
+  const [schoolName, setSchoolName] = useState('')
+  const [schoolId, setSchoolId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     phoneNumber: '',
     staffCode: '',
+    type: 'FULL_TIME',
     qualification: '',
     specialization: '',
+    password: '',
   })
+
+  const handleVerifySchool = async () => {
+    if (!schoolCode.trim()) {
+      alert('Please enter your School Registration Code.')
+      return
+    }
+    const { getSchoolByCodeAction } = await import('@/app/actions/school')
+    const res = await getSchoolByCodeAction(schoolCode)
+    if (res.success && res.school) {
+      setSchoolVerified(true)
+      setSchoolName(res.school.name)
+      setSchoolId(res.school.id)
+    } else {
+      alert(res.error || 'Invalid School Code.')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!schoolVerified || !schoolId) {
+      alert('Please verify your School Registration Code first.')
+      return
+    }
+
     setLoading(true)
 
     try {
+      if (formData.password) {
+        const { createClient } = await import('@/utils/supabase/client')
+        const supabase = createClient()
+        await supabase.auth.updateUser({ password: formData.password })
+      }
+
       await createTeacherProfile({
         firstName: formData.firstName,
         lastName: formData.lastName,
         phoneNumber: formData.phoneNumber,
         staffCode: formData.staffCode,
-        type: 'SUBJECT',
+        type: formData.type || 'FULL_TIME',
+        schoolId: schoolId,
       })
 
-      router.push('/dashboard/teacher/overview')
+      router.push('/dashboard-redirect')
     } catch (error: any) {
       console.error('Error creating teacher profile:', error)
       alert(error.message || 'Failed to create teacher profile. Please try again.')
@@ -52,6 +87,32 @@ export default function TeacherSetupPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-purple-100">School Registration Code</label>
+              <div className="flex gap-2">
+                <Input
+                  required
+                  value={schoolCode}
+                  onChange={(e) => {
+                    setSchoolCode(e.target.value.toUpperCase())
+                    setSchoolVerified(false)
+                  }}
+                  className="border-slate-700 bg-slate-800 text-white h-12 focus:border-purple-500 uppercase tracking-wider font-bold"
+                  placeholder="EXCE-10015"
+                />
+                <Button
+                  type="button"
+                  onClick={handleVerifySchool}
+                  className="bg-purple-600 hover:bg-purple-700 text-white h-12 px-5 font-bold"
+                >
+                  Verify Code
+                </Button>
+              </div>
+              {schoolVerified && (
+                <p className="text-xs font-bold text-emerald-400">✓ Verified: {schoolName}</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-bold text-purple-100">Staff Verification Code</label>
               <Input
