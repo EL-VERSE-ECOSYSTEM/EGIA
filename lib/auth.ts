@@ -14,9 +14,6 @@ async function getSessionImpl() {
   }
 
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) {
-    return null
-  }
 
   const userEmail = (user.email || '').trim().toLowerCase()
   const isSuperAdminEmail = userEmail === 'ixoralyon013@gmail.com'
@@ -81,7 +78,9 @@ async function getSessionImpl() {
   }
 
   return {
-    ...session,
+    ...(session || {}),
+    access_token: session?.access_token || '',
+    token_type: session?.token_type || 'bearer',
     user: {
       ...user,
       id: user.id,
