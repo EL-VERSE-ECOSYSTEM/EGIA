@@ -24,7 +24,12 @@ export default async function DashboardRedirect() {
       redirect('/dashboard/super-admin/overview')
     }
 
-    const role = (session.user.role || 'STUDENT').toUpperCase()
+    // Check if user has explicit role record in Supabase userRole table or identities
+    const role = (session.user.role || '').toUpperCase()
+
+    if (!role || role === 'NONE') {
+      redirect('/setup-role')
+    }
 
     switch (role) {
       case 'SUPER_ADMIN':
@@ -60,7 +65,8 @@ export default async function DashboardRedirect() {
         redirect('/dashboard/parent/overview')
       }
 
-      case 'STUDENT': {
+      case 'STUDENT':
+      case 'PUPIL': {
         let profile: any = null
         try {
           profile = await getStudentProfile(session.user.id)
@@ -74,7 +80,7 @@ export default async function DashboardRedirect() {
       }
 
       default:
-        redirect('/dashboard/student/overview')
+        redirect('/setup-role')
     }
   } catch (err: any) {
     if (
