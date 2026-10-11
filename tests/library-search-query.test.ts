@@ -1,9 +1,15 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-function sql(strings: TemplateStringsArray, ...values: any[]) {
-  return { strings, values }
+
+interface SqlTag {
+  (strings: TemplateStringsArray, ...values: any[]): { strings: TemplateStringsArray; values: any[] }
+  join(items: any[], separator: any): { items: any[]; separator: any }
 }
-(sql as any).join = (items: any[], separator: any) => ({ items, separator })
+
+const sql = ((strings: TemplateStringsArray, ...values: any[]) => {
+  return { strings, values }
+}) as SqlTag
+sql.join = (items: any[], separator: any) => ({ items, separator })
 
 interface SearchParamsInput {
   q?: string
