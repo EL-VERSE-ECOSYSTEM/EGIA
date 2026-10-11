@@ -9,11 +9,15 @@ async function getSessionImpl() {
   const supabase = createClient(cookieStore)
   const { data: { user }, error } = await supabase.auth.getUser()
 
-  if (error || !user) {
+  if (error || !user || !user.id) {
     return null
   }
 
   const { data: { session } } = await supabase.auth.getSession()
+
+  if (!user || !user.id) {
+    return null
+  }
 
   const userEmail = (user.email || '').trim().toLowerCase()
   const isSuperAdminEmail = userEmail === 'ixoralyon013@gmail.com'

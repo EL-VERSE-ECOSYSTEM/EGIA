@@ -139,34 +139,6 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
       error: 'Super Admin portal access is strictly restricted to the designated Super Admin account.',
     }
   }
-  // Super Admin self-healing provisioning & password sync for ixoralyon013@gmail.com
-  if (isSuperAdminEmail) {
-    const adminClient = authAdminClient()
-    if (adminClient) {
-      try {
-        const { data: usersData } = await adminClient.auth.admin.listUsers()
-        const existingAuthUser = usersData?.users?.find(u => u.email?.toLowerCase() === 'ixoralyon013@gmail.com')
-
-        if (existingAuthUser) {
-          await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
-            password: passwordInput,
-            email_confirm: true,
-            user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
-          })
-        } else {
-          await adminClient.auth.admin.createUser({
-            email: 'ixoralyon013@gmail.com',
-            password: passwordInput,
-            email_confirm: true,
-            user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
-          })
-        }
-      } catch (provisionErr) {
-        console.warn('Super Admin account provisioning notice:', provisionErr)
-      }
-    }
-  }
-
   // Dedicated direct authentication handling for Super Admin account
   if (isSuperAdminEmail) {
     if (!isValidSuperAdminPassword(passwordInput)) {
