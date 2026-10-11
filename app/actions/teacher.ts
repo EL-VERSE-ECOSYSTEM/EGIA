@@ -288,7 +288,7 @@ export async function getAllTeachersWithWallets() {
   return result
 }
 
-const DIRECTCOUPON_BASE_URL = 'https://directcoupon.com.ng'
+const DIRECTCOUPON_BASE_URL = process.env.DATA_BASE_URL || 'https://directcoupon.com.ng'
 
 export async function approveTeacherRequest(requestId: string, status: 'approved' | 'rejected') {
   const { user: currentUser, schoolId } = await getTeacherRequestAdminScope()
@@ -307,7 +307,7 @@ export async function approveTeacherRequest(requestId: string, status: 'approved
   if (requestRecord.status !== 'pending') throw new Error('This request has already been processed.')
 
   if (status === 'approved') {
-    const token = process.env.DIRECTCOUPON_TOKEN
+    const token = process.env.DATA_API || process.env.DIRECTCOUPON_TOKEN
     if (!token) {
       throw new Error('Fulfilment is unavailable because DIRECTCOUPON_TOKEN is not configured.')
     }
