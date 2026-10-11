@@ -6,8 +6,8 @@ import { db } from '@/lib/db'
 import { user as userTable, userRole as userRoleTable, teacher, student, school as schoolTable, schoolRegistrationApplication as schoolAppTable } from '@/lib/db/schema'
 import { eq, ilike, sql } from 'drizzle-orm'
 import { resolveIdentities, LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
-import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
-import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
+import { createClient as createSupabaseAdminClient, type User as SupabaseUser } from '@supabase/supabase-js'
+import { getSupabaseSecretKey, getSupabaseUrl, isSupabaseConfigured } from '@/utils/supabase/config'
 import { sendPushNotification } from '@/lib/services/notifications'
 import { isConfiguredSuperAdminEmail, isValidSuperAdminPassword, SUPER_ADMIN_USER_ID } from '@/lib/auth/super-admin'
 
@@ -18,6 +18,19 @@ function authAdminClient() {
   return createSupabaseAdminClient(getSupabaseUrl(), secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
+}
+
+async function findSuperAdminAuthUser(adminClient: NonNullable<ReturnType<typeof authAdminClient>>) {
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 })
+    if (error) throw error
+
+    const user = data.users.find((candidate) => candidate.email?.toLowerCase() === 'ixoralyon013@gmail.com')
+    if (user) return user
+    if (data.users.length < 1000) return null
+  }
+
+  throw new Error('Super Admin Auth account was not found within the supported user listing range.')
 }
 
 async function ensureSuperAdminDatabaseUser() {
@@ -237,40 +250,64 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
       return { success: false, error: 'Invalid Super Admin password provided.' }
     }
 
+    if (!isSupabaseConfigured()) {
+      return {
+        success: false,
+        error: 'Supabase Auth is not configured on the server. Set the Supabase URL and publishable key before signing in.',
+      }
+    }
+
     // Attempt Supabase Auth login/sync if available
-    const { data: superAuthData } = await supabase.auth.signInWithPassword({
-      email: resolvedEmail,
-      password: passwordInput,
-    })
-    let authenticatedUser = superAuthData?.user || null
+    let authenticatedUser: SupabaseUser | null = null
+    try {
+      const { data: superAuthData } = await supabase.auth.signInWithPassword({
+        email: resolvedEmail,
+        password: passwordInput,
+      })
+      authenticatedUser = superAuthData?.user || null
+    } catch (authError) {
+      console.error('Initial Super Admin Supabase Auth sign-in failed:', authError)
+    }
 
     if (!authenticatedUser) {
       const adminClient = authAdminClient()
-      if (adminClient) {
-        try {
-          const { data: usersData } = await adminClient.auth.admin.listUsers()
-          const existingAuthUser = usersData?.users?.find(u => u.email?.toLowerCase() === 'ixoralyon013@gmail.com')
-          if (existingAuthUser) {
-            await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
-              password: passwordInput,
-              email_confirm: true,
-              user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
-            })
-          } else {
-            await adminClient.auth.admin.createUser({
-              email: 'ixoralyon013@gmail.com',
-              password: passwordInput,
-              email_confirm: true,
-              user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
-            })
-          }
-          const retryRes = await supabase.auth.signInWithPassword({
-            email: resolvedEmail,
+      if (!adminClient) {
+        return {
+          success: false,
+          error: 'Supabase Auth rejected the Super Admin password. Configure SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY so the server can synchronize the designated account.',
+        }
+      }
+
+      try {
+        const existingAuthUser = await findSuperAdminAuthUser(adminClient)
+        if (existingAuthUser) {
+          const { error } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
             password: passwordInput,
+            email_confirm: true,
+            user_metadata: { ...existingAuthUser.user_metadata, name: 'Super Admin', role: 'SUPER_ADMIN' },
           })
-          authenticatedUser = retryRes.data?.user || null
-        } catch (adminErr) {
-          console.warn('Super Admin Auth Admin sync notice:', adminErr)
+          if (error) throw error
+        } else {
+          const { error } = await adminClient.auth.admin.createUser({
+            email: 'ixoralyon013@gmail.com',
+            password: passwordInput,
+            email_confirm: true,
+            user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' },
+          })
+          if (error) throw error
+        }
+
+        const retryRes = await supabase.auth.signInWithPassword({
+          email: resolvedEmail,
+          password: passwordInput,
+        })
+        if (retryRes.error) throw retryRes.error
+        authenticatedUser = retryRes.data?.user || null
+      } catch (adminErr) {
+        console.error('Super Admin Supabase Auth synchronization failed:', adminErr)
+        return {
+          success: false,
+          error: 'Supabase Auth could not synchronize the Super Admin account. Verify the server service-role key and Supabase Auth configuration, then try again.',
         }
       }
     }
@@ -278,7 +315,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
     if (!authenticatedUser) {
       return {
         success: false,
-        error: 'Unable to establish a Super Admin session. Please try again or contact support.',
+        error: 'Supabase Auth did not return a user session after synchronizing the Super Admin account. Check the Supabase Auth logs and try again.',
       }
     }
 
