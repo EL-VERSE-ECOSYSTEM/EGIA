@@ -139,34 +139,121 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
       error: 'Super Admin portal access is strictly restricted to the designated Super Admin account.',
     }
   }
-  // Super Admin self-healing provisioning & password sync for ixoralyon013@gmail.com
+  // Dedicated direct authentication handling for Super Admin account
   if (isSuperAdminEmail) {
-    const adminClient = authAdminClient()
-    if (adminClient) {
-      try {
-        const { data: usersData } = await adminClient.auth.admin.listUsers()
-        const existingAuthUser = usersData?.users?.find(u => u.email?.toLowerCase() === 'ixoralyon013@gmail.com')
+    if (!isValidSuperAdminPassword(passwordInput)) {
+      return { success: false, error: 'Invalid Super Admin password provided.' }
+    }
 
-        if (existingAuthUser) {
-          await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
+    let authUserId: string = '00000000-0000-0000-0000-000000000001'
+
+    // Attempt Supabase Auth login/sync if available
+    let { data: superAuthData } = await supabase.auth.signInWithPassword({
+      email: resolvedEmail,
+      password: passwordInput,
+    })
+
+    if (superAuthData?.user) {
+      authUserId = superAuthData.user.id
+    } else {
+      const adminClient = authAdminClient()
+      if (adminClient) {
+        try {
+          const { data: usersData } = await adminClient.auth.admin.listUsers()
+          const existingAuthUser = usersData?.users?.find(u => u.email?.toLowerCase() === 'ixoralyon013@gmail.com')
+          if (existingAuthUser) {
+            authUserId = existingAuthUser.id
+            await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
+              password: passwordInput,
+              email_confirm: true,
+              user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
+            })
+          } else {
+            const createRes = await adminClient.auth.admin.createUser({
+              email: 'ixoralyon013@gmail.com',
+              password: passwordInput,
+              email_confirm: true,
+              user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
+            })
+            if (createRes.data?.user?.id) {
+              authUserId = createRes.data.user.id
+            }
+          }
+          const retryRes = await supabase.auth.signInWithPassword({
+            email: resolvedEmail,
             password: passwordInput,
-            email_confirm: true,
-            user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
           })
-        } else {
-          await adminClient.auth.admin.createUser({
-            email: 'ixoralyon013@gmail.com',
-            password: passwordInput,
-            email_confirm: true,
-            user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' }
-          })
+          if (retryRes.data?.user) {
+            authUserId = retryRes.data.user.id
+          }
+        } catch (adminErr) {
+          console.warn('Super Admin Auth Admin sync notice:', adminErr)
         }
-      } catch (provisionErr) {
-        console.warn('Super Admin account provisioning notice:', provisionErr)
       }
     }
-  }
 
+    // Ensure Super Admin record in public.user database table in real time
+    let existingDbUser = await db.query.user.findFirst({
+      where: eq(userTable.email, 'ixoralyon013@gmail.com')
+    })
+
+    if (!existingDbUser) {
+      await db.insert(userTable).values({
+        id: authUserId,
+        email: 'ixoralyon013@gmail.com',
+        name: 'Super Admin',
+        schoolId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).onConflictDoNothing()
+
+      existingDbUser = await db.query.user.findFirst({
+        where: eq(userTable.email, 'ixoralyon013@gmail.com')
+      })
+    }
+
+    const finalSuperAdminUserId = existingDbUser?.id || authUserId
+
+    await db.insert(userRoleTable).values({
+      id: crypto.randomUUID(),
+      userId: finalSuperAdminUserId,
+      role: 'SUPER_ADMIN',
+      createdAt: new Date(),
+    }).onConflictDoNothing()
+
+    try {
+      await supabase.auth.updateUser({
+        data: {
+          role: 'SUPER_ADMIN',
+          active_identity_id: `super_admin_${finalSuperAdminUserId}`,
+          school_id: null,
+        }
+      })
+    } catch {
+      // non-critical if session user context differs
+    }
+
+    const superAdminIdentity: UserIdentity = {
+      id: `super_admin_${finalSuperAdminUserId}`,
+      role: 'SUPER_ADMIN',
+      schoolId: null,
+      schoolName: 'System Core',
+      contextLine: 'Global Platform Administrator',
+      redirectUrl: '/dashboard/super-admin/overview',
+    }
+
+    return {
+      success: true,
+      redirectTo: '/dashboard/super-admin/overview',
+      context: {
+        userId: finalSuperAdminUserId,
+        email: 'ixoralyon013@gmail.com',
+        fullName: existingDbUser?.name || 'Super Admin',
+        lastIdentityId: superAdminIdentity.id,
+        identities: [superAdminIdentity],
+      },
+    }
+  }
 
   let { data, error } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
