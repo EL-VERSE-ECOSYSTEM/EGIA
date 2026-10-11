@@ -47,7 +47,7 @@ export default function SignInPage() {
     const isSuperAdminTarget = targetEmail.toLowerCase() === 'ixoralyon013@gmail.com'
 
     if (loginMode === 'superadmin' && !isSuperAdminTarget) {
-      setError('Super Admin portal access is strictly restricted to the authorized Super Admin account (ixoralyon013@gmail.com).')
+      setError('Super Admin portal access is strictly restricted to the designated Super Admin account.')
       return
     }
 
@@ -73,15 +73,9 @@ export default function SignInPage() {
 
       // If Super Admin email was authenticated, direct immediately to Super Admin Dashboard
       if (isSuperAdminAccount) {
-        const superAdminIdent = identities.find((i) => i.role === 'SUPER_ADMIN') || identities[0]
-        if (superAdminIdent) {
-          const activateRes = await activateIdentityAction(superAdminIdent.id, rememberMe)
-          toast.success('Welcome Super Admin! Direct access granted.')
-          window.location.href = (activateRes.success && activateRes.redirectTo)
-            ? activateRes.redirectTo
-            : '/dashboard/super-admin/overview'
-          return
-        }
+        toast.success('Welcome Super Admin! Direct access granted.')
+        window.location.href = res.redirectTo || '/dashboard/super-admin/overview'
+        return
       }
 
       // Scenario A: Single identity -> Instant direct navigation without modal
