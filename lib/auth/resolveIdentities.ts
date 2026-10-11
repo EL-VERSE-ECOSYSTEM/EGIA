@@ -10,7 +10,7 @@ import {
 } from '@/lib/db/schema'
 import { eq, ilike, sql } from 'drizzle-orm'
 import { getRedirectUrlForIdentity, RoleType } from './redirectMap'
-import { isConfiguredSuperAdminEmail, SUPER_ADMIN_USER_ID } from './super-admin'
+import { isSuperAdminEmail, isSuperAdminUser } from './super-admin'
 
 export interface UserIdentity {
   id: string
@@ -37,8 +37,7 @@ export interface LoginContext {
 }
 
 export async function resolveIdentities(userId: string, emailHint?: string): Promise<LoginContext> {
-  const isSuperAdmin = isConfiguredSuperAdminEmail(emailHint)
-  let targetUserId = isSuperAdmin ? SUPER_ADMIN_USER_ID : userId
+  let targetUserId = userId
   let userRecord: any = null
 
   try {
@@ -77,7 +76,7 @@ export async function resolveIdentities(userId: string, emailHint?: string): Pro
 
   if (!userRecord) {
     try {
-      // Auto-provision public.user if lookup by ID didn't find record yet
+      const isSuperAdmin = await isSuperAdminEmail(emailHint) || await isSuperAdminUser(targetUserId)
       const userName = isSuperAdmin
         ? 'Super Admin'
         : targetUserId.includes('@')
@@ -124,11 +123,11 @@ export async function resolveIdentities(userId: string, emailHint?: string): Pro
 
   const identities: UserIdentity[] = []
 
-  const isSuperAdminEmail = isConfiguredSuperAdminEmail(resolvedEmail)
+  const userIsSuperAdmin = await isSuperAdminUser(userId) || await isSuperAdminEmail(resolvedEmail)
 
   // 1. Check Super Admin / Base User Roles from Supabase user_role Table
   try {
-    if (isSuperAdminEmail) {
+    if (userIsSuperAdmin) {
       const identityId = `super_admin_${userId}`
       identities.push({
         id: identityId,
@@ -309,7 +308,7 @@ export async function resolveIdentities(userId: string, emailHint?: string): Pro
 
   // Ensure user always has at least one valid identity
   if (identities.length === 0) {
-    const fallbackRole = isSuperAdminEmail ? 'SUPER_ADMIN' : 'STUDENT'
+    const fallbackRole = userIsSuperAdmin ? 'SUPER_ADMIN' : 'STUDENT'
     identities.push({
       id: `default_${userId}`,
       role: fallbackRole as any,

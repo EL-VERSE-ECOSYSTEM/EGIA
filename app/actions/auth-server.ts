@@ -10,7 +10,7 @@ import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
 import { createClient as createSupabaseAdminClient, type User as SupabaseUser } from '@supabase/supabase-js'
 import { withCircuitBreaker } from '@/lib/resilience'
-import { isConfiguredSuperAdminEmail } from '@/lib/auth/super-admin'
+import { isSuperAdminEmail, isSuperAdminUser } from '@/lib/auth/super-admin'
 
 type AuthRole = 'STUDENT' | 'TEACHER' | 'PARENT' | 'ADMIN'
 
@@ -710,8 +710,11 @@ export async function loginRole(data: {
 
   let email = normalizeEmail(identifier)
 
-  if (selectedRole === 'SUPER_ADMIN' && !isConfiguredSuperAdminEmail(email)) {
-    return { error: 'Access denied: Only authorized Super Admin email can access this portal.' }
+  if (selectedRole === 'SUPER_ADMIN') {
+    const isSuperAdmin = await isSuperAdminEmail(email)
+    if (!isSuperAdmin) {
+      return { error: 'Access denied: Only authorized Super Admin email can access this portal.' }
+    }
   }
 
   if (selectedRole === 'TEACHER' && identifier.includes('-ST-')) {

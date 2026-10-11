@@ -4,12 +4,12 @@ import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { user as userTable, userRole as userRoleTable, teacher, student, school as schoolTable, schoolRegistrationApplication as schoolAppTable } from '@/lib/db/schema'
-import { eq, ilike, sql } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { resolveIdentities, LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
-import { createClient as createSupabaseAdminClient, type User as SupabaseUser } from '@supabase/supabase-js'
-import { getSupabaseSecretKey, getSupabaseUrl, isSupabaseConfigured } from '@/utils/supabase/config'
+import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
+import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
 import { sendPushNotification } from '@/lib/services/notifications'
-import { isConfiguredSuperAdminEmail, isValidSuperAdminPassword, SUPER_ADMIN_USER_ID } from '@/lib/auth/super-admin'
+import { isSuperAdminEmail, isSuperAdminUser } from '@/lib/auth/super-admin'
 
 function authAdminClient() {
   const secretKey = getSupabaseSecretKey()
@@ -17,124 +17,6 @@ function authAdminClient() {
 
   return createSupabaseAdminClient(getSupabaseUrl(), secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
-  })
-}
-
-async function findSuperAdminAuthUser(adminClient: NonNullable<ReturnType<typeof authAdminClient>>) {
-  for (let page = 1; page <= 20; page += 1) {
-    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 })
-    if (error) throw error
-
-    const user = data.users.find((candidate) => candidate.email?.toLowerCase() === 'ixoralyon013@gmail.com')
-    if (user) return user
-    if (data.users.length < 1000) return null
-  }
-
-  throw new Error('Super Admin Auth account was not found within the supported user listing range.')
-}
-
-function isSupabaseAuthDatabaseError(error: unknown) {
-  const message = error instanceof Error
-    ? error.message
-    : typeof error === 'object' && error !== null && 'message' in error
-    ? String(error.message)
-    : String(error || '')
-
-  return /database error (?:querying schema|finding users)/i.test(message)
-}
-
-const SUPER_ADMIN_AUTH_DATABASE_ERROR =
-  'Supabase Auth cannot query its user database. The Super Admin public.user and user_role records are intact; repair the Supabase Auth database permissions/schema, then retry login.'
-
-async function ensureSuperAdminDatabaseUser() {
-  return db.transaction(async (tx) => {
-    const [existingDbUser] = await tx
-      .select()
-      .from(userTable)
-      .where(ilike(userTable.email, 'ixoralyon013@gmail.com'))
-      .for('update')
-      .limit(1)
-    const [canonicalDbUser] = await tx
-      .select()
-      .from(userTable)
-      .where(eq(userTable.id, SUPER_ADMIN_USER_ID))
-      .limit(1)
-
-    if (canonicalDbUser && canonicalDbUser.email.toLowerCase() !== 'ixoralyon013@gmail.com') {
-      return { error: 'The Super Admin user ID is already assigned to a different account.' }
-    }
-
-    if (existingDbUser?.id === SUPER_ADMIN_USER_ID) {
-      return { user: existingDbUser }
-    }
-
-    if (!existingDbUser && canonicalDbUser) {
-      return { user: canonicalDbUser }
-    }
-
-    const canonicalUser = {
-      ...(existingDbUser || {
-        name: 'Super Admin',
-        image: null,
-        schoolId: null,
-        lastIdentityId: null,
-        lastIdentityAt: null,
-        gender: null,
-        adminLevel: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }),
-      id: SUPER_ADMIN_USER_ID,
-      email: 'ixoralyon013@gmail.com',
-      name: existingDbUser?.name || 'Super Admin',
-      lastIdentityId: `super_admin_${SUPER_ADMIN_USER_ID}`,
-      updatedAt: new Date(),
-    }
-
-    if (existingDbUser) {
-      await tx.update(userTable)
-        .set({ email: `super-admin-migration-${crypto.randomUUID()}@invalid.local` })
-        .where(eq(userTable.id, existingDbUser.id))
-    }
-
-    await tx.insert(userTable).values(canonicalUser)
-
-    if (existingDbUser) {
-      const foreignKeys = await tx.execute(sql`
-        SELECT
-          child_namespace.nspname AS schema_name,
-          child_table.relname AS table_name,
-          child_column.attname AS column_name
-        FROM pg_constraint AS foreign_key
-        JOIN pg_class AS parent_table ON parent_table.oid = foreign_key.confrelid
-        JOIN pg_namespace AS parent_namespace ON parent_namespace.oid = parent_table.relnamespace
-        JOIN pg_class AS child_table ON child_table.oid = foreign_key.conrelid
-        JOIN pg_namespace AS child_namespace ON child_namespace.oid = child_table.relnamespace
-        CROSS JOIN LATERAL unnest(foreign_key.conkey) WITH ORDINALITY AS child_key(attnum, position)
-        CROSS JOIN LATERAL unnest(foreign_key.confkey) WITH ORDINALITY AS parent_key(attnum, position)
-        JOIN pg_attribute AS child_column
-          ON child_column.attrelid = child_table.oid AND child_column.attnum = child_key.attnum
-        JOIN pg_attribute AS parent_column
-          ON parent_column.attrelid = parent_table.oid AND parent_column.attnum = parent_key.attnum
-        WHERE foreign_key.contype = 'f'
-          AND parent_namespace.nspname = 'public'
-          AND parent_table.relname = 'user'
-          AND parent_column.attname = 'id'
-          AND child_key.position = parent_key.position
-      `) as unknown as Array<{ schema_name: string; table_name: string; column_name: string }>
-
-      for (const foreignKey of foreignKeys) {
-        await tx.execute(sql`
-          UPDATE ${sql.identifier(foreignKey.schema_name)}.${sql.identifier(foreignKey.table_name)}
-          SET ${sql.identifier(foreignKey.column_name)} = ${SUPER_ADMIN_USER_ID}
-          WHERE ${sql.identifier(foreignKey.column_name)} = ${existingDbUser.id}
-        `)
-      }
-
-      await tx.delete(userTable).where(eq(userTable.id, existingDbUser.id))
-    }
-
-    return { user: canonicalUser }
   })
 }
 
@@ -242,169 +124,24 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
     }
   }
 
-  const isSuperAdminEmail = isConfiguredSuperAdminEmail(resolvedEmail)
+  const isSuperAdmin = await isSuperAdminEmail(resolvedEmail)
 
-  if (loginMode === 'standard' && isSuperAdminEmail) {
+  if (loginMode === 'standard' && isSuperAdmin) {
     return {
       success: false,
       error: 'Super Admin account must authenticate via the Super Admin login tab. Please switch tabs to sign in.',
     }
   }
 
-  if (loginMode === 'superadmin' && !isSuperAdminEmail) {
+  if (loginMode === 'superadmin' && !isSuperAdmin) {
     return {
       success: false,
-      error: 'Super Admin portal access is strictly restricted to the designated Super Admin account.',
-    }
-  }
-  // Dedicated direct authentication handling for Super Admin account
-  if (isSuperAdminEmail) {
-    if (!isValidSuperAdminPassword(passwordInput)) {
-      return { success: false, error: 'Invalid Super Admin password provided.' }
-    }
-
-    if (!isSupabaseConfigured()) {
-      return {
-        success: false,
-        error: 'Supabase Auth is not configured on the server. Set the Supabase URL and publishable key before signing in.',
-      }
-    }
-
-    // Attempt Supabase Auth login/sync if available
-    let authenticatedUser: SupabaseUser | null = null
-    let hasAuthenticatedSession = false
-    let initialSignInError: unknown = null
-    try {
-      const { data: superAuthData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: resolvedEmail,
-        password: passwordInput,
-      })
-      initialSignInError = signInError
-      if (!signInError && superAuthData?.user && superAuthData.session) {
-        authenticatedUser = superAuthData.user
-        hasAuthenticatedSession = true
-      }
-    } catch (authError) {
-      initialSignInError = authError
-      console.error('Initial Super Admin Supabase Auth sign-in failed:', authError)
-    }
-
-    if (!authenticatedUser) {
-      if (isSupabaseAuthDatabaseError(initialSignInError)) {
-        return { success: false, error: SUPER_ADMIN_AUTH_DATABASE_ERROR }
-      }
-
-      const adminClient = authAdminClient()
-      if (!adminClient) {
-        return {
-          success: false,
-          error: 'Supabase Auth rejected the Super Admin password. Configure SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY so the server can synchronize the designated account.',
-        }
-      }
-
-      try {
-        const existingAuthUser = await findSuperAdminAuthUser(adminClient)
-        if (existingAuthUser) {
-          const { error } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
-            password: passwordInput,
-            email_confirm: true,
-            user_metadata: { ...existingAuthUser.user_metadata, name: 'Super Admin', role: 'SUPER_ADMIN' },
-          })
-          if (error) throw error
-        } else {
-          const { error } = await adminClient.auth.admin.createUser({
-            email: 'ixoralyon013@gmail.com',
-            password: passwordInput,
-            email_confirm: true,
-            user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' },
-          })
-          if (error) throw error
-        }
-
-        const retryRes = await supabase.auth.signInWithPassword({
-          email: resolvedEmail,
-          password: passwordInput,
-        })
-        if (retryRes.error) throw retryRes.error
-        if (!retryRes.data?.user || !retryRes.data.session) {
-          throw new Error('Supabase Auth did not return a session after account synchronization.')
-        }
-        authenticatedUser = retryRes.data.user
-        hasAuthenticatedSession = true
-      } catch (adminErr) {
-        console.error('Super Admin Supabase Auth synchronization failed:', adminErr)
-        if (isSupabaseAuthDatabaseError(adminErr)) {
-          return { success: false, error: SUPER_ADMIN_AUTH_DATABASE_ERROR }
-        }
-        return {
-          success: false,
-          error: 'Supabase Auth could not synchronize the Super Admin account. Verify the server service-role key and Supabase Auth configuration, then try again.',
-        }
-      }
-    }
-
-    if (!authenticatedUser || !hasAuthenticatedSession) {
-      return {
-        success: false,
-        error: 'Supabase Auth did not establish a Super Admin session. Check the Supabase Auth configuration and try again.',
-      }
-    }
-
-    const provisionResult = await ensureSuperAdminDatabaseUser()
-    if ('error' in provisionResult) {
-      return {
-        success: false,
-        error: provisionResult.error,
-      }
-    }
-
-    const finalSuperAdminUserId = SUPER_ADMIN_USER_ID
-
-    await db.insert(userRoleTable).values({
-      id: crypto.randomUUID(),
-      userId: finalSuperAdminUserId,
-      role: 'SUPER_ADMIN',
-      createdAt: new Date(),
-    }).onConflictDoNothing()
-    await db.update(userRoleTable)
-      .set({ role: 'SUPER_ADMIN' })
-      .where(eq(userRoleTable.userId, finalSuperAdminUserId))
-
-    try {
-      await supabase.auth.updateUser({
-        data: {
-          role: 'SUPER_ADMIN',
-          active_identity_id: `super_admin_${finalSuperAdminUserId}`,
-          school_id: null,
-        }
-      })
-    } catch {
-      // non-critical if session user context differs
-    }
-
-    const superAdminIdentity: UserIdentity = {
-      id: `super_admin_${finalSuperAdminUserId}`,
-      role: 'SUPER_ADMIN',
-      schoolId: null,
-      schoolName: 'System Core',
-      contextLine: 'Global Platform Administrator',
-      redirectUrl: '/dashboard/super-admin/overview',
-    }
-
-    return {
-      success: true,
-      redirectTo: '/dashboard/super-admin/overview',
-      context: {
-        userId: finalSuperAdminUserId,
-        email: 'ixoralyon013@gmail.com',
-        fullName: provisionResult.user.name || 'Super Admin',
-        lastIdentityId: superAdminIdentity.id,
-        identities: [superAdminIdentity],
-      },
+      error: 'Super Admin portal access is strictly restricted to authorized Super Admin accounts.',
     }
   }
 
-  let { data, error } = await supabase.auth.signInWithPassword({
+  // Authenticate user via Supabase Auth
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
     password: passwordInput,
   })
@@ -415,7 +152,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
 
   try {
     const userEmail = (data.user.email || resolvedEmail).toLowerCase()
-    const isSuperAdminEmail = isConfiguredSuperAdminEmail(userEmail)
+    const userIsSuperAdmin = await isSuperAdminUser(data.user.id) || await isSuperAdminEmail(userEmail)
 
     // Ensure public.user record exists for authenticated Supabase user
     let existingUser = await db.query.user.findFirst({
@@ -423,15 +160,14 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
     })
 
     if (!existingUser) {
-      const userRoleMeta = isSuperAdminEmail ? 'SUPER_ADMIN' : 'STUDENT'
-      const userSchoolId = null
+      const userRoleMeta = userIsSuperAdmin ? 'SUPER_ADMIN' : 'STUDENT'
       const userName = data.user.user_metadata?.name || userEmail.split('@')[0] || 'User'
 
       await db.insert(userTable).values({
         id: data.user.id,
         email: userEmail,
         name: userName,
-        schoolId: userSchoolId,
+        schoolId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       }).onConflictDoNothing()
@@ -448,7 +184,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
       })
     }
 
-    if (isSuperAdminEmail) {
+    if (userIsSuperAdmin) {
       await db.insert(userRoleTable).values({
         id: crypto.randomUUID(),
         userId: data.user.id,
@@ -495,19 +231,17 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
 
     // Filter identities to prevent unauthorized users from acquiring SUPER_ADMIN identity
     loginContext.identities = loginContext.identities.filter(identity => {
-      if (identity.role === 'SUPER_ADMIN' && !isSuperAdminEmail) {
+      if (identity.role === 'SUPER_ADMIN' && !userIsSuperAdmin) {
         return false
       }
       return true
     })
 
     if (!loginContext.identities || loginContext.identities.length === 0) {
-      // Fallback: If no specialized identity profiles (teacher/student/parent/admin) exist,
-      // construct default identity from base user role so user logs in without a hitch.
       const requestedDefaultRole = (data.user.user_metadata?.role || 'STUDENT').toUpperCase()
-      const defaultRole = requestedDefaultRole === 'SUPER_ADMIN' && !isSuperAdminEmail
+      const defaultRole = requestedDefaultRole === 'SUPER_ADMIN' && !userIsSuperAdmin
         ? 'STUDENT'
-        : isSuperAdminEmail ? 'SUPER_ADMIN' : requestedDefaultRole
+        : userIsSuperAdmin ? 'SUPER_ADMIN' : requestedDefaultRole
       const defaultIdentity: UserIdentity = {
         id: `default_${data.user.id}`,
         role: defaultRole as any,
@@ -556,11 +290,11 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
     }
   } catch (err: any) {
     console.error('Login identity resolution failed:', err)
-    // Fallback gracefully so authenticated Supabase users log in without a hitch
+    const userIsSuperAdmin = await isSuperAdminEmail(resolvedEmail)
     const requestedFallbackRole = (data.user.user_metadata?.role || 'STUDENT').toUpperCase()
-    const fallbackRole = requestedFallbackRole === 'SUPER_ADMIN' && !isConfiguredSuperAdminEmail(data.user.email)
+    const fallbackRole = requestedFallbackRole === 'SUPER_ADMIN' && !userIsSuperAdmin
       ? 'STUDENT'
-      : isConfiguredSuperAdminEmail(data.user.email) ? 'SUPER_ADMIN' : requestedFallbackRole
+      : userIsSuperAdmin ? 'SUPER_ADMIN' : requestedFallbackRole
     const fallbackIdentity: UserIdentity = {
       id: `fallback_${data.user.id}`,
       role: fallbackRole as any,
@@ -602,12 +336,12 @@ export async function activateIdentityAction(identityId: string, remember: boole
   }
 
   const userEmail = (user.email || '').trim().toLowerCase()
-  const isSuperAdminEmail = isConfiguredSuperAdminEmail(userEmail)
+  const userIsSuperAdmin = await isSuperAdminUser(user.id) || await isSuperAdminEmail(userEmail)
 
   const loginContext = await resolveIdentities(user.id, userEmail)
   let matchedIdentity = loginContext.identities.find((i) => i.id === identityId)
 
-  if (!matchedIdentity && isSuperAdminEmail) {
+  if (!matchedIdentity && userIsSuperAdmin) {
     matchedIdentity = {
       id: `super_admin_${user.id}`,
       role: 'SUPER_ADMIN',

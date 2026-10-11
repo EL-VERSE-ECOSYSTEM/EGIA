@@ -7,13 +7,17 @@ import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { randomUUID } from 'crypto'
 import { sanitizeServerError } from '@/lib/errors'
-import { isConfiguredSuperAdminEmail } from '@/lib/auth/super-admin'
+import { isSuperAdminEmail, isSuperAdminUser } from '@/lib/auth/super-admin'
 
 async function checkSuperAdminPermission() {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized: Session required.')
 
-  if (!isConfiguredSuperAdminEmail(session.user.email)) {
+  const userIsSuperAdmin = session.user.role === 'SUPER_ADMIN' ||
+    await isSuperAdminUser(session.user.id) ||
+    await isSuperAdminEmail(session.user.email)
+
+  if (!userIsSuperAdmin) {
     throw new Error('Forbidden: This account is not authorized for Super Admin access.')
   }
 
