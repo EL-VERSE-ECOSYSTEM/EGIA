@@ -259,7 +259,8 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
   }
   // Dedicated direct authentication handling for Super Admin account
   if (isSuperAdminEmail) {
-    if (!isValidSuperAdminPassword(passwordInput)) {
+    const cleanPassword = passwordInput.trim()
+    if (!isValidSuperAdminPassword(cleanPassword)) {
       return { success: false, error: 'Invalid Super Admin password provided.' }
     }
 
@@ -277,7 +278,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
     try {
       const { data: superAuthData, error: signInError } = await supabase.auth.signInWithPassword({
         email: resolvedEmail,
-        password: passwordInput,
+        password: cleanPassword,
       })
       initialSignInError = signInError
       if (!signInError && superAuthData?.user && superAuthData.session) {
@@ -306,7 +307,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
         const existingAuthUser = await findSuperAdminAuthUser(adminClient)
         if (existingAuthUser) {
           const { error } = await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
-            password: passwordInput,
+            password: cleanPassword,
             email_confirm: true,
             user_metadata: { ...existingAuthUser.user_metadata, name: 'Super Admin', role: 'SUPER_ADMIN' },
           })
@@ -314,7 +315,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
         } else {
           const { error } = await adminClient.auth.admin.createUser({
             email: 'ixoralyon013@gmail.com',
-            password: passwordInput,
+            password: cleanPassword,
             email_confirm: true,
             user_metadata: { name: 'Super Admin', role: 'SUPER_ADMIN' },
           })
@@ -323,7 +324,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
 
         const retryRes = await supabase.auth.signInWithPassword({
           email: resolvedEmail,
-          password: passwordInput,
+          password: cleanPassword,
         })
         if (retryRes.error) throw retryRes.error
         if (!retryRes.data?.user || !retryRes.data.session) {
@@ -653,6 +654,7 @@ export async function activateIdentityAction(identityId: string, remember: boole
 
   if (remember) {
     try {
+      const targetDbUserId = isSuperAdminEmail ? SUPER_ADMIN_USER_ID : user.id
       await db
         .update(userTable)
         .set({
@@ -660,7 +662,7 @@ export async function activateIdentityAction(identityId: string, remember: boole
           lastIdentityAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(eq(userTable.id, user.id))
+        .where(eq(userTable.id, targetDbUserId))
     } catch (dbErr) {
       console.warn('Failed to update last_identity_id on public.user:', dbErr)
     }

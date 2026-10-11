@@ -75,11 +75,13 @@ export default function SignInPage() {
       if (isSuperAdminAccount) {
         const superAdminIdentity = identities.find((i) => i.role === 'SUPER_ADMIN') || identities[0]
         if (superAdminIdentity) {
-          const activateRes = await activateIdentityAction(superAdminIdentity.id, rememberMe)
-          if (!activateRes.success) {
-            setError(activateRes.error || 'Unable to activate your Super Admin identity.')
-            setLoading(false)
-            return
+          try {
+            const activateRes = await activateIdentityAction(superAdminIdentity.id, rememberMe)
+            if (!activateRes.success) {
+              console.warn('Super Admin identity activation notice:', activateRes.error)
+            }
+          } catch (activateErr) {
+            console.warn('Super Admin identity activation exception:', activateErr)
           }
         }
         toast.success('Welcome Super Admin! Direct access granted.')

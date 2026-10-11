@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { getRedirectUrlForIdentity } from '../lib/auth/redirectMap.ts'
+import { isValidSuperAdminPassword, isConfiguredSuperAdminEmail } from '../lib/auth/super-admin.ts'
 
 function simulateSignInModeValidation(loginMode: 'standard' | 'superadmin', inputEmail: string): { allowed: boolean; error?: string; targetRedirect?: string } {
   const targetEmail = inputEmail.trim().toLowerCase()
@@ -100,6 +101,22 @@ describe('Super Admin Auth & Access Restriction Tests', () => {
       const res2 = simulateSuperAdminPermissionCheck('random@gmail.com')
       assert.equal(res2.allowed, false)
       assert.equal(res2.error, 'Forbidden: Super Admin access strictly restricted to ixoralyon013@gmail.com.')
+    })
+  })
+
+  describe('Super Admin Credential & Password Validation', () => {
+    it('validates configured Super Admin email', () => {
+      assert.equal(isConfiguredSuperAdminEmail('ixoralyon013@gmail.com'), true)
+      assert.equal(isConfiguredSuperAdminEmail(' IXORALYON013@GMAIL.COM '), true)
+      assert.equal(isConfiguredSuperAdminEmail('user@example.com'), false)
+    })
+
+    it('validates Super Admin password with exact match and leading/trailing whitespace', () => {
+      assert.equal(isValidSuperAdminPassword('Amunra123@'), true)
+      assert.equal(isValidSuperAdminPassword(' Amunra123@ '), true)
+      assert.equal(isValidSuperAdminPassword('wrongpassword'), false)
+      assert.equal(isValidSuperAdminPassword(''), false)
+      assert.equal(isValidSuperAdminPassword(null), false)
     })
   })
 
