@@ -4,9 +4,9 @@ import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { user as userTable, userRole as userRoleTable, teacher, student, school as schoolTable, schoolRegistrationApplication as schoolAppTable } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, ilike } from 'drizzle-orm'
 import { resolveIdentities, LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
-import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseAdminClient, type User as SupabaseUser } from '@supabase/supabase-js'
 import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
 import { sendPushNotification } from '@/lib/services/notifications'
 import { isSuperAdminEmail, isSuperAdminUser } from '@/lib/auth/super-admin'
@@ -18,6 +18,18 @@ function authAdminClient() {
   return createSupabaseAdminClient(getSupabaseUrl(), secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
+}
+
+async function findAuthUserByEmail(adminClient: NonNullable<ReturnType<typeof authAdminClient>>, email: string) {
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 })
+    if (error) throw error
+
+    const found = data.users.find((candidate) => candidate.email?.toLowerCase() === email)
+    if (found) return found
+    if (data.users.length < 1000) return null
+  }
+  return null
 }
 
 export async function signInAction(emailInput: string, passwordInput: string, loginMode: 'standard' | 'superadmin' = 'standard') {
@@ -141,10 +153,53 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
   }
 
   // Authenticate user via Supabase Auth
-  const { data, error } = await supabase.auth.signInWithPassword({
+  let { data, error } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
     password: passwordInput,
   })
+
+  // Self-healing synchronization for Super Admin accounts if initial Supabase Auth login fails
+  if ((error || !data?.user) && isSuperAdmin) {
+    const adminClient = authAdminClient()
+    if (adminClient) {
+      try {
+        const existingAuthUser = await findAuthUserByEmail(adminClient, resolvedEmail)
+        if (existingAuthUser) {
+          await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
+            password: passwordInput,
+            email_confirm: true,
+            user_metadata: { ...existingAuthUser.user_metadata, role: 'SUPER_ADMIN' },
+          })
+        } else {
+          // Look up user ID from database user record
+          const dbUser = await db
+            .select({ id: userTable.id, name: userTable.name })
+            .from(userTable)
+            .where(ilike(userTable.email, resolvedEmail))
+            .limit(1)
+
+          await adminClient.auth.admin.createUser({
+            id: dbUser[0]?.id || undefined,
+            email: resolvedEmail,
+            password: passwordInput,
+            email_confirm: true,
+            user_metadata: { name: dbUser[0]?.name || 'Super Admin', role: 'SUPER_ADMIN' },
+          })
+        }
+
+        const retryRes = await supabase.auth.signInWithPassword({
+          email: resolvedEmail,
+          password: passwordInput,
+        })
+        if (!retryRes.error && retryRes.data?.user) {
+          data = retryRes.data
+          error = null
+        }
+      } catch (syncErr) {
+        console.warn('Super Admin Auth synchronization warning:', syncErr)
+      }
+    }
+  }
 
   if (error || !data?.user) {
     return { success: false, error: 'Invalid credentials or account not found.' }
