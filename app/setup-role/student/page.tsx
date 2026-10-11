@@ -18,6 +18,7 @@ export default function StudentSetupPage() {
     firstName: '',
     lastName: '',
     class: '',
+    password: '',
   })
 
   const handleVerifySchool = async () => {
@@ -124,6 +125,19 @@ export default function StudentSetupPage() {
                   placeholder="Doe"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-orange-100">Account Password</label>
+              <Input
+                type="password"
+                required
+                minLength={8}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="border-slate-700 bg-slate-800 text-white h-12 focus:border-orange-500"
+                placeholder="Minimum 8 characters"
+              />
             </div>
 
             <div className="space-y-2">
