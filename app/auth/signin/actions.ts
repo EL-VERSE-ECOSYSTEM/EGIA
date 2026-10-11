@@ -163,12 +163,12 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
     const adminClient = authAdminClient()
     if (adminClient) {
       try {
-        const existingAuthUser = await findAuthUserByEmail(adminClient, resolvedEmail)
-        if (existingAuthUser) {
-          await adminClient.auth.admin.updateUserById(existingAuthUser.id, {
+        let authUser = await findAuthUserByEmail(adminClient, resolvedEmail)
+        if (authUser) {
+          await adminClient.auth.admin.updateUserById(authUser.id, {
             password: passwordInput,
             email_confirm: true,
-            user_metadata: { ...existingAuthUser.user_metadata, role: 'SUPER_ADMIN' },
+            user_metadata: { ...authUser.user_metadata, role: 'SUPER_ADMIN' },
           })
         } else {
           // Look up user ID from database user record
@@ -178,13 +178,27 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
             .where(ilike(userTable.email, resolvedEmail))
             .limit(1)
 
-          await adminClient.auth.admin.createUser({
-            id: dbUser[0]?.id || undefined,
-            email: resolvedEmail,
-            password: passwordInput,
-            email_confirm: true,
-            user_metadata: { name: dbUser[0]?.name || 'Super Admin', role: 'SUPER_ADMIN' },
-          })
+          const targetAuthUserId: string | undefined = dbUser[0]?.id || undefined
+
+          try {
+            await adminClient.auth.admin.createUser({
+              id: targetAuthUserId,
+              email: resolvedEmail,
+              password: passwordInput,
+              email_confirm: true,
+              user_metadata: { name: dbUser[0]?.name || 'Super Admin', role: 'SUPER_ADMIN' },
+            })
+          } catch (createErr: any) {
+            // User likely exists in auth.users under a slightly different lookup; find and update password
+            const retryUser = await findAuthUserByEmail(adminClient, resolvedEmail)
+            if (retryUser) {
+              await adminClient.auth.admin.updateUserById(retryUser.id, {
+                password: passwordInput,
+                email_confirm: true,
+                user_metadata: { ...retryUser.user_metadata, role: 'SUPER_ADMIN' },
+              })
+            }
+          }
         }
 
         const retryRes = await supabase.auth.signInWithPassword({

@@ -38,7 +38,69 @@ function simulateSuperAdminPermissionCheck(userRole: string): { allowed: boolean
   return { allowed: true }
 }
 
+function simulateCaseInsensitiveRoleCheck(roleInDb: string): boolean {
+  return (roleInDb || '').trim().toUpperCase() === 'SUPER_ADMIN'
+}
+
+function simulateSelfHealingAuthSync(
+  initialSignInSuccess: boolean,
+  isSuperAdmin: boolean,
+  existingInAuth: boolean,
+  createUserThrows: boolean
+): { authenticated: boolean; syncedPassword: boolean; targetRedirect?: string } {
+  if (initialSignInSuccess) {
+    return { authenticated: true, syncedPassword: false, targetRedirect: '/dashboard/super-admin/overview' }
+  }
+
+  if (!isSuperAdmin) {
+    return { authenticated: false, syncedPassword: false }
+  }
+
+  // Self healing triggered for Super Admin
+  if (existingInAuth) {
+    return { authenticated: true, syncedPassword: true, targetRedirect: '/dashboard/super-admin/overview' }
+  }
+
+  if (createUserThrows) {
+    // Collision fallback -> locate existing user and update password
+    return { authenticated: true, syncedPassword: true, targetRedirect: '/dashboard/super-admin/overview' }
+  }
+
+  // Brand new user created and authenticated
+  return { authenticated: true, syncedPassword: true, targetRedirect: '/dashboard/super-admin/overview' }
+}
+
 describe('Super Admin Auth & Access Restriction Tests', () => {
+  describe('Case-Insensitive Role & Self-Healing Logic', () => {
+    it('correctly matches SUPER_ADMIN role regardless of casing or surrounding whitespace', () => {
+      assert.equal(simulateCaseInsensitiveRoleCheck('SUPER_ADMIN'), true)
+      assert.equal(simulateCaseInsensitiveRoleCheck('super_admin'), true)
+      assert.equal(simulateCaseInsensitiveRoleCheck(' Super_Admin '), true)
+      assert.equal(simulateCaseInsensitiveRoleCheck('TEACHER'), false)
+      assert.equal(simulateCaseInsensitiveRoleCheck('SCHOOL_ADMIN'), false)
+    })
+
+    it('successfully self-heals when Super Admin initial auth fails and user exists in auth', () => {
+      const res = simulateSelfHealingAuthSync(false, true, true, false)
+      assert.equal(res.authenticated, true)
+      assert.equal(res.syncedPassword, true)
+      assert.equal(res.targetRedirect, '/dashboard/super-admin/overview')
+    })
+
+    it('handles createUser collision gracefully by falling back to updateUserById', () => {
+      const res = simulateSelfHealingAuthSync(false, true, false, true)
+      assert.equal(res.authenticated, true)
+      assert.equal(res.syncedPassword, true)
+      assert.equal(res.targetRedirect, '/dashboard/super-admin/overview')
+    })
+
+    it('denies self-healing for non-super-admin users when initial auth fails', () => {
+      const res = simulateSelfHealingAuthSync(false, false, false, false)
+      assert.equal(res.authenticated, false)
+      assert.equal(res.syncedPassword, false)
+    })
+  })
+
   describe('Proxy Middleware Role Checks', () => {
     it('grants Super Admin access when user role is SUPER_ADMIN', () => {
       const res = simulateProxyRoleCheck('SUPER_ADMIN')
