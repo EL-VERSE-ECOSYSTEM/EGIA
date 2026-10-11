@@ -191,16 +191,25 @@ export async function createParentProfile(data: any) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
+  await db.insert(userRole).values({
+    id: crypto.randomUUID(),
+    userId: session.user.id,
+    role: 'PARENT',
+    createdAt: new Date(),
+  }).onConflictDoNothing()
+
   const existing = await db.query.parent.findFirst({
     where: eq(parentTable.userId, session.user.id)
   })
 
   if (existing) return existing
 
+  const targetSchoolId = data.schoolId || session.user.schoolId || null
+
   const inserted = await db.insert(parentTable).values({
     id: crypto.randomUUID(),
     userId: session.user.id,
-    schoolId: session.user.schoolId || null,
+    schoolId: targetSchoolId,
     firstName: data.firstName || session.user.name?.split(' ')[0] || 'Parent',
     lastName: data.lastName || session.user.name?.split(' ')[1] || 'Guardian',
     phoneNumber: data.phoneNumber || null,
@@ -213,6 +222,13 @@ export async function createStudentProfile(data: any) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
+  await db.insert(userRole).values({
+    id: crypto.randomUUID(),
+    userId: session.user.id,
+    role: 'STUDENT',
+    createdAt: new Date(),
+  }).onConflictDoNothing()
+
   const existing = await db.query.student.findFirst({
     where: eq(student.userId, session.user.id)
   })
@@ -220,10 +236,12 @@ export async function createStudentProfile(data: any) {
   if (existing) return existing
 
   const targetClass = data.class || 'JSS1'
+  const targetSchoolId = data.schoolId || session.user.schoolId || null
+
   const inserted = await db.insert(student).values({
     id: crypto.randomUUID(),
     userId: session.user.id,
-    schoolId: session.user.schoolId || null,
+    schoolId: targetSchoolId,
     firstName: data.firstName || session.user.name?.split(' ')[0] || 'Student',
     lastName: data.lastName || session.user.name?.split(' ')[1] || 'Pupil',
     class: targetClass,
@@ -237,16 +255,25 @@ export async function createTeacherProfile(data: any) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
+  await db.insert(userRole).values({
+    id: crypto.randomUUID(),
+    userId: session.user.id,
+    role: 'TEACHER',
+    createdAt: new Date(),
+  }).onConflictDoNothing()
+
   const existing = await db.query.teacher.findFirst({
     where: eq(teacherTable.userId, session.user.id)
   })
 
   if (existing) return existing
 
+  const targetSchoolId = data.schoolId || session.user.schoolId || null
+
   const inserted = await db.insert(teacherTable).values({
     id: crypto.randomUUID(),
     userId: session.user.id,
-    schoolId: session.user.schoolId || null,
+    schoolId: targetSchoolId,
     firstName: data.firstName || session.user.name?.split(' ')[0] || 'Teacher',
     lastName: data.lastName || session.user.name?.split(' ')[1] || 'Staff',
     staffCode: generateStaffId(),
