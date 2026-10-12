@@ -7,6 +7,7 @@ import { Footer } from '@/components/footer'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { ContactForm } from '@/components/ContactForm'
 import { RealtimeStats } from '@/components/realtime/RealtimeStats'
+import { AppDemoTrigger } from '@/components/demo/AppDemoTrigger'
 import {
   CheckCircle2,
   Users,
@@ -69,6 +70,7 @@ export default async function LandingPage() {
             <Link href="#faq" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">FAQ</Link>
             <Link href="/privacy" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">Privacy</Link>
             <Link href="/terms" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">Terms</Link>
+            <AppDemoTrigger variant="header" />
             <ThemeToggle />
             {user ? (
               <Link href="/dashboard-redirect">
@@ -111,6 +113,7 @@ export default async function LandingPage() {
               Join a community committed to nurturing the total child with real-time CBT, Online Prep, and instant parent engagement.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+              <AppDemoTrigger variant="hero" className="w-full sm:w-auto" />
               <Link href="/auth/signup" className="w-full sm:w-auto">
                 <Button size="lg" className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white h-12 sm:h-16 px-6 sm:px-10 rounded-2xl font-black text-base sm:text-lg shadow-xl shadow-amber-200 dark:shadow-none group transition-all">
                   START REGISTRATION <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
