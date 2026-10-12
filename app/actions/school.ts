@@ -23,6 +23,8 @@ export interface SchoolRegistrationInput {
   proofOfAddressFileUrl?: string
   logoUrl?: string
   logoPath?: string
+  password?: string
+  confirmPassword?: string
 }
 
 export async function generateSchoolCode(schoolName: string): Promise<string> {
@@ -47,6 +49,15 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
   try {
     if (!input.name || !input.adminEmail || !input.adminName || !input.location) {
       return { success: false, error: 'School name, location, contact email, and applicant name are required.' }
+    }
+
+    if (input.password || input.confirmPassword) {
+      if ((input.password || '').length < 8) {
+        return { success: false, error: 'Password must be at least 8 characters long.' }
+      }
+      if (input.password !== input.confirmPassword) {
+        return { success: false, error: 'Passwords do not match.' }
+      }
     }
 
     const schoolId = randomUUID()

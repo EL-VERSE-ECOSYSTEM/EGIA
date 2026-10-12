@@ -28,12 +28,17 @@ export async function getSuperAdminOverviewStats() {
   try {
     await checkSuperAdminPermission()
 
+    const { transactionLedger, teacherWallet } = await import('@/lib/db/schema')
+
     const schoolsList = await db.select().from(school).orderBy(desc(school.createdAt))
     const totalUsers = await db.select({ count: sql<number>`count(*)` }).from(user)
     const totalStudents = await db.select({ count: sql<number>`count(*)` }).from(student)
     const totalTeachers = await db.select({ count: sql<number>`count(*)` }).from(teacher)
     const totalParents = await db.select({ count: sql<number>`count(*)` }).from(parent)
     const totalCBTS = await db.select({ count: sql<number>`count(*)` }).from(assessment)
+
+    const transactions = await db.select().from(transactionLedger).orderBy(desc(transactionLedger.createdAt)).limit(100)
+    const teacherWallets = await db.select().from(teacherWallet)
 
     const paidSchools = schoolsList.filter(s => s.paymentStatus === 'PAID')
     const totalSubscriptionRevenue = paidSchools.length * 30000
@@ -51,7 +56,9 @@ export async function getSuperAdminOverviewStats() {
         parentsCount: Number(totalParents[0]?.count || 0),
         cbtCount: Number(totalCBTS[0]?.count || 0),
       },
-      schools: schoolsList
+      schools: schoolsList,
+      transactions,
+      teacherWallets,
     }
   } catch (error: any) {
     return sanitizeServerError('getSuperAdminOverviewStats', error, 'Unable to retrieve system statistics.')
