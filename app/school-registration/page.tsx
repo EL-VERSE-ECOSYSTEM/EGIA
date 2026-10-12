@@ -46,6 +46,8 @@ export default function SchoolRegistrationPage() {
     allowParents: true,
     logo_url: '',
     logo_path: '',
+    password: '',
+    confirmPassword: '',
   })
 
   const [selectedClasses, setSelectedClasses] = useState<string[]>([...AVAILABLE_CLASSES])
@@ -100,8 +102,18 @@ export default function SchoolRegistrationPage() {
     setErrorMessage('')
     setSuccessMessage('')
 
-    if (!formData.name || !formData.location || !formData.adminName || !formData.adminPhone || !formData.adminEmail) {
-      setErrorMessage('Please fill in all required fields.')
+    if (!formData.name || !formData.location || !formData.adminName || !formData.adminPhone || !formData.adminEmail || !formData.password || !formData.confirmPassword) {
+      setErrorMessage('Please fill in all required fields including password.')
+      return
+    }
+
+    if (formData.password.length < 8) {
+      setErrorMessage('Password must be at least 8 characters long.')
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMessage('Passwords do not match.')
       return
     }
 
@@ -452,6 +464,33 @@ export default function SchoolRegistrationPage() {
                     value={documentUrl}
                     onChange={e => setDocumentTypeUrl(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Admin Password *</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    placeholder="Minimum 8 characters"
+                    value={formData.password}
+                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Confirm Password *</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    placeholder="Re-enter password"
+                    value={formData.confirmPassword}
+                    onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
                   />
                 </div>
               </div>
