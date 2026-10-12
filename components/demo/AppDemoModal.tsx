@@ -2,15 +2,9 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { DEMO_ROLES_DATA, DemoRole } from '@/lib/demo-data'
 import {
   Crown,
   Building2,
@@ -21,14 +15,6 @@ import {
   CheckCircle2,
   ArrowRight,
   Sparkles,
-  Monitor,
-  BookOpen,
-  CreditCard,
-  BarChart3,
-  Trophy,
-  BellRing,
-  Lock,
-  MessageSquare,
   X
 } from 'lucide-react'
 
@@ -36,8 +22,6 @@ export interface AppDemoModalProps {
   isOpen: boolean
   onClose: () => void
 }
-
-import { DEMO_ROLES_DATA, DemoRole } from '@/lib/demo-data'
 
 const ROLE_ICONS: Record<string, any> = {
   Crown,
@@ -49,30 +33,34 @@ const ROLE_ICONS: Record<string, any> = {
 
 export function AppDemoModal({ isOpen, onClose }: AppDemoModalProps) {
   const [activeRole, setActiveRole] = useState<DemoRole>('superadmin')
+
+  if (!isOpen) return null
+
   const activeData = DEMO_ROLES_DATA[activeRole]
   const IconComponent = ROLE_ICONS[activeData.iconName] || Crown
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl w-[95vw] sm:w-[90vw] max-h-[90vh] overflow-y-auto bg-slate-950 text-white border-slate-800 rounded-3xl p-0 gap-0 shadow-2xl backdrop-blur-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-950 text-white border border-slate-800 rounded-3xl shadow-2xl p-0 font-sans">
         {/* Header */}
-        <DialogHeader className="p-6 sm:p-8 border-b border-slate-800/80 bg-slate-900/80 relative">
+        <div className="p-6 sm:p-8 border-b border-slate-800/80 bg-slate-900/80 sticky top-0 z-20 backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-400">
                 <Sparkles className="w-6 h-6 animate-pulse" />
               </div>
               <div>
-                <DialogTitle className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                   EL LEARNERS APP Interactive Demo
-                </DialogTitle>
-                <DialogDescription className="text-xs sm:text-sm text-slate-400 font-bold mt-0.5">
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-400 font-bold mt-0.5">
                   Explore how the complete digital education platform works for every user role.
-                </DialogDescription>
+                </p>
               </div>
             </div>
             <button
               onClick={onClose}
+              type="button"
               className="p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
             >
               <X className="w-5 h-5" />
@@ -89,6 +77,7 @@ export function AppDemoModal({ isOpen, onClose }: AppDemoModalProps) {
               return (
                 <button
                   key={role}
+                  type="button"
                   onClick={() => setActiveRole(role)}
                   className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
                     isActive
@@ -102,7 +91,7 @@ export function AppDemoModal({ isOpen, onClose }: AppDemoModalProps) {
               )
             })}
           </div>
-        </DialogHeader>
+        </div>
 
         {/* Content Body */}
         <div className="p-6 sm:p-8 space-y-8">
@@ -194,7 +183,7 @@ export function AppDemoModal({ isOpen, onClose }: AppDemoModalProps) {
             </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   )
 }
