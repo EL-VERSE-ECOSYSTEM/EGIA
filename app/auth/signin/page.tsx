@@ -68,7 +68,7 @@ export default function SignInPage() {
           return
         }
         toast.success('Welcome Super Admin! Direct access granted.')
-        window.location.href = res.redirectTo || '/dashboard/super-admin/overview'
+        window.location.href = activateRes.redirectTo || res.redirectTo || '/dashboard/super-admin/overview'
         return
       }
 
