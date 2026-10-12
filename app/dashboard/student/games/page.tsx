@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Gamepad2, Trophy, Clock, RefreshCw, Star, HelpCircle, ChevronRight, Check, AlertCircle, Sparkles } from 'lucide-react'
+import { checkStudentWeekendAssignmentsCompleteAction } from '@/app/actions/assessments'
 
 // Game Types
 type GameType = 'CHESS' | 'MATH' | 'SCRAMBLE' | 'SUDOKU' | 'TRIVIA' | 'SCRABBLE' | 'MONOPOLY' | 'HOME'
@@ -19,8 +20,6 @@ interface ChessPiece {
   color: PieceColor
 }
 type ChessBoardState = ChessPiece[][]
-
-import { checkStudentWeekendAssignmentsCompleteAction } from '@/app/actions/assessments'
 
 export default function StudentGamesPage() {
   const [activeGame, setActiveGame] = useState<GameType>('HOME')
