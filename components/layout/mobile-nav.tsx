@@ -74,7 +74,7 @@ export function MobileNav({ role, onOpenSidebar }: MobileNavProps) {
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/super-admin/overview' },
         { label: 'Schools', icon: Building2, href: '/dashboard/super-admin/overview' },
         { label: 'Users', icon: Users, href: '/dashboard/super-admin/overview' },
-        { label: 'Support', icon: HelpCircle, href: '/dashboard/super-admin/overview' },
+        { label: 'Prep', icon: BookOpen, href: '/dashboard/super-admin/online-prep' },
       ],
     },
   }

@@ -119,6 +119,18 @@ export function AppDemoModal({ isOpen, onClose }: AppDemoModalProps) {
             </p>
           </div>
 
+          {/* Key Role Metrics */}
+          {activeData.stats && (
+            <div className="grid grid-cols-3 gap-3">
+              {activeData.stats.map((stat, idx) => (
+                <div key={idx} className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl text-center space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
+                  <p className="text-base sm:text-lg font-black text-amber-400">{stat.value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Key Capabilities Grid */}
           <div className="space-y-3">
             <h4 className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-2">
@@ -139,20 +151,27 @@ export function AppDemoModal({ isOpen, onClose }: AppDemoModalProps) {
             </div>
           </div>
 
-          {/* Sample Workflows */}
+          {/* Sample Interactive Workflows */}
           <div className="space-y-3">
             <h4 className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-2">
-              <PlayCircle className="w-4 h-4" /> Core Platform Workflows
+              <PlayCircle className="w-4 h-4" /> Step-by-Step Interactive Workflows
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {activeData.workflows.map((flow, idx) => (
-                <Card key={idx} className="bg-slate-900/80 border-slate-800 rounded-2xl overflow-hidden">
+                <Card key={idx} className="bg-slate-900/80 border-slate-800 rounded-2xl overflow-hidden hover:border-amber-500/30 transition">
                   <CardContent className="p-4 space-y-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 inline-block">
-                      {flow.tag}
-                    </span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 inline-block">
+                        {flow.tag}
+                      </span>
+                    </div>
                     <h5 className="text-xs font-black text-white">{flow.name}</h5>
                     <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{flow.description}</p>
+                    {flow.step && (
+                      <p className="text-[10px] text-amber-400 font-bold bg-amber-500/10 p-2 rounded-xl border border-amber-500/20">
+                        {flow.step}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               ))}
