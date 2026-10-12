@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { assessment, assessmentQuestion, assessmentResult, studentAnswer, student, teacher, term } from '@/lib/db/schema'
+import { assessment, assessmentQuestion, assessmentResult, studentAnswer, student, teacher, term, assessmentSchedule } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
@@ -318,6 +318,21 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
 
     if (questionInserts.length > 0) {
       await tx.insert(assessmentQuestion).values(questionInserts as any)
+    }
+
+    // Insert real-time assessment schedule record
+    if (assessmentData.startTime || assessmentData.endTime || assessmentData.scheduledDate) {
+      const startTime = assessmentData.startTime ? new Date(assessmentData.startTime) : new Date()
+      const endTime = assessmentData.endTime ? new Date(assessmentData.endTime) : new Date(Date.now() + (assessmentData.duration || 60) * 60 * 1000)
+
+      await tx.insert(assessmentSchedule).values({
+        id: crypto.randomUUID(),
+        assessmentId: assessmentId,
+        startTime: startTime,
+        endTime: endTime,
+        classId: assessmentData.classId || null,
+        createdAt: new Date(),
+      }).onConflictDoNothing()
     }
 
     return { assessmentId, accessCode: generatedAccessCode }

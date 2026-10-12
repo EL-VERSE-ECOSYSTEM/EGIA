@@ -495,32 +495,6 @@ export default function SchoolRegistrationPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Admin Password *</label>
-                  <input
-                    type="password"
-                    required
-                    minLength={8}
-                    placeholder="Minimum 8 characters"
-                    value={formData.password}
-                    onChange={e => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Confirm Password *</label>
-                  <input
-                    type="password"
-                    required
-                    minLength={8}
-                    placeholder="Re-enter password"
-                    value={formData.confirmPassword}
-                    onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
-                  />
-                </div>
-              </div>
 
 
               <div className="flex items-center gap-3 pt-2">
