@@ -300,6 +300,8 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
       accessCode: generatedAccessCode,
       passingScore: assessmentData.passingScore || 40,
       totalPoints: questions.reduce((sum, q) => sum + (q.points || 1), 0),
+      scheduledDate: assessmentData.scheduledDate || assessmentData.startDate || null,
+      scheduledTime: assessmentData.scheduledTime || assessmentData.endDate || null,
     } as any)
 
     const questionInserts = questions.map((q, idx) => ({
@@ -366,6 +368,41 @@ export async function getLoggedInStudentAndQuestions(assessmentId: string, provi
     studentId: studentProfile.id,
     questions: shuffledQuestions,
     title: dbAssessment?.title || 'Assessment CBT'
+  }
+}
+
+export async function checkStudentWeekendAssignmentsCompleteAction(studentId?: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const studentProfile = await db.query.student.findFirst({
+    where: studentId && studentId !== 'current' ? eq(student.id, studentId) : eq(student.userId, session.user.id)
+  })
+
+  if (!studentProfile) return { isComplete: true, count: 0, completedCount: 0 }
+
+  const weekendAssessments = await db.query.assessment.findMany({
+    where: and(
+      eq(assessment.type, 'WEEKEND_ASSIGNMENT'),
+      eq(assessment.schoolId, studentProfile.schoolId || '')
+    )
+  })
+
+  if (!weekendAssessments.length) {
+    return { isComplete: true, count: 0, completedCount: 0 }
+  }
+
+  const results = await db.query.assessmentResult.findMany({
+    where: eq(assessmentResult.studentId, studentProfile.id)
+  })
+
+  const completedIds = new Set(results.map(r => r.assessmentId))
+  const completedCount = weekendAssessments.filter(a => completedIds.has(a.id)).length
+
+  return {
+    isComplete: completedCount >= Math.min(3, weekendAssessments.length),
+    count: weekendAssessments.length,
+    completedCount
   }
 }
 

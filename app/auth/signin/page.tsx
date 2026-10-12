@@ -61,14 +61,14 @@ export default function SignInPage() {
 
       // If Super Admin identity was authenticated, activate Super Admin identity & direct immediately to Super Admin Dashboard
       if (superAdminIdentity) {
-        const activateRes = await activateIdentityAction(superAdminIdentity.id, rememberMe)
-        if (!activateRes.success) {
-          setError(activateRes.error || 'Unable to activate your Super Admin identity.')
+        const superAdminActivateRes = await activateIdentityAction(superAdminIdentity.id, rememberMe)
+        if (!superAdminActivateRes.success) {
+          setError(superAdminActivateRes.error || 'Unable to activate your Super Admin identity.')
           setLoading(false)
           return
         }
         toast.success('Welcome Super Admin! Direct access granted.')
-        window.location.href = activateRes.redirectTo || res.redirectTo || '/dashboard/super-admin/overview'
+        window.location.href = superAdminActivateRes.redirectTo || res.redirectTo || '/dashboard/super-admin/overview'
         return
       }
 
