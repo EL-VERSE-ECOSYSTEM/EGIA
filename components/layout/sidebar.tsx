@@ -71,6 +71,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         { label: 'Students List', icon: Users, href: '/dashboard/admin/users/students/list' },
         { label: 'Teachers List', icon: User, href: '/dashboard/admin/users/teachers/list' },
         { label: 'Academics Control', icon: BookOpen, href: '/dashboard/admin/academics' },
+        { label: 'Online Exam Prep', icon: BookOpen, href: '/dashboard/admin/online-prep' },
         { label: 'Library Catalog', icon: BookMarked, href: '/dashboard/admin/library/books' },
         { label: 'Assessments Log', icon: GraduationCap, href: '/dashboard/admin/assessments' },
         { label: 'Disciplinary Records', icon: ShieldAlert, href: '/dashboard/admin/disciplinary' },

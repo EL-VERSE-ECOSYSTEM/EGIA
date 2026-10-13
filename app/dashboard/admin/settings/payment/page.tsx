@@ -14,6 +14,7 @@ export default function AdminPaymentSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [schoolId, setSchoolId] = useState<string>('')
 
+  const [schoolName, setSchoolName] = useState('')
   const [useKorapay, setUseKorapay] = useState(true)
   const [bankName, setBankName] = useState('')
   const [accountNumber, setAccountNumber] = useState('')
@@ -25,6 +26,7 @@ export default function AdminPaymentSettingsPage() {
     try {
       const config = await getSchoolPaymentConfigAction(schoolId)
       if (config) {
+        if (config.schoolName) setSchoolName(config.schoolName)
         setUseKorapay(config.useKorapay)
         setBankName(config.bankName || '')
         setAccountNumber(config.accountNumber || '')
@@ -194,7 +196,7 @@ export default function AdminPaymentSettingsPage() {
                     <input
                       type="text"
                       required={!useKorapay}
-                      placeholder="e.g. EL GOODNEWS INTERNATIONAL ACADEMY"
+                      placeholder={`e.g. ${schoolName || 'School Name'} Official Account`}
                       value={accountName}
                       onChange={(e) => setAccountName(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
