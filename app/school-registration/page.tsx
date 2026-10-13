@@ -468,6 +468,65 @@ export default function SchoolRegistrationPage() {
                 </div>
               </div>
 
+              {/* Admin Password & Confirm Password with Password Strength Meter */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Admin Account Password *</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    placeholder="Minimum 8 characters"
+                    value={formData.password}
+                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
+                  />
+                  {formData.password && (
+                    <div className="mt-2 space-y-1">
+                      <div className="flex items-center justify-between text-[10px] font-black uppercase">
+                        <span className="text-slate-400">Password Strength:</span>
+                        <span className={
+                          formData.password.length < 8 ? 'text-red-400' :
+                          formData.password.length >= 12 && /[A-Z]/.test(formData.password) && /[0-9]/.test(formData.password) && /[^A-Za-z0-9]/.test(formData.password)
+                            ? 'text-emerald-400' : 'text-amber-400'
+                        }>
+                          {formData.password.length < 8 ? 'Weak' :
+                           formData.password.length >= 12 && /[A-Z]/.test(formData.password) && /[0-9]/.test(formData.password) && /[^A-Za-z0-9]/.test(formData.password)
+                             ? 'Strong' : 'Medium'}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex">
+                        <div className={`h-full transition-all duration-300 ${
+                          formData.password.length < 8 ? 'w-1/3 bg-red-500' :
+                          formData.password.length >= 12 && /[A-Z]/.test(formData.password) && /[0-9]/.test(formData.password) && /[^A-Za-z0-9]/.test(formData.password)
+                            ? 'w-full bg-emerald-500' : 'w-2/3 bg-amber-500'
+                        }`} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Confirm Admin Password *</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    placeholder="Re-enter password"
+                    value={formData.confirmPassword}
+                    onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
+                  />
+                  {formData.confirmPassword && (
+                    <p className={`text-[10px] font-bold mt-1.5 ${
+                      formData.password === formData.confirmPassword ? 'text-emerald-400' : 'text-red-400'
+                    }`}>
+                      {formData.password === formData.confirmPassword ? '✓ Passwords match' : '✗ Passwords do not match'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-black uppercase text-slate-400 mb-1">Admin Password *</label>
