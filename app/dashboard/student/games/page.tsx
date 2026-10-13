@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Gamepad2, Trophy, Clock, RefreshCw, Star, HelpCircle, ChevronRight, Check, AlertCircle, Sparkles } from 'lucide-react'
+import { checkStudentWeekendAssignmentsCompleteAction } from '@/app/actions/assessments'
 
 // Game Types
 type GameType = 'CHESS' | 'MATH' | 'SCRAMBLE' | 'SUDOKU' | 'TRIVIA' | 'SCRABBLE' | 'MONOPOLY' | 'HOME'
@@ -22,6 +23,20 @@ type ChessBoardState = ChessPiece[][]
 
 export default function StudentGamesPage() {
   const [activeGame, setActiveGame] = useState<GameType>('HOME')
+  const [assignmentLocked, setAssignmentLocked] = useState(false)
+  const [assignmentInfo, setAssignmentInfo] = useState<{ completed: number; total: number } | null>(null)
+
+  useEffect(() => {
+    // Check if student has pending weekend assignments
+    checkStudentWeekendAssignmentsCompleteAction('current')
+      .then(res => {
+        if (res && !res.isComplete) {
+          setAssignmentLocked(true)
+          setAssignmentInfo({ completed: res.completedCount, total: res.count })
+        }
+      })
+      .catch(err => console.warn('Weekend assignment status check failed:', err))
+  }, [])
 
   return (
     <DashboardLayout role="student">
@@ -58,8 +73,28 @@ export default function StudentGamesPage() {
           </div>
         </div>
 
+        {assignmentLocked && (
+          <div className="p-6 bg-rose-500/10 border border-rose-500/30 rounded-3xl text-rose-300 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-8 h-8 text-rose-400 shrink-0" />
+              <div>
+                <h3 className="font-black text-sm uppercase text-white">Weekend Assignments Pending</h3>
+                <p className="text-xs text-rose-200 mt-0.5">
+                  You must complete your 3 weekend assignments before unlocking educational games ({assignmentInfo?.completed || 0}/{assignmentInfo?.total || 3} completed).
+                </p>
+              </div>
+            </div>
+            <a
+              href="/dashboard/student/assessments/upcoming"
+              className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase rounded-xl shadow shrink-0"
+            >
+              Complete Assignments
+            </a>
+          </div>
+        )}
+
         {activeGame === 'HOME' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
+          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in duration-500 ${assignmentLocked ? 'opacity-50 pointer-events-none' : ''}`}>
             {/* Chess Card */}
             <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 rounded-[2.5rem] bg-white overflow-hidden flex flex-col justify-between group">
               <div className="h-3 bg-purple-600 w-full" />

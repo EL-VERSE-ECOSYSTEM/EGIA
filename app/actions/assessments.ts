@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { assessment, assessmentQuestion, assessmentResult, studentAnswer, student, teacher, term } from '@/lib/db/schema'
+import { assessment, assessmentQuestion, assessmentResult, studentAnswer, student, teacher, term, assessmentSchedule } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
@@ -300,6 +300,8 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
       accessCode: generatedAccessCode,
       passingScore: assessmentData.passingScore || 40,
       totalPoints: questions.reduce((sum, q) => sum + (q.points || 1), 0),
+      scheduledDate: assessmentData.scheduledDate || assessmentData.startDate || null,
+      scheduledTime: assessmentData.scheduledTime || assessmentData.endDate || null,
     } as any)
 
     const questionInserts = questions.map((q, idx) => ({
@@ -316,6 +318,21 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
 
     if (questionInserts.length > 0) {
       await tx.insert(assessmentQuestion).values(questionInserts as any)
+    }
+
+    // Insert real-time assessment schedule record
+    if (assessmentData.startTime || assessmentData.endTime || assessmentData.scheduledDate) {
+      const startTime = assessmentData.startTime ? new Date(assessmentData.startTime) : new Date()
+      const endTime = assessmentData.endTime ? new Date(assessmentData.endTime) : new Date(Date.now() + (assessmentData.duration || 60) * 60 * 1000)
+
+      await tx.insert(assessmentSchedule).values({
+        id: crypto.randomUUID(),
+        assessmentId: assessmentId,
+        startTime: startTime,
+        endTime: endTime,
+        classId: assessmentData.classId || null,
+        createdAt: new Date(),
+      }).onConflictDoNothing()
     }
 
     return { assessmentId, accessCode: generatedAccessCode }
@@ -366,6 +383,41 @@ export async function getLoggedInStudentAndQuestions(assessmentId: string, provi
     studentId: studentProfile.id,
     questions: shuffledQuestions,
     title: dbAssessment?.title || 'Assessment CBT'
+  }
+}
+
+export async function checkStudentWeekendAssignmentsCompleteAction(studentId?: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const studentProfile = await db.query.student.findFirst({
+    where: studentId && studentId !== 'current' ? eq(student.id, studentId) : eq(student.userId, session.user.id)
+  })
+
+  if (!studentProfile) return { isComplete: true, count: 0, completedCount: 0 }
+
+  const weekendAssessments = await db.query.assessment.findMany({
+    where: and(
+      eq(assessment.type, 'WEEKEND_ASSIGNMENT'),
+      eq(assessment.schoolId, studentProfile.schoolId || '')
+    )
+  })
+
+  if (!weekendAssessments.length) {
+    return { isComplete: true, count: 0, completedCount: 0 }
+  }
+
+  const results = await db.query.assessmentResult.findMany({
+    where: eq(assessmentResult.studentId, studentProfile.id)
+  })
+
+  const completedIds = new Set(results.map(r => r.assessmentId))
+  const completedCount = weekendAssessments.filter(a => completedIds.has(a.id)).length
+
+  return {
+    isComplete: completedCount >= Math.min(3, weekendAssessments.length),
+    count: weekendAssessments.length,
+    completedCount
   }
 }
 

@@ -140,7 +140,12 @@ export async function getReportCards(): Promise<ReportCard[]> {
       .from(reportCardTable)
       .where(inArray(reportCardTable.studentId, allowedStudentIds))
 
-    return results.map(r => ({
+    // Enforce School Admin approval on Report Cards before Student & Parent visibility
+    const filteredResults = (role === 'STUDENT' || role === 'PARENT')
+      ? results.filter(r => r.status === 'ENDORSED')
+      : results
+
+    return filteredResults.map(r => ({
       id: r.id,
       studentId: r.studentId,
       studentName: r.studentName,
