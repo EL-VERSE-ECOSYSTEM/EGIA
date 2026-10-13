@@ -235,11 +235,12 @@ export async function getAdultClasses(type?: string) {
   })
 }
 
-// Appoint adult education teacher (Admin only)
+// Appoint adult education teacher (Admin and Super Admin)
 export async function appointAdultTeacher(teacherId: string) {
   const session = await auth.getSession()
-  if (!session?.user || session.user.role !== 'ADMIN') {
-    throw new Error('Only administrators can appoint teachers.')
+  const userRole = session?.user?.role?.toUpperCase()
+  if (!session?.user || !['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(userRole || '')) {
+    throw new Error('Only administrators can appoint teachers for Adult Education.')
   }
 
   const existing = await db.query.systemSettings.findFirst({
@@ -286,7 +287,8 @@ export async function isTeacherAppointedForAdultEd() {
   const session = await auth.getSession()
   if (!session?.user) return false
 
-  if (session.user.role === 'ADMIN') return true
+  const userRole = session.user.role?.toUpperCase()
+  if (['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(userRole)) return true
 
   const profile = await db.query.teacher.findFirst({
     where: eq(teacher.userId, session.user.id)
