@@ -9,6 +9,7 @@ import { Plus, Search, Filter, MoreVertical, GraduationCap, ChevronRight, BookOp
 import { getAllStudents } from '@/app/actions/admin'
 import Link from 'next/link'
 import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSync'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
 export default function StudentListPage() {
   const [students, setStudents] = useState<any[]>([])
@@ -24,21 +25,30 @@ export default function StudentListPage() {
 
   const classesList = ['Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3', 'JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3']
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getAllStudents()
-        setStudents(data || [])
-      } catch (err) {
-        console.warn('Could not load student directory from DB.', err)
-        setError('Unable to load student directory from database. Please try again later.')
-        setStudents([])
-      } finally {
-        setLoading(false)
-      }
+  const loadStudents = async () => {
+    try {
+      const data = await getAllStudents()
+      setStudents(data || [])
+    } catch (err) {
+      console.warn('Could not load student directory from DB.', err)
+      setError('Unable to load student directory from database. Please try again later.')
+      setStudents([])
+    } finally {
+      setLoading(false)
     }
-    load()
+  }
+
+  useEffect(() => {
+    loadStudents()
   }, [])
+
+  useRealtimeSubscription('student', () => {
+    loadStudents()
+  })
+
+  useRealtimeSubscription('user', () => {
+    loadStudents()
+  })
 
   // Dynamic multi-filtering logic
   const filteredStudents = students.filter(s => {

@@ -31,12 +31,15 @@ import {
   MonitorPlay,
   FolderOpen,
   HelpCircle,
-  Bell
+  Bell,
+  Building2,
+  Shield,
+  Briefcase
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface SidebarProps {
-  role: 'admin' | 'teacher' | 'parent' | 'student'
+  role: 'admin' | 'teacher' | 'parent' | 'student' | 'super-admin'
   isOpen?: boolean
   onClose?: () => void
 }
@@ -45,6 +48,20 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
 
   const configMap = {
+    'super-admin': {
+      color: 'bg-slate-950 border-r border-indigo-500/20',
+      activeColor: 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-black shadow-indigo-500/20',
+      hoverColor: 'hover:bg-indigo-500/10 hover:text-indigo-300',
+      links: [
+        { label: 'Overview & Analytics', icon: LayoutDashboard, href: '/dashboard/super-admin/overview' },
+        { label: 'Online Exam Prep', icon: BookOpen, href: '/dashboard/super-admin/online-prep' },
+        { label: 'Schools & Applications', icon: Building2, href: '/dashboard/super-admin/overview?tab=APPLICATIONS' },
+        { label: 'All Users & Access', icon: Users, href: '/dashboard/super-admin/overview?tab=USERS' },
+        { label: 'CBT Assessments Desk', icon: GraduationCap, href: '/dashboard/super-admin/overview?tab=CBTS' },
+        { label: 'Support Tickets Desk', icon: HelpCircle, href: '/dashboard/super-admin/overview?tab=SUPPORT' },
+        { label: 'Wallets & Audit Ledger', icon: Wallet, href: '/dashboard/super-admin/overview?tab=WALLETS' },
+      ]
+    },
     admin: {
       color: 'bg-slate-900 border-r border-amber-500/20',
       activeColor: 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-amber-500/20',
@@ -130,7 +147,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
     }
   }
 
-  const config = configMap[role]
+  const config = configMap[role] || configMap.admin
   const [isAdultEnrolled, setIsAdultEnrolled] = React.useState(false)
   const [isAppointedTeacher, setIsAppointedTeacher] = React.useState(false)
   const [schoolInfo, setSchoolInfo] = React.useState<{ name: string; logoUrl: string } | null>(null)
@@ -248,7 +265,9 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shadow-lg shadow-amber-600/10 shrink-0">
-              {schoolInfo?.logoUrl ? (
+              {role === 'super-admin' ? (
+                <Shield className="text-indigo-400 w-7 h-7" />
+              ) : schoolInfo?.logoUrl ? (
                 <img
                   src={schoolInfo.logoUrl}
                   alt={schoolInfo.name || 'School Logo'}
@@ -263,10 +282,10 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
             </div>
             <div className="leading-tight overflow-hidden">
               <h2 className="font-black text-white text-sm tracking-tighter uppercase truncate">
-                {schoolInfo?.name || 'EL LEARNERS'}
+                {role === 'super-admin' ? 'SUPER ADMIN' : schoolInfo?.name || 'EL LEARNERS'}
               </h2>
               <p className="text-[10px] text-amber-500 font-black uppercase tracking-[0.15em] truncate">
-                {role === 'admin' ? (
+                {role === 'super-admin' ? 'GLOBAL HQ CONTROL' : role === 'admin' ? (
                   adminRoleInfo?.level === 'PRIMARY_ADMIN' ? 'Primary Admin' :
                   adminRoleInfo?.level === 'VICE_PRINCIPAL_ACADEMICS' ? 'VP Academics' :
                   adminRoleInfo?.level === 'VICE_PRINCIPAL_ADMIN' ? 'VP Admin' :
@@ -301,7 +320,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
                 className={cn(
                   "flex items-center gap-4 px-5 py-3.5 rounded-2xl text-xs font-black transition-all duration-300 group",
                   isActive
-                    ? config.activeColor + " shadow-xl shadow-amber-600/10"
+                    ? config.activeColor + " shadow-xl shadow-indigo-600/10"
                     : "text-slate-500 hover:text-white " + config.hoverColor
                 )}
               >
