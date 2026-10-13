@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { schoolPaymentConfig } from '@/lib/db/schema'
+import { schoolPaymentConfig, school as schoolTable } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
@@ -15,11 +15,24 @@ export async function getSchoolPaymentConfigAction(schoolId?: string) {
   const targetSchoolId = isSuperAdmin ? schoolId || user.schoolId : user.schoolId
   if (!targetSchoolId || (schoolId && !isSuperAdmin && schoolId !== targetSchoolId)) return null
 
+  const schoolRec = await db.query.school.findFirst({
+    where: eq(schoolTable.id, targetSchoolId)
+  })
+
   const config = await db.query.schoolPaymentConfig.findFirst({
     where: eq(schoolPaymentConfig.schoolId, targetSchoolId)
   })
 
-  return config || null
+  return {
+    ...config,
+    schoolName: schoolRec?.name || 'School Bank Account',
+    useKorapay: config ? config.useKorapay : true,
+    bankName: config?.bankName || '',
+    accountNumber: config?.accountNumber || '',
+    accountName: config?.accountName || (schoolRec?.name ? `${schoolRec.name} Official Account` : ''),
+    customPaymentLink: config?.customPaymentLink || '',
+    instructions: config?.instructions || ''
+  }
 }
 
 export async function saveSchoolPaymentConfigAction(data: {

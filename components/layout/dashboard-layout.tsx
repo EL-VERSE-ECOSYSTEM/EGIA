@@ -25,7 +25,7 @@ export default function DashboardLayout({
   navItems?: any[]
   [key: string]: any
 }) {
-  const activeRole = (role === 'super-admin' ? 'admin' : role) || 'admin'
+  const activeRole = role || 'admin'
   const [mounted, setMounted] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showInstallBtn, setShowInstallBtn] = useState(false)
@@ -91,6 +91,10 @@ export default function DashboardLayout({
   }
 
   const themeColors = {
+    'super-admin': {
+      btn: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100 border-indigo-500',
+      text: 'text-indigo-600'
+    },
     student: {
       btn: 'bg-orange-600 hover:bg-orange-700 text-white shadow-orange-100 border-orange-500',
       text: 'text-orange-600'
@@ -107,12 +111,15 @@ export default function DashboardLayout({
       btn: 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-100 border-amber-500',
       text: 'text-amber-600'
     },
-  }[activeRole]
+  }[activeRole] || {
+    btn: 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-100 border-amber-500',
+    text: 'text-amber-600'
+  }
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] relative">
       {mounted && <DashboardRealtimeSync role={role} />}
-      {mounted && (activeRole === 'admin' || role === 'super-admin') && (
+      {mounted && activeRole === 'admin' && (
         <SchoolRenewalReminderWidget schoolId={rest.schoolId || null} />
       )}
       {mounted && activeRole === 'student' && (

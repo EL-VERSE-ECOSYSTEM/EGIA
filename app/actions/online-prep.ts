@@ -236,6 +236,7 @@ export async function uploadPrepQuestionAction(input: {
   questionText: string
   options: string[]
   correctAnswer: string
+  targetSchoolId?: string
 }) {
   const session = await auth.getSession()
   if (!session?.user) return { success: false, error: 'Unauthorized' }
@@ -246,8 +247,10 @@ export async function uploadPrepQuestionAction(input: {
   }
 
   let schoolId = session.user.schoolId
-  if (!schoolId && session.user.role === 'SUPER_ADMIN') {
-    schoolId = '00000000-0000-0000-0000-000000000001'
+  if (session.user.role === 'SUPER_ADMIN') {
+    schoolId = input.targetSchoolId && input.targetSchoolId !== 'ALL'
+      ? input.targetSchoolId
+      : '00000000-0000-0000-0000-000000000001'
   }
 
   if (!schoolId) {
@@ -296,6 +299,7 @@ export async function uploadPrepLessonAction(input: {
   videoUrl: string
   description?: string
   targetClass?: string // SSS2 or SSS3
+  targetSchoolId?: string
 }) {
   const session = await auth.getSession()
   if (!session?.user) return { success: false, error: 'Unauthorized' }
@@ -306,8 +310,10 @@ export async function uploadPrepLessonAction(input: {
   }
 
   let schoolId = session.user.schoolId
-  if (!schoolId && session.user.role === 'SUPER_ADMIN') {
-    schoolId = '00000000-0000-0000-0000-000000000001'
+  if (session.user.role === 'SUPER_ADMIN') {
+    schoolId = input.targetSchoolId && input.targetSchoolId !== 'ALL'
+      ? input.targetSchoolId
+      : '00000000-0000-0000-0000-000000000001'
   }
 
   if (!schoolId) {
