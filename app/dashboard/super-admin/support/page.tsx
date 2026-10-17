@@ -56,7 +56,7 @@ export default function SupportTicketsPage() {
       setReplyText(prev => ({ ...prev, [ticketId]: '' }))
       loadTickets()
     } else {
-      toast.error(res.error || 'Failed to send reply.')
+      toast.error('error' in res ? res.error : 'Failed to send reply.')
     }
     setSubmitting(null)
   }

@@ -294,18 +294,18 @@ export default function SuperAdminOverviewPage() {
       toast.success(`Document verification status set to ${status}.`)
       loadData()
     } else {
-      toast.error(res.error || 'Failed to update document status.')
+      toast.error('error' in res ? res.error : 'Failed to update document status.')
     }
   }
 
   const handleApproveSchoolApp = async (applicationId: string) => {
     if (!confirm('Are you sure you want to approve this school registration application? This will create/activate the SCHOOL_ADMIN identity.')) return
     const res = await approveSchoolApplicationAction({ applicationId })
-    if (res.success) {
+    if (res.success && 'adminEmail' in res) {
       toast.success(`School application approved! SCHOOL_ADMIN identity created for ${res.adminEmail}.`)
       loadData()
     } else {
-      toast.error(res.error || 'Failed to approve application.')
+      toast.error('error' in res ? res.error : 'Failed to approve application.')
     }
   }
 
@@ -317,7 +317,7 @@ export default function SuperAdminOverviewPage() {
       toast.success('School application rejected.')
       loadData()
     } else {
-      toast.error(res.error || 'Failed to reject application.')
+      toast.error('error' in res ? res.error : 'Failed to reject application.')
     }
   }
 

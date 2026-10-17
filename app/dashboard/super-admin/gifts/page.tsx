@@ -60,7 +60,7 @@ export default function StudentGiftingPage() {
       toast.success(`Awarded ${giftAmount} NGN gift credit to ${selectedStudent.name}!`)
       setSelectedStudent(null)
     } else {
-      toast.error(res.error || 'Failed to award gift.')
+      toast.error('error' in res ? res.error : 'Failed to award gift.')
     }
     setSubmitting(false)
   }

@@ -41,7 +41,7 @@ export default function SuperAdminCBTApprovalsPage() {
       toast.success('CBT Assessment Approved!')
       loadCBTs()
     } else {
-      toast.error(res.error || 'Approval failed')
+      toast.error('error' in res ? res.error : 'Approval failed')
     }
   }
 
