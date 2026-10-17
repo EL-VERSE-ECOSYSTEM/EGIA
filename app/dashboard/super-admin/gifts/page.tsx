@@ -50,10 +50,10 @@ export default function StudentGiftingPage() {
     setSubmitting(true)
     const res = await awardStudentGiftAction({
       studentId: selectedStudent.id,
-      giftTitle,
+      title: giftTitle,
       reason: giftReason,
-      amount: giftAmount,
-      type: 'CASH'
+      amount: Number(giftAmount),
+      giftType: 'CASH'
     })
 
     if (res.success) {
