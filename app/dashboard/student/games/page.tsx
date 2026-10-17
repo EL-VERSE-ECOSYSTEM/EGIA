@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Gamepad2, Trophy, Clock, RefreshCw, Star, HelpCircle, ChevronRight, Check, AlertCircle, Sparkles } from 'lucide-react'
 import { checkStudentWeekendAssignmentsCompleteAction } from '@/app/actions/assessments'
+import { getSchoolStudentControlsAction, SchoolStudentControls } from '@/app/actions/school-controls'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
 // Game Types
 type GameType = 'CHESS' | 'MATH' | 'SCRAMBLE' | 'SUDOKU' | 'TRIVIA' | 'SCRABBLE' | 'MONOPOLY' | 'HOME'
@@ -26,7 +28,30 @@ export default function StudentGamesPage() {
   const [assignmentLocked, setAssignmentLocked] = useState(false)
   const [assignmentInfo, setAssignmentInfo] = useState<{ completed: number; total: number } | null>(null)
 
+  // School Admin Time Controls for Games
+  const [timeLocked, setTimeLocked] = useState(false)
+  const [timeLockReason, setTimeLockReason] = useState('')
+
+  const loadControls = () => {
+    getSchoolStudentControlsAction()
+      .then(controls => {
+        const currentHour = new Date().getHours()
+        if (!controls.gameplayAllowed) {
+          setTimeLocked(true)
+          setTimeLockReason('Educational games are currently disabled by your school administration.')
+        } else if (currentHour < controls.gameplayStartHour || currentHour >= controls.gameplayEndHour) {
+          setTimeLocked(true)
+          setTimeLockReason(`Games are allowed between ${controls.gameplayStartHour}:00 and ${controls.gameplayEndHour}:00. Current time is outside permitted hours.`)
+        } else {
+          setTimeLocked(false)
+          setTimeLockReason('')
+        }
+      })
+      .catch(err => console.warn('School controls load error:', err))
+  }
+
   useEffect(() => {
+    loadControls()
     // Check if student has pending weekend assignments
     checkStudentWeekendAssignmentsCompleteAction('current')
       .then(res => {
@@ -37,6 +62,10 @@ export default function StudentGamesPage() {
       })
       .catch(err => console.warn('Weekend assignment status check failed:', err))
   }, [])
+
+  useRealtimeSubscription('system_settings', () => {
+    loadControls()
+  })
 
   return (
     <DashboardLayout role="student">
@@ -73,7 +102,19 @@ export default function StudentGamesPage() {
           </div>
         </div>
 
-        {assignmentLocked && (
+        {timeLocked && (
+          <div className="p-6 bg-amber-500/10 border border-amber-500/30 rounded-3xl text-amber-300 flex items-center gap-3">
+            <Clock className="w-8 h-8 text-amber-400 shrink-0" />
+            <div>
+              <h3 className="font-black text-sm uppercase text-white">Games Access Restricted</h3>
+              <p className="text-xs text-amber-200 mt-0.5">
+                {timeLockReason}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {assignmentLocked && !timeLocked && (
           <div className="p-6 bg-rose-500/10 border border-rose-500/30 rounded-3xl text-rose-300 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <AlertCircle className="w-8 h-8 text-rose-400 shrink-0" />
@@ -94,7 +135,7 @@ export default function StudentGamesPage() {
         )}
 
         {activeGame === 'HOME' && (
-          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in duration-500 ${assignmentLocked ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in duration-500 ${assignmentLocked || timeLocked ? 'opacity-50 pointer-events-none' : ''}`}>
             {/* Chess Card */}
             <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 rounded-[2.5rem] bg-white overflow-hidden flex flex-col justify-between group">
               <div className="h-3 bg-purple-600 w-full" />

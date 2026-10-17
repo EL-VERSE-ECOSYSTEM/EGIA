@@ -235,25 +235,51 @@ export async function getAdultClasses(type?: string) {
   })
 }
 
-// Appoint adult education teacher (Admin only)
-export async function appointAdultTeacher(teacherId: string) {
+// Appoint adult education teacher (Admin and Super Admin)
+export async function appointAdultTeacher(teacherId: string, targetSchoolId?: string) {
   const session = await auth.getSession()
-  if (!session?.user || session.user.role !== 'ADMIN') {
-    throw new Error('Only administrators can appoint teachers.')
+  const userRole = session?.user?.role?.toUpperCase()
+  if (!session?.user || !['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(userRole || '')) {
+    throw new Error('Only administrators can appoint teachers for Adult Education.')
   }
 
+  const isSuperAdmin = userRole === 'SUPER_ADMIN'
+
+  // Fetch target teacher record to verify tenant/school alignment
+  const targetTeacherRec = await db.query.teacher.findFirst({
+    where: eq(teacher.id, teacherId)
+  })
+
+  if (!isSuperAdmin) {
+    // School Admin can ONLY appoint teachers in their own school
+    const adminSchoolId = session.user.schoolId
+    if (!adminSchoolId) {
+      throw new Error('School ID is required for School Admin.')
+    }
+
+    if (teacherId !== 'admin' && targetTeacherRec && targetTeacherRec.schoolId !== adminSchoolId) {
+      throw new Error('Forbidden: School Admin can only appoint teachers within their own school.')
+    }
+  }
+
+  const schoolIdKey = isSuperAdmin
+    ? (targetSchoolId || targetTeacherRec?.schoolId || session.user.schoolId || 'global')
+    : session.user.schoolId
+
+  const settingKey = schoolIdKey ? `adult_education_teacher_id_${schoolIdKey}` : 'adult_education_teacher_id'
+
   const existing = await db.query.systemSettings.findFirst({
-    where: eq(systemSettings.key, 'adult_education_teacher_id')
+    where: eq(systemSettings.key, settingKey)
   })
 
   if (existing) {
     await db.update(systemSettings)
       .set({ value: teacherId, updatedAt: new Date() })
-      .where(eq(systemSettings.key, 'adult_education_teacher_id'))
+      .where(eq(systemSettings.key, settingKey))
   } else {
     await db.insert(systemSettings).values({
       id: randomUUID(),
-      key: 'adult_education_teacher_id',
+      key: settingKey,
       value: teacherId,
       type: 'string',
       description: 'The appointed teacher for Adult Education classes.',
@@ -261,14 +287,38 @@ export async function appointAdultTeacher(teacherId: string) {
     })
   }
 
+  // Also update global default fallback key
+  await db.insert(systemSettings).values({
+    id: randomUUID(),
+    key: 'adult_education_teacher_id',
+    value: teacherId,
+    type: 'string',
+    description: 'The appointed teacher for Adult Education classes.',
+    updatedAt: new Date()
+  }).onConflictDoUpdate({
+    target: [systemSettings.key],
+    set: { value: teacherId, updatedAt: new Date() }
+  })
+
   revalidatePath('/dashboard/admin/settings')
+  revalidatePath('/dashboard/super-admin/overview')
   return { success: true }
 }
 
-export async function getAppointedTeacher() {
-  const setting = await db.query.systemSettings.findFirst({
-    where: eq(systemSettings.key, 'adult_education_teacher_id')
+export async function getAppointedTeacher(schoolId?: string) {
+  const session = await auth.getSession()
+  const targetSchoolId = schoolId || session?.user?.schoolId
+
+  const settingKey = targetSchoolId ? `adult_education_teacher_id_${targetSchoolId}` : 'adult_education_teacher_id'
+  let setting = await db.query.systemSettings.findFirst({
+    where: eq(systemSettings.key, settingKey)
   })
+
+  if (!setting) {
+    setting = await db.query.systemSettings.findFirst({
+      where: eq(systemSettings.key, 'adult_education_teacher_id')
+    })
+  }
 
   const teacherId = setting?.value || 'admin'
   if (teacherId === 'admin') {
@@ -286,7 +336,8 @@ export async function isTeacherAppointedForAdultEd() {
   const session = await auth.getSession()
   if (!session?.user) return false
 
-  if (session.user.role === 'ADMIN') return true
+  const userRole = session.user.role?.toUpperCase()
+  if (['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(userRole)) return true
 
   const profile = await db.query.teacher.findFirst({
     where: eq(teacher.userId, session.user.id)
@@ -294,9 +345,16 @@ export async function isTeacherAppointedForAdultEd() {
 
   if (!profile) return false
 
-  const setting = await db.query.systemSettings.findFirst({
-    where: eq(systemSettings.key, 'adult_education_teacher_id')
+  const schoolSettingKey = profile.schoolId ? `adult_education_teacher_id_${profile.schoolId}` : 'adult_education_teacher_id'
+  let setting = await db.query.systemSettings.findFirst({
+    where: eq(systemSettings.key, schoolSettingKey)
   })
+
+  if (!setting) {
+    setting = await db.query.systemSettings.findFirst({
+      where: eq(systemSettings.key, 'adult_education_teacher_id')
+    })
+  }
 
   return setting?.value === profile.id
 }
