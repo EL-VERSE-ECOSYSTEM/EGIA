@@ -42,7 +42,7 @@ export default function SuperAdminUsersPage() {
       toast.success(`User ${!isSuspended ? 'suspended' : 'unsuspended'} successfully`)
       loadUsers()
     } else {
-      toast.error(res.error || 'Action failed')
+      toast.error('error' in res ? res.error : 'Action failed')
     }
   }
 
@@ -53,7 +53,7 @@ export default function SuperAdminUsersPage() {
       toast.success('User account deleted')
       loadUsers()
     } else {
-      toast.error(res.error || 'Deletion failed')
+      toast.error('error' in res ? res.error : 'Deletion failed')
     }
   }
 

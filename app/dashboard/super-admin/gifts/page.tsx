@@ -50,17 +50,17 @@ export default function StudentGiftingPage() {
     setSubmitting(true)
     const res = await awardStudentGiftAction({
       studentId: selectedStudent.id,
-      giftTitle,
+      title: giftTitle,
       reason: giftReason,
-      amount: giftAmount,
-      type: 'CASH'
+      amount: Number(giftAmount),
+      giftType: 'CASH'
     })
 
     if (res.success) {
       toast.success(`Awarded ${giftAmount} NGN gift credit to ${selectedStudent.name}!`)
       setSelectedStudent(null)
     } else {
-      toast.error(res.error || 'Failed to award gift.')
+      toast.error('error' in res ? res.error : 'Failed to award gift.')
     }
     setSubmitting(false)
   }

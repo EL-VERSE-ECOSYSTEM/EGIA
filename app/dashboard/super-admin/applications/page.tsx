@@ -22,10 +22,10 @@ export default function ApplicationsQueuePage() {
   const loadApplications = async () => {
     setLoading(true)
     const res = await getPendingSchoolApplicationsAction()
-    if (res.success) {
+    if (res.success && 'applications' in res) {
       setApplications(res.applications || [])
     } else {
-      toast.error(res.error || 'Failed to fetch pending applications')
+      toast.error('error' in res ? res.error : 'Failed to fetch pending applications')
     }
     setLoading(false)
   }
@@ -40,34 +40,37 @@ export default function ApplicationsQueuePage() {
   })
 
   const handleVerifyDoc = async (id: string, isVerified: boolean) => {
-    const res = await verifyApplicationDocumentAction(id, isVerified)
+    const res = await verifyApplicationDocumentAction({
+      applicationId: id,
+      status: isVerified ? 'VERIFIED' : 'REJECTED'
+    })
     if (res.success) {
       toast.success(isVerified ? 'Document Verified' : 'Document Rejected')
       loadApplications()
     } else {
-      toast.error(res.error || 'Action failed')
+      toast.error('error' in res ? res.error : 'Action failed')
     }
   }
 
   const handleApproveApp = async (id: string) => {
-    const res = await approveSchoolApplicationAction(id)
+    const res = await approveSchoolApplicationAction({ applicationId: id })
     if (res.success) {
       toast.success('School Application Approved and Activated!')
       loadApplications()
     } else {
-      toast.error(res.error || 'Approval failed')
+      toast.error('error' in res ? res.error : 'Approval failed')
     }
   }
 
   const handleRejectApp = async (id: string) => {
     const reason = prompt('Enter rejection reason:')
     if (!reason) return
-    const res = await rejectSchoolApplicationAction(id, reason)
+    const res = await rejectSchoolApplicationAction({ applicationId: id, rejectionReason: reason })
     if (res.success) {
       toast.success('Application Rejected')
       loadApplications()
     } else {
-      toast.error(res.error || 'Rejection failed')
+      toast.error('error' in res ? res.error : 'Rejection failed')
     }
   }
 

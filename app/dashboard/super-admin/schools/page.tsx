@@ -43,7 +43,7 @@ export default function ActiveSchoolsPage() {
       toast.success(`Parent registration ${!current ? 'enabled' : 'disabled'}`)
       loadData()
     } else {
-      toast.error(res.error || 'Toggle failed')
+      toast.error('error' in res ? res.error : 'Toggle failed')
     }
   }
 
@@ -54,7 +54,7 @@ export default function ActiveSchoolsPage() {
       toast.success(`School payment status updated to ${nextStatus}`)
       loadData()
     } else {
-      toast.error(res.error || 'Update failed')
+      toast.error('error' in res ? res.error : 'Update failed')
     }
   }
 
