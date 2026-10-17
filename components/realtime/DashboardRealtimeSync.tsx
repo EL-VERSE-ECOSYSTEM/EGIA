@@ -7,12 +7,12 @@ import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import type { RealtimeTable } from "@/types/database.types";
 
 const tablesByRole: Record<string, RealtimeTable[]> = {
-  student: ["assessment", "assessment_result", "notification", "attendance", "library_books", "message", "conversation", "conversation_participant", "assessment_schedule", "student_badges", "payment", "school", "nigerian_banks"],
-  teacher: ["assessment", "assessment_result", "attendance", "message", "notification", "conversation", "conversation_participant", "library_books", "assessment_schedule", "school", "nigerian_banks"],
-  parent: ["assessment_result", "payment", "message", "notification", "attendance", "conversation", "conversation_participant", "fee_structure", "library_books", "student", "school", "nigerian_banks"],
-  admin: ["student", "teacher", "parent", "assessment", "assessment_result", "payment", "notification", "library_books", "message", "conversation", "conversation_participant", "invitations", "fee_structure", "school", "audit_log", "assessment_logs", "school_payment_config", "nigerian_banks"],
-  "super-admin": ["school_registration_application", "school", "user", "student", "teacher", "parent", "assessment", "assessment_result", "payment", "notification", "library_books", "message", "conversation", "conversation_participant", "invitations", "fee_structure", "support_ticket", "support_ticket_replies", "audit_log", "assessment_logs", "nigerian_banks"],
-  "super_admin": ["school_registration_application", "school", "user", "student", "teacher", "parent", "assessment", "assessment_result", "payment", "notification", "library_books", "message", "conversation", "conversation_participant", "invitations", "fee_structure", "support_ticket", "support_ticket_replies", "audit_log", "assessment_logs", "nigerian_banks"],
+  student: ["assessment", "assessment_result", "notification", "attendance", "library_books", "message", "conversation", "conversation_participant", "assessment_schedule", "student_badges", "payment", "school", "nigerian_banks", "system_settings"],
+  teacher: ["assessment", "assessment_result", "attendance", "message", "notification", "conversation", "conversation_participant", "library_books", "assessment_schedule", "school", "nigerian_banks", "system_settings"],
+  parent: ["assessment_result", "payment", "message", "notification", "attendance", "conversation", "conversation_participant", "fee_structure", "library_books", "student", "school", "nigerian_banks", "system_settings"],
+  admin: ["student", "teacher", "parent", "assessment", "assessment_result", "payment", "notification", "library_books", "message", "conversation", "conversation_participant", "invitations", "fee_structure", "school", "audit_log", "assessment_logs", "school_payment_config", "nigerian_banks", "system_settings"],
+  "super-admin": ["school_registration_application", "school", "user", "student", "teacher", "parent", "assessment", "assessment_result", "payment", "notification", "library_books", "message", "conversation", "conversation_participant", "invitations", "fee_structure", "support_ticket", "support_ticket_replies", "audit_log", "assessment_logs", "nigerian_banks", "system_settings"],
+  "super_admin": ["school_registration_application", "school", "user", "student", "teacher", "parent", "assessment", "assessment_result", "payment", "notification", "library_books", "message", "conversation", "conversation_participant", "invitations", "fee_structure", "support_ticket", "support_ticket_replies", "audit_log", "assessment_logs", "nigerian_banks", "system_settings"],
 };
 
 function TableSync({ table, refresh }: { table: RealtimeTable; refresh: () => void }) {

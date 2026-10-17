@@ -19,6 +19,7 @@ import {
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { toast } from 'sonner'
 import { createClient } from '@/utils/supabase/client'
+import { getSchoolStudentControlsAction } from '@/app/actions/school-controls'
 
 interface UnifiedChatProps {
   role: 'admin' | 'teacher' | 'parent' | 'student'
@@ -27,6 +28,37 @@ interface UnifiedChatProps {
 export default function UnifiedChat({ role }: UnifiedChatProps) {
   const [mounted, setMounted] = useState(false)
   const [conversations, setConversations] = useState<any[]>([])
+
+  // Student messaging time controls
+  const [messagingLocked, setMessagingLocked] = useState(false)
+  const [messagingLockReason, setMessagingLockReason] = useState('')
+
+  const checkMessagingControls = () => {
+    if (role !== 'student') return
+    getSchoolStudentControlsAction()
+      .then(controls => {
+        const currentHour = new Date().getHours()
+        if (!controls.messagingAllowed) {
+          setMessagingLocked(true)
+          setMessagingLockReason('Messaging is currently disabled by your school administration.')
+        } else if (currentHour < controls.messagingStartHour || currentHour >= controls.messagingEndHour) {
+          setMessagingLocked(true)
+          setMessagingLockReason(`Messaging is allowed between ${controls.messagingStartHour}:00 and ${controls.messagingEndHour}:00. Current time is outside permitted hours.`)
+        } else {
+          setMessagingLocked(false)
+          setMessagingLockReason('')
+        }
+      })
+      .catch(err => console.warn('Messaging controls check error:', err))
+  }
+
+  useEffect(() => {
+    checkMessagingControls()
+  }, [role])
+
+  useRealtimeSubscription('system_settings', () => {
+    checkMessagingControls()
+  })
   const [selectedChat, setSelectedChat] = useState<any>(null)
   const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState('')
@@ -128,6 +160,11 @@ export default function UnifiedChat({ role }: UnifiedChatProps) {
   }
 
   const handleSendMessage = async () => {
+    if (messagingLocked) {
+      toast.error(messagingLockReason || 'Messaging is currently restricted by school controls.')
+      return
+    }
+
     if (!newMessage.trim() || !selectedChat) return
 
     const text = newMessage

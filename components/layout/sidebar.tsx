@@ -54,6 +54,14 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       hoverColor: 'hover:bg-indigo-500/10 hover:text-indigo-300',
       links: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/super-admin/overview' },
+        { label: 'Applications Queue', icon: Building2, href: '/dashboard/super-admin/applications' },
+        { label: 'Support Tickets', icon: HelpCircle, href: '/dashboard/super-admin/support' },
+        { label: 'Active Schools', icon: School, href: '/dashboard/super-admin/schools' },
+        { label: 'User Management & Suspensions', icon: Users, href: '/dashboard/super-admin/users' },
+        { label: 'Student Gifting', icon: Award, href: '/dashboard/super-admin/gifts' },
+        { label: 'CBT Approvals', icon: GraduationCap, href: '/dashboard/super-admin/cbts' },
+        { label: 'Real-Time Wallets & Ledger', icon: Wallet, href: '/dashboard/super-admin/wallets' },
+        { label: 'Active Users', icon: User, href: '/dashboard/super-admin/active-users' },
         { label: 'Students List', icon: Users, href: '/dashboard/admin/users/students/list' },
         { label: 'Teachers List', icon: User, href: '/dashboard/admin/users/teachers/list' },
         { label: 'Academics Control', icon: BookOpen, href: '/dashboard/admin/academics' },
@@ -72,10 +80,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         { label: 'Manage Adult Assignments', icon: FileText, href: '/dashboard/admin/adult-education/assignments' },
         { label: 'Manage Adult Saved Sessions', icon: BookMarked, href: '/dashboard/admin/adult-education/saved-sessions' },
         { label: 'Manage Adult Live Classes', icon: Video, href: '/dashboard/admin/adult-education/live-classes' },
-        { label: 'Global Schools & Applications', icon: Building2, href: '/dashboard/super-admin/overview?tab=APPLICATIONS' },
         { label: 'Online Exam Prep', icon: BookOpen, href: '/dashboard/super-admin/online-prep' },
-        { label: 'Support Tickets Desk', icon: HelpCircle, href: '/dashboard/super-admin/overview?tab=SUPPORT' },
-        { label: 'Wallets & Audit Ledger', icon: Wallet, href: '/dashboard/super-admin/overview?tab=WALLETS' },
       ]
     },
     admin: {
