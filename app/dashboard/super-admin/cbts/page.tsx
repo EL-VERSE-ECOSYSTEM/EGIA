@@ -36,7 +36,7 @@ export default function SuperAdminCBTApprovalsPage() {
   })
 
   const handleApproveCBT = async (cbtId: string) => {
-    const res = await approveCBTAssessmentAction(cbtId)
+    const res = await approveCBTAssessmentAction(cbtId, true)
     if (res.success) {
       toast.success('CBT Assessment Approved!')
       loadCBTs()
