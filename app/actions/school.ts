@@ -142,7 +142,8 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       checkoutUrl: finalCheckoutUrl,
     }
   } catch (error: any) {
-    return sanitizeServerError('registerSchoolAction', error, 'School registration application could not be initialized.')
+    const errorMsg = error instanceof Error && error.message ? error.message : 'School registration application could not be initialized.'
+    return sanitizeServerError('registerSchoolAction', error, errorMsg)
   }
 }
 
@@ -323,6 +324,7 @@ export async function initializeSchoolRenewalPaymentAction(schoolId: string) {
     const paymentReference = `SCH-RNW-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`
 
     const initRes = await serviceInitializeKorapayPayment({
+      reference: paymentReference,
       schoolId: sch.id,
       amount: 30161.25,
       currency: 'NGN',

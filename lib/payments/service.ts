@@ -17,6 +17,7 @@ export interface CreateInvoiceParams {
 
 export interface InitializePaymentParams {
   invoiceId?: string
+  reference?: string
   schoolId?: string | null
   studentId?: string
   parentId?: string | null
@@ -75,7 +76,7 @@ export async function initializeKorapayPayment(params: InitializePaymentParams) 
   const amount = Number.isFinite(params.amount) && params.amount > 0 ? params.amount : 30161.25
 
   const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  const reference = `EGIA-PAY-${Date.now()}-${randomUUID().slice(0, 8)}`
+  const reference = params.reference || `EGIA-PAY-${Date.now()}-${randomUUID().slice(0, 8)}`
   const currency = params.currency || 'NGN'
   const fallbackCheckoutUrl = params.redirectUrl || `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`
 
@@ -125,30 +126,29 @@ export async function initializeKorapayPayment(params: InitializePaymentParams) 
         },
       }
 
-      const res = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${secretKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
+    const res = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
 
-      const koraData = await res.json()
-      if (!res.ok || !koraData.status || !koraData.data?.checkout_url) {
-        throw new Error(koraData.message || 'Korapay did not return a checkout URL.')
-      }
-
-      checkout = koraData.data.checkout_url
-    } catch (error) {
-      if (paymentRecord) {
-        await db.update(payment)
-          .set({ status: 'failed', updatedAt: new Date() })
-          .where(eq(payment.id, paymentRecord.id))
-      }
-
-      throw error
+    const koraData = await res.json()
+    if (!res.ok || !koraData.status || !koraData.data?.checkout_url) {
+      throw new Error(koraData.message || 'Korapay did not return a valid checkout URL.')
     }
+
+    checkout = koraData.data.checkout_url
+  } catch (error) {
+    if (paymentRecord) {
+      await db.update(payment)
+        .set({ status: 'failed', updatedAt: new Date() })
+        .where(eq(payment.id, paymentRecord.id))
+    }
+
+    throw error
   }
 
   return {
