@@ -143,7 +143,12 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     }
   } catch (error: any) {
     const errorMsg = error instanceof Error && error.message ? error.message : 'School registration application could not be initialized.'
-    return sanitizeServerError('registerSchoolAction', error, errorMsg)
+    console.error('School registration initialization error:', error)
+    return {
+      success: false,
+      error: errorMsg,
+      requestId: randomUUID(),
+    }
   }
 }
 
