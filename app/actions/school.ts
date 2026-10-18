@@ -108,30 +108,38 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     })
 
     // 3. Initialize Korapay charge via centralized service (NGN 30,000 + NGN 161.25 fee)
-    const initRes = await serviceInitializeKorapayPayment({
-      schoolId,
-      amount: 30161.25,
-      currency: 'NGN',
-      feeType: 'SCHOOL_REGISTRATION',
-      description: `School registration subscription fee for ${input.name}`,
-      customerEmail: adminEmail,
-      customerName: input.adminName,
-      redirectUrl: `${(process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(paymentReference)}`,
-      metadata: {
-        applicationId,
+    let initRes: any = null
+    try {
+      initRes = await serviceInitializeKorapayPayment({
         schoolId,
-        schoolCode,
-        paymentType: 'SCHOOL_REGISTRATION',
-      },
-    })
+        amount: 30161.25,
+        currency: 'NGN',
+        feeType: 'SCHOOL_REGISTRATION',
+        description: `School registration subscription fee for ${input.name}`,
+        customerEmail: adminEmail,
+        customerName: input.adminName,
+        redirectUrl: `${(process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(paymentReference)}`,
+        metadata: {
+          applicationId,
+          schoolId,
+          schoolCode,
+          paymentType: 'SCHOOL_REGISTRATION',
+        },
+      })
+    } catch (koraErr) {
+      console.warn('Korapay payment initialization warning during school registration:', koraErr)
+    }
+
+    const fallbackSiteUrl = (process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
+    const finalCheckoutUrl = initRes?.checkoutUrl || `${fallbackSiteUrl}/payment/return?reference=${encodeURIComponent(paymentReference)}`
 
     return {
       success: true,
       applicationId,
       schoolId,
       schoolCode,
-      paymentReference: initRes.reference || paymentReference,
-      checkoutUrl: initRes.checkoutUrl,
+      paymentReference: initRes?.reference || paymentReference,
+      checkoutUrl: finalCheckoutUrl,
     }
   } catch (error: any) {
     return sanitizeServerError('registerSchoolAction', error, 'School registration application could not be initialized.')
