@@ -376,6 +376,21 @@ export async function confirmSchoolRenewalPaymentAction(paymentReference: string
       return { success: false, error: 'School ID missing from payment metadata.' }
     }
 
+    const { transactionLedger } = await import('@/lib/db/schema')
+    const existingLedger = await db.query.transactionLedger.findFirst({
+      where: eq(transactionLedger.reference, paymentReference)
+    })
+
+    if (existingLedger && existingLedger.status === 'SUCCESS') {
+      const sch = await db.query.school.findFirst({ where: eq(school.id, schoolId) })
+      return {
+        success: true,
+        schoolId,
+        nextDueDate: sch?.registrationDueDate ? new Date(sch.registrationDueDate).toISOString() : new Date().toISOString(),
+        alreadyProcessed: true,
+      }
+    }
+
     const now = new Date()
     const nextDueDate = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
 
@@ -386,7 +401,6 @@ export async function confirmSchoolRenewalPaymentAction(paymentReference: string
       updatedAt: now,
     }).where(eq(school.id, schoolId))
 
-    const { transactionLedger } = await import('@/lib/db/schema')
     await db.insert(transactionLedger).values({
       id: randomUUID(),
       schoolId: schoolId,
