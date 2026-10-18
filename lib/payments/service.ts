@@ -73,6 +73,10 @@ export async function createInvoice(params: CreateInvoiceParams) {
 
 export async function initializeKorapayPayment(params: InitializePaymentParams) {
   const secretKey = process.env.KORAPAY_SECRET_KEY
+  if (!secretKey) {
+    throw new Error('Korapay payment service is unavailable because its secret key is not configured.')
+  }
+
   const amount = Number.isFinite(params.amount) && params.amount > 0 ? params.amount : 30161.25
 
   const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
@@ -104,27 +108,26 @@ export async function initializeKorapayPayment(params: InitializePaymentParams) 
 
   let checkout = ''
 
-  if (secretKey) {
-    try {
-      const payload = {
-        amount,
-        currency,
-        reference,
-        narration: params.description || `${params.feeType} payment`,
-        notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
-        redirect_url: fallbackCheckoutUrl,
-        customer: {
-          email: params.customerEmail,
-          name: params.customerName || 'Customer',
-        },
-        metadata: {
-          schoolId: params.schoolId,
-          studentId: params.studentId,
-          parentId: params.parentId,
-          feeType: params.feeType,
-          ...params.metadata,
-        },
-      }
+  try {
+    const payload = {
+      amount,
+      currency,
+      reference,
+      narration: params.description || `${params.feeType} payment`,
+      notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
+      redirect_url: fallbackCheckoutUrl,
+      customer: {
+        email: params.customerEmail,
+        name: params.customerName || 'Customer',
+      },
+      metadata: {
+        schoolId: params.schoolId,
+        studentId: params.studentId,
+        parentId: params.parentId,
+        feeType: params.feeType,
+        ...params.metadata,
+      },
+    }
 
     const res = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
       method: 'POST',
