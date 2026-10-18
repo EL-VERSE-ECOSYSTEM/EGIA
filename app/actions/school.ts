@@ -37,7 +37,7 @@ export async function generateSchoolCode(schoolName: string): Promise<string> {
   const uniqueDigits = Math.floor(10000 + Math.random() * 90000)
   const finalCode = `${prefix}-${uniqueDigits}`
 
-  const existing = await db.select().from(school).where(eq(school.code, finalCode))
+  const existing = await db.select({ id: school.id }).from(school).where(eq(school.code, finalCode))
   if (existing.length > 0) {
     return generateSchoolCode(schoolName)
   }
@@ -278,7 +278,9 @@ export async function getSchoolByCodeAction(code: string) {
     }
     return { success: true, school: result[0] }
   } catch (error: any) {
-    return sanitizeServerError('getSchoolByCodeAction', error, 'Unable to verify school code.')
+    const errorMsg = error instanceof Error && error.message ? error.message : 'Unable to verify school code.'
+    console.error('getSchoolByCodeAction error:', error)
+    return { success: false, error: errorMsg }
   }
 }
 
