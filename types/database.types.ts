@@ -35,7 +35,8 @@ export type RealtimeTable =
   | "student_badges" | "faq_articles" | "school" | "audit_log" | "transaction_ledger"
   | "assessment_logs" | "school_admin_roles" | "school_payment_config" | "payment_receipt_uploads"
   | "teacher_attendance" | "leave_types" | "teacher_leave_requests" | "teacher_leave_balance"
-  | "teacher_salary_deductions" | "school_attendance_config" | "nigerian_banks" | "system_settings";
+  | "teacher_salary_deductions" | "school_attendance_config" | "nigerian_banks" | "system_settings"
+  | "teacher_wallet" | "teacher_request" | "academic_session" | "term" | "disciplinary_records" | "report_card";
 
 export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT' | 'HALF_DAY' | 'ON_LEAVE' | 'SUSPENDED';
 export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';

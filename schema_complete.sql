@@ -682,6 +682,22 @@ create table public."support_ticket_replies" (
   "created_at" timestamptz not null default now()
 );
 
+-- DISCIPLINARY RECORDS -------------------------------------------------------
+create table if not exists public."disciplinary_records" (
+  "id" uuid primary key default gen_random_uuid(),
+  "student_id" text not null,
+  "reported_by_id" text not null,
+  "incident_date" date not null default current_date,
+  "incident_type" text not null,
+  "description" text not null,
+  "sanction" text,
+  "status" text not null default 'PENDING',
+  "notes" text,
+  "resolved_at" timestamptz,
+  "created_at" timestamptz not null default now(),
+  "updated_at" timestamptz not null default now()
+);
+
 -- ADULT EDUCATION ------------------------------------------------------------
 create table public."adult_education_enrollments" (
   "id" text primary key,
@@ -1414,6 +1430,16 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.teacher_salary_deductions;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.school_attendance_config;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.leave_types;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.school_admin_roles;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.disciplinary_records;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.academic_session;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.term;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.teacher_wallet;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.teacher_request;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.cbt_attempt;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.student_gifts;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.fee_structure;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.school_payment_config;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.payment_receipt_uploads;
 
 -- Additional developer tables
 create table if not exists public.invitations (

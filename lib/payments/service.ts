@@ -348,9 +348,15 @@ export async function markPaymentSuccessful(paymentId: string, korapayRef?: stri
     .where(eq(payment.id, paymentId))
     .returning()
 
-  if (updated.length > 0 && updated[0].feeType === 'registration') {
+  if (updated.length > 0 && (updated[0].feeType === 'registration' || updated[0].feeType === 'STUDENT_4MONTH_REGISTRATION')) {
+    const nextDue = new Date(now.getTime() + 120 * 24 * 60 * 60 * 1000)
     await db.update(student)
-      .set({ registrationStatus: 'ACTIVE', updatedAt: now })
+      .set({
+        registrationStatus: 'ACTIVE',
+        lastRegistrationFeePaidAt: now,
+        registrationDueDate: nextDue,
+        updatedAt: now,
+      })
       .where(eq(student.id, updated[0].studentId))
   }
 

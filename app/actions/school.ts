@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { school, schoolRegistrationApplication } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
+import { revalidatePath } from 'next/cache'
 import { sanitizeServerError } from '@/lib/errors'
 import {
   initializeKorapayPayment as serviceInitializeKorapayPayment,
@@ -401,6 +402,10 @@ export async function confirmSchoolRenewalPaymentAction(paymentReference: string
       createdAt: now,
       updatedAt: now,
     }).onConflictDoNothing()
+
+    revalidatePath('/dashboard/admin/overview')
+    revalidatePath('/dashboard/super-admin/schools')
+    revalidatePath('/dashboard/super-admin/overview')
 
     return { success: true, schoolId, nextDueDate: nextDueDate.toISOString() }
   } catch (error: any) {
