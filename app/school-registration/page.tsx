@@ -741,6 +741,31 @@ export default function SchoolRegistrationPage() {
               </div>
             </div>
 
+            {/* Mandatory Terms & Privacy Consent Checkbox */}
+            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="school_terms_consent"
+                required
+                className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-slate-950 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="school_terms_consent" className="text-xs text-slate-300 font-medium leading-relaxed">
+                I agree to the{' '}
+                <a href="/terms" target="_blank" className="text-amber-400 font-bold hover:underline">
+                  Terms & Conditions
+                </a>,{' '}
+                <a href="/privacy" target="_blank" className="text-amber-400 font-bold hover:underline">
+                  Privacy Policy
+                </a>,{' '}
+                <a href="/refund-policy" target="_blank" className="text-amber-400 font-bold hover:underline">
+                  Refund Policy
+                </a>, and{' '}
+                <a href="/cookies" target="_blank" className="text-amber-400 font-bold hover:underline">
+                  Cookie Policy
+                </a>.
+              </label>
+            </div>
+
             {/* Subscription Fee Banner */}
             <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-950 to-slate-900 border border-blue-500/30 flex items-center justify-between">
               <div className="flex items-center gap-3">

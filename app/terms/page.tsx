@@ -93,8 +93,14 @@ export default function TermsPage() {
                 <FileText className="w-5 h-5 text-blue-400" /> 6. Amendments & Contact Information
               </h2>
               <p>
-                EL LEARNERS APP reserves the right to modify these terms at any time. Continued use of the Platform signifies acceptance of updated terms. For inquiries regarding these terms, contact support at <a href="mailto:elcoderssoftwares12@gmail.com" className="text-blue-400 underline">elcoderssoftwares12@gmail.com</a>.
+                EL LEARNERS APP reserves the right to modify these terms at any time. Continued use of the Platform signifies acceptance of updated terms. For inquiries regarding these terms, contact support at <a href="mailto:elversetechnologies@gmail.com" className="text-blue-400 underline">elversetechnologies@gmail.com</a> or phone +234-814-000-0000.
               </p>
+              <div className="pt-2 text-xs flex flex-wrap gap-4 text-slate-400 font-semibold border-t border-slate-800">
+                <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+                <Link href="/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link>
+                <Link href="/cookies" className="hover:text-white transition-colors">Cookie Policy</Link>
+                <Link href="/data-deletion" className="hover:text-white transition-colors">Data Deletion</Link>
+              </div>
             </section>
           </CardContent>
         </Card>

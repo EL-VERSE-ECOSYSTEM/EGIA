@@ -118,13 +118,25 @@ export default function SignUpPage() {
         <p>
           Already registered? <Link href="/auth/signin" className="text-orange-400 font-black hover:underline ml-1">Sign In Now</Link>
         </p>
-        <div className="flex justify-center gap-4 text-[11px] font-semibold text-slate-500">
-          <Link href="/terms" className="hover:text-slate-300 transition-colors">
+        <div className="flex flex-wrap justify-center gap-4 text-[11px] font-semibold text-slate-400">
+          <Link href="/terms" className="hover:text-white transition-colors">
             Terms & Conditions
           </Link>
           <span>•</span>
-          <Link href="/privacy" className="hover:text-slate-300 transition-colors">
+          <Link href="/privacy" className="hover:text-white transition-colors">
             Privacy Policy
+          </Link>
+          <span>•</span>
+          <Link href="/refund-policy" className="hover:text-white transition-colors">
+            Refund Policy
+          </Link>
+          <span>•</span>
+          <Link href="/cookies" className="hover:text-white transition-colors">
+            Cookie Policy
+          </Link>
+          <span>•</span>
+          <Link href="/data-deletion" className="hover:text-white transition-colors">
+            Data Deletion
           </Link>
         </div>
       </div>
