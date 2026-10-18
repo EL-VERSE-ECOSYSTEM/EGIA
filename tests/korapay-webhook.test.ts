@@ -64,6 +64,31 @@ test('validateKorapayWebhook - rejects malformed JSON even with a valid signatur
   if (!result.success) assert.equal(result.error, 'Invalid JSON payload')
 })
 
+test('idempotent status transition helper logic - prevents duplicate date extensions', () => {
+  let registrationDueDate: Date | null = new Date('2026-05-01T00:00:00Z')
+  let lastPaidAt: Date | null = new Date('2026-01-01T00:00:00Z')
+
+  function processPaymentSuccess(isAlreadySuccess: boolean, now: Date) {
+    if (!isAlreadySuccess) {
+      lastPaidAt = now
+      registrationDueDate = new Date(now.getTime() + 120 * 24 * 60 * 60 * 1000)
+    }
+  }
+
+  const initialPayTime = new Date('2026-02-01T10:00:00Z')
+  processPaymentSuccess(false, initialPayTime)
+
+  const firstDueDate = registrationDueDate?.toISOString()
+  assert.equal(lastPaidAt?.toISOString(), initialPayTime.toISOString())
+
+  // Re-verifying 10 days later should NOT update registrationDueDate
+  const reverifyTime = new Date('2026-02-11T10:00:00Z')
+  processPaymentSuccess(true, reverifyTime)
+
+  assert.equal(registrationDueDate?.toISOString(), firstDueDate)
+  assert.equal(lastPaidAt?.toISOString(), initialPayTime.toISOString())
+})
+
 test('korapayAmountMatches - requires the exact expected amount to the cent', () => {
   assert.equal(korapayAmountMatches(5161.25, 5161.25), true)
   assert.equal(korapayAmountMatches('5161.25', 5161.25), true)

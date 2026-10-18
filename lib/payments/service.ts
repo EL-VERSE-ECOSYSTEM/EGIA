@@ -336,21 +336,40 @@ export async function processKorapayWebhook(rawBody: string, signature: string |
 }
 
 export async function markPaymentSuccessful(paymentId: string, korapayRef?: string) {
+  const existingPayment = await db.query.payment.findFirst({
+    where: eq(payment.id, paymentId)
+  })
+
+  if (!existingPayment) return null
+
+  const isAlreadySuccess = existingPayment.status === 'success'
   const now = new Date()
+
   const updated = await db.update(payment)
     .set({
       status: 'success',
-      korapayReference: korapayRef || undefined,
-      paidAt: now,
-      paymentDate: now,
+      korapayReference: korapayRef || existingPayment.korapayReference || undefined,
+      paidAt: existingPayment.paidAt || now,
+      paymentDate: existingPayment.paymentDate || now,
       updatedAt: now,
     })
     .where(eq(payment.id, paymentId))
     .returning()
 
-  if (updated.length > 0 && updated[0].feeType === 'registration') {
+  // Only extend student registration validity on the INITIAL transition to success
+  if (
+    !isAlreadySuccess &&
+    updated.length > 0 &&
+    (updated[0].feeType === 'registration' || updated[0].feeType === 'STUDENT_4MONTH_REGISTRATION')
+  ) {
+    const nextDue = new Date(now.getTime() + 120 * 24 * 60 * 60 * 1000)
     await db.update(student)
-      .set({ registrationStatus: 'ACTIVE', updatedAt: now })
+      .set({
+        registrationStatus: 'ACTIVE',
+        lastRegistrationFeePaidAt: now,
+        registrationDueDate: nextDue,
+        updatedAt: now,
+      })
       .where(eq(student.id, updated[0].studentId))
   }
 
