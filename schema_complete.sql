@@ -698,6 +698,20 @@ create table if not exists public."disciplinary_records" (
   "updated_at" timestamptz not null default now()
 );
 
+-- STUDENT GIFTS --------------------------------------------------------------
+create table if not exists public."student_gifts" (
+  "id" text primary key default gen_random_uuid()::text,
+  "schoolid" text references public."school"("id") on delete set null,
+  "student_id" text not null references public."student"("id") on delete cascade,
+  "title" text not null,
+  "reason" text,
+  "amount" numeric(12,2) not null default 0.00,
+  "status" text not null default 'AVAILABLE',
+  "received_at" timestamptz not null default now(),
+  "expires_at" timestamptz not null,
+  "created_at" timestamptz not null default now()
+);
+
 -- ADULT EDUCATION ------------------------------------------------------------
 create table public."adult_education_enrollments" (
   "id" text primary key,
@@ -1435,7 +1449,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.academic_session;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.term;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.teacher_wallet;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.teacher_request;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.cbt_attempt;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.cbt_attempts;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.student_gifts;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.fee_structure;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.school_payment_config;
