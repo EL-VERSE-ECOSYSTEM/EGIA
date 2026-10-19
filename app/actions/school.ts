@@ -231,14 +231,15 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
     }
 
     const existingSchool = await db.select().from(school).where(eq(school.paymentReference, paymentReference))
-    let rec = existingSchool[0] || null
+    let rec: (typeof school.$inferSelect) | null = existingSchool[0] || null
 
     if (!rec) {
       const appByRef = await db.query.schoolRegistrationApplication.findFirst({
         where: eq(schoolRegistrationApplication.paymentReference, paymentReference)
       })
       if (appByRef?.schoolId) {
-        rec = await db.query.school.findFirst({ where: eq(school.id, appByRef.schoolId) }) || null
+        const foundSchool = await db.query.school.findFirst({ where: eq(school.id, appByRef.schoolId) })
+        rec = foundSchool || null
       }
     }
 
