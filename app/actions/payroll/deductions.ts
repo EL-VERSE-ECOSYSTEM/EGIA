@@ -33,7 +33,7 @@ export async function computeMonthlyDeductionsAction(schoolId: string, month: st
     `)
   } catch (err) {
     console.error('Error computing monthly deductions:', err)
-    throw new Error('Failed to compute monthly deductions')
+    throw new Error('Failed to compute monthly deductions', { cause: err })
   }
 
   revalidatePath('/dashboard/admin/payroll/deductions')

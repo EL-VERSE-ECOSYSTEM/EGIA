@@ -65,7 +65,6 @@
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.2.0",
-    "@types/bcryptjs": "^3.0.0",
     "@types/node": "24.19.2",
     "@types/pg": "^8.20.0",
     "@types/react": "19.3.0",

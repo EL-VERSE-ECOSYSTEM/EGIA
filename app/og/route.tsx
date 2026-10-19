@@ -52,7 +52,6 @@ export async function GET() {
           }}
         >
           {/* Logo Image */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={logoUrl}
             alt="EL LEARNERS APP Logo"
