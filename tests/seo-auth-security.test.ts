@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { isPublicRoute } from '../lib/public-routes.ts'
 
 test('SEO & User Protection Security Suite', async (t) => {
   await t.test('Password strength validation rules', () => {
@@ -23,24 +24,15 @@ test('SEO & User Protection Security Suite', async (t) => {
   })
 
   await t.test('Public SEO route configuration verification', () => {
-    const publicRoutes = [
-      '/',
-      '/school-registration',
-      '/auth/signin',
-      '/auth/signup',
-      '/admissions',
-      '/llms.txt',
-      '/llms-full.txt',
-      '/og',
-      '/robots.txt',
-      '/sitemap.xml',
-    ]
-
-    assert.ok(publicRoutes.includes('/llms.txt'))
-    assert.ok(publicRoutes.includes('/llms-full.txt'))
-    assert.ok(publicRoutes.includes('/og'))
-    assert.ok(publicRoutes.includes('/sitemap.xml'))
-    assert.ok(publicRoutes.includes('/robots.txt'))
+    assert.equal(isPublicRoute('/'), true)
+    assert.equal(isPublicRoute('/llms.txt'), true)
+    assert.equal(isPublicRoute('/llms-full.txt'), true)
+    assert.equal(isPublicRoute('/og'), true)
+    assert.equal(isPublicRoute('/sitemap.xml'), true)
+    assert.equal(isPublicRoute('/robots.txt'), true)
+    assert.equal(isPublicRoute('/school-registration/step-2'), true)
+    assert.equal(isPublicRoute('/privacy-impersonation'), false)
+    assert.equal(isPublicRoute('/auth/signin-extra'), false)
   })
 
   await t.test('Role-based Super Admin privilege check', () => {

@@ -1,0 +1,42 @@
+const publicRoutes = [
+  '/',
+  '/school-registration',
+  '/auth/signin',
+  '/auth/signup',
+  '/auth/verify-email',
+  '/auth/callback',
+  '/admissions',
+  '/about',
+  '/news',
+  '/contact',
+  '/faq',
+  '/gallery',
+  '/results-checker',
+  '/terms',
+  '/privacy',
+  '/llms.txt',
+  '/llms-full.txt',
+  '/og',
+  '/sw.js',
+  '/firebase-messaging-sw.js',
+  '/manifest.json',
+  '/manifest.webmanifest',
+  '/robots.txt',
+  '/sitemap.xml',
+  '/favicon.ico',
+  '/logo.svg',
+  '/api/webhooks/korapay',
+  '/api/webhooks/supabase',
+  '/api/korapay/webhook',
+  '/api/payments/initialize',
+  '/api/payments/callback',
+  '/payment/return',
+  '/api/library/books/search',
+  '/api/library/autocomplete',
+]
+
+export function isPublicRoute(pathname: string): boolean {
+  return publicRoutes.some(
+    (route) => pathname === route || (route !== '/' && pathname.startsWith(`${route}/`)),
+  )
+}

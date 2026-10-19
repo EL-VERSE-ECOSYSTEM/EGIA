@@ -7,6 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
+    "test": "tsx --test tests/*.test.ts",
     "verify:supabase": "node scripts/verify-supabase.mjs"
   },
   "dependencies": {
@@ -41,7 +42,7 @@
     "firebase": "^12.17.1",
     "firebase-admin": "^14.2.0",
     "lucide-react": "^1.17.0",
-    "next": "16.3.0",
+    "next": "16.4.2",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
     "pg": "^8.21.0",
@@ -51,7 +52,7 @@
     "react-hook-form": "^7.85.0",
     "react-is": "^19.3.0",
     "recharts": "^3.8.1",
-    "sharp": "0.35.0",
+    "sharp": "0.35.5",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "tesseract.js": "^7.0.0",
@@ -69,17 +70,23 @@
     "@types/pg": "^8.20.0",
     "@types/react": "19.3.0",
     "@types/react-dom": "^19",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
     "postcss": "8.5.25",
     "tailwindcss": "^4.2.0",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "tsx": "^4.23.15",
+    "typescript-eslint": "^8.71.2"
   },
   "overrides": {
     "effect": "3.22.0",
+    "@grpc/grpc-js": "1.14.6",
     "better-auth": "1.6.25",
     "@better-auth/passkey": "1.6.25",
     "next": {
       "postcss": "8.5.25",
-      "sharp": "0.35.0"
+      "sharp": "0.35.5"
     }
   }
 }

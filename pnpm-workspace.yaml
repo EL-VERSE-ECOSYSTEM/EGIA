@@ -1,0 +1,6 @@
+allowBuilds:
+  '@dwmkerr/terminal-ai': set this to true or false
+  '@firebase/util': set this to true or false
+  msgpackr-extract: set this to true or false
+  protobufjs: set this to true or false
+  tesseract.js: set this to true or false

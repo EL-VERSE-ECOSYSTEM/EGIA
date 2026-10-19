@@ -1,42 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/middleware'
-
-const publicRoutes = [
-  '/',
-  '/school-registration',
-  '/auth/signin',
-  '/auth/signup',
-  '/auth/verify-email',
-  '/auth/callback',
-  '/admissions',
-  '/about',
-  '/news',
-  '/contact',
-  '/faq',
-  '/gallery',
-  '/results-checker',
-  '/terms',
-  '/privacy',
-  '/llms.txt',
-  '/llms-full.txt',
-  '/og',
-  '/sw.js',
-  '/firebase-messaging-sw.js',
-  '/manifest.json',
-  '/manifest.webmanifest',
-  '/robots.txt',
-  '/sitemap.xml',
-  '/favicon.ico',
-  '/logo.svg',
-  '/api/webhooks/korapay',
-  '/api/webhooks/supabase',
-  '/api/korapay/webhook',
-  '/api/payments/initialize',
-  '/api/payments/callback',
-  '/payment/return',
-  '/api/library/books/search',
-  '/api/library/autocomplete'
-]
+import { isPublicRoute } from '@/lib/public-routes'
 
 const adminRoles = ['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN']
 
@@ -75,7 +39,8 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Rate Limiting
-  const ip = (request as any).ip || request.headers.get('x-forwarded-for') || '127.0.0.1'
+  const requestWithIp = request as NextRequest & { ip?: string }
+  const ip = requestWithIp.ip || request.headers.get('x-forwarded-for') || '127.0.0.1'
   const isAuthRoute = pathname.startsWith('/auth/') || pathname.startsWith('/api/')
   const limit = isAuthRoute ? LIMIT_AUTH_API : LIMIT_GENERAL
   const windowMs = isAuthRoute ? (5 * 60 * 1000) : WINDOW_MS
@@ -125,13 +90,13 @@ export async function proxy(request: NextRequest) {
   const { supabase, response } = createClient(request)
 
   // Check if it's a public route
-  const isPublicRoute = publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route)))
+  const isPublic = isPublicRoute(pathname)
 
   // Refresh session if it exists
   const { data: { user } } = await supabase.auth.getUser()
   const isAuthenticated = !!user
 
-  if (!isAuthenticated && !isPublicRoute && !pathname.startsWith('/api/')) {
+  if (!isAuthenticated && !isPublic && !pathname.startsWith('/api/')) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/signin'
     return redirectWithSessionCookies(url, response)
