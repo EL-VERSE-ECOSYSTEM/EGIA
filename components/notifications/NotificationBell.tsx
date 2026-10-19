@@ -223,6 +223,16 @@ export function NotificationBell() {
               </div>
             )}
           </div>
+
+          {/* Footer Preferences Link */}
+          <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+            <a
+              href="/dashboard/parent/settings/notifications"
+              className="text-[11px] font-bold text-slate-500 hover:text-orange-600 transition-colors inline-flex items-center gap-1"
+            >
+              <span>Manage Notification Preferences & Unsubscribe</span>
+            </a>
+          </div>
         </div>
       )}
     </div>

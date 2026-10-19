@@ -99,8 +99,14 @@ export default function PrivacyPage() {
                 <ShieldCheck className="w-5 h-5 text-emerald-400" /> 5. Data Rights & Contact
               </h2>
               <p>
-                Users and institutional administrators have the right to inspect, update, or request deletion of their records subject to institutional compliance retention requirements. For data privacy inquiries, contact our Privacy Officer at <a href="mailto:elcoderssoftwares12@gmail.com" className="text-emerald-400 underline">elcoderssoftwares12@gmail.com</a>.
+                Users and institutional administrators have the right to inspect, update, or request deletion of their records subject to institutional compliance retention requirements. You can submit a data erasure request anytime at <Link href="/data-deletion" className="text-emerald-400 font-bold hover:underline">Data Deletion Request</Link>. For data privacy inquiries, contact our Privacy Officer at <a href="mailto:elversetechnologies@gmail.com" className="text-emerald-400 underline">elversetechnologies@gmail.com</a> or phone +234-814-000-0000.
               </p>
+              <div className="pt-2 text-xs flex flex-wrap gap-4 text-slate-400 font-semibold border-t border-slate-800">
+                <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+                <Link href="/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link>
+                <Link href="/cookies" className="hover:text-white transition-colors">Cookie Policy</Link>
+                <Link href="/data-deletion" className="hover:text-white transition-colors">Data Deletion</Link>
+              </div>
             </section>
           </CardContent>
         </Card>
