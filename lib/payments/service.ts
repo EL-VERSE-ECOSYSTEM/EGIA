@@ -182,7 +182,7 @@ export async function verifyKorapayPayment(params: PaymentVerificationParams) {
   if (!schoolRec && appRec?.schoolId) {
     schoolRec = (await db.query.school.findFirst({
       where: eq(school.id, appRec.schoolId)
-    })) || null
+    })) || undefined
   }
 
   const schoolCode = schoolRec?.code || undefined
