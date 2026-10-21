@@ -171,12 +171,22 @@ export async function verifyKorapayPayment(params: PaymentVerificationParams) {
     where: eq(payment.transactionReference, reference)
   })
 
-  const schoolRec = await db.query.school.findFirst({
+  const appRec = await db.query.schoolRegistrationApplication.findFirst({
+    where: eq(schoolRegistrationApplication.paymentReference, reference)
+  })
+
+  let schoolRec = await db.query.school.findFirst({
     where: eq(school.paymentReference, reference)
   })
 
+  if (!schoolRec && appRec?.schoolId) {
+    schoolRec = (await db.query.school.findFirst({
+      where: eq(school.id, appRec.schoolId)
+    })) || null
+  }
+
   const schoolCode = schoolRec?.code || undefined
-  const schoolName = schoolRec?.name || undefined
+  const schoolName = schoolRec?.name || appRec?.schoolName || undefined
 
   if (!secretKey) {
     return { success: false, status: 'failed', schoolCode, schoolName, error: 'Korapay secret key is not configured.' }
