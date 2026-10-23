@@ -27,11 +27,9 @@ export async function linkChild(admissionNumber: string) {
     throw new Error('Unauthorized: Only registered parents can link children.')
   }
 
-  const parentProfile = await db.query.parent.findFirst({
+  let parentProfile = await db.query.parent.findFirst({
     where: eq(parentTable.userId, session.user.id)
   })
-
-  if (!parentProfile) throw new Error('Parent profile not found')
 
   const child = await db.query.student.findFirst({
     where: eq(student.admissionNumber, admissionNumber.trim().toUpperCase())
@@ -39,7 +37,20 @@ export async function linkChild(admissionNumber: string) {
 
   if (!child) throw new Error('Student with this admission number not found')
 
-  const parentSchoolId = parentProfile.schoolId
+  if (!parentProfile) {
+    parentProfile = await createParentProfile({
+      schoolId: child.schoolId,
+    })
+  } else if (!parentProfile.schoolId && child.schoolId) {
+    await db.update(parentTable)
+      .set({ schoolId: child.schoolId, updatedAt: new Date() })
+      .where(eq(parentTable.id, parentProfile.id))
+    await db.update(userTable)
+      .set({ schoolId: child.schoolId, updatedAt: new Date() })
+      .where(eq(userTable.id, session.user.id))
+  }
+
+  const parentSchoolId = parentProfile.schoolId || child.schoolId
   if (!parentSchoolId || child.schoolId !== parentSchoolId) {
     throw new Error('You can only link students registered under your school.')
   }
@@ -242,18 +253,28 @@ export async function createParentProfile(data: any) {
   if (existing) return existing
 
   const userRecord = await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) })
-  const targetSchoolId = userRecord?.schoolId || null
-  if (!targetSchoolId) {
-    throw new Error('A verified school registration is required before creating a parent profile.')
+  const targetSchoolId = data?.schoolId || userRecord?.schoolId || null
+
+  const firstName = data?.firstName || session.user.name?.split(' ')[0] || 'Parent'
+  const lastName = data?.lastName || session.user.name?.split(' ')[1] || 'Guardian'
+
+  if (targetSchoolId) {
+    await db.update(userTable)
+      .set({
+        schoolId: targetSchoolId,
+        name: `${firstName} ${lastName}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(userTable.id, session.user.id))
   }
 
   const inserted = await db.insert(parentTable).values({
     id: crypto.randomUUID(),
     userId: session.user.id,
     schoolId: targetSchoolId,
-    firstName: data.firstName || session.user.name?.split(' ')[0] || 'Parent',
-    lastName: data.lastName || session.user.name?.split(' ')[1] || 'Guardian',
-    phoneNumber: data.phoneNumber || null,
+    firstName,
+    lastName,
+    phoneNumber: data?.phoneNumber || null,
   }).returning()
 
   return inserted[0]
@@ -276,17 +297,30 @@ export async function createStudentProfile(data: any) {
 
   if (existing) return existing
 
-  const targetClass = data.class || 'JSS1'
-  const targetSchoolId = data.schoolId || session.user.schoolId || null
+  const targetClass = data?.class || 'JSS1'
+  const targetSchoolId = data?.schoolId || session.user.schoolId || null
+
+  const firstName = data?.firstName || session.user.name?.split(' ')[0] || 'Student'
+  const lastName = data?.lastName || session.user.name?.split(' ')[1] || 'Pupil'
+
+  if (targetSchoolId) {
+    await db.update(userTable)
+      .set({
+        schoolId: targetSchoolId,
+        name: `${firstName} ${lastName}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(userTable.id, session.user.id))
+  }
 
   const inserted = await db.insert(student).values({
     id: crypto.randomUUID(),
     userId: session.user.id,
     schoolId: targetSchoolId,
-    firstName: data.firstName || session.user.name?.split(' ')[0] || 'Student',
-    lastName: data.lastName || session.user.name?.split(' ')[1] || 'Pupil',
+    firstName,
+    lastName,
     class: targetClass,
-    admissionNumber: data.admissionNumber || generateAdmissionNumber(targetClass),
+    admissionNumber: data?.admissionNumber || generateAdmissionNumber(targetClass),
   }).returning()
 
   return inserted[0]
@@ -309,15 +343,33 @@ export async function createTeacherProfile(data: any) {
 
   if (existing) return existing
 
-  const targetSchoolId = data.schoolId || session.user.schoolId || null
+  const targetSchoolId = data?.schoolId || session.user.schoolId || null
+
+  const firstName = data?.firstName || session.user.name?.split(' ')[0] || 'Teacher'
+  const lastName = data?.lastName || session.user.name?.split(' ')[1] || 'Staff'
+
+  if (targetSchoolId) {
+    await db.update(userTable)
+      .set({
+        schoolId: targetSchoolId,
+        name: `${firstName} ${lastName}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(userTable.id, session.user.id))
+  }
 
   const inserted = await db.insert(teacherTable).values({
     id: crypto.randomUUID(),
     userId: session.user.id,
     schoolId: targetSchoolId,
-    firstName: data.firstName || session.user.name?.split(' ')[0] || 'Teacher',
-    lastName: data.lastName || session.user.name?.split(' ')[1] || 'Staff',
-    staffCode: generateStaffId(),
+    firstName,
+    lastName,
+    phoneNumber: data?.phoneNumber || null,
+    staffCode: data?.staffCode || generateStaffId(),
+    type: data?.type || 'FULL_TIME',
+    isPartTime: data?.type === 'PART_TIME',
+    qualification: data?.qualification || null,
+    specialization: data?.specialization || null,
   }).returning()
 
   return inserted[0]
