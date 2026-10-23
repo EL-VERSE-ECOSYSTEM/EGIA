@@ -433,3 +433,45 @@ export async function getSchoolAdminRoles(schoolId: string) {
   const scopedSchoolId = await requireSchoolAdminScope(schoolId)
   return db.select().from(schoolAdminRoles).where(and(eq(schoolAdminRoles.schoolId, scopedSchoolId || schoolId), eq(schoolAdminRoles.isActive, true)))
 }
+
+// ===== RESILIENCE & OPERATIONAL HEALTH ACTIONS =====
+export async function runSystemDataIntegrityAuditAction() {
+  await requireAdmin()
+  const unlinkedStudentsCount = await db.select({ count: sql<number>`count(*)` }).from(student).where(sql`schoolid IS NULL`)
+  const unlinkedTeachersCount = await db.select({ count: sql<number>`count(*)` }).from(teacherTable).where(sql`schoolid IS NULL`)
+  const unlinkedParentsCount = await db.select({ count: sql<number>`count(*)` }).from(parentTable).where(sql`schoolid IS NULL`)
+  const pendingPaymentsCount = await db.select({ count: sql<number>`count(*)` }).from(payment).where(eq(payment.status, 'pending'))
+
+  return {
+    success: true,
+    integritySummary: {
+      unlinkedStudents: Number(unlinkedStudentsCount[0]?.count || 0),
+      unlinkedTeachers: Number(unlinkedTeachersCount[0]?.count || 0),
+      unlinkedParents: Number(unlinkedParentsCount[0]?.count || 0),
+      pendingPayments: Number(pendingPaymentsCount[0]?.count || 0),
+      auditTimestamp: new Date().toISOString(),
+    }
+  }
+}
+
+export async function processPendingOutboxQueueAction() {
+  await requireAdmin()
+  const { getPendingOutboxEvents, markOutboxEventProcessed } = await import('@/lib/resilience')
+  const pendingEvents = getPendingOutboxEvents()
+  let processedCount = 0
+
+  for (const event of pendingEvents) {
+    try {
+      markOutboxEventProcessed(event.id)
+      processedCount++
+    } catch (err) {
+      console.warn(`Failed processing outbox event ${event.id}:`, err)
+    }
+  }
+
+  return {
+    success: true,
+    processedCount,
+    remainingPending: getPendingOutboxEvents().length,
+  }
+}
