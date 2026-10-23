@@ -119,7 +119,7 @@ export default function CBTExamTakingPage() {
   useEffect(() => {
     return () => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        try { mediaRecorderRef.current.stop() } catch {}
+        try { mediaRecorderRef.current.stop() } catch (_e) { /* ignore cleanup error */ }
       }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop())
