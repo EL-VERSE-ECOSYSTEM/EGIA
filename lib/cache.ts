@@ -1,47 +1,46 @@
-type CacheEntry<T> = {
-  data: T
-  expiresAt: number
-}
+type Entry<T> = { value: T; expiresAt: number };
 
-const memoryCache = new Map<string, CacheEntry<any>>()
+class MemoryCache {
+  private store = new Map<string, Entry<unknown>>();
 
-/**
- * A custom, high-performance in-memory caching system with TTL (Time To Live).
- * Optimizes database queries and external requests by returning cached data.
- */
-export async function getCachedData<T>(
-  key: string,
-  fetchFn: () => Promise<T>,
-  ttlSeconds: number = 300 // default 5 minutes
-): Promise<T> {
-  const now = Date.now()
-  const cached = memoryCache.get(key)
-
-  if (cached && now < cached.expiresAt) {
-    return cached.data as T
+  constructor() {
+    if (typeof setInterval !== "undefined") {
+      const t = setInterval(() => this.cleanup(), 5 * 60_000);
+      if (t.unref) t.unref();
+    }
   }
 
-  // Fetch fresh data
-  const data = await fetchFn()
+  set<T>(key: string, value: T, ttlSeconds: number) {
+    this.store.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
+  }
 
-  memoryCache.set(key, {
-    data,
-    expiresAt: now + (ttlSeconds * 1000)
-  })
+  get<T>(key: string): T | null {
+    const e = this.store.get(key);
+    if (!e) return null;
+    if (Date.now() > e.expiresAt) {
+      this.store.delete(key);
+      return null;
+    }
+    return e.value as T;
+  }
 
-  return data
+  ttl(key: string): number {
+    const e = this.store.get(key);
+    if (!e) return -1;
+    const r = Math.ceil((e.expiresAt - Date.now()) / 1000);
+    return r > 0 ? r : -1;
+  }
+
+  delete(key: string) {
+    this.store.delete(key);
+  }
+
+  private cleanup() {
+    const now = Date.now();
+    for (const [k, v] of this.store) if (now > v.expiresAt) this.store.delete(k);
+  }
 }
 
-/**
- * Invalidates a specific cache entry.
- */
-export function invalidateCache(key: string): void {
-  memoryCache.delete(key)
-}
-
-/**
- * Clears all cache entries.
- */
-export function clearCache(): void {
-  memoryCache.clear()
-}
+const g = globalThis as unknown as { __cache?: MemoryCache };
+export const cache = g.__cache ?? new MemoryCache();
+if (process.env.NODE_ENV !== "production") g.__cache = cache;

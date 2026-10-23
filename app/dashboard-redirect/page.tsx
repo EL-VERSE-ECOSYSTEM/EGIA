@@ -29,12 +29,10 @@ export default async function DashboardRedirect() {
     switch (role) {
       case 'SUPER_ADMIN':
         redirect('/dashboard/super-admin/overview')
-        break
 
       case 'SCHOOL_ADMIN':
       case 'ADMIN':
         redirect('/dashboard/admin/overview')
-        break
 
       case 'TEACHER': {
         let profile: any = null
@@ -47,7 +45,6 @@ export default async function DashboardRedirect() {
           console.warn('Teacher profile resolution error in DashboardRedirect:', e)
         }
         redirect(profile ? '/dashboard/teacher/overview' : '/setup-role/teacher')
-        break
       }
 
       case 'PARENT': {
@@ -61,7 +58,6 @@ export default async function DashboardRedirect() {
           console.warn('Parent profile resolution error in DashboardRedirect:', e)
         }
         redirect('/dashboard/parent/overview')
-        break
       }
 
       case 'STUDENT':
@@ -76,12 +72,10 @@ export default async function DashboardRedirect() {
           console.warn('Student profile resolution error in DashboardRedirect:', e)
         }
         redirect(profile ? '/dashboard/student/overview' : '/setup-role/student')
-        break
       }
 
       default:
         redirect('/setup-role')
-        break
     }
   } catch (err: any) {
     if (

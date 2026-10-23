@@ -10,3 +10,6 @@
 - [x] **FCM Device Token Cleanup:** Automatic deactivation of invalid/unregistered FCM push tokens.
 - [x] **Supabase Realtime Security:** Publications scoped to valid tables and protected by RLS.
 - [x] **File Storage Authorization:** Signed URLs used for sensitive institutional receipts and proof-of-address documents.
+- [x] **OTP Authentication & Nodemailer Transport:** Hashed one-time passcode dispatch via Gmail SMTP (`lib/mailer.ts`) with HMAC-SHA256 (`lib/otp.ts`).
+- [x] **Rate Limiting & Abuse Prevention:** Tiered rate limits (60s email cooldown, 3 OTPs/15m per email, 10 OTPs/1h per IP, 20 verify attempts/15m per IP) enforced in `lib/rate-limit.ts`.
+- [x] **Comprehensive 50-Item Security Controls:** Enforced baseline controls across MFA, passkeys, RBAC, IDOR prevention, AES-256 encryption at rest, TLS 1.3 in transit, Argon2id, Zod input validation, XSS/CSRF/SSRF defenses, and immutable audit logs.
