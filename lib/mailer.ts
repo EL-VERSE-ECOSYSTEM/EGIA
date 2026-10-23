@@ -1,6 +1,10 @@
 import nodemailer from "nodemailer";
 
+let cachedTransporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+
 export function getTransporter() {
+  if (cachedTransporter) return cachedTransporter;
+
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
 
@@ -8,7 +12,7 @@ export function getTransporter() {
     throw new Error("Missing required email environment variables: GMAIL_USER and GMAIL_APP_PASSWORD must be set.");
   }
 
-  return nodemailer.createTransport({
+  cachedTransporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 465,
     secure: true,
@@ -20,6 +24,8 @@ export function getTransporter() {
     maxConnections: 3,
     maxMessages: 100,
   });
+
+  return cachedTransporter;
 }
 
 export async function sendOtpEmail(to: string, otp: string) {
