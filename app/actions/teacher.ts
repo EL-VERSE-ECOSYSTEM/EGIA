@@ -107,9 +107,12 @@ export async function getTeacherProfile() {
   if (!session?.user) return null
   const userId = session.user.id
 
-  return db.query.teacher.findFirst({
-    where: eq(teacher.userId, userId)
-  })
+  const { getCachedData } = await import('@/lib/cache')
+  return getCachedData(`teacher-profile:${userId}`, async () => {
+    return db.query.teacher.findFirst({
+      where: eq(teacher.userId, userId)
+    })
+  }, 120, [`teacher:${userId}`])
 }
 
 export async function getStudentsInClass(classId: string) {

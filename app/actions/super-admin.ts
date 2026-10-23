@@ -28,38 +28,41 @@ export async function getSuperAdminOverviewStats() {
   try {
     await checkSuperAdminPermission()
 
-    const { transactionLedger, teacherWallet } = await import('@/lib/db/schema')
+    const { getCachedData } = await import('@/lib/cache')
+    return await getCachedData('super-admin:overview-stats', async () => {
+      const { transactionLedger, teacherWallet } = await import('@/lib/db/schema')
 
-    const schoolsList = await db.select().from(school).orderBy(desc(school.createdAt))
-    const totalUsers = await db.select({ count: sql<number>`count(*)` }).from(user)
-    const totalStudents = await db.select({ count: sql<number>`count(*)` }).from(student)
-    const totalTeachers = await db.select({ count: sql<number>`count(*)` }).from(teacher)
-    const totalParents = await db.select({ count: sql<number>`count(*)` }).from(parent)
-    const totalCBTS = await db.select({ count: sql<number>`count(*)` }).from(assessment)
+      const schoolsList = await db.select().from(school).orderBy(desc(school.createdAt))
+      const totalUsers = await db.select({ count: sql<number>`count(*)` }).from(user)
+      const totalStudents = await db.select({ count: sql<number>`count(*)` }).from(student)
+      const totalTeachers = await db.select({ count: sql<number>`count(*)` }).from(teacher)
+      const totalParents = await db.select({ count: sql<number>`count(*)` }).from(parent)
+      const totalCBTS = await db.select({ count: sql<number>`count(*)` }).from(assessment)
 
-    const transactions = await db.select().from(transactionLedger).orderBy(desc(transactionLedger.createdAt)).limit(100)
-    const teacherWallets = await db.select().from(teacherWallet)
+      const transactions = await db.select().from(transactionLedger).orderBy(desc(transactionLedger.createdAt)).limit(100)
+      const teacherWallets = await db.select().from(teacherWallet)
 
-    const paidSchools = schoolsList.filter(s => s.paymentStatus === 'PAID')
-    const totalSubscriptionRevenue = paidSchools.length * 30000
+      const paidSchools = schoolsList.filter(s => s.paymentStatus === 'PAID')
+      const totalSubscriptionRevenue = paidSchools.length * 30000
 
-    return {
-      success: true,
-      stats: {
-        totalSchools: schoolsList.length,
-        paidSchoolsCount: paidSchools.length,
-        pendingSchoolsCount: schoolsList.length - paidSchools.length,
-        totalSubscriptionRevenue,
-        totalUsersCount: Number(totalUsers[0]?.count || 0),
-        studentsCount: Number(totalStudents[0]?.count || 0),
-        teachersCount: Number(totalTeachers[0]?.count || 0),
-        parentsCount: Number(totalParents[0]?.count || 0),
-        cbtCount: Number(totalCBTS[0]?.count || 0),
-      },
-      schools: schoolsList,
-      transactions,
-      teacherWallets,
-    }
+      return {
+        success: true,
+        stats: {
+          totalSchools: schoolsList.length,
+          paidSchoolsCount: paidSchools.length,
+          pendingSchoolsCount: schoolsList.length - paidSchools.length,
+          totalSubscriptionRevenue,
+          totalUsersCount: Number(totalUsers[0]?.count || 0),
+          studentsCount: Number(totalStudents[0]?.count || 0),
+          teachersCount: Number(totalTeachers[0]?.count || 0),
+          parentsCount: Number(totalParents[0]?.count || 0),
+          cbtCount: Number(totalCBTS[0]?.count || 0),
+        },
+        schools: schoolsList,
+        transactions,
+        teacherWallets,
+      }
+    }, 30, ['super_admin:overview'])
   } catch (error: any) {
     return sanitizeServerError('getSuperAdminOverviewStats', error, 'Unable to retrieve system statistics.')
   }

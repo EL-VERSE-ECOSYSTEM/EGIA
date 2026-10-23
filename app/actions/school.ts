@@ -196,23 +196,26 @@ export async function getSchoolApplicationStatusAction(applicationId: string) {
   try {
     if (!applicationId) return { success: false, error: 'Application ID is required.', requestId }
 
-    const appRecord = await db.query.schoolRegistrationApplication.findFirst({
-      where: eq(schoolRegistrationApplication.id, applicationId)
-    })
+    const { getCachedData } = await import('@/lib/cache')
+    return await getCachedData(`school-app-status:${applicationId}`, async () => {
+      const appRecord = await db.query.schoolRegistrationApplication.findFirst({
+        where: eq(schoolRegistrationApplication.id, applicationId)
+      })
 
-    if (!appRecord) {
-      return { success: false, error: 'Application not found.', requestId }
-    }
+      if (!appRecord) {
+        return { success: false, error: 'Application not found.', requestId }
+      }
 
-    const schRecord = appRecord.schoolId ? await db.query.school.findFirst({
-      where: eq(school.id, appRecord.schoolId)
-    }) : null
+      const schRecord = appRecord.schoolId ? await db.query.school.findFirst({
+        where: eq(school.id, appRecord.schoolId)
+      }) : null
 
-    return {
-      success: true,
-      application: appRecord,
-      schoolCode: schRecord?.code || null,
-    }
+      return {
+        success: true,
+        application: appRecord,
+        schoolCode: schRecord?.code || null,
+      }
+    }, 60, [`school_app:${applicationId}`])
   } catch (error: any) {
     return sanitizeServerError('getSchoolApplicationStatusAction', error, 'Unable to retrieve application status.')
   }
