@@ -464,6 +464,51 @@ export default function SuperAdminOverviewPage() {
           </div>
         </div>
 
+        {/* Super Admin Real-Time System Monitoring & Queue Health Panel */}
+        <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div>
+              <h2 className="text-base font-black text-emerald-400 flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-emerald-400" /> Super Admin Live System & Job Queue Telemetry
+              </h2>
+              <p className="text-xs text-slate-400">
+                Real-time queue depth, active worker status, system error rate %, and live online presence.
+              </p>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider border border-emerald-500/30">
+              ● Live Sync
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-bold">
+            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+              <span className="text-slate-400 uppercase font-black text-[10px] tracking-wider">Online Presence</span>
+              <p className="text-xl font-black text-emerald-400">{stats.onlineUsersCount ?? 0} Users Active</p>
+              <p className="text-[10px] text-slate-500">30s Heartbeat Window</p>
+            </div>
+
+            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+              <span className="text-slate-400 uppercase font-black text-[10px] tracking-wider">Queue Depth</span>
+              <p className="text-xl font-black text-blue-400">{stats.queueStats?.pending ?? 0} Pending</p>
+              <p className="text-[10px] text-slate-500">{stats.queueStats?.processing ?? 0} Processing</p>
+            </div>
+
+            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+              <span className="text-slate-400 uppercase font-black text-[10px] tracking-wider">Dead-Letter Queue</span>
+              <p className={`text-xl font-black ${(stats.queueStats?.deadLetter ?? 0) > 0 ? 'text-rose-400' : 'text-slate-300'}`}>
+                {stats.queueStats?.deadLetter ?? 0} Dead Jobs
+              </p>
+              <p className="text-[10px] text-slate-500">{stats.queueStats?.completed ?? 0} Completed</p>
+            </div>
+
+            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+              <span className="text-slate-400 uppercase font-black text-[10px] tracking-wider">Avg Latency & Error %</span>
+              <p className="text-xl font-black text-purple-400">{stats.systemMetrics?.averageDurationMs ?? 0}ms</p>
+              <p className="text-[10px] text-slate-500">{stats.systemMetrics?.errorRate ?? 0}% Errors</p>
+            </div>
+          </div>
+        </div>
+
         {/* Tab Navigation */}
         <div className="flex items-center gap-3 border-b border-slate-800 pb-2 overflow-x-auto">
           <button

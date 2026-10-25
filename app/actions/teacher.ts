@@ -6,7 +6,6 @@ import { assessment, assessmentQuestion, assessmentResult, term, teacher, class_
 import { eq, desc, sql, and, inArray, type SQL } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
-import { getCachedData } from '@/lib/cache'
 
 async function getUserId() {
   const session = await auth.getSession()
@@ -108,12 +107,12 @@ export async function getTeacherProfile() {
   if (!session?.user) return null
   const userId = session.user.id
 
-  // Optimize performance using our custom caching system (caches for 2 minutes)
+  const { getCachedData } = await import('@/lib/cache')
   return getCachedData(`teacher-profile:${userId}`, async () => {
     return db.query.teacher.findFirst({
       where: eq(teacher.userId, userId)
     })
-  }, 120)
+  }, 120, [`teacher:${userId}`])
 }
 
 export async function getStudentsInClass(classId: string) {

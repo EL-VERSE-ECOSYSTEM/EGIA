@@ -70,7 +70,7 @@ export function MixedQuestionRenderer({
                 className="flex-1 cursor-pointer font-medium text-slate-700"
               >
                 <span className="font-bold mr-2 text-purple-600">{letter}.</span>
-                {option.replace(/^[A-D][.)]\s*/, '')}
+                {option.replace(/^[A-D][\.\)]\s*/, '')}
               </Label>
             </div>
           );
@@ -106,7 +106,7 @@ export function MixedQuestionRenderer({
                 className="flex-1 cursor-pointer font-medium text-slate-700"
               >
                 <span className="font-bold mr-2 text-purple-600">{letter}.</span>
-                {option.replace(/^[A-D][.)]\s*/, '')}
+                {option.replace(/^[A-D][\.\)]\s*/, '')}
               </Label>
             </div>
           );
