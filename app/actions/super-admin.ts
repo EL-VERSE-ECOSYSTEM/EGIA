@@ -45,6 +45,14 @@ export async function getSuperAdminOverviewStats() {
       const paidSchools = schoolsList.filter(s => s.paymentStatus === 'PAID')
       const totalSubscriptionRevenue = paidSchools.length * 30000
 
+      const { getQueueStats } = await import('@/lib/queue')
+      const { getSystemMetricsSummary } = await import('@/lib/search-analytics')
+      const { getOnlineUsersCount } = await import('@/lib/realtime-bus')
+
+      const queueStats = getQueueStats()
+      const systemMetrics = getSystemMetricsSummary()
+      const onlineUsersCount = getOnlineUsersCount()
+
       return {
         success: true,
         stats: {
@@ -57,6 +65,9 @@ export async function getSuperAdminOverviewStats() {
           teachersCount: Number(totalTeachers[0]?.count || 0),
           parentsCount: Number(totalParents[0]?.count || 0),
           cbtCount: Number(totalCBTS[0]?.count || 0),
+          onlineUsersCount,
+          queueStats,
+          systemMetrics,
         },
         schools: schoolsList,
         transactions,
