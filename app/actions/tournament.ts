@@ -49,7 +49,7 @@ export async function submitTournamentGameScoreAction(params: {
   const userId = session.user.id
 
   const existing = tournamentScoresMap.get(schoolId) || {
-    schoolName: session.user.schoolName || 'Partner Academy',
+    schoolName: (session.user as any).schoolName || 'Partner Academy',
     points: 0,
     matchesWon: 0,
     students: new Set()
