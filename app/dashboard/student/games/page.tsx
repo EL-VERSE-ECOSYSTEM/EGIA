@@ -10,6 +10,7 @@ import { Gamepad2, Trophy, Clock, RefreshCw, Star, HelpCircle, ChevronRight, Che
 import { checkStudentWeekendAssignmentsCompleteAction } from '@/app/actions/assessments'
 import { getSchoolStudentControlsAction, SchoolStudentControls } from '@/app/actions/school-controls'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { getInterSchoolTournamentLeaderboardAction, submitTournamentGameScoreAction, SchoolTournamentScore } from '@/app/actions/tournament'
 
 // Game Types
 type GameType = 'CHESS' | 'MATH' | 'SCRAMBLE' | 'SUDOKU' | 'TRIVIA' | 'SCRABBLE' | 'MONOPOLY' | 'HOME'
@@ -27,6 +28,9 @@ export default function StudentGamesPage() {
   const [activeGame, setActiveGame] = useState<GameType>('HOME')
   const [assignmentLocked, setAssignmentLocked] = useState(false)
   const [assignmentInfo, setAssignmentInfo] = useState<{ completed: number; total: number } | null>(null)
+
+  // Inter-School Tournament Leaderboard State
+  const [tournamentLeaderboard, setTournamentLeaderboard] = useState<SchoolTournamentScore[]>([])
 
   // School Admin Time Controls for Games
   const [timeLocked, setTimeLocked] = useState(false)
@@ -52,6 +56,15 @@ export default function StudentGamesPage() {
 
   useEffect(() => {
     loadControls()
+    // Fetch Inter-School Tournament Standings
+    getInterSchoolTournamentLeaderboardAction()
+      .then(res => {
+        if (res && res.success) {
+          setTournamentLeaderboard(res.leaderboard)
+        }
+      })
+      .catch(err => console.warn('Tournament load failed:', err))
+
     // Check if student has pending weekend assignments
     checkStudentWeekendAssignmentsCompleteAction('current')
       .then(res => {
@@ -84,8 +97,8 @@ export default function StudentGamesPage() {
               Boost your intellectual thinking, strategic skills, and mental math capability through fun, engaging games designed for young leaders!
             </p>
 
-            {/* Friday Inter-School Match Banner */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900/80 to-indigo-900/80 border border-purple-500/40 text-purple-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            {/* Friday Inter-School Match Banner & Live Leaderboard */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-900/80 to-indigo-900/80 border border-purple-500/40 text-purple-200 space-y-4">
               <div className="flex items-center gap-3">
                 <Sparkles className="w-6 h-6 text-amber-400 shrink-0 animate-pulse" />
                 <div>
@@ -94,10 +107,31 @@ export default function StudentGamesPage() {
                     <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500 text-slate-950 uppercase">ACTIVE TODAY</span>
                   </h4>
                   <p className="text-xs text-purple-200 mt-0.5">
-                    Students and pupils across all registered schools compete together on Friday every 2 weeks! Level difficulty automatically hardens per class.
+                    Students and pupils across all registered schools compete together on Friday every 2 weeks! Points earned in any game contribute to your school's score.
                   </p>
                 </div>
               </div>
+
+              {tournamentLeaderboard.length > 0 && (
+                <div className="pt-2 border-t border-purple-500/30">
+                  <p className="text-[10px] font-black uppercase text-amber-400 tracking-wider mb-2">Live Inter-School Standings</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {tournamentLeaderboard.slice(0, 3).map((school) => (
+                      <div key={school.schoolId} className="p-2.5 rounded-xl bg-slate-950/60 border border-purple-500/30 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 truncate">
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] ${
+                            school.rank === 1 ? 'bg-amber-400 text-slate-950' : school.rank === 2 ? 'bg-slate-300 text-slate-950' : 'bg-amber-700 text-white'
+                          }`}>
+                            #{school.rank}
+                          </span>
+                          <span className="font-bold text-white truncate">{school.schoolName}</span>
+                        </div>
+                        <span className="font-black text-amber-400 font-mono shrink-0 ml-2">{school.points} PTS</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
