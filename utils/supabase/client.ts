@@ -58,3 +58,31 @@ export function subscribeToTableTyped<T extends Record<string, unknown>>(
 export function unsubscribeFromTable(channel: RealtimeChannel) {
   return createClient().removeChannel(channel);
 }
+
+/** Utility helper for resilient query execution with automatic exponential backoff retries */
+export async function executeWithRetry<T>(
+  queryFn: () => Promise<{ data: T | null; error: any }>,
+  maxRetries = 3,
+  delayMs = 300
+): Promise<{ data: T | null; error: any }> {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      const result = await queryFn();
+      if (!result.error) return result;
+      // Retry on network/transient DB pool errors
+      const isTransient =
+        result.error.message?.includes('fetch failed') ||
+        result.error.message?.includes('connection') ||
+        result.error.code === 'PGAREST102' ||
+        result.error.status === 503 ||
+        result.error.status === 504;
+      if (!isTransient || attempt === maxRetries - 1) return result;
+    } catch (err: any) {
+      if (attempt === maxRetries - 1) return { data: null, error: err };
+    }
+    attempt++;
+    await new Promise((resolve) => setTimeout(resolve, delayMs * Math.pow(2, attempt)));
+  }
+  return { data: null, error: new Error('Max query retries exceeded') };
+}
