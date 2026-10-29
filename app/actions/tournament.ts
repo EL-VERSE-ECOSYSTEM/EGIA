@@ -1,6 +1,6 @@
 'use server'
 
-import { getSessionImpl } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { cache } from '@/lib/cache'
 
 export interface SchoolTournamentScore {
@@ -40,7 +40,7 @@ export async function submitTournamentGameScoreAction(params: {
   pointsEarned: number
   isWin?: boolean
 }) {
-  const session = await getSessionImpl()
+  const session = await auth.getSession()
   if (!session?.user) {
     return { success: false, error: 'Authentication required' }
   }
