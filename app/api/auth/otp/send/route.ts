@@ -46,23 +46,59 @@ export async function POST(req: NextRequest) {
 
   try {
     const otp = generateOtp();
-    storeOtp(email, otp);
-    let sentMethod = "email";
+    await storeOtp(email, otp);
+    let sentSuccess = false;
+    let deliveryChannel = "email";
 
+    // 1. Primary Delivery Channel: Nodemailer SMTP Email
     try {
       await sendOtpEmail(email, otp);
+      sentSuccess = true;
     } catch (emailErr: any) {
-      console.warn("[otp/send] Primary SMTP send failed, engaging fallback transport:", emailErr?.message || emailErr);
-      // Fallback: Store fallback code indicator in cache and attempt FCM or local fallback
-      cache.set(`otp:fallback:${email}`, { otp, timestamp: Date.now() }, 10 * 60);
-      sentMethod = "fallback";
+      console.warn("[otp/send] Primary SMTP email delivery failed:", emailErr?.message || emailErr);
+
+      // 2. Secondary Fallback Delivery Channel: FCM Push Notification
+      try {
+        const { sendFCMOtp } = await import("@/lib/services/notifications");
+        const { db } = await import("@/lib/db");
+        const { user } = await import("@/lib/db/schema");
+        const { eq } = await import("drizzle-orm");
+
+        const userRows = await db
+          .select({ id: user.id })
+          .from(user)
+          .where(eq(user.email, email))
+          .limit(1);
+
+        if (userRows.length > 0 && userRows[0].id) {
+          const fcmOutcome = await sendFCMOtp({
+            userId: userRows[0].id,
+            otpCode: otp,
+            type: "CHANGE_PASSWORD",
+            title: "Your EL Learners Verification Code",
+          });
+          if (fcmOutcome.sent) {
+            sentSuccess = true;
+            deliveryChannel = "push";
+          }
+        }
+      } catch (fcmErr: any) {
+        console.warn("[otp/send] Fallback FCM push delivery failed:", fcmErr?.message || fcmErr);
+      }
+    }
+
+    if (!sentSuccess) {
+      return NextResponse.json(
+        { error: "Unable to deliver verification code. Delivery services are temporarily unavailable." },
+        { status: 502 }
+      );
     }
 
     cache.set(`otp:cooldown:${email}`, true, 60);
     return NextResponse.json({
       success: true,
-      message: sentMethod === "email" ? "Code sent to your email" : "Code generated (Fallback mode active).",
-      fallbackActive: sentMethod === "fallback"
+      message: deliveryChannel === "email" ? "Verification code sent to your email" : "Verification code sent to your active device",
+      channel: deliveryChannel
     });
   } catch (err: any) {
     console.error("[otp/send]", err);

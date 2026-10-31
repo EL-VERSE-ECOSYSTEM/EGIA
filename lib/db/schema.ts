@@ -948,6 +948,25 @@ export const bookImportLogs = pgTable('book_import_logs', {
   createdAt: timestamp('created_at').defaultNow()
 })
 
+export const tournamentScores = pgTable('tournament_scores', {
+  id: text('id').primaryKey(),
+  schoolId: text('school_id').notNull().references(() => school.id, { onDelete: 'cascade' }),
+  studentId: text('student_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  gameType: text('game_type').notNull(),
+  points: integer('points').notNull().default(0),
+  isWin: boolean('is_win').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const otpRecords = pgTable('otp_records', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  hash: text('hash').notNull(),
+  attempts: integer('attempts').notNull().default(0),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ===== ADULT EDUCATION TABLES =====
 export const adultEducationEnrollment = pgTable('adult_education_enrollments', {
   id: text('id').primaryKey(),

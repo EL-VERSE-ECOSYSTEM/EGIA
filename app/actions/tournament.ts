@@ -1,7 +1,10 @@
 'use server'
 
 import { auth } from '@/lib/auth'
-import { cache } from '@/lib/cache'
+import { db } from '@/lib/db'
+import { tournamentScores, school as schoolTable, user as userTable } from '@/lib/db/schema'
+import { eq, sql, desc } from 'drizzle-orm'
+import { randomUUID } from 'crypto'
 
 export interface SchoolTournamentScore {
   schoolId: string
@@ -12,28 +15,7 @@ export interface SchoolTournamentScore {
   totalStudentsActive: number
 }
 
-// In-memory real-time inter-school tournament store
-const tournamentScoresMap = new Map<string, { schoolName: string; points: number; matchesWon: number; students: Set<string> }>()
-
-// Initialize default school scores for realistic tournament simulation
-tournamentScoresMap.set('school-elgoodnews-001', {
-  schoolName: 'EL Learners Main Academy',
-  points: 1250,
-  matchesWon: 14,
-  students: new Set(['student-1', 'student-2'])
-})
-tournamentScoresMap.set('school-grace-002', {
-  schoolName: 'Grace Model College',
-  points: 980,
-  matchesWon: 11,
-  students: new Set(['student-3'])
-})
-tournamentScoresMap.set('school-stcharles-003', {
-  schoolName: 'St. Charles Grammar School',
-  points: 840,
-  matchesWon: 9,
-  students: new Set(['student-4'])
-})
+import { validateTournamentGameType, clampTournamentPoints } from '@/lib/tournament'
 
 export async function submitTournamentGameScoreAction(params: {
   gameType: string
@@ -42,55 +24,127 @@ export async function submitTournamentGameScoreAction(params: {
 }) {
   const session = await auth.getSession()
   if (!session?.user) {
-    return { success: false, error: 'Authentication required' }
+    return { success: false, error: 'Authentication required to submit tournament score' }
   }
 
-  const schoolId = session.user.schoolId || 'school-elgoodnews-001'
+  // Validate allowed game type
+  const validatedGame = validateTournamentGameType(params.gameType)
+  if (!validatedGame) {
+    return { success: false, error: 'Invalid game type for tournament submission' }
+  }
+
+  // Clamped point boundaries: prevent manipulation (max 50 points per individual round)
+  const safePoints = clampTournamentPoints(params.pointsEarned)
+  if (safePoints <= 0) {
+    return { success: false, error: 'Score must be greater than 0' }
+  }
+
   const userId = session.user.id
 
-  const existing = tournamentScoresMap.get(schoolId) || {
-    schoolName: (session.user as any).schoolName || 'Partner Academy',
-    points: 0,
-    matchesWon: 0,
-    students: new Set()
+  // Verify user's actual school from database rather than relying on unverified client state
+  let resolvedSchoolId = session.user.schoolId
+  let resolvedSchoolName = 'Partner Academy'
+
+  try {
+    const userRecords = await db
+      .select({ schoolId: userTable.schoolId })
+      .from(userTable)
+      .where(eq(userTable.id, userId))
+      .limit(1)
+
+    if (userRecords.length > 0 && userRecords[0].schoolId) {
+      resolvedSchoolId = userRecords[0].schoolId
+    }
+
+    if (resolvedSchoolId) {
+      const schoolRecords = await db
+        .select({ name: schoolTable.name })
+        .from(schoolTable)
+        .where(eq(schoolTable.id, resolvedSchoolId))
+        .limit(1)
+
+      if (schoolRecords.length > 0 && schoolRecords[0].name) {
+        resolvedSchoolName = schoolRecords[0].name
+      }
+    }
+  } catch (err) {
+    console.warn('[Tournament] DB lookup fallback:', err)
   }
 
-  existing.points += params.pointsEarned
-  if (params.isWin) {
-    existing.matchesWon += 1
+  if (!resolvedSchoolId) {
+    return { success: false, error: 'User is not linked to a registered school' }
   }
-  existing.students.add(userId)
 
-  tournamentScoresMap.set(schoolId, existing)
+  // Persist score transactionally to PostgreSQL
+  try {
+    await db.insert(tournamentScores).values({
+      id: randomUUID(),
+      schoolId: resolvedSchoolId,
+      studentId: userId,
+      gameType: validatedGame,
+      points: safePoints,
+      isWin: Boolean(params.isWin),
+      createdAt: new Date(),
+    })
+  } catch (err: any) {
+    console.error('[Tournament] Failed to persist score to database:', err?.message || err)
+    return { success: false, error: 'Failed to record tournament score' }
+  }
 
   return {
     success: true,
-    currentSchoolPoints: existing.points,
-    schoolName: existing.schoolName
+    pointsAdded: safePoints,
+    schoolName: resolvedSchoolName,
+    schoolId: resolvedSchoolId,
   }
 }
 
 export async function getInterSchoolTournamentLeaderboardAction() {
-  const scoresArray = Array.from(tournamentScoresMap.entries()).map(([schoolId, data]) => ({
-    schoolId,
-    schoolName: data.schoolName,
-    points: data.points,
-    matchesWon: data.matchesWon,
-    totalStudentsActive: data.students.size
-  }))
+  const session = await auth.getSession()
+  if (!session?.user) {
+    return { success: false, error: 'Authentication required to view tournament leaderboard' }
+  }
 
-  // Sort descending by points
-  scoresArray.sort((a, b) => b.points - a.points)
+  try {
+    // Query actual aggregated points from tournament_scores joined with school table
+    const aggregateQuery = await db.execute(sql`
+      SELECT
+        s.id AS "schoolId",
+        s.name AS "schoolName",
+        COALESCE(SUM(ts.points), 0)::integer AS points,
+        COALESCE(COUNT(CASE WHEN ts.is_win = true THEN 1 END), 0)::integer AS "matchesWon",
+        COALESCE(COUNT(DISTINCT ts.student_id), 0)::integer AS "totalStudentsActive"
+      FROM school s
+      LEFT JOIN tournament_scores ts ON ts.school_id = s.id
+      GROUP BY s.id, s.name
+      ORDER BY points DESC, "matchesWon" DESC
+      LIMIT 20;
+    `)
 
-  const rankedScores: SchoolTournamentScore[] = scoresArray.map((s, idx) => ({
-    ...s,
-    rank: idx + 1
-  }))
+    const rawRows = (aggregateQuery as any)?.rows ?? aggregateQuery
+    const rows: any[] = Array.isArray(rawRows) ? rawRows : []
+    const leaderboard: SchoolTournamentScore[] = rows.map((row, index) => ({
+      schoolId: row.schoolId,
+      schoolName: row.schoolName,
+      points: Number(row.points || 0),
+      matchesWon: Number(row.matchesWon || 0),
+      totalStudentsActive: Number(row.totalStudentsActive || 0),
+      rank: index + 1,
+    }))
 
-  return {
-    success: true,
-    leaderboard: rankedScores,
-    nextTournamentRound: 'Friday Inter-School Championship',
-    activePhase: 'Bi-Weekly Friday Tournament League'
+    return {
+      success: true,
+      leaderboard,
+      nextTournamentRound: 'Friday Inter-School Championship',
+      activePhase: 'Bi-Weekly Friday Tournament League'
+    }
+  } catch (err: any) {
+    console.warn('[Tournament] DB aggregation failed, returning empty leaderboard:', err?.message || err)
+    return {
+      success: true,
+      leaderboard: [],
+      nextTournamentRound: 'Friday Inter-School Championship',
+      activePhase: 'Bi-Weekly Friday Tournament League'
+    }
   }
 }

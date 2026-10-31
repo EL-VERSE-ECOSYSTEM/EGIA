@@ -19,13 +19,16 @@ if (process.env.DATABASE_URL) {
 const uniqueConnections = Array.from(new Set(connectionStrings)).filter(Boolean)
 
 if (uniqueConnections.length === 0) {
-  uniqueConnections.push('postgres://postgres:postgres@db.dummy.supabase.co:5432/postgres')
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('DATABASE_URL or SUPABASE_DATABASE_POOLER_URL must be configured in production environment.')
+  }
+  uniqueConnections.push('postgres://postgres:postgres@127.0.0.1:5432/postgres')
 }
 
 const databaseHost = new URL(uniqueConnections[0]).hostname
-if (['localhost', '127.0.0.1', '::1'].includes(databaseHost) && uniqueConnections[0] !== 'postgres://postgres:postgres@db.dummy.supabase.co:5432/postgres') {
+if (process.env.NODE_ENV === 'production' && ['localhost', '127.0.0.1', '::1'].includes(databaseHost)) {
   throw new Error(
-    'DATABASE_URL points to a local database. Configure the Supabase Postgres connection string before starting the application.'
+    'DATABASE_URL points to a local database in production. Configure the Supabase Postgres connection string before starting the application.'
   )
 }
 
@@ -38,7 +41,10 @@ if (process.env.NODE_ENV === 'production' && /^db\.[a-z0-9-]+\.supabase\.co$/i.t
 // Helper to determine SSL option
 function getSslOption(connStr: string) {
   if (connStr.includes('supabase') || connStr.includes('neon') || connStr.includes('aws')) {
-    return { rejectUnauthorized: false }
+    if (process.env.DB_SSL_REJECT_UNAUTHORIZED === 'false') {
+      return { rejectUnauthorized: false }
+    }
+    return 'require'
   }
   return false
 }
@@ -83,24 +89,27 @@ function getNextHealthyNode() {
 const loadBalancedClient = new Proxy(() => {}, {
   // Intercept calling the client directly: client`select *` or client(...)
   apply(target, thisArg, argumentsList) {
-    let attempts = 0
-    const maxAttempts = dbNodes.length
-
-    while (attempts < maxAttempts) {
-      const node = getNextHealthyNode()
-      try {
-        // Execute the query on the chosen node
-        return Reflect.apply(node.client, node.client, argumentsList)
-      } catch (error: any) {
-        attempts++
-        console.warn(`[LoadBalancer] Query failed on database ${node.id} (${node.host}):`, error.message || error)
-        node.healthy = false
-        node.lastChecked = Date.now()
-        if (attempts >= maxAttempts) {
-          throw error // No more healthy nodes left
-        }
-        console.log(`[LoadBalancer] Retrying query on next available node...`)
+    const node = getNextHealthyNode()
+    try {
+      const result = Reflect.apply(node.client, node.client, argumentsList)
+      if (result && typeof result.then === 'function') {
+        if (dbNodes.length <= 1) return result
+        return result.catch((error: any) => {
+          node.healthy = false
+          node.lastChecked = Date.now()
+          const nextNode = getNextHealthyNode()
+          if (nextNode.id === node.id) throw error
+          return Reflect.apply(nextNode.client, nextNode.client, argumentsList)
+        })
       }
+      return result
+    } catch (error: any) {
+      node.healthy = false
+      node.lastChecked = Date.now()
+      if (dbNodes.length <= 1) throw error
+      const nextNode = getNextHealthyNode()
+      if (nextNode.id === node.id) throw error
+      return Reflect.apply(nextNode.client, nextNode.client, argumentsList)
     }
   },
 
@@ -119,24 +128,30 @@ const loadBalancedClient = new Proxy(() => {}, {
 
     if (typeof value === 'function') {
       return function (...args: any[]) {
-        let attempts = 0
-        const maxAttempts = dbNodes.length
-
-        while (attempts < maxAttempts) {
-          const currentNode = getNextHealthyNode()
-          const method = Reflect.get(currentNode.client, prop)
-          try {
-            return Reflect.apply(method, currentNode.client, args)
-          } catch (error: any) {
-            attempts++
-            console.warn(`[LoadBalancer] Method .${String(prop)} failed on ${currentNode.id} (${currentNode.host}):`, error.message || error)
-            currentNode.healthy = false
-            currentNode.lastChecked = Date.now()
-            if (attempts >= maxAttempts) {
-              throw error
-            }
-            console.log(`[LoadBalancer] Retrying method .${String(prop)} on next available node...`)
+        const currentNode = getNextHealthyNode()
+        const method = Reflect.get(currentNode.client, prop)
+        try {
+          const res = Reflect.apply(method, currentNode.client, args)
+          if (res && typeof res.then === 'function') {
+            if (dbNodes.length <= 1) return res
+            return res.catch((error: any) => {
+              currentNode.healthy = false
+              currentNode.lastChecked = Date.now()
+              const nextNode = getNextHealthyNode()
+              if (nextNode.id === currentNode.id) throw error
+              const nextMethod = Reflect.get(nextNode.client, prop)
+              return Reflect.apply(nextMethod, nextNode.client, args)
+            })
           }
+          return res
+        } catch (error: any) {
+          currentNode.healthy = false
+          currentNode.lastChecked = Date.now()
+          if (dbNodes.length <= 1) throw error
+          const nextNode = getNextHealthyNode()
+          if (nextNode.id === currentNode.id) throw error
+          const nextMethod = Reflect.get(nextNode.client, prop)
+          return Reflect.apply(nextMethod, nextNode.client, args)
         }
       }
     }
