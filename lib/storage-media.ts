@@ -41,6 +41,23 @@ export function computeFileHash(buffer: Buffer): string {
   return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
+/**
+ * Validates post-upload authorization when accessing documents, receipts, or recordings,
+ * ensuring users cannot download documents belonging to another school.
+ */
+export function verifyDocumentAccessAuthorization(params: {
+  userRole: string;
+  userSchoolId: string | null;
+  documentSchoolId: string | null;
+  isPublic?: boolean;
+}): boolean {
+  if (params.isPublic) return true;
+  const role = (params.userRole || '').toUpperCase();
+  if (role === 'SUPER_ADMIN') return true;
+  if (!params.userSchoolId || !params.documentSchoolId) return false;
+  return params.userSchoolId === params.documentSchoolId;
+}
+
 export function findExistingBlobByHash(sha256Hash: string): string | null {
   return mediaBlobHashMap.get(sha256Hash) ?? null;
 }

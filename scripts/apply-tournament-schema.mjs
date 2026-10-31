@@ -77,6 +77,15 @@ async function applyTournamentSchema() {
 
     CREATE INDEX IF NOT EXISTS idx_otp_records_email ON public.otp_records(email);
 
+    CREATE TABLE IF NOT EXISTS public.admission_number_sequences (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      schoolid TEXT NOT NULL UNIQUE,
+      last_number INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_admission_number_sequences_schoolid ON public.admission_number_sequences(schoolid);
+
     ALTER TABLE public.tournament_scores ENABLE ROW LEVEL SECURITY;
     ALTER TABLE public.otp_records ENABLE ROW LEVEL SECURITY;
 
@@ -94,7 +103,7 @@ async function applyTournamentSchema() {
         SELECT 1 FROM pg_policies WHERE tablename = 'tournament_scores' AND policyname = 'tournament_scores_insert_policy'
       ) THEN
         CREATE POLICY "tournament_scores_insert_policy" ON public.tournament_scores
-          FOR INSERT WITH CHECK (auth.uid() = student_id);
+          FOR INSERT WITH CHECK (auth.uid()::text = student_id);
       END IF;
     END $$;
 

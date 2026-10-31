@@ -55,9 +55,15 @@ export async function generateSequentialStaffCode(schoolId: string | null): Prom
   }
 
   try {
-    const existingTeachers = await db.select().from(teacher).where(eq(teacher.schoolId, schoolId))
-    const total = existingTeachers.length + 1
-    const suffix = total.toString().padStart(6, '0')
+    const res = await db.execute(sql`
+      INSERT INTO public.admission_number_sequences (schoolid, last_number)
+      VALUES (${schoolId || 'global'}, 1)
+      ON CONFLICT (schoolid)
+      DO UPDATE SET last_number = public.admission_number_sequences.last_number + 1
+      RETURNING last_number
+    `)
+    const nextNum = res && res[0] && res[0].last_number ? Number(res[0].last_number) : Math.floor(100000 + Math.random() * 900000)
+    const suffix = nextNum.toString().padStart(6, '0')
     return `${schoolCode}-ST-${suffix}`
   } catch (err) {
     const random6 = Math.floor(100000 + Math.random() * 900000)

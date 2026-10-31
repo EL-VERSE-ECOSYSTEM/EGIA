@@ -91,10 +91,10 @@ const loadBalancedClient = new Proxy(() => {}, {
   apply(target, thisArg, argumentsList) {
     const node = getNextHealthyNode()
     try {
-      const result = Reflect.apply(node.client, node.client, argumentsList)
+      const result: any = Reflect.apply(node.client, node.client, argumentsList)
       if (result && typeof result.then === 'function') {
         if (dbNodes.length <= 1) return result
-        return result.catch((error: any) => {
+        return Promise.resolve(result).catch((error: any) => {
           node.healthy = false
           node.lastChecked = Date.now()
           const nextNode = getNextHealthyNode()
@@ -131,10 +131,10 @@ const loadBalancedClient = new Proxy(() => {}, {
         const currentNode = getNextHealthyNode()
         const method = Reflect.get(currentNode.client, prop)
         try {
-          const res = Reflect.apply(method, currentNode.client, args)
+          const res: any = Reflect.apply(method, currentNode.client, args)
           if (res && typeof res.then === 'function') {
             if (dbNodes.length <= 1) return res
-            return res.catch((error: any) => {
+            return Promise.resolve(res).catch((error: any) => {
               currentNode.healthy = false
               currentNode.lastChecked = Date.now()
               const nextNode = getNextHealthyNode()

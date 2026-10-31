@@ -170,6 +170,12 @@ const featureFlagsMap = new Map<string, boolean>([
 ]);
 
 export function isFeatureEnabled(flagKey: string, schoolId?: string): boolean {
+  // Check deployment environment configuration first (immutable multi-instance configuration)
+  const envFlag = process.env[`FEATURE_FLAG_${flagKey.toUpperCase()}`];
+  if (envFlag !== undefined) {
+    return envFlag === 'true' || envFlag === '1';
+  }
+
   const globalSetting = featureFlagsMap.get(flagKey) ?? true;
   if (!globalSetting) return false;
   if (schoolId) {
