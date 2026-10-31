@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "tsx --test tests/*.test.ts",
-    "verify:supabase": "node scripts/verify-supabase.mjs"
+    "verify:supabase": "node scripts/verify-supabase.mjs",
+    "db:tournament": "node scripts/apply-tournament-schema.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
