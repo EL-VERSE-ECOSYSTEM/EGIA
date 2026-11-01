@@ -258,6 +258,7 @@ export function enqueueOutboxEvent(eventType: string, payload: Record<string, an
     createdAt: new Date(),
   };
   memoryOutbox.push(event);
+
   return event;
 }
 
