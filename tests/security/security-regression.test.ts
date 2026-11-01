@@ -1,28 +1,55 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { checkQuota, DEFAULT_RESOURCE_LIMITS } from '../../lib/limits'
+import { verifyDocumentAccessAuthorization } from '../../lib/storage-media'
+import { rateLimit } from '../../lib/rate-limit'
+import { getRedirectUrlForIdentity } from '../../lib/auth/redirectMap'
 
-test('Tenant isolation & authoritative school resolution prevents client-supplied school ID spoofing', () => {
-  // Authorization resolution logic verifies server-authoritative tenant scoping
-  function resolveAuthoritativeSchool(dbUserSchoolId: string, clientHeaderSchoolId?: string): string {
-    // Client-provided tenant parameter is discarded in favor of authoritative DB record
-    return dbUserSchoolId
-  }
+test('Multi-tenant storage document access prevents cross-school leaking', () => {
+  // A teacher from school A requesting a document owned by school B must be denied
+  const crossTenantAllowed = verifyDocumentAccessAuthorization({
+    documentSchoolId: 'school-b',
+    userSchoolId: 'school-a',
+    userRole: 'TEACHER',
+  })
+  assert.equal(crossTenantAllowed, false)
 
-  const authorizedSchool = resolveAuthoritativeSchool('school_authoritative_123', 'school_spoofed_999')
-  assert.equal(authorizedSchool, 'school_authoritative_123')
+  // Within the same school, teacher is allowed
+  const sameSchoolAllowed = verifyDocumentAccessAuthorization({
+    documentSchoolId: 'school-a',
+    userSchoolId: 'school-a',
+    userRole: 'TEACHER',
+  })
+  assert.equal(sameSchoolAllowed, true)
+
+  // SUPER_ADMIN can access documents across schools
+  const superAdminAllowed = verifyDocumentAccessAuthorization({
+    documentSchoolId: 'school-b',
+    userSchoolId: null,
+    userRole: 'SUPER_ADMIN',
+  })
+  assert.equal(superAdminAllowed, true)
 })
 
-test('Parent-Child Relationship check blocks IDOR access between unrelated students', () => {
-  function verifyRelationship(parentWardIds: string[], targetStudentId: string): boolean {
-    return parentWardIds.includes(targetStudentId)
-  }
+test('Rate limiting enforces abuse protection on sensitive endpoints', () => {
+  const ip = '198.51.100.42'
+  const prefix = `test-otp-${Date.now()}`
+  const maxAttempts = 3
+  const windowSeconds = 60
 
-  const isAllowed = verifyRelationship(['student_ward_1', 'student_ward_2'], 'student_other_school')
-  assert.equal(isAllowed, false)
+  // 3 attempts are allowed
+  const res1 = rateLimit(`${prefix}:${ip}`, maxAttempts, windowSeconds)
+  assert.equal(res1.allowed, true)
 
-  const isAuthorized = verifyRelationship(['student_ward_1', 'student_ward_2'], 'student_ward_1')
-  assert.equal(isAuthorized, true)
+  const res2 = rateLimit(`${prefix}:${ip}`, maxAttempts, windowSeconds)
+  assert.equal(res2.allowed, true)
+
+  const res3 = rateLimit(`${prefix}:${ip}`, maxAttempts, windowSeconds)
+  assert.equal(res3.allowed, true)
+
+  // 4th attempt is rate-limited
+  const res4 = rateLimit(`${prefix}:${ip}`, maxAttempts, windowSeconds)
+  assert.equal(res4.allowed, false)
 })
 
 test('Tenant resource quotas prevent runaway student and export allocations', async () => {
@@ -36,13 +63,10 @@ test('Tenant resource quotas prevent runaway student and export allocations', as
   assert.equal(underQuota.remaining, 1500)
 })
 
-test('Role Escalation Protection prevents non-super-admins from acquiring SUPER_ADMIN privileges', () => {
-  const userPayload = {
-    role: 'SUPER_ADMIN',
-    email: 'attacker@example.com',
-  }
-
-  // Sanitizer strips self-assigned role injection
-  const sanitizedRole = userPayload.role === 'SUPER_ADMIN' ? 'STUDENT' : userPayload.role
-  assert.notEqual(sanitizedRole, 'SUPER_ADMIN')
+test('Role-based navigation redirect prevents unauthorized dashboard routing', () => {
+  assert.equal(getRedirectUrlForIdentity({ role: 'SUPER_ADMIN' }), '/dashboard/super-admin/overview')
+  assert.equal(getRedirectUrlForIdentity({ role: 'SCHOOL_ADMIN' }), '/dashboard/admin')
+  assert.equal(getRedirectUrlForIdentity({ role: 'TEACHER' }), '/dashboard/teacher')
+  assert.equal(getRedirectUrlForIdentity({ role: 'PARENT' }), '/dashboard/parent')
+  assert.equal(getRedirectUrlForIdentity({ role: 'STUDENT' }), '/dashboard/student')
 })
