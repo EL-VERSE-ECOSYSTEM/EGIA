@@ -150,10 +150,33 @@ async function getUserImpl() {
   }
 }
 
+/**
+ * Authoritatively resolves user schoolId strictly from database records,
+ * preventing any reliance on client-provided or browser-manipulable schoolId values.
+ */
+export async function getAuthoritativeSchoolId(userId: string): Promise<string | null> {
+  if (!userId) return null
+  try {
+    const { user: userTable } = await import('@/lib/db/schema')
+    const { eq } = await import('drizzle-orm')
+    const rows = await db
+      .select({ schoolId: userTable.schoolId })
+      .from(userTable)
+      .where(eq(userTable.id, userId))
+      .limit(1)
+
+    return rows.length > 0 ? rows[0].schoolId : null
+  } catch (err) {
+    console.warn('[auth] getAuthoritativeSchoolId query failed:', err)
+    return null
+  }
+}
+
 export const auth = Object.assign(
   async () => getSessionImpl(),
   {
     getSession: getSessionImpl,
-    getUser: getUserImpl
+    getUser: getUserImpl,
+    getAuthoritativeSchoolId
   }
 )

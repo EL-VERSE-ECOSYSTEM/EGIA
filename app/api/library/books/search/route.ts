@@ -31,6 +31,17 @@ export async function GET(request: NextRequest) {
 
     const conditions = [sql`deleted_at IS NULL`]
 
+    // Enforce tenant isolation: non-SUPER_ADMIN users only access their own school's books or global books
+    const userRole = session.user.role?.toUpperCase()
+    const schoolId = session.user.schoolId
+    if (userRole !== 'SUPER_ADMIN') {
+      if (schoolId) {
+        conditions.push(sql`(school_id = ${schoolId} OR school_id IS NULL)`)
+      } else {
+        conditions.push(sql`school_id IS NULL`)
+      }
+    }
+
     if (sanitizedQuery) {
       const pattern = `%${sanitizedQuery}%`
       conditions.push(sql`(title ILIKE ${pattern} OR array_to_string(authors, ' ') ILIKE ${pattern} OR description ILIKE ${pattern})`)

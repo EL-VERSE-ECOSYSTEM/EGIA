@@ -59,7 +59,7 @@ export default function StudentGamesPage() {
     // Fetch Inter-School Tournament Standings
     getInterSchoolTournamentLeaderboardAction()
       .then(res => {
-        if (res && res.success) {
+        if (res && res.success && Array.isArray(res.leaderboard)) {
           setTournamentLeaderboard(res.leaderboard)
         }
       })

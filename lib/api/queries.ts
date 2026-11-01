@@ -86,6 +86,19 @@ export async function getParentChildren(parentId: string) {
     .where(eq(student.parentId, parentId))
 }
 
+/**
+ * Validates that an authenticated parent is specifically linked to a target student
+ * to protect against Insecure Direct Object References (IDOR).
+ */
+export async function verifyParentChildRelationship(parentId: string, studentId: string): Promise<boolean> {
+  if (!parentId || !studentId) return false
+  const match = await db.select({ id: student.id })
+    .from(student)
+    .where(and(eq(student.id, studentId), eq(student.parentId, parentId)))
+    .limit(1)
+  return match.length > 0
+}
+
 export async function getTeacherClasses(teacherId: string) {
   return await db.select()
     .from(class_)

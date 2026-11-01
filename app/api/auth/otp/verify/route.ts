@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const result = verifyOtp(parsed.data.email, parsed.data.otp);
+  const result = await verifyOtp(parsed.data.email, parsed.data.otp);
   if (!result.ok) {
     return NextResponse.json({ error: result.reason }, { status: 400 });
   }

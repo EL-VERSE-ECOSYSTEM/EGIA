@@ -2,7 +2,12 @@ const isProduction = process.env.NODE_ENV === "production";
 
 export function getSupabaseUrl() {
   const value = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  if (!value) return "https://dummy.supabase.co";
+  if (!value) {
+    if (isProduction) {
+      throw new Error("Missing required NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL environment variable in production.");
+    }
+    return "http://localhost:54321";
+  }
   return value;
 }
 
@@ -14,7 +19,10 @@ export function getSupabasePublishableKey() {
     process.env.NEXT_PUBLIC_SUPABASE_KEY;
 
   if (!value) {
-    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.dummy";
+    if (isProduction) {
+      throw new Error("Missing required Supabase publishable key environment variable in production.");
+    }
+    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.local";
   }
 
   return value;

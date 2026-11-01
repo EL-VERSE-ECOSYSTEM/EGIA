@@ -1,5 +1,8 @@
 import crypto from "crypto";
 import { cache } from "./cache";
+import { db } from "./db";
+import { otpRecords } from "./db/schema";
+import { eq } from "drizzle-orm";
 
 const OTP_TTL = 10 * 60;      // 10 min
 const MAX_ATTEMPTS = 5;
@@ -21,36 +24,93 @@ export function hashOtp(email: string, otp: string): string {
 
 type OtpRecord = { hash: string; attempts: number; expiresAt: number };
 
-export function storeOtp(email: string, otp: string) {
+export async function storeOtp(email: string, otp: string) {
+  const normalizedEmail = email.toLowerCase();
+  const hash = hashOtp(normalizedEmail, otp);
+  const expiresAt = Date.now() + OTP_TTL * 1000;
+
+  // 1. In-memory fast layer
   cache.set<OtpRecord>(
-    `otp:${email.toLowerCase()}`,
+    `otp:${normalizedEmail}`,
     {
-      hash: hashOtp(email, otp),
+      hash,
       attempts: 0,
-      expiresAt: Date.now() + OTP_TTL * 1000,
+      expiresAt,
     },
     OTP_TTL
   );
+
+  // 2. Persistent PostgreSQL layer for multi-replica/serverless resilience
+  try {
+    await db
+      .insert(otpRecords)
+      .values({
+        id: crypto.randomUUID(),
+        email: normalizedEmail,
+        hash,
+        attempts: 0,
+        expiresAt: new Date(expiresAt),
+        createdAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: otpRecords.email,
+        set: {
+          hash,
+          attempts: 0,
+          expiresAt: new Date(expiresAt),
+        },
+      });
+  } catch (err) {
+    console.warn("[OTP] Database persistent write fallback to cache:", err);
+  }
 }
 
-export function verifyOtp(
+export async function verifyOtp(
   email: string,
   otp: string
-): { ok: true } | { ok: false; reason: string } {
-  const key = `otp:${email.toLowerCase()}`;
-  const rec = cache.get<OtpRecord>(key);
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const normalizedEmail = email.toLowerCase();
+  const key = `otp:${normalizedEmail}`;
+  let rec = cache.get<OtpRecord>(key);
+
+  // If not found in cache (e.g. cross-instance), load from PostgreSQL
+  if (!rec) {
+    try {
+      const rows = await db
+        .select()
+        .from(otpRecords)
+        .where(eq(otpRecords.email, normalizedEmail))
+        .limit(1);
+
+      if (rows.length > 0) {
+        rec = {
+          hash: rows[0].hash,
+          attempts: rows[0].attempts,
+          expiresAt: new Date(rows[0].expiresAt).getTime(),
+        };
+      }
+    } catch (err) {
+      console.warn("[OTP] Database read fallback:", err);
+    }
+  }
 
   if (!rec || Date.now() > rec.expiresAt) {
     cache.delete(key);
+    try {
+      await db.delete(otpRecords).where(eq(otpRecords.email, normalizedEmail));
+    } catch {}
     return { ok: false, reason: "Code expired or not found" };
   }
 
   if (rec.attempts >= MAX_ATTEMPTS) {
     cache.delete(key);
+    try {
+      await db.delete(otpRecords).where(eq(otpRecords.email, normalizedEmail));
+    } catch {}
     return { ok: false, reason: "Too many attempts — request a new code" };
   }
 
-  const expected = hashOtp(email, otp);
+  const expected = hashOtp(normalizedEmail, otp);
   const valid =
     rec.hash.length === expected.length &&
     crypto.timingSafeEqual(Buffer.from(rec.hash), Buffer.from(expected));
@@ -58,9 +118,20 @@ export function verifyOtp(
   if (!valid) {
     rec.attempts++;
     cache.set(key, rec, Math.ceil((rec.expiresAt - Date.now()) / 1000));
+    try {
+      await db
+        .update(otpRecords)
+        .set({ attempts: rec.attempts })
+        .where(eq(otpRecords.email, normalizedEmail));
+    } catch {}
     return { ok: false, reason: "Invalid code" };
   }
 
-  cache.delete(key); // one-time use
+  // One-time use: clean up from both cache and DB
+  cache.delete(key);
+  try {
+    await db.delete(otpRecords).where(eq(otpRecords.email, normalizedEmail));
+  } catch {}
+
   return { ok: true };
 }

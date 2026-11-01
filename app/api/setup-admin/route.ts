@@ -44,14 +44,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Assign ADMIN role
+    // Assign ADMIN role using composite unique constraint (userId, role)
     await db.insert(userRole).values({
       id: randomUUID(),
       userId: session.user.id,
       role: 'ADMIN',
-    }).onConflictDoUpdate({
-      target: userRole.userId,
-      set: { role: 'ADMIN' },
+    }).onConflictDoNothing({
+      target: [userRole.userId, userRole.role],
     })
 
     return NextResponse.json({ success: true, message: 'Admin role granted successfully.' })

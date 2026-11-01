@@ -1528,6 +1528,30 @@ create table if not exists public.library_books (
   created_at timestamp with time zone default now()
 );
 
+create table if not exists public.tournament_scores (
+  id text primary key,
+  school_id text not null references public.school(id) on delete cascade,
+  student_id text not null references public.user(id) on delete cascade,
+  game_type text not null,
+  points integer not null default 0,
+  is_win boolean not null default false,
+  created_at timestamp with time zone default now()
+);
+
+create index if not exists idx_tournament_scores_school_id on public.tournament_scores(school_id);
+create index if not exists idx_tournament_scores_student_id on public.tournament_scores(student_id);
+
+create table if not exists public.otp_records (
+  id text primary key,
+  email text not null unique,
+  hash text not null,
+  attempts integer not null default 0,
+  expires_at timestamp with time zone not null,
+  created_at timestamp with time zone default now()
+);
+
+create index if not exists idx_otp_records_email on public.otp_records(email);
+
 create table if not exists public.book_borrowings (
   id text primary key,
   book_id text not null references public.library_books(id) on delete cascade,
