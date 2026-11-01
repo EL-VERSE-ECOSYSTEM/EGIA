@@ -21,6 +21,28 @@ export class CircuitBreakerOpenError extends Error {
   }
 }
 
+/**
+ * Wraps a promise in a strict timeout boundary, preventing cascading slow requests.
+ */
+export async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  operationName = 'Operation'
+): Promise<T> {
+  let timer: NodeJS.Timeout | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`${operationName} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export async function withCircuitBreaker<T>(
   name: string,
   operation: () => Promise<T>,
