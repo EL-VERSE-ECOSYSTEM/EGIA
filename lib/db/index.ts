@@ -58,7 +58,8 @@ const dbNodes = uniqueConnections.map((connStr, index) => {
     connectionString: connStr,
     client: postgres(connStr, {
       ssl: getSslOption(connStr),
-      max: Number(process.env.DATABASE_POOL_SIZE || 20),
+      max: Number(process.env.DATABASE_POOL_SIZE || 1),
+      prepare: false, // Recommended by Supabase for transaction poolers
       idle_timeout: 30,
       connect_timeout: 15,
     }),
