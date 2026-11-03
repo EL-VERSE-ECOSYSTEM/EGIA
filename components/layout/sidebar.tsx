@@ -34,7 +34,8 @@ import {
   Bell,
   Building2,
   Shield,
-  Briefcase
+  Briefcase,
+  Activity,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -81,6 +82,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         { label: 'Manage Adult Saved Sessions', icon: BookMarked, href: '/dashboard/admin/adult-education/saved-sessions' },
         { label: 'Manage Adult Live Classes', icon: Video, href: '/dashboard/admin/adult-education/live-classes' },
         { label: 'Online Exam Prep', icon: BookOpen, href: '/dashboard/super-admin/online-prep' },
+        { label: 'System Operations', icon: Activity, href: '/dashboard/super-admin/system' },
       ]
     },
     admin: {

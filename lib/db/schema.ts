@@ -984,6 +984,115 @@ export const adultEducationEnrollment = pgTable('adult_education_enrollments', {
   foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('set null'),
 ])
 
+// ===== SCALE & RESILIENCE ENGINE TABLES (PHASES 2-4) =====
+export const jobs = pgTable('jobs', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  queue: text('queue').notNull().default('default'),
+  type: text('type').notNull(),
+  payload: jsonb('payload').notNull().default({}),
+  status: text('status').notNull().default('PENDING'), // PENDING, PROCESSING, COMPLETED, FAILED, DEAD_LETTER, CANCELLED
+  priority: integer('priority').notNull().default(100),
+  attempts: integer('attempts').notNull().default(0),
+  maxAttempts: integer('max_attempts').notNull().default(5),
+  availableAt: timestamp('available_at', { withTimezone: true }).notNull().defaultNow(),
+  lockedAt: timestamp('locked_at', { withTimezone: true }),
+  lockedBy: text('locked_by'),
+  lastError: text('last_error'),
+  idempotencyKey: text('idempotency_key').unique(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  failedAt: timestamp('failed_at', { withTimezone: true }),
+})
+
+export const idempotencyKeys = pgTable('idempotency_keys', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  key: text('key').notNull().unique(),
+  operation: text('operation').notNull(),
+  requestHash: text('request_hash'),
+  response: jsonb('response'),
+  status: text('status').notNull().default('PENDING'), // PENDING, COMPLETED, FAILED
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+})
+
+export const outboxEvents = pgTable('outbox_events', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  eventType: text('event_type').notNull(),
+  aggregateType: text('aggregate_type').notNull(),
+  aggregateId: text('aggregate_id').notNull(),
+  schoolId: text('school_id'),
+  payload: jsonb('payload').notNull().default({}),
+  status: text('status').notNull().default('PENDING'), // PENDING, PROCESSING, COMPLETED, FAILED
+  attempts: integer('attempts').notNull().default(0),
+  availableAt: timestamp('available_at', { withTimezone: true }).notNull().defaultNow(),
+  processedAt: timestamp('processed_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+])
+
+export const schoolResourceLimits = pgTable('school_resource_limits', {
+  schoolId: text('school_id').primaryKey(),
+  maxStudents: integer('max_students').notNull().default(2000),
+  maxStorageBytes: numeric('max_storage_bytes').notNull().default('5368709120'), // 5GB default
+  maxDailyExports: integer('max_daily_exports').notNull().default(50),
+  maxConcurrentExports: integer('max_concurrent_exports').notNull().default(3),
+  maxDailyAiRequests: integer('max_daily_ai_requests').notNull().default(500),
+  maxCbtSessions: integer('max_cbt_sessions').notNull().default(100),
+  maxApiRequestsPerMinute: integer('max_api_requests_per_minute').notNull().default(300),
+  maxBulkImportRows: integer('max_bulk_import_rows').notNull().default(1000),
+  maxNotificationBatch: integer('max_notification_batch').notNull().default(500),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+])
+
+export const systemFeatureFlags = pgTable('system_feature_flags', {
+  key: text('key').primaryKey(),
+  enabled: boolean('enabled').notNull().default(true),
+  scope: text('scope').notNull().default('global'), // global, school, emergency
+  schoolId: text('school_id'),
+  description: text('description'),
+  updatedBy: text('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+])
+
+export const systemIncidents = pgTable('system_incidents', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  service: text('service').notNull(),
+  severity: text('severity').notNull().default('SEV3'), // SEV1, SEV2, SEV3, SEV4
+  status: text('status').notNull().default('OPEN'), // OPEN, INVESTIGATING, MITIGATED, RESOLVED
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  summary: text('summary').notNull(),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const auditLogs = pgTable('audit_logs', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  eventId: text('event_id').notNull().default(sql`gen_random_uuid()::text`),
+  actorId: text('actor_id'),
+  schoolId: text('school_id'),
+  actorRole: text('actor_role'),
+  eventType: text('event_type').notNull(),
+  resourceType: text('resource_type').notNull(),
+  resourceId: text('resource_id'),
+  action: text('action').notNull(),
+  ipHash: text('ip_hash'),
+  userAgent: text('user_agent'),
+  requestId: text('request_id'),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('set null'),
+])
+
 // ===== SSS2/SSS3 ONLINE EXAM PREP (WAEC/NECO/JAMB) =====
 export const onlinePrepSubscriptions = pgTable('online_prep_subscriptions', {
   id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
