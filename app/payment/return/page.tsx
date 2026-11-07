@@ -5,13 +5,13 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, Clock3, XCircle } from 'lucide-react'
 import { SVGLoader } from '@/components/ui/svg-loader'
-import { verifyKorapayPayment } from '@/app/actions/payments'
+import { verifyPaystackPayment } from '@/app/actions/payments'
 
-function KorapayReturnContent() {
+function PaystackReturnContent() {
   const searchParams = useSearchParams()
   const reference = searchParams.get('reference') || searchParams.get('payment_reference') || ''
   const [state, setState] = useState<'loading' | 'success' | 'pending' | 'failed' | 'error'>('loading')
-  const [message, setMessage] = useState('Confirming your payment securely with Korapay…')
+  const [message, setMessage] = useState('Confirming your payment securely with Paystack…')
   const [showModal, setShowModal] = useState(false)
   const [countdown, setCountdown] = useState(10)
   const [paymentDetails, setPaymentDetails] = useState<{ amount?: string; feeType?: string; admissionNumber?: string; schoolCode?: string; schoolName?: string } | null>(null)
@@ -19,10 +19,10 @@ function KorapayReturnContent() {
   useEffect(() => {
     if (!reference) {
       setState('error')
-      setMessage('No Korapay payment reference was supplied.')
+      setMessage('No Paystack payment reference was supplied.')
       return
     }
-    verifyKorapayPayment(reference)
+    verifyPaystackPayment(reference)
       .then(result => {
         const resStatus = result.status as 'loading' | 'success' | 'pending' | 'failed' | 'error'
         setState(resStatus || 'failed')
@@ -41,7 +41,7 @@ function KorapayReturnContent() {
         } else if (resStatus === 'pending') {
           setMessage('Your payment is still processing. Please check again shortly.')
         } else {
-          setMessage('Korapay reported that this payment was unsuccessful.')
+          setMessage('Paystack reported that this payment was unsuccessful.')
         }
       })
       .catch(error => {
@@ -100,7 +100,7 @@ function KorapayReturnContent() {
                 <p className="flex justify-between border-b border-slate-800 pb-1.5"><span>School Name:</span> <span className="font-bold text-white">{paymentDetails.schoolName}</span></p>
               )}
               <p className="flex justify-between border-b border-slate-800 pb-1.5"><span>Fee Type:</span> <span className="font-bold text-orange-400 uppercase">{paymentDetails?.feeType || 'registration'}</span></p>
-              <p className="flex justify-between"><span>Payment Gateway:</span> <span className="font-bold text-blue-400">Korapay Checkout</span></p>
+              <p className="flex justify-between"><span>Payment Gateway:</span> <span className="font-bold text-blue-400">Paystack Checkout</span></p>
             </div>
 
             <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] font-bold text-amber-300">
@@ -126,7 +126,7 @@ function KorapayReturnContent() {
         <div className={state === 'success' ? 'text-emerald-400' : state === 'pending' || state === 'loading' ? 'text-amber-400' : 'text-red-400'}>
           {state === 'loading' ? <SVGLoader /> : <Icon className="w-14 h-14 mx-auto" />}
         </div>
-        <h1 className="text-2xl font-black text-white">Korapay Payment Verification</h1>
+        <h1 className="text-2xl font-black text-white">Paystack Payment Verification</h1>
         <p className="text-slate-400 text-sm font-medium leading-relaxed">{message}</p>
         <div className="flex justify-center gap-3 pt-2">
           <Link className="rounded-xl bg-blue-600 hover:bg-blue-500 px-5 py-3 text-xs font-black text-white uppercase tracking-wider transition" href="/auth/signin">Sign In</Link>
@@ -137,14 +137,14 @@ function KorapayReturnContent() {
   )
 }
 
-export default function KorapayReturnPage() {
+export default function PaystackReturnPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen grid place-items-center bg-slate-950 p-5 text-white">
         <SVGLoader />
       </div>
     }>
-      <KorapayReturnContent />
+      <PaystackReturnContent />
     </Suspense>
   )
 }

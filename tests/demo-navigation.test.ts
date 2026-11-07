@@ -31,6 +31,6 @@ describe('App Demo Navigation & Role Coverage Tests', () => {
     assert.ok(student.keyFeatures.some(f => f.includes('WAEC/NECO/JAMB')))
 
     const parent = DEMO_ROLES_DATA.parent
-    assert.ok(parent.keyFeatures.some(f => f.includes('Korapay Gateway')))
+    assert.ok(parent.keyFeatures.some(f => f.includes('Paystack Gateway')))
   })
 })

@@ -1,113 +1,114 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { initializeKorapayPayment } from '../lib/payments/service.ts'
+import { initializePaystackPayment } from '../lib/payments/service.ts'
 
-test('initializeKorapayPayment - throws explicit error when KORAPAY_SECRET_KEY is missing', async () => {
-  const originalKey = process.env.KORAPAY_SECRET_KEY
-  delete process.env.KORAPAY_SECRET_KEY
+test('initializePaystackPayment - throws explicit error when PAYSTACK_SECRET_KEY is missing', async () => {
+  const originalKey = process.env.PAYSTACK_SECRET_KEY
+  delete process.env.PAYSTACK_SECRET_KEY
 
   try {
-    const customRef = `TEST-REF-${Date.now()}`
-    await assert.rejects(
-      async () => {
-        await initializeKorapayPayment({
-          reference: customRef,
-          amount: 30161.25,
-          currency: 'NGN',
-          feeType: 'SCHOOL_REGISTRATION',
-          description: 'Test subscription',
-          customerEmail: 'test@school.com',
-          customerName: 'Test School',
-        })
-      },
-      (err: any) => {
-        assert.equal(err.message, 'Korapay payment service is unavailable because its secret key is not configured.')
-        return true
-      }
-    )
+    let thrownError: Error | null = null
+    try {
+      await initializePaystackPayment({
+        amount: 30161.25,
+        currency: 'NGN',
+        customerEmail: 'test@school.edu',
+        customerName: 'Test School',
+        feeType: 'SCHOOL_REGISTRATION',
+        description: 'Test payment',
+      })
+    } catch (err: any) {
+      thrownError = err
+    }
+    assert.ok(thrownError)
+    assert.equal(thrownError.message, 'Paystack payment service is unavailable because its secret key is not configured.')
   } finally {
-    if (originalKey !== undefined) {
-      process.env.KORAPAY_SECRET_KEY = originalKey
+    if (originalKey) {
+      process.env.PAYSTACK_SECRET_KEY = originalKey
     }
   }
 })
 
-test('initializeKorapayPayment - throws explicit error when Korapay API fetch fails', async () => {
-  const originalKey = process.env.KORAPAY_SECRET_KEY
-  process.env.KORAPAY_SECRET_KEY = 'dummy_secret_key_for_test'
+test('initializePaystackPayment - throws explicit error when Paystack API fetch fails', async () => {
+  const originalKey = process.env.PAYSTACK_SECRET_KEY
+  process.env.PAYSTACK_SECRET_KEY = 'dummy_secret_key_for_test'
 
-  // Global fetch override to simulate network error
-  const originalFetch = globalThis.fetch
-  globalThis.fetch = (async () => {
-    throw new Error('Network timeout / API unreachable')
-  }) as typeof fetch
+  const originalFetch = global.fetch
+  global.fetch = async () => {
+    return {
+      ok: false,
+      status: 400,
+      json: async () => ({ status: false, message: 'Invalid API authorization key or params.' }),
+    } as any
+  }
 
   try {
-    const customRef = `TEST-REF-FAIL-${Date.now()}`
-    await assert.rejects(
-      async () => {
-        await initializeKorapayPayment({
-          reference: customRef,
-          amount: 30161.25,
-          currency: 'NGN',
-          feeType: 'SCHOOL_REGISTRATION',
-          description: 'Test subscription',
-          customerEmail: 'test@school.com',
-          customerName: 'Test School',
-        })
-      },
-      (err: any) => {
-        assert.equal(err.message, 'Network timeout / API unreachable')
-        return true
-      }
-    )
+    let thrownError: Error | null = null
+    try {
+      await initializePaystackPayment({
+        amount: 30161.25,
+        currency: 'NGN',
+        customerEmail: 'test@school.edu',
+        customerName: 'Test School',
+        feeType: 'SCHOOL_REGISTRATION',
+        description: 'Test payment',
+      })
+    } catch (err: any) {
+      thrownError = err
+    }
+    assert.ok(thrownError)
+    assert.equal(thrownError.message, 'Invalid API authorization key or params.')
   } finally {
-    globalThis.fetch = originalFetch
-    if (originalKey !== undefined) {
-      process.env.KORAPAY_SECRET_KEY = originalKey
+    global.fetch = originalFetch
+    if (originalKey) {
+      process.env.PAYSTACK_SECRET_KEY = originalKey
     } else {
-      delete process.env.KORAPAY_SECRET_KEY
+      delete process.env.PAYSTACK_SECRET_KEY
     }
   }
 })
 
-test('initializeKorapayPayment - uses checkout URL returned by Korapay API response', async () => {
-  const originalKey = process.env.KORAPAY_SECRET_KEY
-  process.env.KORAPAY_SECRET_KEY = 'dummy_secret_key_for_test'
+test('initializePaystackPayment - uses authorization URL returned by Paystack API response', async () => {
+  const originalKey = process.env.PAYSTACK_SECRET_KEY
+  process.env.PAYSTACK_SECRET_KEY = 'dummy_secret_key_for_test'
 
-  const mockCheckoutUrl = 'https://checkout.korapay.com/pay/test_token_123'
-  const customRef = `SCH-PAY-SUCCESS-${Date.now()}`
-
-  const originalFetch = globalThis.fetch
-  globalThis.fetch = (async () => {
+  const mockCheckoutUrl = 'https://checkout.paystack.com/pay/test_token_123'
+  const originalFetch = global.fetch
+  global.fetch = async () => {
     return {
       ok: true,
+      status: 200,
       json: async () => ({
         status: true,
-        data: { checkout_url: mockCheckoutUrl, reference: customRef }
-      })
+        message: 'Authorization URL created',
+        data: {
+          authorization_url: mockCheckoutUrl,
+          access_code: 'test_token_123',
+          reference: 'mock_ref_456',
+        },
+      }),
     } as any
-  }) as typeof fetch
+  }
 
   try {
-    const result = await initializeKorapayPayment({
-      reference: customRef,
+    const result = await initializePaystackPayment({
       amount: 30161.25,
       currency: 'NGN',
-      feeType: 'SCHOOL_REGISTRATION',
-      description: 'Test subscription',
-      customerEmail: 'test@school.com',
+      customerEmail: 'test@school.edu',
       customerName: 'Test School',
+      feeType: 'SCHOOL_REGISTRATION',
+      description: 'Test payment',
     })
 
-    assert.equal(result.reference, customRef)
     assert.equal(result.checkoutUrl, mockCheckoutUrl)
+    assert.equal(result.authorizationUrl, mockCheckoutUrl)
+    assert.equal(result.amount, 30161.25)
   } finally {
-    globalThis.fetch = originalFetch
-    if (originalKey !== undefined) {
-      process.env.KORAPAY_SECRET_KEY = originalKey
+    global.fetch = originalFetch
+    if (originalKey) {
+      process.env.PAYSTACK_SECRET_KEY = originalKey
     } else {
-      delete process.env.KORAPAY_SECRET_KEY
+      delete process.env.PAYSTACK_SECRET_KEY
     }
   }
 })

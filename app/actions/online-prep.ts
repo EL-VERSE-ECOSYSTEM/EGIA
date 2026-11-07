@@ -13,7 +13,7 @@ import {
   notification,
 } from '@/lib/db/schema'
 import { eq, and, or, gt, desc } from 'drizzle-orm'
-import { initializeKorapayPayment, verifyKorapayPayment } from '@/lib/payments/service'
+import { initializePaystackPayment, verifyPaystackPayment } from '@/lib/payments/service'
 import { randomUUID } from 'crypto'
 import { sanitizeServerError } from '@/lib/errors'
 
@@ -117,7 +117,7 @@ export async function initializePrepSubscriptionAction(input: {
   const userRecord = await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) })
   const customerEmail = userRecord?.email || `${cleanAccessCode}@el-learners.local`
 
-  const initRes = await initializeKorapayPayment({
+  const initRes = await initializePaystackPayment({
     amount: 3161.25,
     currency: 'NGN',
     feeType: 'ONLINE_PREP_LESSONS',
@@ -155,7 +155,7 @@ export async function verifyPrepSubscriptionPaymentAction(reference: string, acc
       return { success: false, error: 'Student context missing' }
     }
 
-    const verification = await verifyKorapayPayment({
+    const verification = await verifyPaystackPayment({
       reference,
       expectedAmount: 3161.25,
     })
@@ -196,7 +196,7 @@ export async function verifyPrepSubscriptionPaymentAction(reference: string, acc
       direction: 'IN',
       amount: '3161.25',
       reference,
-      gateway: 'KORAPAY',
+      gateway: 'PAYSTACK',
       status: 'SUCCESS',
       description: `3-Week SSS3/SSS2 Online Exam Prep Subscription (${cleanAccessCode})`,
     }).onConflictDoNothing()

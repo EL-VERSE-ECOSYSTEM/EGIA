@@ -26,7 +26,7 @@ export async function getSchoolPaymentConfigAction(schoolId?: string) {
   return {
     ...config,
     schoolName: schoolRec?.name || 'School Bank Account',
-    useKorapay: config ? config.useKorapay : true,
+    usePaystack: config ? ((config as any).usePaystack ?? (config as any).useKorapay ?? true) : true,
     bankName: config?.bankName || '',
     accountNumber: config?.accountNumber || '',
     accountName: config?.accountName || (schoolRec?.name ? `${schoolRec.name} Official Account` : ''),
@@ -37,7 +37,7 @@ export async function getSchoolPaymentConfigAction(schoolId?: string) {
 
 export async function saveSchoolPaymentConfigAction(data: {
   schoolId?: string
-  useKorapay: boolean
+  usePaystack: boolean
   bankName?: string
   accountNumber?: string
   accountName?: string
@@ -56,9 +56,9 @@ export async function saveSchoolPaymentConfigAction(data: {
     throw new Error('Forbidden: You can only manage payment settings for your own school.')
   }
 
-  if (!data.useKorapay) {
+  if (!data.usePaystack) {
     if (!data.bankName || !data.accountNumber || !data.accountName) {
-      throw new Error('Bank Name, Account Number, and Account Name are required when Korapay is disabled.')
+      throw new Error('Bank Name, Account Number, and Account Name are required when Paystack is disabled.')
     }
   }
 
@@ -69,7 +69,7 @@ export async function saveSchoolPaymentConfigAction(data: {
   if (existing) {
     await db.update(schoolPaymentConfig)
       .set({
-        useKorapay: data.useKorapay,
+        useKorapay: data.usePaystack,
         bankName: data.bankName || null,
         accountNumber: data.accountNumber || null,
         accountName: data.accountName || null,
@@ -81,7 +81,7 @@ export async function saveSchoolPaymentConfigAction(data: {
   } else {
     await db.insert(schoolPaymentConfig).values({
       schoolId: targetSchoolId,
-      useKorapay: data.useKorapay,
+      useKorapay: data.usePaystack,
       bankName: data.bankName || null,
       accountNumber: data.accountNumber || null,
       accountName: data.accountName || null,

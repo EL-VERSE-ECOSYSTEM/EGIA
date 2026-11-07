@@ -271,7 +271,7 @@ export default function SchoolRegistrationPage() {
             Register Your School Application
           </h1>
           <p className="text-slate-400 text-xs sm:text-sm font-bold leading-relaxed">
-            Submit your school onboarding application. Complete subscription payment via Korapay and upload proof of school address (e.g. recent electricity bill) for Super-Admin verification and account activation.
+            Submit your school onboarding application. Complete subscription payment via Paystack and upload proof of school address (e.g. recent electricity bill) for Super-Admin verification and account activation.
           </p>
         </div>
 
@@ -407,7 +407,7 @@ export default function SchoolRegistrationPage() {
                 <div>
                   <h3 className="text-lg font-black text-white">1. Complete Subscription Payment (NGN 30,161.25)</h3>
                   <p className="text-slate-400 text-xs mt-1">
-                    Pay via Korapay checkout link to update your application payment status.
+                    Pay via Paystack checkout link to update your application payment status.
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
@@ -417,7 +417,7 @@ export default function SchoolRegistrationPage() {
                     rel="noreferrer"
                     className="flex-1 py-3 px-4 rounded-xl bg-[#1E3A8A] hover:bg-blue-800 text-white font-black text-xs uppercase flex items-center justify-center gap-2 transition"
                   >
-                    <span>Korapay Checkout</span>
+                    <span>Paystack Checkout</span>
                     <ExternalLink className="w-4 h-4" />
                   </a>
                   <button
@@ -778,7 +778,7 @@ export default function SchoolRegistrationPage() {
                 </div>
               </div>
               <span className="text-[10px] font-black px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 uppercase">
-                Korapay Checkout
+                Paystack Checkout
               </span>
             </div>
 

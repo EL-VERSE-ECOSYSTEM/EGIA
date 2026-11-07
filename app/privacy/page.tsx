@@ -61,7 +61,7 @@ export default function PrivacyPage() {
               <ul className="list-disc pl-6 space-y-1 text-slate-400">
                 <li>Provisioning multi-role accounts (Super Admin, School Admin, Teacher, Student, Parent).</li>
                 <li>Executing real-time CBT examinations, automated grade calculation, and report card compilation.</li>
-                <li>Enabling parent-teacher communication, attendance alerts, and fee invoice payments via Korapay.</li>
+                <li>Enabling parent-teacher communication, attendance alerts, and fee invoice payments via Paystack.</li>
                 <li>Ensuring institutional document verification and manual Super-Admin approval prior to granting admin roles.</li>
               </ul>
             </section>
@@ -89,7 +89,7 @@ export default function PrivacyPage() {
               </p>
               <ul className="list-disc pl-6 space-y-1 text-slate-400">
                 <li><strong>Supabase:</strong> Encrypted PostgreSQL database, authentication, and real-time engine.</li>
-                <li><strong>Korapay:</strong> PCI-DSS compliant payment gateway processing school fee and registration payments.</li>
+                <li><strong>Paystack:</strong> PCI-DSS compliant payment gateway processing school fee and registration payments.</li>
                 <li><strong>Vercel Analytics:</strong> Privacy-preserving website usage analytics.</li>
               </ul>
             </section>

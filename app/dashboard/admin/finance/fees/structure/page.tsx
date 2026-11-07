@@ -31,7 +31,7 @@ export default function FeesStructurePage() {
 
   // School Payment Configuration State
   const { banks, loading: loadingBanks } = useNigerianBanks()
-  const [useKorapay, setUseKorapay] = useState(true)
+  const [usePaystack, setUsePaystack] = useState(true)
   const [bankName, setBankName] = useState('')
   const [accountNumber, setAccountNumber] = useState('')
   const [accountName, setAccountName] = useState('')
@@ -67,7 +67,7 @@ export default function FeesStructurePage() {
     try {
       const config = await getSchoolPaymentConfigAction()
       if (config) {
-        setUseKorapay(config.useKorapay)
+        setUsePaystack(config.usePaystack)
         setBankName(config.bankName || '')
         setAccountNumber(config.accountNumber || '')
         setAccountName(config.accountName || '')
@@ -146,7 +146,7 @@ export default function FeesStructurePage() {
     setLoadingConfig(true)
     try {
       const res = await saveSchoolPaymentConfigAction({
-        useKorapay,
+        usePaystack,
         bankName,
         accountNumber,
         accountName,
@@ -161,10 +161,10 @@ export default function FeesStructurePage() {
           title: 'Payment Configuration Uploaded in Real Time',
           message: 'Your school payment preferences have been updated in real time with Supabase Database. All parent payment portals reflect this instantly.',
           details: {
-            'Payment Path': useKorapay ? 'Korapay Gateway (Automated)' : 'School Bank Account / Custom Link',
-            Bank: useKorapay ? 'Korapay Hosted' : bankName || 'Not Set',
-            'Account Number': useKorapay ? 'N/A' : accountNumber || 'Not Set',
-            'Account Name': useKorapay ? 'N/A' : accountName || 'Not Set'
+            'Payment Path': usePaystack ? 'Paystack Gateway (Automated)' : 'School Bank Account / Custom Link',
+            Bank: usePaystack ? 'Paystack Hosted' : bankName || 'Not Set',
+            'Account Number': usePaystack ? 'N/A' : accountNumber || 'Not Set',
+            'Account Name': usePaystack ? 'N/A' : accountName || 'Not Set'
           }
         })
       }
@@ -195,7 +195,7 @@ export default function FeesStructurePage() {
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Financial & Payment Architecture</h1>
           <p className="text-slate-500 font-medium text-sm sm:text-base mt-1">
-            Define fee structures per class and department, and configure automated Korapay or custom school bank accounts in real time.
+            Define fee structures per class and department, and configure automated Paystack or custom school bank accounts in real time.
           </p>
         </div>
 
@@ -355,21 +355,21 @@ export default function FeesStructurePage() {
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-900">School Payment Gateway & Link Configuration</h2>
-              <p className="text-xs text-slate-500 font-medium">Configure automated Korapay gateway or bank details drawn in real time from Supabase Database</p>
+              <p className="text-xs text-slate-500 font-medium">Configure automated Paystack gateway or bank details drawn in real time from Supabase Database</p>
             </div>
           </div>
 
           <form onSubmit={handleConfigSubmit} className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div
-                onClick={() => setUseKorapay(true)}
+                onClick={() => setUsePaystack(true)}
                 className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-                  useKorapay ? 'border-amber-600 bg-amber-50/50 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'
+                  usePaystack ? 'border-amber-600 bg-amber-50/50 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-black text-sm text-slate-900">Path A: Korapay Payment Gateway</span>
-                  {useKorapay && <CheckCircle2 className="w-5 h-5 text-amber-600" />}
+                  <span className="font-black text-sm text-slate-900">Path A: Paystack Payment Gateway</span>
+                  {usePaystack && <CheckCircle2 className="w-5 h-5 text-amber-600" />}
                 </div>
                 <p className="text-xs text-slate-500 font-medium leading-relaxed">
                   Automated checkout for cards, bank transfer, and USSD with real-time clearance.
@@ -377,14 +377,14 @@ export default function FeesStructurePage() {
               </div>
 
               <div
-                onClick={() => setUseKorapay(false)}
+                onClick={() => setUsePaystack(false)}
                 className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-                  !useKorapay ? 'border-amber-600 bg-amber-50/50 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'
+                  !usePaystack ? 'border-amber-600 bg-amber-50/50 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-black text-sm text-slate-900">Path B: School Bank Account / Custom Link</span>
-                  {!useKorapay && <CheckCircle2 className="w-5 h-5 text-amber-600" />}
+                  {!usePaystack && <CheckCircle2 className="w-5 h-5 text-amber-600" />}
                 </div>
                 <p className="text-xs text-slate-500 font-medium leading-relaxed">
                   Direct transfer to your school bank account or external link with receipt upload.
@@ -392,7 +392,7 @@ export default function FeesStructurePage() {
               </div>
             </div>
 
-            {!useKorapay && (
+            {!usePaystack && (
               <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 animate-in fade-in duration-200">
                 <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
                   <Building className="w-5 h-5 text-amber-600" />
@@ -403,7 +403,7 @@ export default function FeesStructurePage() {
                   <div>
                     <label className="block text-xs font-black uppercase text-slate-600 mb-1">Bank Name (Supabase DB Real Time) *</label>
                     <select
-                      required={!useKorapay}
+                      required={!usePaystack}
                       value={bankName}
                       onChange={(e) => setBankName(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-600"
@@ -421,7 +421,7 @@ export default function FeesStructurePage() {
                     <label className="block text-xs font-black uppercase text-slate-600 mb-1">Account Number *</label>
                     <input
                       type="text"
-                      required={!useKorapay}
+                      required={!usePaystack}
                       placeholder="e.g. 1012345678"
                       value={accountNumber}
                       onChange={(e) => setAccountNumber(e.target.value)}
@@ -433,7 +433,7 @@ export default function FeesStructurePage() {
                     <label className="block text-xs font-black uppercase text-slate-600 mb-1">Account Name *</label>
                     <input
                       type="text"
-                      required={!useKorapay}
+                      required={!usePaystack}
                       placeholder="e.g. EL GOODNEWS INTERNATIONAL ACADEMY"
                       value={accountName}
                       onChange={(e) => setAccountName(e.target.value)}

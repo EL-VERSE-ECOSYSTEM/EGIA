@@ -7,8 +7,8 @@ import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { sanitizeServerError } from '@/lib/errors'
 import {
-  initializeKorapayPayment as serviceInitializeKorapayPayment,
-  verifyKorapayPayment as serviceVerifyKorapayPayment,
+  initializePaystackPayment as serviceInitializePaystackPayment,
+  verifyPaystackPayment as serviceVerifyPaystackPayment,
 } from '@/lib/payments/service'
 
 export interface SchoolRegistrationInput {
@@ -108,10 +108,10 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       submittedAt: new Date(),
     })
 
-    // 3. Initialize Korapay charge via centralized service (NGN 30,000 + NGN 161.25 fee)
+    // 3. Initialize Paystack charge via centralized service (NGN 30,000 + NGN 161.25 fee)
     let initRes: any = null
     try {
-      initRes = await serviceInitializeKorapayPayment({
+      initRes = await serviceInitializePaystackPayment({
         schoolId,
         amount: 30161.25,
         currency: 'NGN',
@@ -128,7 +128,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
         },
       })
     } catch (koraErr) {
-      console.warn('Korapay payment initialization warning during school registration:', koraErr)
+      console.warn('Paystack payment initialization warning during school registration:', koraErr)
     }
 
     const fallbackSiteUrl = (process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
@@ -224,7 +224,7 @@ export async function getSchoolApplicationStatusAction(applicationId: string) {
 export async function confirmSchoolPaymentAction(paymentReference: string) {
   const requestId = randomUUID()
   try {
-    const verification = await serviceVerifyKorapayPayment({
+    const verification = await serviceVerifyPaystackPayment({
       reference: paymentReference,
       expectedAmount: 30161.25,
     })
@@ -345,7 +345,7 @@ export async function initializeSchoolRenewalPaymentAction(schoolId: string) {
 
     const paymentReference = `SCH-RNW-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`
 
-    const initRes = await serviceInitializeKorapayPayment({
+    const initRes = await serviceInitializePaystackPayment({
       reference: paymentReference,
       schoolId: sch.id,
       amount: 30161.25,
@@ -374,7 +374,7 @@ export async function initializeSchoolRenewalPaymentAction(schoolId: string) {
 
 export async function confirmSchoolRenewalPaymentAction(paymentReference: string) {
   try {
-    const verification = await serviceVerifyKorapayPayment({
+    const verification = await serviceVerifyPaystackPayment({
       reference: paymentReference,
       expectedAmount: 30161.25,
     })
@@ -423,10 +423,10 @@ export async function confirmSchoolRenewalPaymentAction(paymentReference: string
       amount: '30161.25',
       currency: 'NGN',
       reference: paymentReference,
-      gateway: 'KORAPAY',
+      gateway: 'PAYSTACK',
       status: 'SUCCESS',
       description: 'Bi-monthly School Registration Renewal Fee Payment',
-      confirmationMethod: 'KORAPAY_AUTO',
+      confirmationMethod: 'PAYSTACK_AUTO',
       createdAt: now,
       updatedAt: now,
     }).onConflictDoNothing()
