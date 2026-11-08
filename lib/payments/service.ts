@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+import { db, sqlClient } from '@/lib/db'
 import { payment, schoolRegistrationApplication, student, school, transactions, paymentWebhookLogs } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
@@ -9,6 +9,7 @@ import {
   type PaystackWebhookBody
 } from './paystack-security'
 import { checkOrAcquireIdempotency, completeIdempotencyKey, failIdempotencyKey } from '@/lib/idempotency'
+import { completeLearnAiPurchase } from '@/lib/learn-ai'
 
 export { validPaystackSignature, validatePaystackWebhook, paystackAmountMatches }
 export { validPaystackSignature as validKorapaySignature } from './paystack-security'
@@ -310,6 +311,31 @@ export async function processPaystackWebhook(rawBody: string, signature: string 
     const isSuccess = event === 'charge.success' || body.data?.status === 'success'
     const isFailed = event === 'charge.failed' || body.data?.status === 'failed'
     const amountKobo = body.data?.amount
+    const currency = body.data?.currency
+
+    const [learnAiPurchase] = await sqlClient`
+      select amount_kobo from public.learn_ai_purchases where reference = ${reference} limit 1
+    `
+    if (learnAiPurchase) {
+      if (isSuccess) {
+        if (typeof amountKobo !== 'number' || amountKobo !== learnAiPurchase.amount_kobo || currency !== 'NGN') {
+          await failIdempotencyKey(idempotencyKey)
+          return { success: false, error: 'Learn AI token payment amount mismatch' }
+        }
+        const completed = await completeLearnAiPurchase(reference, amountKobo)
+        if (!completed) {
+          await failIdempotencyKey(idempotencyKey)
+          return { success: false, error: 'Learn AI token purchase could not be fulfilled' }
+        }
+      } else if (isFailed) {
+        await sqlClient`
+          update public.learn_ai_purchases set status = 'failed'
+          where reference = ${reference} and status = 'pending'
+        `
+      }
+      await completeIdempotencyKey(idempotencyKey, { success: true, event, reference })
+      return { success: true, event, reference, note: 'Learn AI token purchase updated' }
+    }
 
     // 1. School Registration Payment Check
     const appRecord = await db.query.schoolRegistrationApplication.findFirst({ where: eq(schoolRegistrationApplication.paymentReference, reference) })

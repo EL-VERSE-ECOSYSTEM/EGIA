@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { REALTIME_SUBSCRIBE_STATES } from "@supabase/supabase-js";
 import { Toaster, toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { createMessageQueue } from "@/lib/resilience";
+import { createMessageQueue } from "@/lib/async-message-queue";
 import { LiveIndicator } from "./LiveIndicator";
 
 type ConnectionStatus = REALTIME_SUBSCRIBE_STATES | "CONNECTING" | "ONLINE";

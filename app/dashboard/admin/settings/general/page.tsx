@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -85,6 +86,9 @@ export default function AdminGeneralSettingsPage() {
         <div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">General & Academy Settings</h1>
           <p className="text-slate-500 font-medium text-lg font-bold">Manage global configurations, school parameters, student time restrictions, and staff appointments.</p>
+          <Link href="/dashboard/admin/settings/learn-ai" className="mt-4 inline-flex min-h-10 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 hover:border-emerald-700 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700">
+            Learn AI school guidance
+          </Link>
         </div>
 
         {loading ? (

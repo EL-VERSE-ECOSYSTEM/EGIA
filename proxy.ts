@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/middleware'
 import { isPublicRoute } from '@/lib/public-routes'
+import { handleReadOnlyGuard } from '@/lib/read-only-guard'
 
 const adminRoles = ['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN']
 
@@ -37,6 +38,11 @@ function redirectWithSessionCookies(url: URL, sessionResponse: NextResponse) {
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
+
+  const readOnlyResponse = await handleReadOnlyGuard(request)
+  if (readOnlyResponse) {
+    return withSecurityHeaders(readOnlyResponse)
+  }
 
   // Rate Limiting
   const requestWithIp = request as NextRequest & { ip?: string }

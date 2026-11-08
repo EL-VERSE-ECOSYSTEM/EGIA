@@ -4,6 +4,7 @@ import './globals.css'
 import { RealtimeProvider } from '@/components/realtime/RealtimeProvider'
 import { TimeThemeProvider } from '@/components/TimeThemeProvider'
 import { FloatingSupportWidget } from '@/components/support/FloatingSupportWidget'
+import { FloatingLearnAiWidget } from '@/components/learn-ai/FloatingLearnAiWidget'
 import { CookieConsentBanner } from '@/components/CookieConsentBanner'
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_SITE_URL || 'https://el-goodnews-academy.com'
@@ -110,6 +111,7 @@ export default function RootLayout({
             {children}
           </div>
           <FloatingSupportWidget />
+          <FloatingLearnAiWidget />
           <CookieConsentBanner />
         </RealtimeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}

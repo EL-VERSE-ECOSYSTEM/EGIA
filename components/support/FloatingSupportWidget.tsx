@@ -35,6 +35,9 @@ export function FloatingSupportWidget() {
   useEffect(() => {
     if (!isOpen) return
 
+    const closeForLearnAi = () => setIsOpen(false)
+    window.addEventListener('learn-ai-widget-open', closeForLearnAi)
+
     const ticketChannel = subscribeToTable('support_ticket', {
       callback: () => {
         toast.info('Support ticket status updated in real time!')
@@ -48,6 +51,7 @@ export function FloatingSupportWidget() {
     })
 
     return () => {
+      window.removeEventListener('learn-ai-widget-open', closeForLearnAi)
       unsubscribeFromTable(ticketChannel)
       unsubscribeFromTable(repliesChannel)
     }
@@ -86,14 +90,14 @@ export function FloatingSupportWidget() {
   }
 
   return (
-    <div className="fixed bottom-24 right-6 z-[999] font-sans">
+    <div className="fixed bottom-24 right-4 sm:right-6 z-[999] font-sans">
       {isOpen && (
         <div
           id="support-widget-panel"
           role="dialog"
           aria-label="EL LEARNERS Support Panel"
           aria-modal="true"
-          className="mb-4 bg-slate-950 border border-slate-800 rounded-3xl p-5 shadow-2xl text-white w-80 sm:w-96 animate-in fade-in slide-in-from-bottom-4 duration-300 motion-reduce:animate-none motion-reduce:transition-none space-y-4"
+          className="mb-3 max-h-[calc(100dvh-8rem)] w-[min(24rem,calc(100vw-2rem))] overflow-y-auto bg-slate-950 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-2xl text-white animate-in fade-in slide-in-from-bottom-4 duration-300 motion-reduce:animate-none motion-reduce:transition-none space-y-4"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -313,11 +317,14 @@ export function FloatingSupportWidget() {
         </span>
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            if (!isOpen) window.dispatchEvent(new Event('support-widget-open'))
+            setIsOpen(!isOpen)
+          }}
           aria-label={isOpen ? "Close live support panel" : "Open live support panel"}
           aria-expanded={isOpen}
           aria-controls="support-widget-panel"
-          className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-slate-950 font-black flex items-center justify-center shadow-[0_20px_50px_rgba(16,185,129,0.35)] hover:shadow-[0_25px_60px_rgba(16,185,129,0.5)] transition-all duration-300 motion-reduce:transition-none hover:scale-110 active:scale-95 motion-reduce:hover:scale-100 motion-reduce:active:scale-100 border border-emerald-300/30 backdrop-blur-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+          className="size-14 sm:size-16 rounded-2xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-slate-950 font-black flex items-center justify-center shadow-lg transition-all duration-300 motion-reduce:transition-none hover:scale-105 active:scale-95 motion-reduce:hover:scale-100 motion-reduce:active:scale-100 border border-emerald-300/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
           {isOpen ? (
             <X className="w-7 h-7 text-slate-950" aria-hidden="true" />
