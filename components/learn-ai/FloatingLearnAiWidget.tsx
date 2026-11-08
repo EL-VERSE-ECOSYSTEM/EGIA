@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Bot, LoaderCircle, MessageCircle, Send, Sparkles, X } from 'lucide-react'
 
 type Message = { role: 'user' | 'assistant'; content: string }
@@ -14,8 +15,11 @@ const packages = [
 ] as const
 
 export function FloatingLearnAiWidget() {
+  const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
+
+  if (pathname?.startsWith('/dashboard/learn-ai')) return null
   const [input, setInput] = useState('')
   const [balance, setBalance] = useState<Balance | null>(null)
   const [isSending, setIsSending] = useState(false)

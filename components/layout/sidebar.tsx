@@ -25,6 +25,7 @@ import {
   Clock,
   Gamepad2,
   Video,
+  Sparkles,
   X,
   BookMarked,
   BarChart3,
@@ -55,6 +56,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       hoverColor: 'hover:bg-indigo-500/10 hover:text-indigo-300',
       links: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/super-admin/overview' },
+        { label: 'Learn AI Chat', icon: Sparkles, href: '/dashboard/learn-ai' },
         { label: 'Applications Queue', icon: Building2, href: '/dashboard/super-admin/applications' },
         { label: 'Support Tickets', icon: HelpCircle, href: '/dashboard/super-admin/support' },
         { label: 'Active Schools', icon: School, href: '/dashboard/super-admin/schools' },
@@ -91,6 +93,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       hoverColor: 'hover:bg-amber-500/10 hover:text-amber-300',
       links: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/admin/overview' },
+        { label: 'Learn AI Chat', icon: Sparkles, href: '/dashboard/learn-ai' },
         { label: 'Students List', icon: Users, href: '/dashboard/admin/users/students/list' },
         { label: 'Teachers List', icon: User, href: '/dashboard/admin/users/teachers/list' },
         { label: 'Academics Control', icon: BookOpen, href: '/dashboard/admin/academics' },
@@ -114,6 +117,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       hoverColor: 'hover:bg-purple-500/10 hover:text-purple-300',
       links: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/teacher/overview' },
+        { label: 'Learn AI Chat', icon: Sparkles, href: '/dashboard/learn-ai' },
         { label: 'My Classes', icon: School, href: '/dashboard/teacher/my-classes' },
         { label: 'Assessments Desk', icon: GraduationCap, href: '/dashboard/teacher/assessments/create' },
         { label: 'Attendance Registry', icon: Calendar, href: '/dashboard/teacher/attendance/mark' },
@@ -135,6 +139,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       hoverColor: 'hover:bg-emerald-500/10 hover:text-emerald-300',
       links: [
         { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/parent/overview' },
+        { label: 'Learn AI Chat', icon: Sparkles, href: '/dashboard/learn-ai' },
         { label: 'My Children Profile', icon: Users, href: '/dashboard/parent/children/list' },
         { label: 'Parent Wallet', icon: Wallet, href: '/dashboard/parent/wallet' },
         { label: 'Payments History', icon: CreditCard, href: '/dashboard/parent/payments/history' },
@@ -153,6 +158,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       hoverColor: 'hover:bg-orange-500/10 hover:text-orange-300',
       links: [
         { label: 'Dashboard Overview', icon: LayoutDashboard, href: '/dashboard/student/overview' },
+        { label: 'Learn AI Chat', icon: Sparkles, href: '/dashboard/learn-ai' },
         { label: 'Learner Wallet', icon: Wallet, href: '/dashboard/student/wallet' },
         { label: 'Digital Library Desk', icon: BookOpen, href: '/dashboard/student/library' },
         { label: 'Video Lecture Rooms', icon: Video, href: '/dashboard/student/video-sessions' },
