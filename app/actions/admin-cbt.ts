@@ -1,8 +1,8 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { assessment, user } from '@/lib/db/schema'
-import { eq, desc, and } from 'drizzle-orm'
+import { assessment, teacher } from '@/lib/db/schema'
+import { eq, desc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { randomInt } from 'crypto'
@@ -11,15 +11,34 @@ function generateSecureAccessCode(): string {
   return randomInt(100000, 999999).toString()
 }
 
+interface AssessmentScopeUser {
+  role: string
+  schoolId: string | null
+  adminLevel?: string | null
+  department?: string | null
+}
+
+interface AssessmentScopeRecord {
+  schoolId: string | null
+  subject?: { departments?: string[] | null } | null
+}
+
+function hasAssessmentScope(user: AssessmentScopeUser, record: AssessmentScopeRecord) {
+  if (user.role === 'SUPER_ADMIN') return true
+  if (!user.schoolId || record.schoolId !== user.schoolId) return false
+  if (!user.adminLevel?.startsWith('HOD_')) return true
+
+  const department = user.department?.toLowerCase()
+  return Boolean(department && record.subject?.departments?.some(
+    (value) => value.toLowerCase() === department
+  ))
+}
+
 export async function getPendingAssessments() {
   const session = await auth.getSession()
   if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
     return []
   }
-
-  const currentUser = await db.query.user.findFirst({
-    where: eq(user.id, session.user.id)
-  })
 
   const allAssessments = await db.query.assessment.findMany({
     orderBy: [desc(assessment.createdAt)],
@@ -32,7 +51,7 @@ export async function getPendingAssessments() {
 
   return allAssessments.filter(a =>
     (a.status === 'pending_approval' || a.status === 'draft') &&
-    (!currentUser?.schoolId || !a.schoolId || a.schoolId === currentUser.schoolId)
+    hasAssessmentScope(session.user, a)
   )
 }
 
@@ -41,10 +60,6 @@ export async function getAllAdminAssessments() {
   if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
     return []
   }
-
-  const currentUser = await db.query.user.findFirst({
-    where: eq(user.id, session.user.id)
-  })
 
   const allAssessments = await db.query.assessment.findMany({
     orderBy: [desc(assessment.updatedAt)],
@@ -55,9 +70,7 @@ export async function getAllAdminAssessments() {
     }
   })
 
-  return allAssessments.filter(a =>
-    !currentUser?.schoolId || !a.schoolId || a.schoolId === currentUser.schoolId
-  )
+  return allAssessments.filter(a => hasAssessmentScope(session.user, a))
 }
 
 export async function handleCBTDecision(
@@ -72,18 +85,17 @@ export async function handleCBTDecision(
     throw new Error('Unauthorized')
   }
 
-  const currentUser = await db.query.user.findFirst({ where: eq(user.id, session.user.id) })
-
   const record = await db.query.assessment.findFirst({
-    where: eq(assessment.id, assessmentId)
+    where: eq(assessment.id, assessmentId),
+    with: { subject: true },
   })
 
   if (!record) {
     throw new Error('Assessment not found')
   }
 
-  if (currentUser?.schoolId && record.schoolId && record.schoolId !== currentUser.schoolId) {
-    throw new Error('Forbidden: Cannot modify assessment from another school.')
+  if (!hasAssessmentScope(session.user, record)) {
+    throw new Error('Forbidden: Assessment is outside your school or department scope.')
   }
 
   const finalStatus = action === 'approve' ? 'approved' : 'rejected'
@@ -115,12 +127,20 @@ export async function scheduleCBTExam(assessmentId: string, scheduledDate: strin
     throw new Error('Unauthorized')
   }
 
-  const currentUser = await db.query.user.findFirst({ where: eq(user.id, session.user.id) })
-  const record = await db.query.assessment.findFirst({ where: eq(assessment.id, assessmentId) })
+  const record = await db.query.assessment.findFirst({
+    where: eq(assessment.id, assessmentId),
+    with: { subject: true },
+  })
 
   if (!record) throw new Error('Assessment record not found.')
-  if (currentUser?.schoolId && record.schoolId && record.schoolId !== currentUser.schoolId) {
-    throw new Error('Forbidden: Assessment school tenant mismatch.')
+  if (!hasAssessmentScope(session.user, record)) {
+    throw new Error('Forbidden: Assessment is outside your school or department scope.')
+  }
+  if (session.user.role === 'TEACHER') {
+    const teacherProfile = await db.query.teacher.findFirst({ where: eq(teacher.userId, session.user.id) })
+    if (!teacherProfile || record.createdBy !== teacherProfile.id) {
+      throw new Error('Teachers can only schedule their own assessments.')
+    }
   }
 
   await db.update(assessment)

@@ -25,6 +25,7 @@ export default function AddTeacherPage() {
     password: 'StaffPassword123!',
     qualification: '',
     specialization: '',
+    department: '',
     type: 'FULL_TIME',
     isClassTeacher: false,
     assignedClassId: '',
@@ -166,6 +167,19 @@ export default function AddTeacherPage() {
                         className="h-14 rounded-2xl bg-slate-50 border-none transition-all"
                       />
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px] ml-1">Department</Label>
+                    <Select value={formData.department} onValueChange={(department) => setFormData({ ...formData, department })}>
+                      <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none font-bold">
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Science">Science</SelectItem>
+                        <SelectItem value="Arts">Arts / Humanities</SelectItem>
+                        <SelectItem value="Commercial">Commercial</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
               </CardContent>
             </Card>

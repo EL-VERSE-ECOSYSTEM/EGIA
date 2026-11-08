@@ -4,6 +4,7 @@ import { checkQuota, DEFAULT_RESOURCE_LIMITS } from '../../lib/limits'
 import { verifyDocumentAccessAuthorization } from '../../lib/storage-media'
 import { rateLimit } from '../../lib/rate-limit'
 import { getRedirectUrlForIdentity } from '../../lib/auth/redirectMap'
+import { canSchoolAdminAccess } from '../../lib/auth/school-admin-permissions'
 
 test('Multi-tenant storage document access prevents cross-school leaking', () => {
   // A teacher from school A requesting a document owned by school B must be denied
@@ -69,4 +70,15 @@ test('Role-based navigation redirect prevents unauthorized dashboard routing', (
   assert.equal(getRedirectUrlForIdentity({ role: 'TEACHER' }), '/dashboard/teacher')
   assert.equal(getRedirectUrlForIdentity({ role: 'PARENT' }), '/dashboard/parent')
   assert.equal(getRedirectUrlForIdentity({ role: 'STUDENT' }), '/dashboard/student')
+})
+
+test('School admin levels isolate financial and promotion permissions', () => {
+  assert.equal(canSchoolAdminAccess('PRIMARY_ADMIN', 'read', 'payment'), true)
+  assert.equal(canSchoolAdminAccess('VICE_PRINCIPAL_ACADEMICS', 'read', 'payment'), false)
+  assert.equal(canSchoolAdminAccess('VICE_PRINCIPAL_ADMIN', 'read', 'transaction'), false)
+  assert.equal(canSchoolAdminAccess('HOD_SCIENCE', 'read', 'teacher'), true)
+  assert.equal(canSchoolAdminAccess('HOD_SCIENCE', 'publish', 'student'), false)
+  assert.equal(canSchoolAdminAccess('HOD_SCIENCE', 'update', 'student', 'expulsion'), false)
+  assert.equal(canSchoolAdminAccess('HOD_SCIENCE', 'update', 'teacher', 'teacher promotion'), false)
+  assert.equal(canSchoolAdminAccess('HOD_SCIENCE', 'create', 'payment'), false)
 })

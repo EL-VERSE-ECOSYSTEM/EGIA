@@ -100,34 +100,39 @@ export default async function LandingPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative pt-16 sm:pt-24 pb-20 sm:pb-32 overflow-hidden bg-gradient-to-br from-amber-500/10 via-blue-500/10 to-purple-500/10 dark:from-amber-950/20 dark:via-slate-950 dark:to-purple-950/20">
-          <div className="container mx-auto px-4 relative z-10 text-center max-w-5xl">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-xs sm:text-sm font-black mb-6 sm:mb-10 tracking-widest uppercase">
-              <Trophy className="w-4 h-4" /> Academic Excellence in Nigeria
+        <section className="relative isolate flex min-h-[min(44rem,72svh)] items-center overflow-hidden bg-slate-950 text-white">
+          <img
+            src="https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=85&w=2200"
+            alt="Students learning together in a classroom"
+            className="absolute inset-0 size-full object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-slate-950/60" aria-hidden="true" />
+          <div className="container relative z-10 mx-auto px-4 py-14 sm:py-20">
+            <div className="max-w-4xl">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/25 text-white text-xs sm:text-sm font-black mb-6 tracking-widest uppercase">
+              <Trophy className="w-4 h-4 text-amber-300" /> Built for Nigerian schools and families
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-slate-900 dark:text-white mb-6 sm:mb-8 leading-tight tracking-tighter">
-              Inspiring <span className="text-amber-600 dark:text-amber-500">Greatness</span> In Every Student
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-6 leading-tight">
+              EL LEARNERS APP
             </h1>
-            <p className="text-base sm:text-xl text-slate-600 dark:text-slate-300 mb-8 sm:mb-12 leading-relaxed max-w-3xl mx-auto font-medium">
-              EL LEARNERS is where traditional values meet 21st-century innovation.
-              Join a community committed to nurturing the total child with real-time CBT, Online Prep, and instant parent engagement.
+            <p className="text-base sm:text-xl text-white/90 mb-8 leading-relaxed max-w-3xl font-medium">
+              A connected school platform for learning, assessments, school operations, and timely family updates.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
               <AppDemoTrigger variant="hero" className="w-full sm:w-auto" />
               <Link href="/auth/signup" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white h-12 sm:h-16 px-6 sm:px-10 rounded-2xl font-black text-base sm:text-lg shadow-xl shadow-amber-200 dark:shadow-none group transition-all">
-                  START REGISTRATION <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                <Button size="lg" className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white h-12 sm:h-14 px-6 sm:px-8 rounded-xl font-black text-base shadow-xl group transition-all">
+                  REGISTER YOUR SCHOOL <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
               <Link href="/auth/signin" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white h-12 sm:h-16 px-6 sm:px-10 rounded-2xl font-black text-base sm:text-lg shadow-xl shadow-slate-200 dark:shadow-none transition-all">
-                  PORTAL LOGIN
+                <Button size="lg" variant="outline" className="w-full sm:w-auto border-white/50 bg-white/10 hover:bg-white/20 text-white h-12 sm:h-14 px-6 sm:px-8 rounded-xl font-black text-base transition-all">
+                  SIGN IN
                 </Button>
               </Link>
             </div>
+            </div>
           </div>
-          <div className="absolute top-1/2 left-0 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-amber-400/10 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-[350px] sm:w-[600px] h-[350px] sm:h-[600px] bg-blue-400/10 rounded-full blur-[140px] translate-x-1/3 translate-y-1/3" />
         </section>
 
         {/* Gallery / Campus Spotlight */}

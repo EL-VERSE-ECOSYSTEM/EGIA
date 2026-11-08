@@ -27,8 +27,13 @@ import Link from 'next/link'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 
 import { getReportCards } from '@/app/actions/report-cards'
+import { auth } from '@/lib/auth'
 
 export default async function AdminOverviewPage() {
+  const session = await auth.getSession()
+  const canViewFinance = session?.user.role === 'ADMIN' ||
+    session?.user.role === 'SUPER_ADMIN' || session?.user.adminLevel === 'PRIMARY_ADMIN'
+
   let statsData = {
     schoolName: 'EL LEARNERS ACADEMY',
     schoolCode: 'MAIN-001',
@@ -152,7 +157,7 @@ export default async function AdminOverviewPage() {
     <DashboardLayout role="admin">
     <div className="p-4 sm:p-8 max-w-[1600px] mx-auto space-y-8 sm:space-y-10">
       {/* Non-Dismissible School Registration Pending or Failed Payment Lock Modal */}
-      {(statsData.paymentStatus === 'PENDING' || statsData.paymentStatus === 'FAILED') && (
+      {canViewFinance && (statsData.paymentStatus === 'PENDING' || statsData.paymentStatus === 'FAILED') && (
         <SchoolPaymentLockModal
           schoolName={statsData.schoolName}
           paymentStatus={statsData.paymentStatus}
@@ -187,7 +192,7 @@ export default async function AdminOverviewPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-        {stats.map((stat, idx) => (
+        {stats.filter(stat => canViewFinance || stat.label !== 'Revenue (Term)').map((stat, idx) => (
           <Card key={idx} className="border-none shadow-xl shadow-slate-200/50 rounded-[2rem] bg-white hover:shadow-2xl transition-all duration-300 group">
             <CardContent className="p-6 sm:p-8">
               <div className="flex items-center justify-between mb-6">
@@ -213,7 +218,7 @@ export default async function AdminOverviewPage() {
            <p className="text-slate-400 text-xs font-bold mt-1">Access academy departments directly from your mobile portal.</p>
         </div>
         <div className="grid grid-cols-2 gap-4">
-           {departments.map((dept, idx) => (
+           {departments.filter(dept => canViewFinance || dept.badge !== 'Finance').map((dept, idx) => (
               <Card key={idx} className="border-none shadow-md rounded-2xl bg-white overflow-hidden flex flex-col justify-between">
                  <CardContent className="p-4 space-y-3 flex-1">
                     <div className="flex justify-between items-start">
@@ -241,6 +246,7 @@ export default async function AdminOverviewPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        {canViewFinance && (
         <Card className="lg:col-span-2 border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white overflow-hidden">
           <CardHeader className="p-6 sm:p-10 pb-0 flex flex-row items-center justify-between">
             <div>
@@ -255,6 +261,7 @@ export default async function AdminOverviewPage() {
             <AdminRevenueChart />
           </CardContent>
         </Card>
+        )}
 
         <div className="space-y-8">
           <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] bg-white">

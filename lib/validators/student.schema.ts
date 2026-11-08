@@ -25,6 +25,7 @@ export const studentEnrollmentSchema = z.object({
   email: z.union([z.string().email("Enter a valid email address"), z.literal("")]).optional(),
   admissionNumber: z.union([z.string().regex(/^EGIA-[PS]-\d{6}$/, "Use EGIA-P-###### or EGIA-S-######"), z.literal("")]).optional(),
   class: z.enum(schoolClasses, { message: "Select a class" }),
+  department: z.union([z.enum(["Science", "Arts", "Commercial"]), z.literal("")]).optional(),
   gender: z.enum(["MALE", "FEMALE"]),
   academicSession: z.string().min(1),
   term: z.enum(["First Term", "Second Term", "Third Term"]),

@@ -45,25 +45,33 @@ async function requireSchoolAdminScope(requestedSchoolId?: string) {
 
 // ===== SUPPORT TICKETS ACTIONS =====
 export async function getAdminSupportTickets() {
-  await requireAdmin()
-  const list = await db.select().from(supportTicket).orderBy(desc(supportTicket.createdAt))
-  const result: any[] = []
-  for (const item of list) {
-    const userRecord = await db.query.user.findFirst({
-      where: eq(userTable.id, item.userId)
-    })
-    result.push({
-      ...item,
-      userName: userRecord?.name || 'Portal User',
-      userEmail: userRecord?.email || 'N/A'
-    })
-  }
-  return result
+  const schoolId = await requireSchoolAdminScope()
+  const query = db.select({ ticket: supportTicket, userRecord: userTable })
+    .from(supportTicket)
+    .innerJoin(userTable, eq(userTable.id, supportTicket.userId))
+  const list = schoolId
+    ? await query.where(eq(userTable.schoolId, schoolId)).orderBy(desc(supportTicket.createdAt))
+    : await query.orderBy(desc(supportTicket.createdAt))
+
+  return list.map(({ ticket, userRecord }) => ({
+    ...ticket,
+    userName: userRecord.name || 'Portal User',
+    userEmail: userRecord.email || 'N/A',
+  }))
 }
 
 export async function resolveSupportTicket(ticketId: string, resolution: string) {
-  await requireAdmin()
+  const schoolId = await requireSchoolAdminScope()
   if (!resolution) throw new Error('Please provide a resolution notes.')
+
+  const [ticket] = await db.select({ ticket: supportTicket, ownerSchoolId: userTable.schoolId })
+    .from(supportTicket)
+    .innerJoin(userTable, eq(userTable.id, supportTicket.userId))
+    .where(eq(supportTicket.id, ticketId))
+    .limit(1)
+  if (!ticket || (schoolId && ticket.ownerSchoolId !== schoolId)) {
+    throw new Error('Support ticket not found in the active school.')
+  }
 
   const result = await db.update(supportTicket)
     .set({
@@ -81,7 +89,7 @@ export async function resolveSupportTicket(ticketId: string, resolution: string)
 
 // ===== DISPUTES ACTIONS =====
 export async function getAdminDisputes() {
-  await requireAdmin()
+  const schoolId = await requireSchoolAdminScope()
   const list = await db.select().from(dispute).orderBy(desc(dispute.createdAt))
   const result: any[] = []
   for (const item of list) {
@@ -94,6 +102,15 @@ export async function getAdminDisputes() {
     const paymentRecord = item.relatedPaymentId ? await db.query.payment.findFirst({
       where: eq(payment.id, item.relatedPaymentId)
     }) : null
+
+    if (
+      schoolId &&
+      userRecord?.schoolId !== schoolId &&
+      studentRecord?.schoolId !== schoolId &&
+      paymentRecord?.schoolId !== schoolId
+    ) {
+      continue
+    }
 
     result.push({
       ...item,
@@ -108,8 +125,23 @@ export async function getAdminDisputes() {
 }
 
 export async function resolveDispute(disputeId: string, resolution: string) {
-  await requireAdmin()
+  const schoolId = await requireSchoolAdminScope()
   if (!resolution) throw new Error('Please provide a resolution note.')
+
+  const complaint = await db.query.dispute.findFirst({ where: eq(dispute.id, disputeId) })
+  if (!complaint) throw new Error('Complaint not found.')
+  if (schoolId) {
+    const reporter = await db.query.user.findFirst({ where: eq(userTable.id, complaint.raisedById) })
+    const relatedStudent = complaint.relatedStudentId
+      ? await db.query.student.findFirst({ where: eq(student.id, complaint.relatedStudentId) })
+      : null
+    const relatedPayment = complaint.relatedPaymentId
+      ? await db.query.payment.findFirst({ where: eq(payment.id, complaint.relatedPaymentId) })
+      : null
+    if (reporter?.schoolId !== schoolId && relatedStudent?.schoolId !== schoolId && relatedPayment?.schoolId !== schoolId) {
+      throw new Error('Complaint not found in the active school.')
+    }
+  }
 
   const result = await db.update(dispute)
     .set({

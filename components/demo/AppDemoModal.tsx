@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -34,14 +34,23 @@ const ROLE_ICONS: Record<string, any> = {
 export function AppDemoModal({ isOpen, onClose }: AppDemoModalProps) {
   const [activeRole, setActiveRole] = useState<DemoRole>('superadmin')
 
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   const activeData = DEMO_ROLES_DATA[activeRole]
   const IconComponent = ROLE_ICONS[activeData.iconName] || Crown
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-950 text-white border border-slate-800 rounded-3xl shadow-2xl p-0 font-sans">
+    <div role="dialog" aria-modal="true" aria-label="EL LEARNERS app demo" className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative h-[min(90dvh,60rem)] w-full max-w-4xl overflow-y-auto bg-slate-950 text-white border border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl p-0 font-sans">
         {/* Header */}
         <div className="p-6 sm:p-8 border-b border-slate-800/80 bg-slate-900/80 sticky top-0 z-20 backdrop-blur-xl">
           <div className="flex items-center justify-between">
@@ -68,7 +77,7 @@ export function AppDemoModal({ isOpen, onClose }: AppDemoModalProps) {
           </div>
 
           {/* Role Switcher Tabs */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 mt-6 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800/80">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-6 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800/80">
             {(Object.keys(DEMO_ROLES_DATA) as DemoRole[]).map((role) => {
               const roleInfo = DEMO_ROLES_DATA[role]
               const RoleIcon = ROLE_ICONS[roleInfo.iconName] || Crown
@@ -79,6 +88,7 @@ export function AppDemoModal({ isOpen, onClose }: AppDemoModalProps) {
                   key={role}
                   type="button"
                   onClick={() => setActiveRole(role)}
+                  aria-pressed={isActive}
                   className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
                     isActive
                       ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-white shadow-lg shadow-amber-600/20'

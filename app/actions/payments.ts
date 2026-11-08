@@ -18,7 +18,7 @@ const PAYSTACK_GATEWAY_FEE = 161.25
 const REGISTRATION_FEE = 2000.00
 
 async function assertStudentPaymentAccess(
-  user: { id: string; role: string; schoolId: string | null },
+  user: { id: string; role: string; schoolId: string | null; adminLevel?: string | null },
   studentRecord: typeof student.$inferSelect,
 ) {
   if (user.role === 'SUPER_ADMIN') return
@@ -30,7 +30,7 @@ async function assertStudentPaymentAccess(
   }
 
   if (
-    ['ADMIN', 'SCHOOL_ADMIN'].includes(user.role) &&
+    (user.role === 'ADMIN' || (user.role === 'SCHOOL_ADMIN' && user.adminLevel === 'PRIMARY_ADMIN')) &&
     user.schoolId &&
     studentRecord.schoolId === user.schoolId
   ) return
@@ -38,10 +38,10 @@ async function assertStudentPaymentAccess(
   throw new Error('Forbidden: You can only access payment records for your own student or school.')
 }
 
-function assertReceiptSchoolAccess(user: { role: string; schoolId: string | null }, schoolId: string) {
+function assertReceiptSchoolAccess(user: { role: string; schoolId: string | null; adminLevel?: string | null }, schoolId: string) {
   if (user.role === 'SUPER_ADMIN') return
   if (
-    ['ADMIN', 'SCHOOL_ADMIN'].includes(user.role) &&
+    (user.role === 'ADMIN' || (user.role === 'SCHOOL_ADMIN' && user.adminLevel === 'PRIMARY_ADMIN')) &&
     user.schoolId &&
     user.schoolId === schoolId
   ) return

@@ -95,6 +95,7 @@ async function getSessionImpl() {
       role: finalRole,
       adminLevel,
       schoolId,
+      department: primaryIdentity?.department || null,
     }
   }
 }
@@ -147,6 +148,7 @@ async function getUserImpl() {
     role: finalRole,
     adminLevel,
     schoolId,
+    department: primaryIdentity?.department || null,
   }
 }
 

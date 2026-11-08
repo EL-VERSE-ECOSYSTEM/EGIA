@@ -246,7 +246,17 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
   }, [role])
 
   // Dynamically append Adult Education links if applicable
-  const links = [...config.links]
+  const links = config.links.filter((link) => {
+    if (role !== 'admin') return true
+    const isPrimaryAdmin = adminRoleInfo?.level === 'PRIMARY_ADMIN'
+    if ((link.href.includes('/finance/') || link.href === '/dashboard/admin/wallet') && !isPrimaryAdmin) {
+      return false
+    }
+    if (adminRoleInfo?.level.startsWith('HOD_') && link.href === '/dashboard/admin/disciplinary') {
+      return false
+    }
+    return true
+  })
   if (role === 'parent' && isAdultEnrolled) {
     links.push(
       { label: 'Adult Video Classes/Sessions', icon: MonitorPlay, href: '/dashboard/parent/adult-education/video-classes' },

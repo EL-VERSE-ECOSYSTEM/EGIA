@@ -154,6 +154,7 @@ export const teacher = pgTable('teacher', {
   id: text('id').primaryKey(),
   userId: text('userid').notNull().unique(),
   schoolId: text('schoolid'),
+  department: text('department'),
   staffCode: text('staffcode').unique(),
   firstName: text('firstname').notNull(),
   lastName: text('lastname').notNull(),

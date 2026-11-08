@@ -32,7 +32,7 @@ export async function getCurrentAdminSchool() {
       where: or(eq(userTable.id, session.user.id), eq(userTable.email, userEmail)),
     })
 
-    let targetSchoolId = u?.schoolId || (session.user as any)?.schoolId || session.user?.user_metadata?.school_id || null
+    const targetSchoolId = (session.user as any)?.schoolId || u?.schoolId || session.user?.user_metadata?.school_id || null
 
     if (!targetSchoolId && session.user?.user_metadata?.school_code) {
       const schByCode = await db.query.school.findFirst({
@@ -106,31 +106,33 @@ export async function getTeacherClasses(teacherId: string) {
 }
 
 export async function getAdminDashboardStats() {
-  const schoolRecord = await getCurrentAdminSchool()
-  const schoolId = schoolRecord?.id
+  const [schoolRecord, session] = await Promise.all([getCurrentAdminSchool(), auth.getSession()])
+  if (!schoolRecord || !session?.user) {
+    return {
+      schoolName: 'School overview unavailable', schoolCode: '', paymentStatus: 'PAID',
+      paymentReference: null, adminEmail: '', schoolId: null,
+      totalStudents: 0, totalTeachers: 0, revenue: '0', activeCBTs: 0,
+    }
+  }
 
-  const studentQuery = schoolId
-    ? db.select({ count: sql<number>`count(*)` }).from(student).where(eq(student.schoolId, schoolId))
-    : db.select({ count: sql<number>`count(*)` }).from(student)
-
-  const teacherQuery = schoolId
-    ? db.select({ count: sql<number>`count(*)` }).from(teacher).where(eq(teacher.schoolId, schoolId))
-    : db.select({ count: sql<number>`count(*)` }).from(teacher)
-
-  const revenueQuery = schoolId
-    ? db.select({ sum: sql<string>`sum(amount)` }).from(payment).innerJoin(student, eq(payment.studentId, student.id)).where(and(eq(payment.status, 'success'), eq(student.schoolId, schoolId)))
-    : db.select({ sum: sql<string>`sum(amount)` }).from(payment).where(eq(payment.status, 'success'))
-
-  const cbtQuery = schoolId
-    ? db.select({ count: sql<number>`count(*)` }).from(assessment).where(and(eq(assessment.schoolId, schoolId), or(eq(assessment.status, 'published'), eq(assessment.status, 'approved'))))
-    : db.select({ count: sql<number>`count(*)` }).from(assessment).where(or(eq(assessment.status, 'published'), eq(assessment.status, 'approved')))
-
-  const [[studentsCount], [teachersCount], [totalRevenue], [activeCBTs]] = await Promise.all([
-    studentQuery,
-    teacherQuery,
-    revenueQuery,
-    cbtQuery,
+  const schoolId = schoolRecord.id
+  const [studentsCount, teachersCount, activeCBTs] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(student).where(eq(student.schoolId, schoolId)),
+    db.select({ count: sql<number>`count(*)` }).from(teacher).where(eq(teacher.schoolId, schoolId)),
+    db.select({ count: sql<number>`count(*)` }).from(assessment).where(and(
+      eq(assessment.schoolId, schoolId),
+      or(eq(assessment.status, 'published'), eq(assessment.status, 'approved')),
+    )),
   ])
+
+  const canViewFinance = session.user.role === 'ADMIN' ||
+    session.user.role === 'SUPER_ADMIN' || session.user.adminLevel === 'PRIMARY_ADMIN'
+  const [totalRevenue] = canViewFinance
+    ? await db.select({ sum: sql<string>`sum(${payment.amount})` })
+        .from(payment)
+        .innerJoin(student, eq(payment.studentId, student.id))
+        .where(and(eq(payment.status, 'success'), eq(student.schoolId, schoolId)))
+    : [{ sum: '0' }]
 
   return {
     schoolName: schoolRecord?.name || 'EL LEARNERS ACADEMY',
@@ -139,23 +141,40 @@ export async function getAdminDashboardStats() {
     paymentReference: schoolRecord?.paymentReference || null,
     adminEmail: schoolRecord?.adminEmail || '',
     schoolId: schoolRecord?.id || null,
-    totalStudents: Number(studentsCount?.count || 0),
-    totalTeachers: Number(teachersCount?.count || 0),
+    totalStudents: Number(studentsCount[0]?.count || 0),
+    totalTeachers: Number(teachersCount[0]?.count || 0),
     revenue: totalRevenue?.sum || '0',
-    activeCBTs: Number(activeCBTs?.count || 0)
+    activeCBTs: Number(activeCBTs[0]?.count || 0)
   }
 }
 
 export async function getRecentAuditLogs(limit = 5) {
-  return await db.select()
+  const schoolRecord = await getCurrentAdminSchool()
+  if (!schoolRecord) return []
+
+  const rows = await db.select({ auditLog })
     .from(auditLog)
+    .innerJoin(userTable, eq(userTable.id, auditLog.userId))
+    .where(eq(userTable.schoolId, schoolRecord.id))
     .orderBy(desc(auditLog.createdAt))
     .limit(limit)
+  return rows.map(({ auditLog }) => auditLog)
 }
 
 export async function getUrgentAlerts() {
-  const openDisputes = await db.select().from(dispute).where(eq(dispute.status, 'OPEN')).limit(3)
-  return openDisputes.map(d => ({
+  const schoolRecord = await getCurrentAdminSchool()
+  if (!schoolRecord) return []
+
+  const openDisputes = await db.select({ dispute })
+    .from(dispute)
+    .leftJoin(userTable, eq(userTable.id, dispute.raisedById))
+    .leftJoin(student, and(eq(student.id, dispute.relatedStudentId), eq(student.schoolId, schoolRecord.id)))
+    .where(and(
+      eq(dispute.status, 'OPEN'),
+      or(eq(userTable.schoolId, schoolRecord.id), eq(student.schoolId, schoolRecord.id)),
+    ))
+    .limit(3)
+  return openDisputes.map(({ dispute: d }) => ({
     title: d.title,
     desc: d.description,
     priority: d.priority

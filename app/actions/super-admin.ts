@@ -73,7 +73,7 @@ export async function getSuperAdminOverviewStats() {
         transactions,
         teacherWallets,
       }
-    }, 30, ['super_admin:overview'])
+    }, 1, ['super_admin:overview'])
   } catch (error: any) {
     return sanitizeServerError('getSuperAdminOverviewStats', error, 'Unable to retrieve system statistics.')
   }

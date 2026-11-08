@@ -1,6 +1,8 @@
 import { db } from './db'
 import { abacPolicy } from './db/schema'
 import { eq, and } from 'drizzle-orm'
+import { auth } from '@/lib/auth'
+import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'
 
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'publish' | 'grade'
 export type Resource =
@@ -34,7 +36,27 @@ export async function checkPermission(
   resourceName: Resource,
   resourceData?: any
 ): Promise<boolean> {
-  const normalizedRole = (role || '').toUpperCase()
+  const session = await auth.getSession()
+  const activeUser = session?.user?.id === userId ? session.user : null
+  const normalizedRole = (activeUser?.role || role || '').toUpperCase()
+  const adminLevel = activeUser?.adminLevel || null
+
+  if (normalizedRole === 'SCHOOL_ADMIN') {
+    if (!adminLevel || !canSchoolAdminAccess(adminLevel, action, resourceName, resourceData?.operation)) {
+      return false
+    }
+    if (activeUser?.schoolId && resourceData?.schoolId && activeUser.schoolId !== resourceData.schoolId) {
+      return false
+    }
+    if (
+      adminLevel.startsWith('HOD_') &&
+      activeUser?.department &&
+      resourceData?.department &&
+      activeUser.department.toLowerCase() !== String(resourceData.department).toLowerCase()
+    ) {
+      return false
+    }
+  }
 
   // 1. Fetch applicable policies from DB sorted by priority (highest priority evaluated first)
   const policies = await db.query.abacPolicy.findMany({
@@ -47,7 +69,13 @@ export async function checkPermission(
   })
 
   const context: EvaluationContext = {
-    user: { id: userId, role: normalizedRole },
+    user: {
+      id: userId,
+      role: normalizedRole,
+      schoolId: activeUser?.schoolId,
+      adminLevel,
+      department: activeUser?.department,
+    },
     resource: resourceData || {}
   }
 
@@ -67,8 +95,12 @@ export async function checkPermission(
     return true
   }
 
-  if (normalizedRole === 'ADMIN' || normalizedRole === 'PRIMARY_ADMIN' || normalizedRole === 'SCHOOL_ADMIN') {
+  if (normalizedRole === 'ADMIN' || normalizedRole === 'PRIMARY_ADMIN') {
     return true
+  }
+
+  if (normalizedRole === 'SCHOOL_ADMIN') {
+    return canSchoolAdminAccess(adminLevel, action, resourceName, resourceData?.operation)
   }
 
   if (normalizedRole === 'TEACHER') {

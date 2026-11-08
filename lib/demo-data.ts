@@ -6,7 +6,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 
-export type DemoRole = 'superadmin' | 'schooladmin' | 'teacher' | 'student' | 'parent'
+export type DemoRole = 'superadmin' | 'schooladmin' | 'primaryadmin' | 'viceprincipal' | 'hod' | 'teacher' | 'student' | 'parent'
 
 export const DEMO_ROLES_DATA: Record<DemoRole, {
   title: string
@@ -70,6 +70,84 @@ export const DEMO_ROLES_DATA: Record<DemoRole, {
       { name: 'Fee & Payment Management', description: 'Set termly fee items, review manual bank receipt uploads, and track Paystack payments.', tag: 'Finance', step: 'Step 1: Set fee warning dates to trigger parent warning banners.' },
       { name: 'Staff & Student Promotion', description: 'Promote students between classes (Primary 3 to SSS 3) and assign class teachers.', tag: 'Academics', step: 'Step 2: Select promotion criteria and run automated class promotions.' },
       { name: 'Bi-Monthly Renewal Lockout', description: 'View 60-day renewal status (NGN 30,161.25) with daily reminders 14 days prior to expiration.', tag: 'System', step: 'Step 3: Pay school renewal fee directly via Paystack.' }
+    ],
+    loginLink: '/auth/signin'
+  },
+  primaryadmin: {
+    title: 'Primary Admin',
+    subtitle: 'Principal and school owner',
+    badge: 'SCHOOL LEADERSHIP',
+    badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+    iconName: 'Building2',
+    bannerImage: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=1000',
+    summary: 'The school owner manages one school, its leadership team, staff and families, academic operations, and school finances.',
+    stats: [
+      { label: 'School scope', value: 'Own school' },
+      { label: 'Finance', value: 'Full access' },
+      { label: 'Admin team', value: 'Manage' }
+    ],
+    keyFeatures: [
+      'Manage school fees, payment reviews, and transaction history',
+      'Add and manage Vice Principals, HODs, teachers, and other staff',
+      'Register students, manage parent records, and oversee school operations',
+      'Set student game and messaging hours and approve CBT assessments'
+    ],
+    workflows: [
+      { name: 'School leadership', description: 'Add school administrators and assign their responsibilities.', tag: 'People', step: 'Administration remains scoped to this school.' },
+      { name: 'School finances', description: 'Review fee schedules, payment activity, and transaction history.', tag: 'Finance', step: 'Only the Primary Admin manages school finances.' },
+      { name: 'Academic operations', description: 'Approve CBT assessments, manage complaints, and coordinate staff.', tag: 'Academics', step: 'School changes are recorded and visible to authorized staff.' }
+    ],
+    loginLink: '/auth/signin'
+  },
+  viceprincipal: {
+    title: 'Vice Principal',
+    subtitle: 'School-wide academic and operational leadership',
+    badge: 'SCHOOL LEADERSHIP',
+    badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    iconName: 'Building2',
+    bannerImage: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=1000',
+    summary: 'The Vice Principal manages academic and school operations for their school while financial records and transactions remain restricted to the Primary Admin.',
+    stats: [
+      { label: 'School scope', value: 'Own school' },
+      { label: 'Finance', value: 'Restricted' },
+      { label: 'Academics', value: 'Manage' }
+    ],
+    keyFeatures: [
+      'Register students and coordinate school parents and staff',
+      'Manage school schedules, learning controls, and communications',
+      'Approve CBT assessments and exams and manage school complaints',
+      'No access to fee payments, finance reports, or transaction history'
+    ],
+    workflows: [
+      { name: 'Academic approvals', description: 'Review CBT assessments and examinations before release.', tag: 'Academics', step: 'Approval activity is scoped to the current school.' },
+      { name: 'School operations', description: 'Coordinate students, families, staff, messages, and learning hours.', tag: 'Operations', step: 'School-wide actions remain within the assigned school.' },
+      { name: 'Financial boundaries', description: 'Finance pages and transaction history are unavailable.', tag: 'Access', step: 'Financial authority stays with the Primary Admin.' }
+    ],
+    loginLink: '/auth/signin'
+  },
+  hod: {
+    title: 'Head of Department',
+    subtitle: 'Department leadership for Science, Arts, or Commercial',
+    badge: 'DEPARTMENT LEADERSHIP',
+    badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
+    iconName: 'GraduationCap',
+    bannerImage: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1000',
+    summary: 'The HOD oversees teaching and academic activity within their assigned department. Finance, student discipline, and teacher promotion remain outside this role.',
+    stats: [
+      { label: 'Department', value: 'Assigned' },
+      { label: 'Finance', value: 'Restricted' },
+      { label: 'CBT approval', value: 'Department' }
+    ],
+    keyFeatures: [
+      'Manage teachers and academic work in the assigned department',
+      'Register students and coordinate parent and staff records for the school',
+      'Review and approve department CBT assessments and exams',
+      'No finance, transaction history, suspensions, expulsions, or teacher promotion'
+    ],
+    workflows: [
+      { name: 'Department oversight', description: 'Review teaching activity and support teachers in the assigned department.', tag: 'Department', step: 'Science, Arts, and Commercial access is separated.' },
+      { name: 'CBT review', description: 'Review department assessments and exams before approval.', tag: 'Academics', step: 'Approval is limited to the assigned department.' },
+      { name: 'Restricted actions', description: 'Financial, disciplinary, and teacher promotion actions are unavailable.', tag: 'Access', step: 'Escalate those cases to the Principal or Vice Principal.' }
     ],
     loginLink: '/auth/signin'
   },

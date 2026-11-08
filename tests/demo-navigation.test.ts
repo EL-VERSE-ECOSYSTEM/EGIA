@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { DEMO_ROLES_DATA, DemoRole } from '../lib/demo-data.ts'
 
 describe('App Demo Navigation & Role Coverage Tests', () => {
-  it('covers all 5 essential user roles in DEMO_ROLES_DATA', () => {
-    const roles: DemoRole[] = ['superadmin', 'schooladmin', 'teacher', 'student', 'parent']
+  it('covers all essential user roles in DEMO_ROLES_DATA', () => {
+    const roles: DemoRole[] = ['superadmin', 'schooladmin', 'primaryadmin', 'viceprincipal', 'hod', 'teacher', 'student', 'parent']
     for (const role of roles) {
       assert.ok(DEMO_ROLES_DATA[role], `Missing demo configuration for role: ${role}`)
       assert.ok(DEMO_ROLES_DATA[role].title, `Missing title for role: ${role}`)
@@ -13,6 +13,13 @@ describe('App Demo Navigation & Role Coverage Tests', () => {
       assert.ok(DEMO_ROLES_DATA[role].workflows.length >= 2, `Expected at least 2 workflows for ${role}`)
       assert.equal(DEMO_ROLES_DATA[role].loginLink, '/auth/signin')
     }
+  })
+
+  it('distinguishes school leadership responsibilities in the demo', () => {
+    assert.ok(DEMO_ROLES_DATA.primaryadmin.keyFeatures.some(feature => feature.includes('transaction history')))
+    assert.ok(DEMO_ROLES_DATA.viceprincipal.keyFeatures.some(feature => feature.includes('No access to fee payments')))
+    assert.ok(DEMO_ROLES_DATA.hod.keyFeatures.some(feature => feature.includes('No finance')))
+    assert.ok(DEMO_ROLES_DATA.hod.keyFeatures.some(feature => feature.includes('teacher promotion')))
   })
 
   it('includes specific high-value workflows for Super Admin and School Admin', () => {

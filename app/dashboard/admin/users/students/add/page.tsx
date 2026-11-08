@@ -108,6 +108,15 @@ export default function AddStudentPage() {
                     {errors.class && <p className="text-xs font-bold text-red-600">{errors.class.message}</p>}
                   </div>
                 </div>
+                <div className="space-y-3">
+                  <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Department</Label>
+                  <select {...register('department')} defaultValue="" className="h-14 w-full rounded-xl bg-slate-50 px-3 font-bold">
+                    <option value="">Not applicable</option>
+                    <option value="Science">Science</option>
+                    <option value="Arts">Arts / Humanities</option>
+                    <option value="Commercial">Commercial</option>
+                  </select>
+                </div>
               </form>
             </CardContent>
           </Card>

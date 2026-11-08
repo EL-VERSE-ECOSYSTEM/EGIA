@@ -20,6 +20,7 @@ import {
 import { eq, sql, and, count, inArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
+import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'
 import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, isValidAdmissionNumber, generateStaffId } from '@/lib/id'
 import { studentEnrollmentSchema } from '@/lib/validators/student.schema'
@@ -41,6 +42,8 @@ async function getAdminSchoolId(): Promise<string> {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
+  if (session.user.schoolId) return session.user.schoolId
+
   const userRec = await db.query.user.findFirst({
     where: eq(userTable.id, session.user.id),
   })
@@ -48,7 +51,10 @@ async function getAdminSchoolId(): Promise<string> {
   if (userRec?.schoolId) return userRec.schoolId
 
   const adminRoleRec = await db.query.schoolAdminRoles.findFirst({
-    where: eq(schoolAdminRoles.userId, session.user.id),
+    where: and(
+      eq(schoolAdminRoles.userId, session.user.id),
+      eq(schoolAdminRoles.isActive, true),
+    ),
   })
 
   if (adminRoleRec?.schoolId) return adminRoleRec.schoolId
@@ -63,14 +69,18 @@ async function getAdminSchoolId(): Promise<string> {
 }
 
 async function checkAdminPermission(action: any, resource: any) {
-  const userId = await getUserId()
-  const roleData = await getUserRoleData(userId)
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
 
   const hasPermission = await checkPermission(
-    userId,
-    roleData?.role || '',
+    session.user.id,
+    session.user.role,
     action,
-    resource
+    resource,
+    {
+      schoolId: session.user.schoolId,
+      department: session.user.department,
+    }
   )
 
   if (!hasPermission) throw new Error('Permission denied')
@@ -86,13 +96,13 @@ export async function createStudent(data: any) {
 
   const actorRole = session.user.role
 
-  if (actorRole !== 'ADMIN' && actorRole !== 'PARENT') {
+  if (actorRole !== 'ADMIN' && actorRole !== 'SCHOOL_ADMIN' && actorRole !== 'PARENT') {
     throw new Error('Permission denied')
   }
 
   return await db.transaction(async (tx) => {
     let parentId: string | null = null
-    let schoolId: string | null = null
+    let schoolId: string | null
 
     if (actorRole === 'PARENT') {
       const parentProfile = await tx.query.parent.findFirst({
@@ -106,6 +116,12 @@ export async function createStudent(data: any) {
       if ((linkedCount[0]?.value || 0) >= 5) throw new Error('A parent account can be linked to a maximum of 5 children.')
     } else {
       schoolId = await getAdminSchoolId()
+      if (actorRole === 'SCHOOL_ADMIN' && session.user.adminLevel?.startsWith('HOD_')) {
+        const assignedDepartment = session.user.department?.toLowerCase()
+        if (!assignedDepartment || data.department?.toLowerCase() !== assignedDepartment) {
+          throw new Error('HODs can only enroll students in their assigned department.')
+        }
+      }
       if (data.parentId) {
         const pRec = await tx.query.parent.findFirst({
           where: and(eq(parentTable.id, data.parentId), eq(parentTable.schoolId, schoolId))
@@ -127,6 +143,7 @@ export async function createStudent(data: any) {
       firstName: data.firstName,
       lastName: data.lastName,
       class: data.class,
+      department: data.department || null,
       admissionNumber,
       gender: data.gender || 'Male',
       parentId,
@@ -333,12 +350,28 @@ export async function createTerm(sessionId: string, name: string, startDate: any
 export async function getAllStudents() {
   await checkAdminPermission('read', 'student')
   const schoolId = await getAdminSchoolId()
+  const session = await auth.getSession()
+  if (session?.user.role === 'SCHOOL_ADMIN' && session.user.adminLevel?.startsWith('HOD_')) {
+    const department = session.user.department?.toLowerCase()
+    if (!department) throw new Error('HOD department scope is not configured.')
+    return db.query.student.findMany({
+      where: and(eq(student.schoolId, schoolId), sql`lower(${student.department}) = ${department}`),
+    })
+  }
   return db.query.student.findMany({ where: eq(student.schoolId, schoolId) })
 }
 
 export async function getAllTeachers() {
   await checkAdminPermission('read', 'teacher')
   const schoolId = await getAdminSchoolId()
+  const session = await auth.getSession()
+  if (session?.user.role === 'SCHOOL_ADMIN' && session.user.adminLevel?.startsWith('HOD_')) {
+    const department = session.user.department?.toLowerCase()
+    if (!department) throw new Error('HOD department scope is not configured.')
+    return db.query.teacher.findMany({
+      where: and(eq(teacher.schoolId, schoolId), sql`lower(${teacher.department}) = ${department}`),
+    })
+  }
   return db.query.teacher.findMany({ where: eq(teacher.schoolId, schoolId) })
 }
 
@@ -351,6 +384,14 @@ export async function getAllParents() {
 export async function getEligibleStudents() {
   await checkAdminPermission('read', 'student')
   const schoolId = await getAdminSchoolId()
+  const session = await auth.getSession()
+  if (session?.user.role === 'SCHOOL_ADMIN' && session.user.adminLevel?.startsWith('HOD_')) {
+    const department = session.user.department?.toLowerCase()
+    if (!department) throw new Error('HOD department scope is not configured.')
+    return db.query.student.findMany({
+      where: and(eq(student.schoolId, schoolId), sql`lower(${student.department}) = ${department}`),
+    })
+  }
   return db.query.student.findMany({ where: eq(student.schoolId, schoolId) })
 }
 
@@ -461,6 +502,21 @@ export async function createInstallmentPlan(paymentId: string, totalAmount: numb
 export async function createTeacher(data: any) {
   await checkAdminPermission('create', 'teacher')
   const schoolId = await getAdminSchoolId()
+  const session = await auth.getSession()
+  const departmentMap: Record<string, string> = {
+    science: 'Science',
+    arts: 'Arts',
+    commercial: 'Commercial',
+  }
+  const department = typeof data.department === 'string'
+    ? departmentMap[data.department.trim().toLowerCase()]
+    : undefined
+  if (data.department && !department) throw new Error('Choose a valid teacher department.')
+  if (session?.user.role === 'SCHOOL_ADMIN' && session.user.adminLevel?.startsWith('HOD_')) {
+    if (!department || department.toLowerCase() !== session.user.department?.toLowerCase()) {
+      throw new Error('HODs can only register teachers in their assigned department.')
+    }
+  }
 
   const email = (data.email || '').trim().toLowerCase()
   if (!email) throw new Error('Teacher email address is required')
@@ -512,6 +568,7 @@ export async function createTeacher(data: any) {
       id: randomUUID(),
       userId: userId,
       schoolId: schoolId,
+      department: department || null,
       firstName: data.firstName,
       lastName: data.lastName,
       phoneNumber: data.phoneNumber || data.phone || null,
@@ -593,13 +650,20 @@ export async function getTerms() {
 
 export async function createSchoolAdmin(data: { name: string; email: string; phone?: string; adminLevel?: string }) {
   const session = await auth.getSession()
-  if (!session?.user || (session.user.role !== 'PRIMARY_ADMIN' && session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN')) {
+  if (!session?.user || (
+    session.user.role !== 'SUPER_ADMIN' &&
+    session.user.role !== 'ADMIN' &&
+    !(session.user.role === 'SCHOOL_ADMIN' && session.user.adminLevel === 'PRIMARY_ADMIN')
+  )) {
     throw new Error('Unauthorized: Primary Administrator permissions required.')
   }
 
   const schoolId = await getAdminSchoolId()
   const adminEmail = data.email.trim().toLowerCase()
   const adminLevel = data.adminLevel || 'VICE_PRINCIPAL_ACADEMICS'
+  if (!['VICE_PRINCIPAL_ACADEMICS', 'VICE_PRINCIPAL_ADMIN', 'HOD_SCIENCE', 'HOD_ARTS', 'HOD_COMMERCIAL'].includes(adminLevel)) {
+    throw new Error('Choose a valid school administrator level.')
+  }
   let userId = randomUUID()
 
   const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
@@ -670,6 +734,13 @@ export async function promoteTeacherAction(data: {
   const session = await auth.getSession()
   if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SCHOOL_ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
     throw new Error('Unauthorized: School Admin permissions required.')
+  }
+
+  if (
+    session.user.role === 'SCHOOL_ADMIN' &&
+    !canSchoolAdminAccess(session.user.adminLevel, 'update', 'teacher', 'teacher promotion')
+  ) {
+    throw new Error('HODs cannot promote teachers or change school administrator levels.')
   }
 
   const schoolId = await getAdminSchoolId()
