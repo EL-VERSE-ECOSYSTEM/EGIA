@@ -1,11 +1,12 @@
 import DashboardLayout from '@/components/layout/dashboard-layout'
 
-export default function Page({ params }: { params: any }) {
-  const role = 'teacher';
+export const dynamic = 'force-dynamic'
+
+export default function Page() {
   const title = 'Subject Performance';
 
   return (
-    <DashboardLayout role={role as any}>
+    <DashboardLayout role="teacher">
       <div className="p-8">
         <h1 className="text-2xl font-bold mb-4">{title}</h1>
         <p className="text-muted-foreground">
