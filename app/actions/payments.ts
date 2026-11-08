@@ -112,7 +112,8 @@ export async function submitManualPayment(data: { studentId: string; amount: str
   return { success: true, paymentId, uploadId }
 }
 
-export { initializePaystackPayment as initializeKorapayPayment, verifyPaystackPayment as verifyKorapayPayment }
+export { initializePaystackPayment as initializeKorapayPayment }
+export { verifyPaystackPayment as verifyKorapayPayment }
 
 export async function initializePaystackPayment(data: { studentId: string; amount: number; feeType: string; description?: string }) {
   const session = await auth.getSession()

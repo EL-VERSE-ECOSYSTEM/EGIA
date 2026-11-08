@@ -16,7 +16,8 @@ const primaryConnectionString =
   'postgres://postgres:postgres@127.0.0.1:5432/postgres'
 
 const databaseHost = new URL(primaryConnectionString).hostname
-if (process.env.NODE_ENV === 'production' && ['localhost', '127.0.0.1', '::1'].includes(databaseHost)) {
+const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
+if (process.env.NODE_ENV === 'production' && !isBuildPhase && ['localhost', '127.0.0.1', '::1'].includes(databaseHost)) {
   throw new Error(
     'DATABASE_URL points to a local database in production. Configure the Supabase Postgres connection string before starting the application.'
   )

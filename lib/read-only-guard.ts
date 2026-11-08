@@ -23,8 +23,10 @@ export async function handleReadOnlyGuard(request: NextRequest): Promise<NextRes
     return null
   }
 
-  const isReadOnly = await isSystemFeatureEnabled('read_only_mode')
-  if (isReadOnly) {
+  // Read-only mode check designed for edge and proxy runtime:
+  // Check fast environment flags first, then query database if running in Node.js runtime
+  const envReadOnly = process.env.READ_ONLY_MODE === 'true' || process.env.MAINTENANCE_MODE === 'true'
+  if (envReadOnly) {
     return NextResponse.json(
       {
         error: 'System is currently in Read-Only Mode for scheduled maintenance. Updates are temporarily paused.',
@@ -32,6 +34,24 @@ export async function handleReadOnlyGuard(request: NextRequest): Promise<NextRes
       },
       { status: 503 }
     )
+  }
+
+  // If in Node.js environment, check dynamic DB-backed feature flag
+  if (typeof window === 'undefined' && typeof process !== 'undefined' && process.release?.name === 'node') {
+    try {
+      const isReadOnly = await isSystemFeatureEnabled('read_only_mode')
+      if (isReadOnly) {
+        return NextResponse.json(
+          {
+            error: 'System is currently in Read-Only Mode for scheduled maintenance. Updates are temporarily paused.',
+            code: 'READ_ONLY_MODE',
+          },
+          { status: 503 }
+        )
+      }
+    } catch {
+      // Safe fallback: do not block if DB lookup fails
+    }
   }
 
   return null

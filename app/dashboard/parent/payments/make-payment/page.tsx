@@ -13,7 +13,7 @@ import {
   Upload, Loader2
 } from 'lucide-react'
 import { getLinkedChildren } from '@/app/actions/user'
-import { initializeKorapayPayment, getFeeStructuresForClass } from '@/app/actions/payments'
+import { initializePaystackPayment, getFeeStructuresForClass } from '@/app/actions/payments'
 import { getSchoolPaymentConfigAction } from '@/app/actions/payment-config'
 import { ManualPaymentPanel } from '@/components/payments/ManualPaymentPanel'
 import { useRouter } from 'next/navigation'
@@ -66,7 +66,7 @@ export default function MakePaymentPage() {
 
     setIsUploading(true)
     try {
-      const result = await initializeKorapayPayment({
+      const result = await initializePaystackPayment({
         studentId: childId,
         amount: parseFloat(amount),
         feeType,
