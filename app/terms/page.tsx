@@ -52,7 +52,7 @@ export default function TermsPage() {
                 Institutional School Registration creates a pending onboarding application. Active administrator access is granted only upon:
               </p>
               <ul className="list-disc pl-6 space-y-1 text-slate-400">
-                <li>Successful subscription fee payment via Korapay checkout gateway.</li>
+                <li>Successful subscription fee payment via Paystack checkout gateway.</li>
                 <li>Upload and manual Super-Admin verification of valid proof of school address (e.g., recent electricity bill or government operating license).</li>
                 <li>Formal review and approval by platform Super Administrators.</li>
               </ul>

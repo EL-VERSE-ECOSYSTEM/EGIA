@@ -1,25 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { verifyKorapayPayment } from '@/lib/payments/service'
+import { NextResponse } from 'next/server'
+import { verifyPaystackPayment } from '@/lib/payments/service'
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = req.nextUrl
-  const reference = searchParams.get('reference') || searchParams.get('payment_reference') || ''
-  const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  const returnUrl = new URL('/payment/return', siteUrl)
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const reference = searchParams.get('reference') || searchParams.get('trxref')
 
   if (!reference) {
-    returnUrl.searchParams.set('error', 'missing_reference')
-    return NextResponse.redirect(returnUrl)
+    return NextResponse.json({ error: 'Missing payment reference' }, { status: 400 })
   }
-
-  returnUrl.searchParams.set('reference', reference)
 
   try {
-    // Invoke verification to sync payment status for client redirect while keeping webhook authoritative
-    await verifyKorapayPayment({ reference })
+    const result = await verifyPaystackPayment({ reference })
+    return NextResponse.json(result)
   } catch (error) {
-    console.error('Error in Korapay payment callback:', error)
+    console.error('Error in Paystack payment callback:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
-
-  return NextResponse.redirect(returnUrl)
 }

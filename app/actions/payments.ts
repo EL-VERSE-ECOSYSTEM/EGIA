@@ -9,12 +9,12 @@ import { auth } from '@/lib/auth'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import {
-  initializeKorapayPayment as serviceInitializeKorapayPayment,
-  verifyKorapayPayment as serviceVerifyKorapayPayment,
+  initializePaystackPayment as serviceInitializePaystackPayment,
+  verifyPaystackPayment as serviceVerifyPaystackPayment,
   reconcilePayment as serviceReconcilePayment,
 } from '@/lib/payments/service'
 
-const KORAPAY_GATEWAY_FEE = 161.25
+const PAYSTACK_GATEWAY_FEE = 161.25
 const REGISTRATION_FEE = 2000.00
 
 async function assertStudentPaymentAccess(
@@ -49,12 +49,12 @@ function assertReceiptSchoolAccess(user: { role: string; schoolId: string | null
   throw new Error('Forbidden: You can only review receipts for your own school.')
 }
 
-export async function getKorapayGatewayFee() {
-  return KORAPAY_GATEWAY_FEE
+export async function getPaystackGatewayFee() {
+  return PAYSTACK_GATEWAY_FEE
 }
 
-export async function verifyKorapayPayment(reference: string) {
-  const result = await serviceVerifyKorapayPayment({ reference })
+export async function verifyPaystackPayment(reference: string) {
+  const result = await serviceVerifyPaystackPayment({ reference })
   revalidatePath('/dashboard/parent/payments/history')
   revalidatePath('/dashboard/student/payments/history')
   return result
@@ -112,7 +112,9 @@ export async function submitManualPayment(data: { studentId: string; amount: str
   return { success: true, paymentId, uploadId }
 }
 
-export async function initializeKorapayPayment(data: { studentId: string; amount: number; feeType: string; description?: string }) {
+export { initializePaystackPayment as initializeKorapayPayment, verifyPaystackPayment as verifyKorapayPayment }
+
+export async function initializePaystackPayment(data: { studentId: string; amount: number; feeType: string; description?: string }) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -138,14 +140,14 @@ export async function initializeKorapayPayment(data: { studentId: string; amount
   }
 
   const baseAmount = Number(approvedFee.amount)
-  const totalAmount = Number((baseAmount + KORAPAY_GATEWAY_FEE).toFixed(2))
+  const totalAmount = Number((baseAmount + PAYSTACK_GATEWAY_FEE).toFixed(2))
 
-  const paymentConfirmationMessage = `Payment of ₦${baseAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} for ${approvedFee.feeType.toUpperCase()} (${child.firstName} ${child.lastName}, Class: ${child.class}) + Korapay Gateway Fee (₦161.25)`
+  const paymentConfirmationMessage = `Payment of ₦${baseAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} for ${approvedFee.feeType.toUpperCase()} (${child.firstName} ${child.lastName}, Class: ${child.class}) + Paystack Gateway Fee (₦161.25)`
 
-  const paymentRes = await serviceInitializeKorapayPayment({
-    schoolId: child.schoolId || null,
+  const paymentRes = await serviceInitializePaystackPayment({
+    schoolId: child.schoolId || undefined,
     studentId: child.id,
-    parentId: child.parentId || null,
+    parentId: child.parentId || undefined,
     amount: totalAmount,
     feeType: approvedFee.feeType,
     description: paymentConfirmationMessage,
@@ -155,7 +157,7 @@ export async function initializeKorapayPayment(data: { studentId: string; amount
       studentId: child.id,
       type: data.feeType,
       baseAmount,
-      gatewayFee: KORAPAY_GATEWAY_FEE,
+      gatewayFee: PAYSTACK_GATEWAY_FEE,
     },
   })
 
@@ -183,12 +185,12 @@ export async function initializeStudentRegistrationPayment(studentId: string) {
     : null
   if (!studentAccount?.email) throw new Error('Student registration account is missing a payer email.')
 
-  const totalAmount = REGISTRATION_FEE + KORAPAY_GATEWAY_FEE
+  const totalAmount = REGISTRATION_FEE + PAYSTACK_GATEWAY_FEE
 
-  const paymentRes = await serviceInitializeKorapayPayment({
-    schoolId: child.schoolId || null,
+  const paymentRes = await serviceInitializePaystackPayment({
+    schoolId: child.schoolId || undefined,
     studentId: child.id,
-    parentId: child.parentId || null,
+    parentId: child.parentId || undefined,
     amount: totalAmount,
     feeType: 'registration',
     description: `Session registration for ${child.firstName} ${child.lastName} (NGN 2000 + NGN 161.25 gateway fee)`,
@@ -594,13 +596,13 @@ export async function renewStudentRegistrationFeeAction(studentId: string) {
   if (!child) throw new Error('Student record not found.')
   await assertStudentPaymentAccess(session.user, child)
 
-  const totalAmount = REGISTRATION_FEE + KORAPAY_GATEWAY_FEE
+  const totalAmount = REGISTRATION_FEE + PAYSTACK_GATEWAY_FEE
   const paymentReference = `STU-RNW-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`
 
-  const paymentRes = await serviceInitializeKorapayPayment({
-    schoolId: child.schoolId || null,
+  const paymentRes = await serviceInitializePaystackPayment({
+    schoolId: child.schoolId || undefined,
     studentId: child.id,
-    parentId: child.parentId || null,
+    parentId: child.parentId || undefined,
     amount: totalAmount,
     feeType: 'STUDENT_4MONTH_REGISTRATION',
     description: `4-Month Registration Renewal for ${child.firstName} ${child.lastName}`,

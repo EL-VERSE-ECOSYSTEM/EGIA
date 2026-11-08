@@ -15,7 +15,7 @@ export default function AdminPaymentSettingsPage() {
   const [schoolId, setSchoolId] = useState<string>('')
 
   const [schoolName, setSchoolName] = useState('')
-  const [useKorapay, setUseKorapay] = useState(true)
+  const [usePaystack, setUsePaystack] = useState(true)
   const [bankName, setBankName] = useState('')
   const [accountNumber, setAccountNumber] = useState('')
   const [accountName, setAccountName] = useState('')
@@ -27,7 +27,7 @@ export default function AdminPaymentSettingsPage() {
       const config = await getSchoolPaymentConfigAction(schoolId)
       if (config) {
         if (config.schoolName) setSchoolName(config.schoolName)
-        setUseKorapay(config.useKorapay)
+        setUsePaystack(config.usePaystack)
         setBankName(config.bankName || '')
         setAccountNumber(config.accountNumber || '')
         setAccountName(config.accountName || '')
@@ -63,7 +63,7 @@ export default function AdminPaymentSettingsPage() {
     try {
       const res = await saveSchoolPaymentConfigAction({
         schoolId,
-        useKorapay,
+        usePaystack,
         bankName,
         accountNumber,
         accountName,
@@ -86,7 +86,7 @@ export default function AdminPaymentSettingsPage() {
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">School Payment Configuration</h1>
           <p className="text-slate-500 text-sm font-semibold mt-1">
-            Configure how parents pay school fees — choose automated online Korapay gateway or your school's custom bank account & payment links.
+            Configure how parents pay school fees — choose automated online Paystack gateway or your school's custom bank account & payment links.
           </p>
         </div>
 
@@ -106,23 +106,23 @@ export default function AdminPaymentSettingsPage() {
                   </div>
                   <div>
                     <h2 className="text-base font-black text-slate-900">Payment Path Selection</h2>
-                    <p className="text-xs text-slate-500 font-medium">Toggle between automated Korapay or manual bank transfer</p>
+                    <p className="text-xs text-slate-500 font-medium">Toggle between automated Paystack or manual bank transfer</p>
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div
-                  onClick={() => setUseKorapay(true)}
+                  onClick={() => setUsePaystack(true)}
                   className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-                    useKorapay
+                    usePaystack
                       ? 'border-purple-600 bg-purple-50/50 shadow-sm'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-black text-sm text-slate-900">Path A: Korapay Gateway</span>
-                    {useKorapay && <CheckCircle2 className="w-5 h-5 text-purple-600" />}
+                    <span className="font-black text-sm text-slate-900">Path A: Paystack Gateway</span>
+                    {usePaystack && <CheckCircle2 className="w-5 h-5 text-purple-600" />}
                   </div>
                   <p className="text-xs text-slate-500 font-medium leading-relaxed">
                     Automated online payment modal for cards, USSD, and bank transfers. Direct clearance on payment success.
@@ -130,16 +130,16 @@ export default function AdminPaymentSettingsPage() {
                 </div>
 
                 <div
-                  onClick={() => setUseKorapay(false)}
+                  onClick={() => setUsePaystack(false)}
                   className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-                    !useKorapay
+                    !usePaystack
                       ? 'border-purple-600 bg-purple-50/50 shadow-sm'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-black text-sm text-slate-900">Path B: School Bank / Link</span>
-                    {!useKorapay && <CheckCircle2 className="w-5 h-5 text-purple-600" />}
+                    {!usePaystack && <CheckCircle2 className="w-5 h-5 text-purple-600" />}
                   </div>
                   <p className="text-xs text-slate-500 font-medium leading-relaxed">
                     Parents transfer to your bank account or payment link and upload transfer receipt for admin approval.
@@ -149,7 +149,7 @@ export default function AdminPaymentSettingsPage() {
             </div>
 
             {/* School Bank Account Details (Path B) */}
-            {!useKorapay && (
+            {!usePaystack && (
               <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6 animate-in fade-in duration-200">
                 <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
                   <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
@@ -165,7 +165,7 @@ export default function AdminPaymentSettingsPage() {
                   <div>
                     <label className="block text-xs font-black uppercase text-slate-600 mb-1">Bank Name *</label>
                     <select
-                      required={!useKorapay}
+                      required={!usePaystack}
                       value={bankName}
                       onChange={(e) => setBankName(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
@@ -183,7 +183,7 @@ export default function AdminPaymentSettingsPage() {
                     <label className="block text-xs font-black uppercase text-slate-600 mb-1">Account Number *</label>
                     <input
                       type="text"
-                      required={!useKorapay}
+                      required={!usePaystack}
                       placeholder="e.g. 1012345678"
                       value={accountNumber}
                       onChange={(e) => setAccountNumber(e.target.value)}
@@ -195,7 +195,7 @@ export default function AdminPaymentSettingsPage() {
                     <label className="block text-xs font-black uppercase text-slate-600 mb-1">Account Name *</label>
                     <input
                       type="text"
-                      required={!useKorapay}
+                      required={!usePaystack}
                       placeholder={`e.g. ${schoolName || 'School Name'} Official Account`}
                       value={accountName}
                       onChange={(e) => setAccountName(e.target.value)}

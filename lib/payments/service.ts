@@ -1,32 +1,30 @@
 import { db } from '@/lib/db'
-import { payment, school, transactions, student, paymentWebhookLogs, transactionLedger, schoolRegistrationApplication } from '@/lib/db/schema'
+import { payment, schoolRegistrationApplication, student, school, transactions, paymentWebhookLogs } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
-import { randomUUID } from 'crypto'
-import { korapayAmountMatches, validateKorapayWebhook } from './korapay-security'
-export { validKorapaySignature } from './korapay-security'
+import { randomUUID } from 'node:crypto'
+import {
+  paystackAmountMatches,
+  validatePaystackWebhook,
+  validPaystackSignature,
+  type PaystackWebhookBody
+} from './paystack-security'
+import { checkOrAcquireIdempotency, completeIdempotencyKey, failIdempotencyKey } from '@/lib/idempotency'
 
-export interface CreateInvoiceParams {
-  schoolId?: string | null
-  studentId: string
-  parentId?: string | null
-  amount: number
-  feeType: string
-  description?: string
-  currency?: string
-}
+export { validPaystackSignature, validatePaystackWebhook, paystackAmountMatches }
+export { validPaystackSignature as validKorapaySignature } from './paystack-security'
 
 export interface InitializePaymentParams {
-  invoiceId?: string
-  reference?: string
-  schoolId?: string | null
-  studentId?: string
-  parentId?: string | null
-  amount: number
-  currency?: string
-  feeType: string
-  description?: string
+  amount: number // In Naira
   customerEmail: string
   customerName?: string
+  currency?: string
+  reference?: string
+  studentId?: string
+  feeType?: string
+  description?: string
+  schoolId?: string | null
+  parentId?: string | null
+  callbackUrl?: string
   redirectUrl?: string
   metadata?: Record<string, any>
 }
@@ -35,127 +33,129 @@ export interface PaymentVerificationParams {
   reference: string
   expectedAmount?: number
   expectedCurrency?: string
-  expectedSchoolId?: string
-  expectedStudentId?: string
-  expectedParentId?: string
-  expectedPurpose?: string
 }
 
-export interface WebhookProcessResult {
-  success: boolean
-  event?: string
+export type WebhookProcessResult =
+  | { success: true; event?: string; reference?: string; note?: string }
+  | { success: false; error: string }
+
+export async function createStudentPaymentRecord(params: {
+  studentId: string
+  amount: number
+  feeType: string
+  description?: string
+  schoolId?: string
   reference?: string
-  note?: string
-  error?: string
-}
+}) {
+  const reference = params.reference || `pay_${randomUUID()}`
+  const now = new Date()
 
-export async function createInvoice(params: CreateInvoiceParams) {
-  const paymentId = randomUUID()
-  const reference = `EGIA-INV-${Date.now()}-${randomUUID().slice(0, 8)}`
-
-  const inserted = await db.insert(payment).values({
-    id: paymentId,
-    schoolId: params.schoolId || null,
+  const [record] = await db.insert(payment).values({
+    id: randomUUID(),
     studentId: params.studentId,
-    parentId: params.parentId || null,
-    amount: params.amount.toFixed(2),
+    amount: params.amount.toString(),
     feeType: params.feeType,
-    paymentMethod: 'KORAPAY',
-    transactionReference: reference,
+    description: params.description || `Payment for ${params.feeType}`,
+    paymentMethod: 'PAYSTACK',
     status: 'pending',
-    description: params.description || `${params.feeType} invoice`,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    transactionReference: reference,
+    paymentDate: now,
+    schoolId: params.schoolId,
+    createdAt: now,
+    updatedAt: now,
   }).returning()
 
-  return inserted[0]
+  return record
 }
 
-export async function initializeKorapayPayment(params: InitializePaymentParams) {
-  const secretKey = process.env.KORAPAY_SECRET_KEY
+/**
+ * Initializes a transaction with Paystack Checkout API.
+ * Amount is converted from Naira to Kobo (multiply by 100).
+ */
+export async function initializePaystackPayment(params: InitializePaymentParams) {
+  const secretKey = process.env.PAYSTACK_SECRET_KEY
   if (!secretKey) {
-    throw new Error('Korapay payment service is unavailable because its secret key is not configured.')
+    throw new Error('Paystack payment service is unavailable because its secret key is not configured.')
   }
 
-  const amount = Number.isFinite(params.amount) && params.amount > 0 ? params.amount : 30161.25
-
-  const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  const reference = params.reference || `EGIA-PAY-${Date.now()}-${randomUUID().slice(0, 8)}`
+  const reference = params.reference || `pstk_${Date.now()}_${randomUUID().slice(0, 8)}`
   const currency = params.currency || 'NGN'
-  const fallbackCheckoutUrl = params.redirectUrl || `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_SITE_URL || 'http://localhost:3000'
+  const callbackUrl = params.callbackUrl || `${siteUrl.replace(/\/$/, '')}/payment/return`
 
+  // Create pending payment record in DB if studentId is provided
   let paymentRecord: any = null
-  if (params.studentId) {
-    try {
-      paymentRecord = (await db.insert(payment).values({
-        id: params.invoiceId || randomUUID(),
-        schoolId: params.schoolId || null,
-        studentId: params.studentId,
-        parentId: params.parentId || null,
-        amount: amount.toFixed(2),
-        feeType: params.feeType,
-        paymentMethod: 'KORAPAY',
-        transactionReference: reference,
-        status: 'pending',
-        description: params.description || `${params.feeType} payment`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }).returning())[0]
-    } catch (dbErr) {
-      console.warn('Failed to insert initial payment record:', dbErr)
-    }
+  if (params.studentId && params.feeType) {
+    paymentRecord = await createStudentPaymentRecord({
+      studentId: params.studentId,
+      amount: params.amount,
+      feeType: params.feeType,
+      description: params.description,
+      schoolId: params.schoolId || undefined,
+      reference,
+    })
   }
 
-  let checkout = ''
-
+  let checkoutUrl = ''
   try {
+    const koboAmount = Math.round(params.amount * 100)
+
     const payload = {
-      amount,
-      currency,
+      email: params.customerEmail,
+      amount: koboAmount,
       reference,
-      narration: params.description || `${params.feeType} payment`,
-      notification_url: `${siteUrl.replace(/\/$/, '')}/api/webhooks/korapay`,
-      redirect_url: fallbackCheckoutUrl,
-      customer: {
-        email: params.customerEmail,
-        name: params.customerName || 'Customer',
-      },
+      currency,
+      callback_url: params.redirectUrl || callbackUrl,
       metadata: {
-        schoolId: params.schoolId,
-        studentId: params.studentId,
-        parentId: params.parentId,
-        feeType: params.feeType,
-        ...params.metadata,
-      },
+        customer_name: params.customerName || 'Customer',
+        student_id: params.studentId,
+        fee_type: params.feeType,
+        school_id: params.schoolId,
+        ...(params.metadata || {}),
+        custom_fields: [
+          {
+            display_name: 'Customer Name',
+            variable_name: 'customer_name',
+            value: params.customerName || 'Customer',
+          },
+          ...(params.feeType ? [{
+            display_name: 'Fee Type',
+            variable_name: 'fee_type',
+            value: params.feeType,
+          }] : []),
+        ]
+      }
     }
 
-    const res = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
+    const res = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${secretKey}`,
+        'Authorization': `Bearer ${secretKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     })
 
-    const koraData = await res.json()
-    if (!res.ok || !koraData.status || !koraData.data?.checkout_url) {
-      throw new Error(koraData.message || 'Korapay did not return a valid checkout URL.')
+    const paystackData = await res.json()
+
+    if (!res.ok || !paystackData.status || !paystackData.data?.authorization_url) {
+      console.error('Paystack transaction initialize error:', paystackData)
+      throw new Error(paystackData.message || 'Paystack did not return a valid checkout URL.')
     }
 
-    checkout = koraData.data.checkout_url
+    checkoutUrl = paystackData.data.authorization_url
   } catch (error) {
     if (paymentRecord) {
       await db.update(payment)
         .set({ status: 'failed', updatedAt: new Date() })
         .where(eq(payment.id, paymentRecord.id))
     }
-
     throw error
   }
 
   return {
-    checkoutUrl: checkout,
+    checkoutUrl,
+    authorizationUrl: checkoutUrl,
     reference,
     paymentId: paymentRecord?.id || null,
     amount: params.amount,
@@ -163,9 +163,16 @@ export async function initializeKorapayPayment(params: InitializePaymentParams) 
   }
 }
 
-export async function verifyKorapayPayment(params: PaymentVerificationParams) {
+// Backward-compatible alias for existing callers
+export const initializeKorapayPayment = initializePaystackPayment
+
+/**
+ * Verifies transaction directly with Paystack API.
+ * Idempotently updates payment, school, application, and transaction tables.
+ */
+export async function verifyPaystackPayment(params: PaymentVerificationParams) {
   const { reference, expectedAmount, expectedCurrency = 'NGN' } = params
-  const secretKey = process.env.KORAPAY_SECRET_KEY
+  const secretKey = process.env.PAYSTACK_SECRET_KEY
 
   const paymentRec = await db.query.payment.findFirst({
     where: eq(payment.transactionReference, reference)
@@ -189,10 +196,10 @@ export async function verifyKorapayPayment(params: PaymentVerificationParams) {
   const schoolName = schoolRec?.name || appRec?.schoolName || undefined
 
   if (!secretKey) {
-    return { success: false, status: 'failed', schoolCode, schoolName, error: 'Korapay secret key is not configured.' }
+    return { success: false, status: 'failed', schoolCode, schoolName, error: 'Paystack secret key is not configured.' }
   }
 
-  const res = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(reference)}`, {
+  const res = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
     headers: { Authorization: `Bearer ${secretKey}` },
   })
 
@@ -203,15 +210,16 @@ export async function verifyKorapayPayment(params: PaymentVerificationParams) {
 
   const json = await res.json()
   if (!json.status || !json.data) {
-    return { success: false, status: 'failed', schoolCode, schoolName, error: json.message || 'Invalid verification response from Korapay' }
+    return { success: false, status: 'failed', schoolCode, schoolName, error: json.message || 'Invalid verification response from Paystack' }
   }
 
   const data = json.data
   const status = (data.status || '').toLowerCase()
+  const amountInNaira = typeof data.amount === 'number' ? data.amount / 100 : Number(data.amount) / 100
 
   if (status === 'success') {
     const requiredAmount = expectedAmount ?? (paymentRec ? Number(paymentRec.amount) : schoolRec ? 30161.25 : undefined)
-    if (requiredAmount === undefined || !korapayAmountMatches(data.amount, requiredAmount)) {
+    if (requiredAmount !== undefined && !paystackAmountMatches(data.amount, requiredAmount)) {
       return { success: false, status: 'failed', schoolCode, schoolName, error: 'Verified payment amount does not match the required total.' }
     }
     if (data.reference !== reference) {
@@ -222,7 +230,7 @@ export async function verifyKorapayPayment(params: PaymentVerificationParams) {
     }
 
     if (paymentRec) {
-      await markPaymentSuccessful(paymentRec.id, data.korapay_reference || data.reference)
+      await markPaymentSuccessful(paymentRec.id, data.id?.toString() || data.reference)
     }
     if (schoolRec) {
       await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schoolRec.id))
@@ -248,104 +256,133 @@ export async function verifyKorapayPayment(params: PaymentVerificationParams) {
     data: {
       reference: data.reference,
       status: data.status,
-      amount: data.amount,
+      amount: amountInNaira,
       currency: data.currency,
       paidAt: data.paid_at,
     }
   }
 }
 
-export async function processKorapayWebhook(rawBody: string, signature: string | null): Promise<WebhookProcessResult> {
-  const validation = validateKorapayWebhook(rawBody, signature)
+// Backward-compatible alias
+export const verifyKorapayPayment = verifyPaystackPayment
+
+/**
+ * Idempotently processes real-time Paystack webhooks (e.g. charge.success).
+ */
+export async function processPaystackWebhook(rawBody: string, signature: string | null): Promise<WebhookProcessResult> {
+  const validation = validatePaystackWebhook(rawBody, signature)
   if (!validation.success) return validation
   if (!validation.body || !validation.event || !validation.reference) {
     return { success: true, note: validation.note }
   }
 
   const { body, event, reference } = validation
+  const idempotencyKey = `paystack_webhook_${reference}_${event}`
 
-  const existingLog = await db.query.paymentWebhookLogs.findFirst({
-    where: and(
-      eq(paymentWebhookLogs.reference, reference),
-      eq(paymentWebhookLogs.eventType, event)
-    )
-  })
-
-  if (existingLog) {
+  // 1. Check idempotency lock to prevent concurrent double-processing
+  const lock = await checkOrAcquireIdempotency(idempotencyKey, 'paystack_webhook', { event, reference })
+  if (lock.isDuplicate) {
     return { success: true, reference, note: 'Event already processed' }
   }
 
-  await db.insert(paymentWebhookLogs).values({
-    id: randomUUID(),
-    reference,
-    eventType: event,
-    payload: body as any,
-    status: 'PROCESSED',
-    createdAt: new Date(),
-  })
+  try {
+    const existingLog = await db.query.paymentWebhookLogs.findFirst({
+      where: and(
+        eq(paymentWebhookLogs.reference, reference),
+        eq(paymentWebhookLogs.eventType, event)
+      )
+    })
 
-  const isSuccess = event === 'charge.success' || event === 'transfer.success' || body.data?.status === 'success'
-  const isFailed = event === 'charge.failed' || event === 'transfer.failed' || body.data?.status === 'failed'
-
-  // 1. School Registration Payment Check
-  const appRecord = await db.query.schoolRegistrationApplication.findFirst({ where: eq(schoolRegistrationApplication.paymentReference, reference) })
-  const schRecord = await db.query.school.findFirst({ where: eq(school.paymentReference, reference) })
-
-  if (appRecord || schRecord) {
-    if (isSuccess) {
-      if (appRecord) {
-        await db.update(schoolRegistrationApplication)
-          .set({ paymentStatus: 'SUCCESS', updatedAt: new Date() })
-          .where(eq(schoolRegistrationApplication.id, appRecord.id))
-      }
-      if (schRecord) {
-        await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schRecord.id))
-      }
-    } else if (isFailed) {
-      if (appRecord) {
-        await db.update(schoolRegistrationApplication)
-          .set({ paymentStatus: 'FAILED', updatedAt: new Date() })
-          .where(eq(schoolRegistrationApplication.id, appRecord.id))
-      }
-      if (schRecord) {
-        await db.update(school).set({ paymentStatus: 'FAILED', updatedAt: new Date() }).where(eq(school.id, schRecord.id))
-      }
+    if (existingLog) {
+      await completeIdempotencyKey(idempotencyKey, { success: true, note: 'Event already processed' })
+      return { success: true, reference, note: 'Event already processed' }
     }
-    return { success: true, event, reference, note: 'School application payment status updated' }
-  }
 
-  // 2. Transactions Table Check
-  const trxRecord = await db.query.transactions.findFirst({ where: eq(transactions.reference, reference) })
-  if (trxRecord) {
-    if (isSuccess) {
-      if (!korapayAmountMatches(body.data?.amount, Number(trxRecord.amount))) {
-        return { success: false, error: 'Payment amount mismatch' }
+    await db.insert(paymentWebhookLogs).values({
+      id: randomUUID(),
+      reference,
+      eventType: event,
+      payload: body as any,
+      status: 'PROCESSED',
+      createdAt: new Date(),
+    })
+
+    const isSuccess = event === 'charge.success' || body.data?.status === 'success'
+    const isFailed = event === 'charge.failed' || body.data?.status === 'failed'
+    const amountKobo = body.data?.amount
+
+    // 1. School Registration Payment Check
+    const appRecord = await db.query.schoolRegistrationApplication.findFirst({ where: eq(schoolRegistrationApplication.paymentReference, reference) })
+    const schRecord = await db.query.school.findFirst({ where: eq(school.paymentReference, reference) })
+
+    if (appRecord || schRecord) {
+      if (isSuccess) {
+        if (appRecord) {
+          await db.update(schoolRegistrationApplication)
+            .set({ paymentStatus: 'SUCCESS', updatedAt: new Date() })
+            .where(eq(schoolRegistrationApplication.id, appRecord.id))
+        }
+        if (schRecord) {
+          await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schRecord.id))
+        }
+      } else if (isFailed) {
+        if (appRecord) {
+          await db.update(schoolRegistrationApplication)
+            .set({ paymentStatus: 'FAILED', updatedAt: new Date() })
+            .where(eq(schoolRegistrationApplication.id, appRecord.id))
+        }
+        if (schRecord) {
+          await db.update(school).set({ paymentStatus: 'FAILED', updatedAt: new Date() }).where(eq(school.id, schRecord.id))
+        }
       }
-      await db.update(transactions).set({ status: 'success', updatedAt: new Date() }).where(eq(transactions.id, trxRecord.id))
-    } else if (isFailed) {
-      await db.update(transactions).set({ status: 'failed', updatedAt: new Date() }).where(eq(transactions.id, trxRecord.id))
+      await completeIdempotencyKey(idempotencyKey, { success: true, event, reference })
+      return { success: true, event, reference, note: 'School application payment status updated' }
     }
-    return { success: true, event, reference, note: 'Transaction status updated' }
-  }
 
-  // 3. Student Payment Table Check
-  const paymentRecord = await db.query.payment.findFirst({ where: eq(payment.transactionReference, reference) })
-  if (paymentRecord) {
-    if (isSuccess) {
-      if (!korapayAmountMatches(body.data?.amount, Number(paymentRecord.amount))) {
-        return { success: false, error: 'Payment amount mismatch' }
+    // 2. Transactions Table Check
+    const trxRecord = await db.query.transactions.findFirst({ where: eq(transactions.reference, reference) })
+    if (trxRecord) {
+      if (isSuccess) {
+        if (!paystackAmountMatches(amountKobo, Number(trxRecord.amount))) {
+          await failIdempotencyKey(idempotencyKey)
+          return { success: false, error: 'Payment amount mismatch' }
+        }
+        await db.update(transactions).set({ status: 'success', updatedAt: new Date() }).where(eq(transactions.id, trxRecord.id))
+      } else if (isFailed) {
+        await db.update(transactions).set({ status: 'failed', updatedAt: new Date() }).where(eq(transactions.id, trxRecord.id))
       }
-      await markPaymentSuccessful(paymentRecord.id)
-    } else if (isFailed) {
-      await markPaymentFailed(paymentRecord.id)
+      await completeIdempotencyKey(idempotencyKey, { success: true, event, reference })
+      return { success: true, event, reference, note: 'Transaction status updated' }
     }
-    return { success: true, event, reference, note: 'Student payment status updated' }
-  }
 
-  return { success: true, event, reference, note: 'No matching transaction record found' }
+    // 3. Student Payment Table Check
+    const paymentRecord = await db.query.payment.findFirst({ where: eq(payment.transactionReference, reference) })
+    if (paymentRecord) {
+      if (isSuccess) {
+        if (!paystackAmountMatches(amountKobo, Number(paymentRecord.amount))) {
+          await failIdempotencyKey(idempotencyKey)
+          return { success: false, error: 'Payment amount mismatch' }
+        }
+        await markPaymentSuccessful(paymentRecord.id, body.data?.id?.toString() || reference)
+      } else if (isFailed) {
+        await markPaymentFailed(paymentRecord.id)
+      }
+      await completeIdempotencyKey(idempotencyKey, { success: true, event, reference })
+      return { success: true, event, reference, note: 'Student payment status updated' }
+    }
+
+    await completeIdempotencyKey(idempotencyKey, { success: true, event, reference })
+    return { success: true, event, reference, note: 'No matching transaction record found' }
+  } catch (err: any) {
+    await failIdempotencyKey(idempotencyKey)
+    throw err
+  }
 }
 
-export async function markPaymentSuccessful(paymentId: string, korapayRef?: string) {
+// Backward-compatible alias
+export const processKorapayWebhook = processPaystackWebhook
+
+export async function markPaymentSuccessful(paymentId: string, paystackRef?: string) {
   const existingPayment = await db.query.payment.findFirst({
     where: eq(payment.id, paymentId)
   })
@@ -358,7 +395,7 @@ export async function markPaymentSuccessful(paymentId: string, korapayRef?: stri
   const updated = await db.update(payment)
     .set({
       status: 'success',
-      korapayReference: korapayRef || existingPayment.korapayReference || undefined,
+      korapayReference: paystackRef || existingPayment.korapayReference || undefined,
       paidAt: existingPayment.paidAt || now,
       paymentDate: existingPayment.paymentDate || now,
       updatedAt: now,

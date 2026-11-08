@@ -273,7 +273,7 @@ export default async function LandingPage() {
                   badge: "One-Click Export"
                 },
                 {
-                  title: "Korapay Billing & Ledger",
+                  title: "Paystack Billing & Ledger",
                   desc: "PCI-DSS certified online tuition fee collection, auto-receipt generation, dual database verification, and real-time financial ledger tracking.",
                   icon: Lock,
                   color: "bg-indigo-600 shadow-indigo-200",
@@ -363,7 +363,7 @@ export default async function LandingPage() {
                     },
                     {
                       q: "How secure is the online payment system?",
-                      a: "We partner with Korapay, a PCI-DSS certified gateway, to ensure all transactions are encrypted and secured using military-grade protection."
+                      a: "We partner with Paystack, a PCI-DSS certified gateway, to ensure all transactions are encrypted and secured using military-grade protection."
                     },
                     {
                       q: "Is the CBT system mobile-friendly?",

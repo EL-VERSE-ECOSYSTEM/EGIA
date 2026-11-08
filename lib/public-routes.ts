@@ -1,12 +1,14 @@
-const publicRoutes = [
+export const PUBLIC_ROUTES = [
   '/',
   '/school-registration',
   '/auth/signin',
   '/auth/signup',
   '/auth/verify-email',
   '/auth/callback',
+  '/auth/role-select',
   '/admissions',
   '/about',
+  '/features',
   '/news',
   '/contact',
   '/faq',
@@ -14,6 +16,9 @@ const publicRoutes = [
   '/results-checker',
   '/terms',
   '/privacy',
+  '/cookies',
+  '/data-deletion',
+  '/refund-policy',
   '/llms.txt',
   '/llms-full.txt',
   '/og',
@@ -25,6 +30,10 @@ const publicRoutes = [
   '/sitemap.xml',
   '/favicon.ico',
   '/logo.svg',
+  '/api/auth/otp/send',
+  '/api/auth/otp/verify',
+  '/api/invitations/accept',
+  '/api/webhooks/paystack',
   '/api/webhooks/korapay',
   '/api/webhooks/supabase',
   '/api/korapay/webhook',
@@ -36,7 +45,7 @@ const publicRoutes = [
 ]
 
 export function isPublicRoute(pathname: string): boolean {
-  return publicRoutes.some(
+  return PUBLIC_ROUTES.some(
     (route) => pathname === route || (route !== '/' && pathname.startsWith(`${route}/`)),
   )
 }

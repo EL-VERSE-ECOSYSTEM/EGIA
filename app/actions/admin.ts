@@ -23,6 +23,7 @@ import { checkPermission } from '@/lib/abac'
 import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, isValidAdmissionNumber, generateStaffId } from '@/lib/id'
 import { studentEnrollmentSchema } from '@/lib/validators/student.schema'
+import { initializePaystackPayment } from '@/lib/payments/service'
 
 async function getUserId() {
   const session = await auth.getSession()
@@ -147,14 +148,30 @@ export async function createStudent(data: any) {
       await tx.update(student).set({ registrationStatus: 'PENDING_PAYMENT' }).where(eq(student.id, studentId))
       await tx.insert(payment).values({
         id: randomUUID(), schoolId, studentId, parentId: parentId || null, amount: '2100.00', feeType: 'registration',
-        paymentMethod: 'KORAPAY', transactionReference: reference, status: 'pending',
-        description: 'Parent registration — awaiting Korapay confirmation.',
+        paymentMethod: 'PAYSTACK', transactionReference: reference, status: 'pending',
+        description: 'Parent registration — awaiting Paystack confirmation.',
       })
-      const checkout = new URL(process.env.KORAPAY_CHECKOUT_LINK || 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW')
-      checkout.searchParams.set('reference', reference)
-      const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
-      if (siteUrl) checkout.searchParams.set('redirect_url', `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`)
-      checkoutUrl = checkout.toString()
+      const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+      const returnUrl = `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`
+      const studentFullName = `${data.firstName} ${data.lastName}`.trim()
+      const initResult = await initializePaystackPayment({
+        reference,
+        amount: 2100,
+        currency: 'NGN',
+        customerName: studentFullName,
+        customerEmail: `${admissionNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}@egia.local`,
+        description: `Student Registration Fee for ${studentFullName}`,
+        redirectUrl: returnUrl,
+        schoolId,
+        studentId,
+        feeType: 'registration',
+        metadata: {
+          schoolId,
+          studentId,
+          feeType: 'registration',
+        },
+      })
+      checkoutUrl = initResult?.checkoutUrl || returnUrl
     }
 
     revalidatePath('/dashboard/admin/users/students/list')

@@ -259,6 +259,23 @@ export function enqueueOutboxEvent(eventType: string, payload: Record<string, an
   };
   memoryOutbox.push(event);
 
+  // Asynchronously sync to durable PostgreSQL outbox table if available
+  import("@/lib/outbox")
+    .then(({ enqueueOutboxEvent: durableEnqueue }) => {
+      durableEnqueue({
+        eventType,
+        payload,
+        aggregateType: payload?.aggregateType || "resilience_event",
+        aggregateId: payload?.aggregateId || event.id,
+        schoolId: payload?.schoolId,
+      }).catch((err) => {
+        console.warn("[Resilience] Failed to persist outbox event to DB:", err);
+      });
+    })
+    .catch(() => {
+      // Dynamic import omitted in browser/unsupported contexts
+    });
+
   return event;
 }
 

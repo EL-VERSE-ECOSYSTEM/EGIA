@@ -3,7 +3,7 @@ import { ArrowLeft, ShieldCheck, CreditCard, RefreshCw, HelpCircle } from 'lucid
 
 export const metadata = {
   title: 'Refund & Cancellation Policy | EL LEARNERS',
-  description: 'Official Refund, Fee Reconciliation and Cancellation Policy for EL LEARNERS platform services and Korapay payment network.',
+  description: 'Official Refund, Fee Reconciliation and Cancellation Policy for EL LEARNERS platform services and Paystack payment network.',
 }
 
 export default function RefundPolicyPage() {
@@ -36,7 +36,7 @@ export default function RefundPolicyPage() {
               <CreditCard className="w-5 h-5 text-amber-400" /> 1. Overview & General Policy
             </h2>
             <p>
-              EL LEARNERS ("we", "our", "us"), operated under the EL VERSE ECOSYSTEM, is committed to full financial transparency. Payments made on our platform—including school registration fees, student 4-month renewal subscriptions, tuition, CBT assessments, and teacher requests—are processed securely via the Korapay Payment Network.
+              EL LEARNERS ("we", "our", "us"), operated under the EL VERSE ECOSYSTEM, is committed to full financial transparency. Payments made on our platform—including school registration fees, student 4-month renewal subscriptions, tuition, CBT assessments, and teacher requests—are processed securely via the Paystack Payment Network.
             </p>
           </section>
 
@@ -46,13 +46,13 @@ export default function RefundPolicyPage() {
             </h2>
             <ul className="list-disc pl-5 space-y-2 text-slate-300">
               <li>
-                <strong>Bi-Monthly School Registration Fees (NGN 30,161.25):</strong> Non-refundable once activated. In the event of a double transaction or billing discrepancy caused by network delays during Korapay checkout, duplicate payments will be fully reconciled and refunded to the original account upon verification.
+                <strong>Bi-Monthly School Registration Fees (NGN 30,161.25):</strong> Non-refundable once activated. In the event of a double transaction or billing discrepancy caused by network delays during Paystack checkout, duplicate payments will be fully reconciled and refunded to the original account upon verification.
               </li>
               <li>
                 <strong>Student 4-Month Renewal Fees (NGN 2,161.25):</strong> Cover 120 days of platform access, CBT exams, games, and educational materials. Refund requests submitted within 48 hours of payment before system usage may be approved following manual review.
               </li>
               <li>
-                <strong>Korapay Processing Gateway Fees (NGN 161.25):</strong> Non-refundable third-party transaction fees imposed by payment processors.
+                <strong>Paystack Processing Gateway Fees (NGN 161.25):</strong> Non-refundable third-party transaction fees imposed by payment processors.
               </li>
             </ul>
           </section>
@@ -67,7 +67,7 @@ export default function RefundPolicyPage() {
             <ol className="list-decimal pl-5 space-y-2 text-slate-300">
               <li>Navigate to your dashboard support or disputes tab (or email <strong>elversetechnologies@gmail.com</strong>).</li>
               <li>Provide your transaction reference ID, payment date, and registered account email address.</li>
-              <li>Our financial audit team will verify the payment against Korapay transaction logs within 3 business days.</li>
+              <li>Our financial audit team will verify the payment against Paystack transaction logs within 3 business days.</li>
             </ol>
           </section>
 

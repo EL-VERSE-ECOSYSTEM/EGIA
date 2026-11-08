@@ -373,7 +373,7 @@ export async function activateSchoolAdminAction(applicationId: string) {
 
     // Recommended approval rule enforcement
     if (appRecord.paymentStatus !== 'SUCCESS') {
-      return { success: false, error: 'Cannot activate school: Korapay payment status must be SUCCESS.' }
+      return { success: false, error: 'Cannot activate school: Paystack payment status must be SUCCESS.' }
     }
     if (appRecord.documentVerificationStatus !== 'VERIFIED') {
       return { success: false, error: 'Cannot activate school: Proof of address document must be VERIFIED.' }
@@ -653,7 +653,7 @@ export async function approveSchoolApplicationAction(input: {
     }
 
     if (appRecord.paymentStatus !== 'SUCCESS') {
-      return { success: false, error: 'Cannot approve application until Korapay payment is verified as SUCCESS.' }
+      return { success: false, error: 'Cannot approve application until Paystack payment is verified as SUCCESS.' }
     }
 
     if (appRecord.documentVerificationStatus !== 'VERIFIED') {
