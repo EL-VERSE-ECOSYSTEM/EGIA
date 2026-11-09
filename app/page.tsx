@@ -264,6 +264,13 @@ export default async function LandingPage() {
                   badge: "Live Notifications"
                 },
                 {
+                  title: "Learn AI School Assistant",
+                  desc: "A role-aware learning assistant for students, teachers, parents, and school teams. Learn AI uses each school's configured learning guidance and registered class levels to shape its answers, with a daily allowance and optional monthly token packs.",
+                  icon: Sparkles,
+                  color: "bg-cyan-700 shadow-cyan-200",
+                  badge: "School-Aware AI"
+                },
+                {
                   title: "Digital E-Library & Notes",
                   desc: "Comprehensive repository of approved syllabus textbooks, digital notes, video tutorials, and past exam questions with DOCX and PDF uploads.",
                   icon: BookOpen,
@@ -300,6 +307,47 @@ export default async function LandingPage() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="learn-ai" className="border-y border-slate-200 bg-white py-16 sm:py-24">
+          <div className="container mx-auto grid max-w-7xl gap-10 px-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)] lg:items-center lg:gap-16">
+            <div className="space-y-5">
+              <p className="inline-flex items-center gap-2 text-xs font-bold uppercase text-emerald-800">
+                <Sparkles className="size-4" aria-hidden="true" /> Learn AI
+              </p>
+              <h2 className="max-w-2xl text-3xl font-bold leading-tight text-slate-950 sm:text-4xl">
+                A school-aware AI learning assistant, built into EL LEARNERS
+              </h2>
+              <p className="max-w-2xl text-base leading-7 text-slate-600">
+                Learn AI uses a signed-in person&apos;s role, their active school, and the school&apos;s learning guidance to shape educational help. Students can explore lessons and practice concepts; teachers can develop explanations and lesson ideas; parents can get practical ways to support learning.
+              </p>
+              <div className="flex flex-col gap-3 pt-1 sm:flex-row">
+                <Link href="/auth/signin">
+                  <Button className="min-h-11 w-full rounded-lg bg-emerald-800 px-5 font-semibold text-white hover:bg-emerald-900 sm:w-auto">
+                    Sign in to open Learn AI <ArrowRight className="ml-2 size-4" aria-hidden="true" />
+                  </Button>
+                </Link>
+                <Link href="/auth/signup" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 px-5 text-sm font-semibold text-slate-800 hover:border-emerald-800 hover:text-emerald-900">
+                  Create an account
+                </Link>
+              </div>
+            </div>
+
+            <div className="divide-y divide-slate-200 border-y border-slate-200">
+              <div className="py-4 sm:py-5">
+                <h3 className="text-sm font-bold text-slate-900">Guidance shaped for your school</h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">School instructions and class levels provide context, while the signed-in role guides the tone and kind of help.</p>
+              </div>
+              <div className="py-4 sm:py-5">
+                <h3 className="text-sm font-bold text-slate-900">A clear daily allowance</h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">Each account receives 23 free chat credits that renew every 24 hours. Optional packs contain 35 tokens for ₦5,200, 50 for ₦6,800, 75 for ₦8,000, or 100 for ₦10,400.</p>
+              </div>
+              <div className="py-4 sm:py-5">
+                <h3 className="text-sm font-bold text-slate-900">Transparent limits</h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">Token packs are one-time Paystack purchases and expire after 30 days. Learn AI does not retrieve private student records or perform school administration actions; AI answers can be incomplete, so verify important information.</p>
+              </div>
             </div>
           </div>
         </section>

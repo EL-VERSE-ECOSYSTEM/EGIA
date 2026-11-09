@@ -18,8 +18,6 @@ export function FloatingLearnAiWidget() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
-
-  if (pathname?.startsWith('/dashboard/learn-ai')) return null
   const [input, setInput] = useState('')
   const [balance, setBalance] = useState<Balance | null>(null)
   const [isSending, setIsSending] = useState(false)
@@ -115,6 +113,8 @@ export function FloatingLearnAiWidget() {
     if (!isOpen) window.dispatchEvent(new Event('learn-ai-widget-open'))
     setIsOpen((open) => !open)
   }
+
+  if (pathname?.startsWith('/dashboard/learn-ai')) return null
 
   return (
     <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 sm:right-6 z-[998] font-sans">

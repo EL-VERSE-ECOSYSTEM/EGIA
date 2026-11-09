@@ -12,10 +12,10 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_SITE_URL ||
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "EL LEARNERS APP - Smart School Management System & CBT Portal 2026",
+    default: "EL LEARNERS APP - School Management, CBT & Learn AI for Nigeria",
     template: "%s | EL LEARNERS APP",
   },
-  description: "All-in-one Smart School Management System & CBT Exam Portal. Features instant automated grading, real-time parent monitoring, primary and secondary school report cards, online fee payment, and multi-tenant administration.",
+  description: "A school management and CBT platform for Nigerian primary and secondary schools, with Learn AI guidance tailored to school context and user roles, attendance, fees, report cards, and parent updates.",
   keywords: [
     "EL LEARNERS APP",
     "School Management System",
@@ -46,6 +46,11 @@ export const metadata: Metadata = {
     "Educational Management Information System EMIS Nigeria",
     "School Attendance Tracking App",
     "Report Card Endorsement System",
+    "AI learning assistant for Nigerian schools",
+    "Role-aware AI tutor for students and teachers",
+    "School-configured AI study support",
+    "Online CBT exam platform Nigeria",
+    "Primary and secondary school management software",
     "Adult Education Management Portal",
     "School Application Approval System",
     "New School Portal 2026",
@@ -69,7 +74,7 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: siteUrl,
     title: 'EL LEARNERS APP - Empowering Academic Excellence & Smart Schooling',
-    description: 'Transform education with EL LEARNERS APP. Powerful real-time CBT exams, instant parent performance sync, digital library, and smart school administration.',
+    description: 'School management, secure CBT assessments, parent updates, and role-aware Learn AI guidance configured for Nigerian schools.',
     siteName: 'EL LEARNERS APP',
     images: [
       {
@@ -83,7 +88,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'EL LEARNERS APP - Next-Gen Smart School Management & CBT Portal',
-    description: 'Revolutionizing school administration, CBT examinations, parent updates, and real-time student tracking.',
+    description: 'School management, CBT examinations, parent updates, and school-aware Learn AI learning support.',
     images: [`${siteUrl}/og`],
     creator: '@elcoders',
   },
