@@ -1,6 +1,7 @@
 {
-  "name": "my-project",
+  "name": "el-learners-app",
   "version": "0.1.0",
+  "description": "EL Learners App — a complete school management system for students, parents, teachers, and administrators.",
   "private": true,
   "scripts": {
     "dev": "next dev",
