@@ -1,4 +1,4 @@
-const CACHE_NAME = 'egia-shell-v2'
+const CACHE_NAME = 'el-learners-shell-v2'
 const APP_SHELL = ['/', '/manifest.json', '/logo.svg', '/icon-light-32x32.png', '/apple-icon.png']
 
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())))

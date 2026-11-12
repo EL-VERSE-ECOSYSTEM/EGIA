@@ -12,7 +12,7 @@ export default function ParentLibraryHistoryPage() {
     {
       id: 'hist-1',
       studentName: 'Chidi Obi',
-      admissionNumber: 'EGIA/2023/048',
+      admissionNumber: 'ELGO-S-2023-048',
       title: 'New School Physics for SSS',
       isbn: 'ISBN-97813592',
       borrowedAt: '2024-11-02',
@@ -22,7 +22,7 @@ export default function ParentLibraryHistoryPage() {
     {
       id: 'hist-2',
       studentName: 'Chidi Obi',
-      admissionNumber: 'EGIA/2023/048',
+      admissionNumber: 'ELGO-S-2023-048',
       title: 'Interactive English Grammar & Composition',
       isbn: 'ISBN-97811984',
       borrowedAt: '2024-10-05',

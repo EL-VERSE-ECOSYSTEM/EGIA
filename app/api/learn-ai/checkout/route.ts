@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
   const selectedPackage = LEARN_AI_PACKAGES[packageId]
   const purchaseId = randomUUID()
-  const reference = `learnai_${randomUUID().replaceAll('-', '')}`
+  const reference = `learnai-${randomUUID().replaceAll('-', '')}`
   const amountKobo = selectedPackage.priceNgn * 100
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_SITE_URL || new URL(request.url).origin).replace(/\/$/, '')
 

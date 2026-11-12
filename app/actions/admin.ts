@@ -133,7 +133,7 @@ export async function createStudent(data: any) {
 
     const admissionNumber = data.admissionNumber?.trim().toUpperCase() || generateAdmissionNumber(data.class)
     if (!isValidAdmissionNumber(admissionNumber, data.class)) {
-      throw new Error('Admission number must match the learner level: EGIA-P-###### for Primary 3–5/6 or EGIA-S-###### for JSS1–SSS3.')
+      throw new Error('Admission number must match the school prefix and learner level: XXXX-P-###### for Primary 3–5/6 or XXXX-S-###### for JSS1–SSS3.')
     }
     const studentId = randomUUID()
 
@@ -161,7 +161,7 @@ export async function createStudent(data: any) {
         description: 'Admission provisioned by school administration — registration fee waived.',
       })
     } else {
-      const reference = `EGIA-PARENT-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
+      const reference = `EL-PARENT-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
       await tx.update(student).set({ registrationStatus: 'PENDING_PAYMENT' }).where(eq(student.id, studentId))
       await tx.insert(payment).values({
         id: randomUUID(), schoolId, studentId, parentId: parentId || null, amount: '2100.00', feeType: 'registration',
@@ -176,7 +176,7 @@ export async function createStudent(data: any) {
         amount: 2100,
         currency: 'NGN',
         customerName: studentFullName,
-        customerEmail: `${admissionNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}@egia.local`,
+        customerEmail: `${admissionNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}@el.local`,
         description: `Student Registration Fee for ${studentFullName}`,
         redirectUrl: returnUrl,
         schoolId,

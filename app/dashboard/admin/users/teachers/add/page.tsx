@@ -107,7 +107,7 @@ export default function AddTeacherPage() {
                         required
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        placeholder="teacher@egia.com"
+                        placeholder="teacher@el.com"
                         className="h-14 rounded-2xl bg-slate-50 border-none font-bold focus:bg-white focus:ring-amber-600 transition-all"
                       />
                     </div>

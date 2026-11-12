@@ -1,6 +1,6 @@
 # TECHNICAL STACK
 
-## Project: EL GOODNEWS INT'L ACADEMY Portal
+## Project: EL Learners App Portal
 
 ---
 

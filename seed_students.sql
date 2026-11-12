@@ -1,5 +1,5 @@
 -- =====================================================================
--- EL GOODNEWS INT'L ACADEMY - SEED DATA FOR MULTI-TENANT & AUTOMATED LOGIN ACCOUNTS
+-- EL Learners App - SEED DATA FOR MULTI-TENANT & AUTOMATED LOGIN ACCOUNTS
 -- Includes Ezeako Samuel Chibueze, Jeremiah Idaghosa Clement, and default School setup.
 -- =====================================================================
 
@@ -19,7 +19,7 @@ INSERT INTO public.school (
   updatedat
 ) VALUES (
   'school-elgoodnews-001',
-  'EL GOODNEWS INT''L ACADEMY',
+  'EL Learners App',
   'EXCE-12345',
   'Lagos, Nigeria',
   '["Primary 3", "Primary 4", "Primary 5", "Primary 6", "JSS1", "JSS2", "JSS3", "SSS1", "SSS2", "SSS3"]'::jsonb,
@@ -33,11 +33,11 @@ INSERT INTO public.school (
 ) ON CONFLICT (code) DO NOTHING;
 
 -- 1. CLEANSE PRE-EXISTING SEED RECORDS TO PREVENT CONSTRAINT CONFLICTS
-DELETE FROM public.student WHERE admissionnumber IN ('EGIA-S-00998', 'EGIA-S-00997');
+DELETE FROM public.student WHERE admissionnumber IN ('ELGO-S-00998', 'ELGO-S-00997');
 DELETE FROM public.user_role WHERE userid IN ('user-samuel-00998', 'user-jeremiah-00997');
 DELETE FROM public."user" WHERE email IN ('samuel012@gmail.com', 'sophieadesuwa6@gmail.com');
 
--- 2. EZEAKO SAMUEL CHIBUEZE SETUP (STUDENT: EGIA-S-00998)
+-- 2. EZEAKO SAMUEL CHIBUEZE SETUP (STUDENT: ELGO-S-00998)
 INSERT INTO public."user" (id, email, name, schoolid, createdat, updatedat)
 VALUES (
   'user-samuel-00998',
@@ -79,7 +79,7 @@ INSERT INTO public.student (
   '2011-04-20',
   'SSS2',
   'COMMERCIAL',
-  'EGIA-S-00998',
+  'ELGO-S-00998',
   'default',
   'ACTIVE',
   '[
@@ -105,7 +105,7 @@ INSERT INTO public.student (
   NOW()
 );
 
--- 3. JEREMIAH IDAGHOSA CLEMENT SETUP (STUDENT: EGIA-S-00997)
+-- 3. JEREMIAH IDAGHOSA CLEMENT SETUP (STUDENT: ELGO-S-00997)
 INSERT INTO public."user" (id, email, name, schoolid, createdat, updatedat)
 VALUES (
   'user-jeremiah-00997',
@@ -147,7 +147,7 @@ INSERT INTO public.student (
   '2015-09-10',
   'JSS1',
   'GENERAL',
-  'EGIA-S-00997',
+  'ELGO-S-00997',
   'default',
   'ACTIVE',
   '[

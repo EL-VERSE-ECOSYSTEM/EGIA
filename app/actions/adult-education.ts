@@ -125,7 +125,7 @@ export async function payAdultRegistration() {
   if (!enrollment) throw new Error('Enrollment not found.')
   if (enrollment.registrationPaid) throw new Error('Registration is already paid.')
 
-  const reference = `EGIA-ADULT-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
+  const reference = `EL-ADULT-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
   const paymentId = randomUUID()
 
   await db.transaction(async (tx) => {
@@ -182,7 +182,7 @@ export async function payAdultWeekly() {
   if (!enrollment) throw new Error('Enrollment not found.')
   if (!enrollment.registrationPaid) throw new Error('Please pay registration fee first.')
 
-  const reference = `EGIA-ADULT-WK-${Date.now()}-${randomUUID().slice(0, 8)}`
+  const reference = `EL-ADULT-WK-${Date.now()}-${randomUUID().slice(0, 8)}`
   const paymentId = randomUUID()
 
   await db.transaction(async (tx) => {

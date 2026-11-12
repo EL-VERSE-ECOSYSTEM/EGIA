@@ -1,6 +1,6 @@
 # EL LEARNERS APP
 
-EL Learners App is a full school management platform built for EL GOODNEWS INT'L ACADEMY and similar modern learning institutions. It brings together academic administration, parent communication, digital assessment, payment handling, and operational reporting in a single connected system.
+EL Learners App is a full school management platform built for EL Learners App and similar modern learning institutions. It brings together academic administration, parent communication, digital assessment, payment handling, and operational reporting in a single connected system.
 
 The solution supports four main roles:
 - Students

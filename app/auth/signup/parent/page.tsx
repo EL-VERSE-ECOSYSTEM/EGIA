@@ -382,7 +382,7 @@ export default function ParentSignUpPage() {
 
             <div className="flex gap-2">
               <Input
-                placeholder="Enter ward's admission number (e.g. EGIA-S-123456)"
+                placeholder="Enter ward's admission number (e.g. ELGO-S-123456)"
                 value={wardAdmissionNumber}
                 onChange={e => setWardAdmissionNumber(e.target.value.toUpperCase())}
                 className="h-11 rounded-xl border-slate-800 bg-slate-900 text-xs font-bold uppercase text-white tracking-wider"

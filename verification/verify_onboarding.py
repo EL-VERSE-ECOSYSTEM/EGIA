@@ -10,7 +10,7 @@ def run_cuj(page, context):
     # Generate random name suffix to guarantee success on every run
     rand_id = random.randint(1000, 9999)
     last_name = f"Okon{rand_id}"
-    email = f"mary.okon{rand_id}@egia.com"
+    email = f"mary.okon{rand_id}@el.com"
 
     # 1. Goto SignUp Options Page
     page.goto("http://localhost:3000/auth/signup")

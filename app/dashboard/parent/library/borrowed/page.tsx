@@ -13,7 +13,7 @@ export default function ParentBorrowedBooksPage() {
     {
       id: 'loan-1',
       studentName: 'Chidi Obi',
-      admissionNumber: 'EGIA/2023/048',
+      admissionNumber: 'ELGO-S-2023-048',
       title: 'Essential Mathematics for Senior Secondary Schools (Book 1)',
       isbn: 'ISBN-97810482',
       borrowedAt: '2025-02-10',
@@ -24,7 +24,7 @@ export default function ParentBorrowedBooksPage() {
     {
       id: 'loan-2',
       studentName: 'Chidi Obi',
-      admissionNumber: 'EGIA/2023/048',
+      admissionNumber: 'ELGO-S-2023-048',
       title: 'Modern Biology for Senior Secondary Schools',
       isbn: 'ISBN-97812048',
       borrowedAt: '2025-01-15',

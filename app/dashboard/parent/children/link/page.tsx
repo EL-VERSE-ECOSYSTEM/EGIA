@@ -54,7 +54,7 @@ export default function LinkChildPage() {
               Student Lookup
             </CardTitle>
             <CardDescription className="text-slate-400 font-bold">
-              The admission number is formatted as EGIA-S-XXXXXX or EGIA-P-XXXXXX
+              The admission number uses your school's four-letter prefix, followed by -S-XXXXXX or -P-XXXXXX.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-10 pb-12">
@@ -64,7 +64,7 @@ export default function LinkChildPage() {
                 <div className="flex gap-4">
                   <Input
                     id="admissionNumber"
-                    placeholder="EGIA-S-XXXXXX or EGIA-P-XXXXXX"
+                    placeholder="XXXX-S-XXXXXX or XXXX-P-XXXXXX"
                     value={admissionNumber}
                     onChange={(e) => setAdmissionNumber(e.target.value.toUpperCase())}
                     required

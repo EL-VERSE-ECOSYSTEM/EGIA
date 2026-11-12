@@ -434,7 +434,7 @@ export default function FeesStructurePage() {
                     <input
                       type="text"
                       required={!usePaystack}
-                      placeholder="e.g. EL GOODNEWS INTERNATIONAL ACADEMY"
+                      placeholder="e.g. EL Learners App"
                       value={accountName}
                       onChange={(e) => setAccountName(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-600"

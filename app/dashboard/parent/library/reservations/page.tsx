@@ -13,7 +13,7 @@ export default function ParentLibraryReservationsPage() {
     {
       id: 'resv-1',
       studentName: 'Chidi Obi',
-      admissionNumber: 'EGIA/2023/048',
+      admissionNumber: 'ELGO-S-2023-048',
       title: 'Modern Biology for Senior Secondary Schools',
       isbn: 'ISBN-97812048',
       reservedAt: '2025-02-18',
@@ -23,7 +23,7 @@ export default function ParentLibraryReservationsPage() {
     {
       id: 'resv-2',
       studentName: 'Chidi Obi',
-      admissionNumber: 'EGIA/2023/048',
+      admissionNumber: 'ELGO-S-2023-048',
       title: 'WAEC Mathematics Past Questions & Solutions (2020 - 2025)',
       isbn: 'ISBN-97811223',
       reservedAt: '2025-02-20',

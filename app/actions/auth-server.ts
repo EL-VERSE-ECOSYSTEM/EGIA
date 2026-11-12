@@ -606,7 +606,7 @@ export async function loginStudent(data: any) {
     return { error: 'Password is required for this account.' }
   }
 
-  let resolvedEmail = `student.${admissionNumber.toLowerCase()}@portal.egia.local`
+  let resolvedEmail = `student.${admissionNumber.toLowerCase()}@portal.el.local`
   if (existingStudent.userId) {
     const userRecord = await db.query.user.findFirst({
       where: eq(userTable.id, existingStudent.userId)

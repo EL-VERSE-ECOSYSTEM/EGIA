@@ -1,11 +1,11 @@
 # PRODUCT REQUIREMENT DOCUMENT (PRD)
 
-## Project: EL GOODNEWS INT'L ACADEMY Portal
+## Project: EL Learners App Portal
 
 ---
 
 ## 1. Product Overview & Objectives
-EL GOODNEWS INT'L ACADEMY is an all-in-one School Management System built to facilitate digital transformations in school administration, parents communication, automated fees billing, academic performance tracking, and online assessment execution.
+EL Learners App is an all-in-one School Management System built to facilitate digital transformations in school administration, parents communication, automated fees billing, academic performance tracking, and online assessment execution.
 
 ### Target Audience
 *   **Students/Pupils:** Browse searchable digital textbook materials, take proctored CBT tests and weekend assignments, play learning games, watch recorded virtual classroom video lectures, and track personal results.
@@ -20,7 +20,7 @@ EL GOODNEWS INT'L ACADEMY is an all-in-one School Management System built to fac
 ### A. Authentication & Automated Credentials
 *   **Unique Credentials Allocation:**
     *   **Student Registration:** Dynamically generates a unique 6-digit Admission Number (e.g. `GODXXXXXX`).
-    *   **Staff/Teacher Onboarding:** Dynamically allocates a unique Staff ID prefixed with `EGIA-ST-`.
+    *   **Staff/Teacher Onboarding:** Dynamically allocates a unique, school-prefixed Staff ID (for example, `ELGO-ST-123456`).
 *   **Dual-Login Portal:** Supports logging in using either standard Email Address or the generated credentials (Admission Number for students, Staff ID for teachers).
 *   **Authentication Engine:** Connected to live **Supabase Auth** with email authentication and automated role-based mapping into Postgres user tables.
 

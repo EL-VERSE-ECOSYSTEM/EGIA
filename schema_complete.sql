@@ -1,4 +1,4 @@
--- EL GOODNEWS ACADEMY: Canonical Complete Supabase SQL Schema
+-- EL Learners App: Canonical Complete Supabase SQL Schema
 -- Full setup including multi-tenant school tenancy, RBAC, ABAC policies, CBT exam codes, support & disputes, adult education, realtime publications, and triggers.
 
 drop table if exists public.adult_education_payments cascade;
@@ -898,7 +898,7 @@ insert into public."abac_policy" ("id", "name", "description", "role", "resource
 on conflict (name) do nothing;
 
 -- =====================================================================
--- EL GOODNEWS INT'L ACADEMY - SEED DATA FOR MULTI-TENANT & AUTOMATED LOGIN ACCOUNTS
+-- EL Learners App - SEED DATA FOR MULTI-TENANT & AUTOMATED LOGIN ACCOUNTS
 -- =====================================================================
 
 -- 0. SEED DEFAULT MULTI-TENANT SCHOOL
@@ -917,7 +917,7 @@ INSERT INTO public.school (
   updatedat
 ) VALUES (
   'school-elgoodnews-001',
-  'EL GOODNEWS INT''L ACADEMY',
+  'EL Learners App',
   'EXCE-10015',
   'Lagos, Nigeria',
   '["Primary 3", "Primary 4", "Primary 5", "Primary 6", "JSS1", "JSS2", "JSS3", "SSS1", "SSS2", "SSS3"]'::jsonb,
@@ -931,7 +931,7 @@ INSERT INTO public.school (
 ) ON CONFLICT (code) DO NOTHING;
 
 -- 1. CLEANSE PRE-EXISTING SEED RECORDS TO PREVENT CONSTRAINT CONFLICTS
-DELETE FROM public.student WHERE admissionnumber IN ('EGIA-S-00998', 'EGIA-S-00997', 'ELGO-S-00998', 'ELGO-S-00997');
+DELETE FROM public.student WHERE admissionnumber IN ('ELGO-S-00998', 'ELGO-S-00997');
 DELETE FROM public.user_role WHERE userid IN ('user-samuel-00998', 'user-jeremiah-00997', 'user-superadmin-001');
 DELETE FROM public."user" WHERE email IN ('samuel012@gmail.com', 'sophieadesuwa6@gmail.com', 'ixoralyon013@gmail.com');
 

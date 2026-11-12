@@ -23,7 +23,7 @@ async def verify_registration():
         # Inject fake local storage to simulate successful Korapay payment callback return
         print("Simulating return from Korapay payment checkout redirect by writing unique admission to localStorage...")
         await page.evaluate("""() => {
-            localStorage.setItem('pending_student_admission', 'EGIA/STUD/2026/094827');
+            localStorage.setItem('pending_student_admission', 'EL/STUD/2026/094827');
         }""")
 
         # Reload the page to trigger client mount logic

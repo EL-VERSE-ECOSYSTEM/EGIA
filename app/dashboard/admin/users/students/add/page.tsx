@@ -90,7 +90,7 @@ export default function AddStudentPage() {
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Admission Number</Label>
                     <Input
                       {...register('admissionNumber')}
-                      placeholder="EGIA-S-XXXXXX or EGIA-P-XXXXXX"
+                      placeholder="XXXX-S-XXXXXX or XXXX-P-XXXXXX"
                       className="h-14 rounded-2xl bg-slate-50 border-none font-black tracking-widest focus:bg-white focus:ring-amber-600"
                     />
                     {errors.admissionNumber && <p className="text-xs font-bold text-red-600">{errors.admissionNumber.message}</p>}

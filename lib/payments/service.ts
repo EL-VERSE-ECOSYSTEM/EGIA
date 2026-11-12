@@ -79,7 +79,7 @@ export async function initializePaystackPayment(params: InitializePaymentParams)
     throw new Error('Paystack payment service is unavailable because its secret key is not configured.')
   }
 
-  const reference = params.reference || `pstk_${Date.now()}_${randomUUID().slice(0, 8)}`
+  const reference = params.reference || `pstk-${Date.now()}-${randomUUID().slice(0, 8)}`
   const currency = params.currency || 'NGN'
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_SITE_URL || 'http://localhost:3000'
   const callbackUrl = params.callbackUrl || `${siteUrl.replace(/\/$/, '')}/payment/return`

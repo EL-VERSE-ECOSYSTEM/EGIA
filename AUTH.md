@@ -6,7 +6,7 @@ EL LEARNERS APP uses a unified multi-identity authentication architecture powere
 ## Supported Sign-In Identifiers
 Users can log into the platform using any of the following credentials:
 1. **Email Address:** `user@example.com`
-2. **Student Admission Number:** `EGIA/2026/001`
+2. **Student Admission Number:** `ELGO-S-123456` (school prefix, level, and unique number)
 3. **Staff ID:** `STF/2026/042`
 4. **School Registration Code:** Uniquely generated 8-character code (e.g., `SCH12345`)
 

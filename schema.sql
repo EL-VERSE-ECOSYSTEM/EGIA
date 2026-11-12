@@ -1,4 +1,4 @@
--- EL GOODNEWS ACADEMY: Canonical Supabase SQL Schema
+-- EL Learners App: Canonical Supabase SQL Schema
 -- Clean install script: recreates schema, tables, triggers, and Supabase Realtime publication.
 
 drop table if exists public.adult_education_payments cascade;

@@ -203,7 +203,7 @@ export default function StudentReportCardPage() {
 
     ctx.fillStyle = 'rgba(22, 101, 52, 0.3)'
     ctx.font = 'bold 10px sans-serif'
-    ctx.fillText('EGIA APPROVED', 815, currentY + 114)
+    ctx.fillText('EL APPROVED', 815, currentY + 114)
 
     // Footer
     ctx.fillStyle = '#94A3B8'
@@ -580,7 +580,7 @@ export default function StudentReportCardPage() {
                       </p>
                       {/* Decorative Digital Stamp/Seal */}
                       <div className="absolute -bottom-4 -right-4 w-24 h-24 rounded-full border-4 border-orange-500/20 flex items-center justify-center rotate-12">
-                        <span className="text-[10px] font-black text-orange-500/30 uppercase tracking-widest">EGIA SEAL</span>
+                        <span className="text-[10px] font-black text-orange-500/30 uppercase tracking-widest">EL SEAL</span>
                       </div>
                     </div>
                   </div>

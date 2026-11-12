@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   if (await isSystemFeatureEnabled('disable_ai', session.user.schoolId)) {
     return errorResponse('Learn AI is temporarily disabled.', 503)
   }
-  const apiKey = process.env.GROQ_AI_API
+  const apiKey = process.env.GROQ_API_KEY || process.env.GROQ_AI_API
   if (!apiKey) return errorResponse('Learn AI is not configured yet.', 503)
 
   let body: { messages?: unknown }
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
       SUPER_ADMIN: 'Support education operations and platform guidance. Do not claim access to private records or perform administrative actions.',
     }
     const systemPrompt = [
-      'You are Learn AI, the education assistant for EL LEARNERS. Give accurate, concise, age-appropriate educational help. Be transparent when unsure. Never claim to read school records, change accounts, or perform actions.',
+      'You are Learn AI, the education assistant for EL Learners. Give accurate, concise, age-appropriate educational help. Be transparent when unsure. Never claim to read school records, change accounts, or perform actions.',
       `Authenticated role: ${role}. ${roleGuidance[role]}`,
       school?.name ? `School context: ${school.name}.` : 'The user is not currently linked to a school.',
       classes ? `Registered class levels: ${classes}.` : '',
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: process.env.GROQ_AI_MODEL || 'llama-3.3-70b-versatile',
+          model: process.env.GROQ_AI_MODEL || 'openai/gpt-oss-120b',
           messages: [{ role: 'system', content: systemPrompt }, ...messages],
           max_tokens: 1000,
           temperature: 0.4,
