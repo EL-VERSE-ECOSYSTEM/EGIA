@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Users, Search, Filter, Shield, Clock, CheckCircle2, AlertTriangle, XCircle, Calendar, RefreshCw } from 'lucide-react'
+import {  Search, Shield, CheckCircle2, AlertTriangle, XCircle, Calendar } from 'lucide-react'
 import type { TeacherAttendance } from '@/types/database.types'
 
 interface LiveAttendanceBoardProps {

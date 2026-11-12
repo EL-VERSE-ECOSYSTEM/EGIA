@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { user as userTable, student, parent as parentTable, teacher as teacherTable, userRole, notification as notificationTable, academicSession, term, payment, school as schoolTable } from '@/lib/db/schema'
+import { user as userTable, student, parent as parentTable, teacher as teacherTable, userRole, notification as notificationTable, academicSession, term, school as schoolTable } from '@/lib/db/schema'
 import { eq, and, count, desc, isNull } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
@@ -117,13 +117,13 @@ export async function checkWardLinkingStatus(admissionNumber: string, schoolCode
       where: eq(schoolTable.code, schoolCode.trim().toUpperCase()),
     })
     if (!matchingSchool || (session?.user && session.user.role !== 'SUPER_ADMIN' && matchingSchool.id !== targetSchoolId)) {
-      return { found: false, isLinked: false, canLink: false, message: 'Student with this admission number not found' }
+      return { found: false, isLinked: false, canLink: false, status: 'NOT_FOUND' as const, message: 'Student with this admission number not found', student: null, studentName: null, studentClass: null }
     }
     targetSchoolId = matchingSchool.id
   }
 
   if (!targetSchoolId) {
-    return { found: false, isLinked: false, canLink: false, message: 'A valid school registration code is required.' }
+    return { found: false, isLinked: false, canLink: false, status: 'NOT_FOUND' as const, message: 'A valid school registration code is required.', student: null, studentName: null, studentClass: null }
   }
 
   const child = await db.query.student.findFirst({
@@ -133,16 +133,24 @@ export async function checkWardLinkingStatus(admissionNumber: string, schoolCode
     ),
   })
 
-  if (!child) return { found: false, isLinked: false, canLink: false, message: 'Student with this admission number not found' }
+  if (!child) return { found: false, isLinked: false, canLink: false, status: 'NOT_FOUND' as const, message: 'Student with this admission number not found', student: null, studentName: null, studentClass: null }
   const studentSummary = {
-    admissionNumber: child.admissionNumber,
+    admissionNumber: child.admissionNumber || admissionNumber.trim().toUpperCase(),
     firstName: child.firstName,
     lastName: child.lastName,
     class: child.class,
   }
-  if (child.parentId) return { found: true, isLinked: true, canLink: false, message: 'Student is already linked to a parent account', studentName: `${child.firstName} ${child.lastName}`, studentClass: child.class }
-
-  return { found: true, isLinked: false, canLink: true, student: studentSummary, studentName: `${child.firstName} ${child.lastName}`, studentClass: child.class }
+  const isLinked = Boolean(child.parentId)
+  return {
+    found: true,
+    isLinked,
+    canLink: !isLinked,
+    status: isLinked ? 'LINKED_TO_PARENT' as const : 'NOT_LINKED' as const,
+    message: isLinked ? 'Student is already linked to a parent account' : 'Student is ready to be linked to your parent account.',
+    student: studentSummary,
+    studentName: `${child.firstName} ${child.lastName}`,
+    studentClass: child.class,
+  }
 }
 
 export async function createAdminProfile() {
@@ -235,7 +243,20 @@ export async function getUserRole(userId: string) {
   return roleRec?.role || 'STUDENT'
 }
 
-export async function createParentProfile(data: any) {
+type ProfileSetupData = {
+  schoolId?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  phoneNumber?: string | null
+  class?: string | null
+  admissionNumber?: string | null
+  staffCode?: string | null
+  type?: string | null
+  qualification?: string | null
+  specialization?: string | null
+}
+
+export async function createParentProfile(data: ProfileSetupData) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -280,7 +301,7 @@ export async function createParentProfile(data: any) {
   return inserted[0]
 }
 
-export async function createStudentProfile(data: any) {
+export async function createStudentProfile(data: ProfileSetupData) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -326,7 +347,7 @@ export async function createStudentProfile(data: any) {
   return inserted[0]
 }
 
-export async function createTeacherProfile(data: any) {
+export async function createTeacherProfile(data: ProfileSetupData) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 

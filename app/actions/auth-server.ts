@@ -4,13 +4,13 @@ import { createClient } from '@/utils/supabase/server'
 import { getSiteUrl, getSupabaseSecretKey, getSupabaseUrl, isSupabaseConfigured } from '@/utils/supabase/config'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
-import { user as userTable, userRole, parent, teacher, student, payment, subject, school } from '@/lib/db/schema'
-import { eq, and, or, sql, isNull } from 'drizzle-orm'
+import { user as userTable, userRole, parent, teacher, student, school } from '@/lib/db/schema'
+import { eq, and, or, isNull } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
 import { createClient as createSupabaseAdminClient, type User as SupabaseUser } from '@supabase/supabase-js'
 import { withCircuitBreaker } from '@/lib/resilience'
-import { isSuperAdminEmail, isSuperAdminUser } from '@/lib/auth/super-admin'
+import { isSuperAdminEmail } from '@/lib/auth/super-admin'
 
 type AuthRole = 'STUDENT' | 'TEACHER' | 'PARENT' | 'ADMIN'
 
@@ -241,7 +241,7 @@ export async function registerStudent(data: any) {
   if (authUser.error || !authUser.userId) return { error: authUser.error || 'Could not create the Supabase account. Please try again.' }
 
   const userId = authUser.userId
-  let createdStudentId = randomUUID()
+  const createdStudentId = randomUUID()
 
   try {
     await db.transaction(async (tx) => {
@@ -681,7 +681,7 @@ export async function loginStudent(data: any) {
     }
   }
 
-  let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
     password: userPassword
   })

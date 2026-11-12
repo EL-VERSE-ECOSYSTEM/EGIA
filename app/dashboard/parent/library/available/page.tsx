@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import {
-  Search, BookOpen, Star, Eye, Download, Sparkles, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Video
+  Search, BookOpen, Star, Eye, Download, Sparkles, X, ZoomIn, ZoomOut, RotateCcw, Video
 } from 'lucide-react'
 
 export default function AvailableLibraryBooksPage() {

@@ -5,10 +5,9 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import {
   getSuperAdminOverviewStats,
   toggleSchoolParentRegistrationAction,
-  updateSchoolPaymentStatusAction,
-  sendSystemWideNotificationAction
+  updateSchoolPaymentStatusAction
 } from '@/app/actions/super-admin'
-import { Building2, RefreshCw, Search, ShieldCheck, Bell, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Building2, RefreshCw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 

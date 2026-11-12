@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Video, MessageSquare, Send, Sparkles, Play, Loader2 } from 'lucide-react'
+import { Video, Sparkles } from 'lucide-react'
 import { OnlinePrepModal } from '@/components/online-prep/OnlinePrepModal'
 import { ClassCommentsSection } from '@/components/comments/ClassCommentsSection'
 import { getPrepLessonsAction } from '@/app/actions/online-prep'

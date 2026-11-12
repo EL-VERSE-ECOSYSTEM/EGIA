@@ -3,7 +3,7 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { tournamentScores, school as schoolTable, user as userTable } from '@/lib/db/schema'
-import { eq, sql, desc } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
 export interface SchoolTournamentScore {

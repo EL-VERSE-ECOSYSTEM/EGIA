@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { BookOpen, Calendar, CheckCircle2 } from 'lucide-react'
+import { BookOpen, CheckCircle2 } from 'lucide-react'
 
 export default function ParentLibraryHistoryPage() {
   const [historyItems, setHistoryItems] = useState([

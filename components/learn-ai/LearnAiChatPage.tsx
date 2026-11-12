@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { ArrowUpRight, Bot, LoaderCircle, MessageSquare, RotateCcw, Send, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
+import { loadLearnAiHistory, saveLearnAiHistory } from '@/lib/learn-ai-history'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 type Balance = { daily_remaining: number; paid_remaining: number; reset_at: string }
@@ -27,6 +28,7 @@ export function LearnAiChatPage() {
   const [isSending, setIsSending] = useState(false)
   const [isBuying, setIsBuying] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [userId, setUserId] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -35,7 +37,13 @@ export function LearnAiChatPage() {
       .then(async (response) => {
         const result = await response.json()
         if (!response.ok) throw new Error(result.error || 'Learn AI is unavailable.')
-        if (active) setBalance(result)
+        if (active) {
+          setBalance(result)
+          if (typeof result.user_id === 'string') {
+            setUserId(result.user_id)
+            setMessages(loadLearnAiHistory(result.user_id))
+          }
+        }
       })
       .catch((requestError: unknown) => {
         if (active) {
@@ -46,6 +54,13 @@ export function LearnAiChatPage() {
       })
     return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    if (!userId) return
+    saveLearnAiHistory(userId, messages)
+    const expiry = window.setTimeout(() => setMessages([]), 24 * 60 * 60 * 1000)
+    return () => window.clearTimeout(expiry)
+  }, [messages, userId])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })

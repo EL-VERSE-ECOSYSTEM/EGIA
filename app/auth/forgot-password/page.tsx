@@ -52,8 +52,8 @@ export default function ForgotPasswordPage() {
       setUserId(res.userId)
       setVerificationType(res.verificationType)
       setStep(2)
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during account lookup.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred during account lookup.')
     } finally {
       setLoading(false)
     }
@@ -83,8 +83,8 @@ export default function ForgotPasswordPage() {
       }
 
       setStep(3)
-    } catch (err: any) {
-      setError(err.message || 'Verification failed. Please try again.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Verification failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -115,8 +115,8 @@ export default function ForgotPasswordPage() {
       }
 
       setStep(4)
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while resetting your password.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred while resetting your password.')
     } finally {
       setLoading(false)
     }

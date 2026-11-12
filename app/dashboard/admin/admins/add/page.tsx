@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { assignSchoolAdminRole } from '@/app/actions/admin-ops'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
-import { UserPlus, Shield, Upload, FileText, CheckCircle2, AlertCircle, Loader2, ArrowRight } from 'lucide-react'
+import {  Shield, Upload, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function AddAdminPage() {

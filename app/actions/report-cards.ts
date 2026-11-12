@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { reportCardTable, student, parent, teacher } from '@/lib/db/schema'
+import { reportCardTable, student, parent } from '@/lib/db/schema'
 import { eq, inArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 

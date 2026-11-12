@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { getApprovedCBTs } from '@/app/actions/assessments'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
-import { BookOpen, Key, Lock, Unlock, ArrowRight, Clock, Award, HelpCircle } from 'lucide-react'
+import { BookOpen, Key, Lock, Unlock, ArrowRight, Clock, HelpCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 

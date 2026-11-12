@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Wallet, Calendar, CheckCircle2, AlertCircle, ArrowRight, CreditCard } from 'lucide-react'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { payment, paymentInstallment, parent as parentTable } from '@/lib/db/schema'
+import {  paymentInstallment, parent as parentTable } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 export default async function InstallmentsPage() {

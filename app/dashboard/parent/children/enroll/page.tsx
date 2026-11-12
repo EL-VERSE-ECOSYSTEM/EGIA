@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { createStudent } from '@/app/actions/admin'
-import { UserPlus, ShieldCheck, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react'
+import {  ShieldCheck, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ParentEnrollStudentPage() {

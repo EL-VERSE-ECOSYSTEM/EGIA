@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import { getSchoolPaymentConfigAction, saveSchoolPaymentConfigAction } from '@/app/actions/payment-config'
 import { useNigerianBanks } from '@/hooks/useNigerianBanks'
 import { createClient } from '@/lib/supabase/client'
-import { CreditCard, Building, Link as LinkIcon, FileText, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
+import { CreditCard, Building, Link as LinkIcon, CheckCircle2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function AdminPaymentSettingsPage() {

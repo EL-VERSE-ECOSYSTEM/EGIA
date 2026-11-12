@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { LeaveApprovalModal } from '@/components/attendance/LeaveApprovalModal'
 import { useLeaveRequests } from '@/hooks/useLeaveRequests'
 import { useAuth } from '@/hooks/useAuth'
-import { Calendar, Clock, CheckCircle2, XCircle, FileText, ExternalLink, Shield } from 'lucide-react'
+import { Calendar, Clock, CheckCircle2, XCircle, FileText } from 'lucide-react'
 import type { TeacherLeaveRequest } from '@/types/database.types'
 
 export default function AdminLeavePage() {

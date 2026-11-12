@@ -1,9 +1,9 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Loader2, Lock, AlertTriangle, ShieldCheck } from 'lucide-react'
+import { Loader2, Lock, AlertTriangle } from 'lucide-react'
 import { payAdultWeekly } from '@/app/actions/adult-education'
 import { toast } from 'sonner'
 

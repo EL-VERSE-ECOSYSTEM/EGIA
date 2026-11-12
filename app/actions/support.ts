@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db'
 import { dispute, disputeMessage, supportTicket, supportTicketReply } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
 export async function createDispute(data: {

@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
-import { AlertCircle, Calendar, ShieldAlert, Sparkles, RefreshCw, Layers } from 'lucide-react'
+import { AlertCircle, Calendar, ShieldAlert, Sparkles, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function ParentFeesStructurePage() {

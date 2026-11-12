@@ -1,7 +1,7 @@
 import React from 'react'
 import { db } from '@/lib/db'
 import { jobs, systemIncidents } from '@/lib/db/schema'
-import { count, eq, desc } from 'drizzle-orm'
+import { count, desc } from 'drizzle-orm'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Activity, Server, ShieldAlert, Cpu, AlertTriangle, CheckCircle } from 'lucide-react'

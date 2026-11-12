@@ -1,7 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
-import { GraduationCap, ShieldCheck, ArrowLeft, Lock } from 'lucide-react'
+import {  ShieldCheck, ArrowLeft, Lock } from 'lucide-react'
 
 export const metadata = {
   title: 'Privacy Policy | EL LEARNERS APP',

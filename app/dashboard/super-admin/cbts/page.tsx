@@ -6,7 +6,7 @@ import {
   getAllCBTsForSuperAdmin,
   approveCBTAssessmentAction
 } from '@/app/actions/super-admin'
-import { GraduationCap, RefreshCw, Search, CheckCircle, Clock } from 'lucide-react'
+import { GraduationCap, RefreshCw, Search, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 

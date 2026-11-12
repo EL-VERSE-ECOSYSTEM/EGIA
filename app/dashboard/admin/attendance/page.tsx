@@ -5,7 +5,7 @@ import { LiveAttendanceBoard } from '@/components/attendance/LiveAttendanceBoard
 import { AttendanceOverrideModal } from '@/components/attendance/AttendanceOverrideModal'
 import { useLiveAttendance } from '@/hooks/useLiveAttendance'
 import { useAuth } from '@/hooks/useAuth'
-import { Download, Shield, Sparkles, RefreshCw } from 'lucide-react'
+import { Download, Sparkles } from 'lucide-react'
 import type { TeacherAttendance } from '@/types/database.types'
 
 export default function AdminAttendancePage() {

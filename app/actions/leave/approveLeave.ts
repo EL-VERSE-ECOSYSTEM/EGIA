@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { teacherLeaveRequests, teacherAttendance, user as userTable, schoolAdminRoles } from '@/lib/db/schema'
+import { teacherLeaveRequests, user as userTable, schoolAdminRoles } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 

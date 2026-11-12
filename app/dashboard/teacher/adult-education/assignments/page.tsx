@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, FileText, Plus, Calendar } from 'lucide-react'
+import { Loader2, FileText, Plus } from 'lucide-react'
 import { createAdultClass, getAdultClasses, getCurrentUserRole } from '@/app/actions/adult-education'
 import { toast } from 'sonner'
 

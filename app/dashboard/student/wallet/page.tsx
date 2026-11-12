@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { getStudentWalletStatsAction, claimStudentGiftAction } from '@/app/actions/payments'
 import { createClient } from '@/lib/supabase/client'
-import { Wallet, Gift, Trophy, ArrowUpRight, Clock, CheckCircle2, Sparkles, AlertCircle, RefreshCw, DollarSign, ShieldCheck } from 'lucide-react'
+import { Wallet, Gift, Trophy, Clock, RefreshCw, DollarSign, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function StudentWalletPage() {

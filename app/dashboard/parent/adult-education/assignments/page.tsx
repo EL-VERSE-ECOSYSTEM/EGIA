@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, FileText, Calendar, AlertCircle } from 'lucide-react'
+import { Loader2, FileText } from 'lucide-react'
 import { checkWeeklyPaymentStatus, getAdultClasses } from '@/app/actions/adult-education'
 import PaymentLock from '@/components/adult-education/payment-lock'
 

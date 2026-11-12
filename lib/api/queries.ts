@@ -9,7 +9,6 @@ import {
   assessment,
   payment,
   auditLog,
-  attendance,
   dispute,
   subject,
   message,

@@ -4,13 +4,11 @@ import React, { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import {
   getPendingSchoolApplicationsAction,
-  reviewSchoolApplicationAction,
   verifyApplicationDocumentAction,
   approveSchoolApplicationAction,
-  rejectSchoolApplicationAction,
-  activateSchoolAdminAction
+  rejectSchoolApplicationAction
 } from '@/app/actions/super-admin'
-import { Building2, CheckCircle, XCircle, RefreshCw, Clock, ExternalLink, ShieldCheck, Search } from 'lucide-react'
+import { Building2, CheckCircle, XCircle, RefreshCw, ExternalLink, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 

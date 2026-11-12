@@ -3,7 +3,7 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { libraryBooks, lessonNotes, subject, teacher as teacherTable, user as userTable } from '@/lib/db/schema'
-import { asc, eq, and } from 'drizzle-orm'
+import { asc, eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
 export async function getLibrarySubjects() {

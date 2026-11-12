@@ -7,7 +7,7 @@ import {
   toggleUserSuspensionAction,
   deleteUserAccountAction
 } from '@/app/actions/super-admin'
-import { Users, RefreshCw, Search, ShieldAlert, Ban, Trash2, CheckCircle } from 'lucide-react'
+import { Users, RefreshCw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 

@@ -8,10 +8,10 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import {
-  Search, BookOpen, FileText, Video,
+  Search, BookOpen, Video,
   Download, Star, HelpCircle, Eye,
   BookMarked, Sparkles, X, ChevronLeft,
-  ChevronRight, ZoomIn, ZoomOut, RotateCcw, Plus, Upload
+  ChevronRight, ZoomIn, ZoomOut, RotateCcw, Upload
 } from 'lucide-react'
 import { LessonNoteUploader } from '@/components/library/LessonNoteUploader'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'

@@ -10,7 +10,6 @@ import { RealtimeStats } from '@/components/realtime/RealtimeStats'
 import { AppDemoTrigger } from '@/components/demo/AppDemoTrigger'
 import {
   CheckCircle2,
-  Users,
   BookOpen,
   ShieldCheck,
   Monitor,
@@ -20,14 +19,8 @@ import {
   MessageSquare,
   Phone,
   Sparkles,
-  Zap,
   BarChart3,
-  Clock,
-  Award,
-  Lock,
-  Smartphone,
-  Layers,
-  Search
+  Lock
 } from 'lucide-react'
 import {
   Accordion,

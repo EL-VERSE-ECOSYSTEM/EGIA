@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Bell, ShieldCheck, HelpCircle, Loader2, Sparkles, Smartphone, CheckCircle } from 'lucide-react'
+import { Bell, Loader2, Smartphone, CheckCircle } from 'lucide-react'
 import { getLoggedInNotifications } from '@/app/actions/user'
 import { requestNotificationPermission, sendDeviceNotification } from '@/lib/notifications'
 

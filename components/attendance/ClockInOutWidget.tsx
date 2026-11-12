@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { clockIn } from '@/app/actions/attendance/clockIn'
 import { clockOut } from '@/app/actions/attendance/clockOut'
-import { Clock, LogIn, LogOut, CheckCircle2, AlertCircle, Calendar, Sparkles, Loader2 } from 'lucide-react'
+import { Clock, LogIn, LogOut, CheckCircle2, Calendar, Sparkles, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { TeacherAttendance } from '@/types/database.types'
 

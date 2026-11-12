@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { approveReceipt, rejectReceipt, getPaymentReceiptReviewList } from '@/app/actions/payments'
-import { CheckCircle2, XCircle, FileText, ExternalLink, RefreshCw, Eye } from 'lucide-react'
+import { CheckCircle2, XCircle, FileText, RefreshCw, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function AdminPendingReceiptsPage() {

@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Receipt, Download, Printer, CheckCircle2, Clock, AlertCircle, FileText } from 'lucide-react'
+import { Receipt, Printer } from 'lucide-react'
 import { getParentPaymentHistory } from '@/app/actions/payments'
 import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSync'
 

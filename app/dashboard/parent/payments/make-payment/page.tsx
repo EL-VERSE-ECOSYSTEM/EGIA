@@ -8,9 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
-  CreditCard, Banknote, ShieldCheck,
-  CheckCircle2, Info, ArrowRight,
-  Upload, Loader2
+  CreditCard, ShieldCheck,
+  CheckCircle2, Info, Loader2
 } from 'lucide-react'
 import { getLinkedChildren } from '@/app/actions/user'
 import { initializePaystackPayment, getFeeStructuresForClass } from '@/app/actions/payments'

@@ -27,13 +27,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS jobs_idempotency_key_idx
 ON public.jobs(idempotency_key)
 WHERE idempotency_key IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS jobs_status_available_idx
-ON public.jobs(status, available_at)
-WHERE status = 'PENDING';
-
-CREATE INDEX IF NOT EXISTS jobs_locked_idx
-ON public.jobs(locked_at)
-WHERE status = 'PROCESSING';
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'jobs' AND column_name = 'available_at'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS jobs_status_available_idx ON public.jobs(status, available_at);
+  ELSE
+    CREATE INDEX IF NOT EXISTS jobs_status_available_idx ON public.jobs(status, run_at);
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'jobs' AND column_name = 'locked_at'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS jobs_locked_idx ON public.jobs(locked_at);
+  ELSE
+    CREATE INDEX IF NOT EXISTS jobs_locked_idx ON public.jobs(locked_until);
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS jobs_type_status_idx
 ON public.jobs(type, status);

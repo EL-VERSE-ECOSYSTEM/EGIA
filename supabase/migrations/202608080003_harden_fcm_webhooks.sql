@@ -18,6 +18,7 @@ create table if not exists public.webhook_events (
 );
 
 alter table public.webhook_events enable row level security;
+drop policy if exists "Service role manages webhook events" on public.webhook_events;
 create policy "Service role manages webhook events" on public.webhook_events for all to service_role using (true) with check (true);
 
 -- notification_history is read only by its owner; all writes are server-side.
@@ -25,7 +26,7 @@ alter table public.user_fcm_tokens enable row level security;
 alter table public.notification_history enable row level security;
 drop policy if exists "Users can read their notification history" on public.notification_history;
 create policy "Users can read their notification history" on public.notification_history
-  for select to authenticated using (auth.uid() = user_id);
+  for select to authenticated using (auth.uid()::text = user_id::text);
 
 do $$ begin
   alter publication supabase_realtime add table public.notification_history;

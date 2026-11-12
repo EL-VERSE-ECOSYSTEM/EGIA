@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { requestLeave } from '@/app/actions/leave/requestLeave'
 import { createClient } from '@/lib/supabase/client'
-import { X, Calendar, Upload, FileText, AlertCircle, Loader2, Sparkles, CheckCircle2 } from 'lucide-react'
+import { X, Upload, AlertCircle, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import type { LeaveType } from '@/types/database.types'
 

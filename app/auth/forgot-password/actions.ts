@@ -188,7 +188,7 @@ export async function resetForgotPasswordPasswordAction(
     }
 
     return { success: true }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Real-time password reset failed:', err)
     return { success: false, error: 'Failed to update password.' }
   }

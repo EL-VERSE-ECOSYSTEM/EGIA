@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Download, Printer, X, CheckCircle2, Clock, ShieldCheck, Loader2 } from 'lucide-react'
+import { Download, Printer, X, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react'
 import { getStudentPaymentHistory } from '@/app/actions/payments'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 

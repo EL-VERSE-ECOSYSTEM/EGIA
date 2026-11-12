@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import { Plus, Edit, Trash2, Users, BookOpen } from 'lucide-react'
 
 export default function AdminClassesPage() {
-  const [classes, setClasses] = useState([
+  const classes = [
     { id: '1', name: 'JSS1A', classTeacher: 'Mrs. Folake Adeyemi', students: 45, subjects: 9, form: 'JSS1' },
     { id: '2', name: 'JSS1B', classTeacher: 'Mr. Ahmed Hassan', students: 42, subjects: 9, form: 'JSS1' },
     { id: '3', name: 'JSS2A', classTeacher: 'Prof. Jane Smith', students: 48, subjects: 10, form: 'JSS2' },
@@ -15,16 +14,10 @@ export default function AdminClassesPage() {
     { id: '6', name: 'SSS1A', classTeacher: 'Prof. Jane Smith', students: 35, subjects: 12, form: 'SSS1' },
     { id: '7', name: 'SSS1B', classTeacher: 'Dr. Chinaza Obi', students: 38, subjects: 12, form: 'SSS1' },
     { id: '8', name: 'SSS2A', classTeacher: 'Mr. Ahmed Hassan', students: 40, subjects: 13, form: 'SSS2' },
-  ])
-
-  const navItems = [
-    { label: 'Overview', href: '/admin', icon: '📊' },
-    { label: 'Users', href: '/admin/users', icon: '👥' },
-    { label: 'Academics', href: '/admin/academics', icon: '📚', active: true },
   ]
 
   return (
-    <DashboardLayout role="admin" userEmail="admin@school.edu" navItems={navItems}>
+    <DashboardLayout role="admin">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

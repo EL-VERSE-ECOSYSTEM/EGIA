@@ -9,12 +9,10 @@ import {
   GraduationCap,
   Calendar,
   Clock,
-  BookOpen,
   ArrowRight,
   Plus,
   FileText,
-  Activity,
-  CheckCircle2
+  Activity
 } from 'lucide-react'
 import { getTeacherDashboardData, getTeacherProfile } from '@/lib/api/queries'
 import { auth } from '@/lib/auth'

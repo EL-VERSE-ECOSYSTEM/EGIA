@@ -1,8 +1,5 @@
 import {
   Crown,
-  Building2,
-  GraduationCap,
-  Users,
   ShieldCheck,
 } from 'lucide-react'
 

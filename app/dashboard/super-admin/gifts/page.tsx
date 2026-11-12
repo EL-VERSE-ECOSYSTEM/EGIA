@@ -6,7 +6,7 @@ import {
   getAllUsersForSuperAdmin,
   awardStudentGiftAction
 } from '@/app/actions/super-admin'
-import { Gift, RefreshCw, Search, Award, Send } from 'lucide-react'
+import { Gift, RefreshCw, Search, Award } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 

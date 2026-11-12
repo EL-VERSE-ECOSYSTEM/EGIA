@@ -2,14 +2,12 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { GraduationCap, Users, Loader2, AlertCircle, Laptop, Briefcase, Plus, X, CreditCard, Banknote, ShieldCheck } from 'lucide-react'
+import { GraduationCap, Users, Loader2, AlertCircle, Briefcase, ShieldCheck } from 'lucide-react'
 import { registerParentTeacher } from '@/app/actions/auth-server'
-import { Badge } from '@/components/ui/badge'
 
 export default function ParentTeacherSignUpPage() {
   const [formData, setFormData] = useState({
@@ -41,7 +39,6 @@ export default function ParentTeacherSignUpPage() {
   const [profileImage, setProfileImage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
 
   const classesList = ['Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3']
 
@@ -95,9 +92,10 @@ export default function ParentTeacherSignUpPage() {
         }
         setLoading(false)
       }
-    } catch (err: any) {
-      setError('Account failed to create')
-      alert('Account failed to create')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Account failed to create'
+      setError(message)
+      alert(message)
       setLoading(false)
     }
   }

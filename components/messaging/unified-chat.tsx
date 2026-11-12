@@ -9,11 +9,11 @@ import {
   Send, Search, MoreVertical,
   Paperclip, Smile, Image as ImageIcon,
   User, CheckCheck, Phone, Video, Plus,
-  Hash, Bell, Settings, Trash, Users, MessageSquare, X
+  Hash, Trash, Users, X
 } from 'lucide-react'
 import {
   getConversations, getMessages, sendMessage, createConversation,
-  createGroupConversation, getUsersByRole, getAllUsersForMessaging,
+  createGroupConversation, getAllUsersForMessaging,
   adminDeleteMessage, adminDeleteConversation
 } from '@/app/actions/messaging'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'

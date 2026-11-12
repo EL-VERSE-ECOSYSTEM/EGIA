@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 
 test('verify teacher and admin dashboards', async ({ page }) => {
   // Check Teacher Dashboard

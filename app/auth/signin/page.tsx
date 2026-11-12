@@ -108,8 +108,8 @@ export default function SignInPage() {
       setLoginContext(res.context)
       setIsModalOpen(true)
       setLoading(false)
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during authentication.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred during authentication.')
       setLoading(false)
     }
   }
@@ -126,8 +126,8 @@ export default function SignInPage() {
         setError(res.error || 'Failed to activate selected identity.')
         setLoading(false)
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while activating your identity.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred while activating your identity.')
       setLoading(false)
     } finally {
       setLoading(false)
@@ -135,21 +135,21 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950/80 to-purple-950/80 animate-gradient-x text-white flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-950 to-slate-950 px-4 py-10 text-white sm:px-6">
       {/* Background Decor */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/20 blur-[140px] rounded-full pointer-events-none animate-pulse" />
+      <div aria-hidden="true" className="pointer-events-none absolute -top-40 left-1/2 size-[32rem] -translate-x-1/2 rounded-full bg-blue-500/10 blur-[120px]" />
 
-      <div className="w-full max-w-md space-y-6 relative z-10">
+      <div className="relative z-10 w-full max-w-md space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-widest">
+        <div className="space-y-3 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.14em] text-blue-200">
             <GraduationCap className="w-4 h-4" />
             <span>EL LEARNERS APP</span>
           </div>
-          <h1 className="text-3xl font-black tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
             {loginMode === 'superadmin' ? 'Super Admin Portal' : 'Welcome Back'}
           </h1>
-          <p className="text-xs font-bold text-slate-300">
+          <p className="mx-auto max-w-sm text-sm leading-6 text-slate-300">
             {loginMode === 'superadmin'
               ? 'Secure easy login for Global Platform Administrators.'
               : 'Sign in using Email Address, Staff ID (Teacher), or Admission Number (Student).'}
@@ -157,11 +157,12 @@ export default function SignInPage() {
         </div>
 
         {/* Mode Switcher Tabs */}
-        <div className="grid grid-cols-2 p-1.5 bg-slate-900/90 border border-slate-800 rounded-2xl gap-1">
+        <div className="grid grid-cols-2 gap-1 rounded-2xl border border-slate-700/80 bg-slate-900/80 p-1.5 shadow-lg shadow-black/10" role="group" aria-label="Choose sign-in portal">
           <button
             type="button"
             onClick={() => handleModeSwitch('standard')}
-            className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+            aria-pressed={loginMode === 'standard'}
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all ${
               loginMode === 'standard'
                 ? 'bg-blue-600 text-white shadow-lg'
                 : 'text-slate-400 hover:text-white'
@@ -173,7 +174,8 @@ export default function SignInPage() {
           <button
             type="button"
             onClick={() => handleModeSwitch('superadmin')}
-            className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+            aria-pressed={loginMode === 'superadmin'}
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all ${
               loginMode === 'superadmin'
                 ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg border border-purple-400/30'
                 : 'text-purple-400 hover:text-purple-300'
@@ -185,25 +187,25 @@ export default function SignInPage() {
         </div>
 
         {/* Card Form */}
-        <Card className="border-slate-800 bg-slate-900/90 shadow-2xl backdrop-blur-xl rounded-3xl overflow-hidden">
-          <CardContent className="p-8 space-y-6">
+        <Card className="overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-900/90 shadow-2xl shadow-black/25 backdrop-blur-xl">
+          <CardContent className="space-y-6 p-5 sm:p-8">
             {error && (
-              <div role="alert" aria-live="polite" className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold leading-relaxed flex items-center gap-3">
+              <div role="alert" aria-live="polite" className="flex items-start gap-3 rounded-xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm leading-6 text-rose-100">
                 <Shield className="w-5 h-5 text-rose-400 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
             {loginMode === 'superadmin' && (
-              <div className="p-3.5 bg-purple-500/10 border border-purple-500/20 rounded-2xl text-xs font-bold text-purple-300 flex items-center gap-2.5">
+              <div className="flex items-start gap-3 rounded-xl border border-purple-400/25 bg-purple-400/10 p-4 text-sm leading-6 text-purple-100">
                 <Crown className="w-4 h-4 text-amber-400 shrink-0" />
                 <span>Super Admin Mode Active: Authenticate with password to access system controls.</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-xs font-black uppercase tracking-wider text-slate-300">
+                <Label htmlFor="email" className="text-sm font-semibold text-slate-100">
                   {loginMode === 'superadmin' ? 'Super Admin Email' : 'Email, Staff ID, or Admission Number'}
                 </Label>
                 <div className="relative">
@@ -222,10 +224,10 @@ export default function SignInPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     aria-describedby="email-hint"
-                    className="bg-slate-950/60 border-slate-800 text-white placeholder:text-slate-500 pl-11 rounded-2xl h-12 text-xs focus:border-blue-500 font-bold"
+                    className="h-12 rounded-xl border-slate-700 bg-slate-950/70 pl-11 text-sm font-medium text-white placeholder:text-slate-500 focus-visible:ring-blue-400"
                   />
                 </div>
-                <p id="email-hint" className="text-[11px] font-bold text-slate-400 pl-1">
+                <p id="email-hint" className="pl-1 text-xs leading-5 text-slate-400">
                   {loginMode === 'superadmin'
                     ? 'Enter your registered Super Admin email account.'
                     : 'Use your registered school email address, staff code, or admission number.'}
@@ -234,12 +236,12 @@ export default function SignInPage() {
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label htmlFor="password" className="text-xs font-black uppercase tracking-wider text-slate-300">
+                  <Label htmlFor="password" className="text-sm font-semibold text-slate-100">
                     Password
                   </Label>
                   <Link
                     href="/auth/forgot-password"
-                    className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                    className="text-sm font-medium text-blue-300 underline-offset-4 hover:underline hover:text-blue-200"
                   >
                     Forgot Password?
                   </Link>
@@ -254,29 +256,29 @@ export default function SignInPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="bg-slate-950/60 border-slate-800 text-white placeholder:text-slate-600 pl-11 pr-11 rounded-2xl h-12 text-sm focus:border-blue-500 font-medium"
+                    className="h-12 rounded-xl border-slate-700 bg-slate-950/70 pl-11 pr-11 text-sm font-medium text-white placeholder:text-slate-500 focus-visible:ring-blue-400"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     aria-pressed={showPassword}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2 pt-1">
+              <div className="flex items-center gap-3 pt-1">
                 <input
                   type="checkbox"
                   id="remember"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                  className="size-4 rounded border-slate-600 bg-slate-950 text-blue-500 focus:ring-blue-400"
                 />
-                <label htmlFor="remember" className="text-xs font-bold text-slate-400 cursor-pointer select-none">
+                <label htmlFor="remember" className="cursor-pointer select-none text-sm text-slate-300">
                   Use this portal automatically next time
                 </label>
               </div>
@@ -284,7 +286,7 @@ export default function SignInPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className={`w-full text-white h-12 rounded-2xl font-black tracking-wide text-sm shadow-xl transition-all flex items-center justify-center gap-2 ${
+                className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold tracking-wide text-white shadow-lg transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
                   loginMode === 'superadmin'
                     ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-600/20'
                     : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20'
@@ -305,26 +307,26 @@ export default function SignInPage() {
             </form>
 
             {/* Registration Navigation Links */}
-            <div className="pt-4 border-t border-slate-800/80 space-y-3 text-center">
-              <p className="text-xs font-medium text-slate-400">
+            <div className="space-y-4 border-t border-slate-700/80 pt-5 text-center">
+              <p className="text-sm text-slate-300">
                 Don't have a User Account?{' '}
                 <Link
                   href="/auth/signup"
-                  className="font-bold text-blue-400 hover:text-blue-300 transition-colors underline underline-offset-4"
+                  className="font-semibold text-blue-300 underline underline-offset-4 hover:text-blue-200"
                 >
                   Create User Account
                 </Link>
               </p>
-              <p className="text-xs font-medium text-slate-400">
+              <p className="text-sm text-slate-300">
                 Don't have a School Account?{' '}
                 <Link
                   href="/school-registration"
-                  className="font-bold text-emerald-400 hover:text-emerald-300 transition-colors underline underline-offset-4"
+                  className="font-semibold text-emerald-300 underline underline-offset-4 hover:text-emerald-200"
                 >
                   Create School Account
                 </Link>
               </p>
-              <div className="flex justify-center gap-4 text-[11px] font-semibold text-slate-500 pt-1">
+              <div className="flex justify-center gap-4 pt-1 text-xs font-medium text-slate-400">
                 <Link href="/terms" className="hover:text-slate-300 transition-colors">
                   Terms & Conditions
                 </Link>
@@ -338,8 +340,8 @@ export default function SignInPage() {
         </Card>
 
         {/* Footer info */}
-        <div className="text-center text-xs font-bold text-slate-500">
-          <p>© 2026 EL LEARNERS APP. Made with 💕 by E. V. E</p>
+        <div className="text-center text-xs text-slate-500">
+          <p>© 2026 EL LEARNERS APP</p>
         </div>
       </div>
 
@@ -351,6 +353,6 @@ export default function SignInPage() {
           onSelectIdentity={handleSelectIdentity}
         />
       )}
-    </div>
+    </main>
   )
 }

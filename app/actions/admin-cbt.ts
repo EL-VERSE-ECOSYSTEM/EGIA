@@ -1,11 +1,12 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { assessment, teacher } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { assessment, teacher, user, userRole, notification } from '@/lib/db/schema'
+import { eq, desc, and, inArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { randomInt } from 'crypto'
+import { sendPushNotification } from '@/lib/services/notifications'
 
 function generateSecureAccessCode(): string {
   return randomInt(100000, 999999).toString()
@@ -99,11 +100,10 @@ export async function handleCBTDecision(
   }
 
   const finalStatus = action === 'approve' ? 'approved' : 'rejected'
-  let accessCode = record.accessCode
-
-  if (action === 'approve') {
-    accessCode = accessCode || generateSecureAccessCode()
-  }
+  const isExam = record.type === 'EXAM_CBT'
+  const accessCode = action === 'approve' && isExam
+    ? (record.accessCode || generateSecureAccessCode())
+    : null
 
   await db.update(assessment)
     .set({
@@ -116,8 +116,53 @@ export async function handleCBTDecision(
     })
     .where(eq(assessment.id, assessmentId))
 
+  if (action === 'approve') {
+    const recipients = new Map<string, string>()
+    if (record.createdBy) {
+      const owner = await db.query.teacher.findFirst({ where: eq(teacher.id, record.createdBy) })
+      if (owner?.userId) recipients.set(owner.userId, '/dashboard/teacher/assessments/drafts')
+    }
+    if (record.schoolId) {
+      const adminRoles = await db.query.userRole.findMany({
+        where: inArray(userRole.role, ['ADMIN', 'SCHOOL_ADMIN']),
+      })
+      const adminIds = adminRoles.map((item) => item.userId)
+      if (adminIds.length) {
+        const admins = await db.query.user.findMany({
+          where: and(eq(user.schoolId, record.schoolId), inArray(user.id, adminIds)),
+        })
+        for (const admin of admins) recipients.set(admin.id, '/dashboard/admin/assessments')
+      }
+    }
+    const uniqueRecipients = [...recipients.keys()]
+    const title = isExam ? 'Exam CBT approved' : 'CBT approved'
+    const body = isExam
+      ? `${record.title} is approved${accessCode ? `. Access code: ${accessCode}` : ''}.`
+      : `${record.title} has been approved.`
+    for (const userId of uniqueRecipients) {
+      await db.insert(notification).values({
+        id: crypto.randomUUID(), userId, schoolId: record.schoolId,
+        title, message: body, type: 'CBT_APPROVAL',
+        metadata: { assessmentId, accessCode: isExam ? accessCode : null },
+        actionUrl: recipients.get(userId),
+      })
+      try {
+        await sendPushNotification({
+          userId, title, body, type: 'CBT_APPROVAL',
+          data: { assessmentId, accessCode: isExam ? accessCode : null },
+          link: recipients.get(userId),
+          eventKey: `cbt-approved:${assessmentId}:${userId}`,
+        })
+      } catch (error) {
+        console.warn('CBT approval push notification could not be delivered:', error)
+      }
+    }
+  }
+
   revalidatePath('/dashboard/admin/assessments/pending')
   revalidatePath('/dashboard/teacher/assessments')
+  revalidatePath('/dashboard/teacher/assessments/drafts')
+  revalidatePath('/dashboard/admin/assessments')
   return { success: true, accessCode }
 }
 

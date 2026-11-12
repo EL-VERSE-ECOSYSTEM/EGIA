@@ -10,8 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { getAllAdminAssessments, handleCBTDecision } from '@/app/actions/admin-cbt'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import {
-  GraduationCap, Check, X, Eye, FileText, Search,
-  Clock, Award, Activity, AlertCircle, RefreshCw, Layers
+   Check, X, FileText, Search, Activity, RefreshCw
 } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'

@@ -13,7 +13,6 @@ import {
   School,
   ShieldCheck,
   Building,
-  X,
 } from 'lucide-react'
 
 interface RolePickerModalProps {

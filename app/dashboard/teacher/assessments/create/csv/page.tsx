@@ -2,10 +2,10 @@
 
 import { useState, Suspense } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Upload, FileText, CheckCircle, AlertCircle, Table, ArrowRight, Database } from 'lucide-react'
+import {  FileText, Table } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AdvancedCSVUploader } from '@/components/csv/AdvancedCSVUploader'
 

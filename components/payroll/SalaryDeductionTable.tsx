@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { reverseDeductionAction } from '@/app/actions/payroll/deductions'
-import { DollarSign, RotateCcw, AlertCircle, Shield, CheckCircle2 } from 'lucide-react'
+import { DollarSign, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import type { TeacherSalaryDeduction } from '@/types/database.types'
 

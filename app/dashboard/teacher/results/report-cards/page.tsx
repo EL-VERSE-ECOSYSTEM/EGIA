@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2, CheckCircle, FileSpreadsheet, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Loader2 } from 'lucide-react'
 import { getReportCards, saveReportCard, ReportCard } from '@/app/actions/report-cards'
 
 export default function TeacherReportCardsPage() {

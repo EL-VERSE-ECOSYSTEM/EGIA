@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Calendar, Shield, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { Calendar, AlertCircle } from 'lucide-react'
 import type { TeacherLeaveBalance } from '@/types/database.types'
 
 interface LeaveBalanceCardsProps {

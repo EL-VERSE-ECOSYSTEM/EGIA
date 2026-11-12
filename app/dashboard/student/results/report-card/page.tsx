@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ShieldCheck, Award, Printer, Download, Filter, GraduationCap } from 'lucide-react'
+import { ShieldCheck, Award, Printer, Download, Filter } from 'lucide-react'
 import { getReportCards, ReportCard } from '@/app/actions/report-cards'
 
 export default function StudentReportCardPage() {

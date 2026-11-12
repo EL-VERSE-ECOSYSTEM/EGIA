@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge'
 import { UserIdentity } from '@/lib/auth/resolveIdentities'
 import { switchIdentityAction } from '@/app/auth/signin/actions'
 import {
-  User,
   Check,
   Building2,
   BookOpen,
@@ -18,7 +17,6 @@ import {
   Lock,
   LogOut,
   RefreshCw,
-  ChevronDown,
 } from 'lucide-react'
 
 interface IdentitySwitcherProps {

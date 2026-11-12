@@ -20,7 +20,6 @@ import {
   User,
   Award,
   FileText,
-  Search,
   Wallet,
   Clock,
   Gamepad2,
@@ -35,7 +34,6 @@ import {
   Bell,
   Building2,
   Shield,
-  Briefcase,
   Activity,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'

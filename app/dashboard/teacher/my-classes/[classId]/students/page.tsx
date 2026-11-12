@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { GraduationCap, ChevronRight, Activity, Phone, Mail, Search } from 'lucide-react'
+import {  ChevronRight, Activity, Search } from 'lucide-react'
 import { getStudentsInClass } from '@/app/actions/teacher'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { Input } from '@/components/ui/input'

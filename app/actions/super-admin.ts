@@ -1,8 +1,8 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { school, user, userRole, student, teacher, parent, assessment, message, notification, adultEducationEnrollment, schoolRegistrationApplication, schoolAdminRoles, auditLog } from '@/lib/db/schema'
-import { eq, sql, desc, and } from 'drizzle-orm'
+import { school, user, userRole, student, teacher, parent, assessment, notification, schoolRegistrationApplication, schoolAdminRoles, auditLog } from '@/lib/db/schema'
+import { eq, sql, desc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { randomUUID } from 'crypto'

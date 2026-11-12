@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { LessonNoteUploader } from '@/components/library/LessonNoteUploader'
 import { searchLibraryBooks } from '@/app/actions/library'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { toast } from 'sonner'
-import { BookOpen, FileText, Plus, Search, RefreshCw, FileCheck, Layers, Eye, Download } from 'lucide-react'
+import { BookOpen, FileText, Plus, Search, RefreshCw, Eye } from 'lucide-react'
 
 export default function TeacherLessonNotesPage() {
   const [activeTab, setActiveTab] = useState<'upload' | 'view'>('upload')

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { FileText, Upload, CheckCircle2, X, Loader2, AlertCircle } from 'lucide-react'
+import { FileText, CheckCircle2, X, Loader2, AlertCircle } from 'lucide-react'
 import { CvUploadField } from '@/components/uploads/CvUploadField'
 import { updateTeacherApplicationLetterAction } from '@/app/actions/teacher'
 

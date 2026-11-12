@@ -9,11 +9,9 @@ import {
   systemSettings,
   parent,
   teacher,
-  user as userTable,
-  notification,
   transactions
 } from '@/lib/db/schema'
-import { eq, and, sql, desc } from 'drizzle-orm'
+import { eq, and, desc } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'

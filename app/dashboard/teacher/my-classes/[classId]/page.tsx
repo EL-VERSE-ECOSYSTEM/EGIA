@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { GraduationCap, Calendar, ChevronRight, BookOpen, Clock, Activity, Award, ArrowRight } from 'lucide-react'
+import { GraduationCap, Calendar, ChevronRight, Activity } from 'lucide-react'
 import { getStudentsInClass } from '@/app/actions/teacher'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { toast } from 'sonner'

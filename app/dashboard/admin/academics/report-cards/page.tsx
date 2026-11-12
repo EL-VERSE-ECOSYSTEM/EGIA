@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Check, X, ShieldAlert, Award, Loader2 } from 'lucide-react'
+import { Check, X, Award, Loader2 } from 'lucide-react'
 import { getReportCards, endorseReportCard, rejectReportCard, ReportCard } from '@/app/actions/report-cards'
 
 export default function AdminReportCardsPage() {

@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { admissionNumberSequences, school, teacher } from '@/lib/db/schema'
+import {  school } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
 
 export async function generateSequentialAdmissionNumber(schoolId: string | null, className: string): Promise<string> {

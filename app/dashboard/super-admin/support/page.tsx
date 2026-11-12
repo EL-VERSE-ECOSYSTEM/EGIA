@@ -4,10 +4,9 @@ import React, { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import {
   getSuperAdminSupportTicketsAction,
-  replyToSupportTicketAction,
-  quickReplySupportTicketAction
+  replyToSupportTicketAction
 } from '@/app/actions/super-admin'
-import { HelpCircle, RefreshCw, Send, MessageSquare, CheckCircle, Clock, Search } from 'lucide-react'
+import { HelpCircle, RefreshCw, Send, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 

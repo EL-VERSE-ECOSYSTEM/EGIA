@@ -1,11 +1,11 @@
 'use client'
 
 import React, { useState } from 'react'
-import { computeMonthlyDeductionsAction, updateTeacherPayConfigAction } from '@/app/actions/payroll/deductions'
+import { computeMonthlyDeductionsAction } from '@/app/actions/payroll/deductions'
 import { SalaryDeductionTable } from '@/components/payroll/SalaryDeductionTable'
 import { useSalaryDeductions } from '@/hooks/useSalaryDeductions'
 import { useAuth } from '@/hooks/useAuth'
-import { DollarSign, Shield, RefreshCw, Loader2, Sparkles, Settings } from 'lucide-react'
+import {  Shield, RefreshCw, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function AdminPayrollDeductionsPage() {

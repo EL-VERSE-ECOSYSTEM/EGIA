@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Calendar, Clock, BookOpen, RefreshCw } from 'lucide-react'
+import { Calendar, Clock, RefreshCw } from 'lucide-react'
 import { getTimetableAction } from '@/app/actions/timetable'
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']

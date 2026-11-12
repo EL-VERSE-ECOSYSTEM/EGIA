@@ -4,9 +4,9 @@ import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { user as userTable, userRole as userRoleTable, teacher, student, school as schoolTable, schoolRegistrationApplication as schoolAppTable } from '@/lib/db/schema'
-import { eq, and, ilike } from 'drizzle-orm'
-import { resolveIdentities, LoginContext, UserIdentity } from '@/lib/auth/resolveIdentities'
-import { createClient as createSupabaseAdminClient, type User as SupabaseUser } from '@supabase/supabase-js'
+import { eq, ilike } from 'drizzle-orm'
+import { resolveIdentities, UserIdentity } from '@/lib/auth/resolveIdentities'
+import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
 import { sendPushNotification } from '@/lib/services/notifications'
 import { isSuperAdminEmail, isSuperAdminUser } from '@/lib/auth/super-admin'
@@ -18,6 +18,14 @@ function authAdminClient() {
   return createSupabaseAdminClient(getSupabaseUrl(), secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
+}
+
+function getIdentityRole(value: unknown, isSuperAdmin: boolean): UserIdentity['role'] {
+  const role = String(value ?? 'STUDENT').toUpperCase()
+  if (role === 'SUPER_ADMIN') return isSuperAdmin ? 'SUPER_ADMIN' : 'STUDENT'
+  if (role === 'ADMIN') return 'ADMIN'
+  if (role === 'SCHOOL_ADMIN' || role === 'TEACHER' || role === 'PARENT' || role === 'STUDENT') return role
+  return 'STUDENT'
 }
 
 async function findAuthUserByEmail(adminClient: NonNullable<ReturnType<typeof authAdminClient>>, email: string) {
@@ -36,7 +44,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  let inputIdentifier = emailInput.trim()
+  const inputIdentifier = emailInput.trim()
   let resolvedEmail = inputIdentifier.toLowerCase()
 
   // Support real-time login via exact Staff ID or Admission Number using eq
@@ -163,7 +171,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
     const adminClient = authAdminClient()
     if (adminClient) {
       try {
-        let authUser = await findAuthUserByEmail(adminClient, resolvedEmail)
+        const authUser = await findAuthUserByEmail(adminClient, resolvedEmail)
         if (authUser) {
           await adminClient.auth.admin.updateUserById(authUser.id, {
             password: passwordInput,
@@ -188,7 +196,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
               email_confirm: true,
               user_metadata: { name: dbUser[0]?.name || 'Super Admin', role: 'SUPER_ADMIN' },
             })
-          } catch (createErr: any) {
+          } catch {
             // User likely exists in auth.users under a slightly different lookup; find and update password
             const retryUser = await findAuthUserByEmail(adminClient, resolvedEmail)
             if (retryUser) {
@@ -244,7 +252,7 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
       await db.insert(userRoleTable).values({
         id: crypto.randomUUID(),
         userId: data.user.id,
-        role: userRoleMeta as any,
+        role: userRoleMeta,
         createdAt: new Date(),
       }).onConflictDoNothing()
 
@@ -307,13 +315,10 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
     })
 
     if (!loginContext.identities || loginContext.identities.length === 0) {
-      const requestedDefaultRole = (data.user.user_metadata?.role || 'STUDENT').toUpperCase()
-      const defaultRole = requestedDefaultRole === 'SUPER_ADMIN' && !userIsSuperAdmin
-        ? 'STUDENT'
-        : userIsSuperAdmin ? 'SUPER_ADMIN' : requestedDefaultRole
+      const defaultRole = getIdentityRole(data.user.user_metadata?.role, userIsSuperAdmin)
       const defaultIdentity: UserIdentity = {
         id: `default_${data.user.id}`,
-        role: defaultRole as any,
+        role: defaultRole,
         schoolId: data.user.user_metadata?.school_id || existingUser?.schoolId || null,
         schoolName: 'EL LEARNERS Portal',
         contextLine: 'Authenticated Account',
@@ -357,16 +362,13 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
       success: true,
       context: loginContext,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Login identity resolution failed:', err)
     const userIsSuperAdmin = await isSuperAdminEmail(resolvedEmail)
-    const requestedFallbackRole = (data.user.user_metadata?.role || 'STUDENT').toUpperCase()
-    const fallbackRole = requestedFallbackRole === 'SUPER_ADMIN' && !userIsSuperAdmin
-      ? 'STUDENT'
-      : userIsSuperAdmin ? 'SUPER_ADMIN' : requestedFallbackRole
+    const fallbackRole = getIdentityRole(data.user.user_metadata?.role, userIsSuperAdmin)
     const fallbackIdentity: UserIdentity = {
       id: `fallback_${data.user.id}`,
-      role: fallbackRole as any,
+      role: fallbackRole,
       schoolId: data.user.user_metadata?.school_id || null,
       schoolName: 'EL LEARNERS Portal',
       contextLine: 'Authenticated Account',

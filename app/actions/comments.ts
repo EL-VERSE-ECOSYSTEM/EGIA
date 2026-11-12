@@ -1,7 +1,7 @@
 'use server'
 
 import { randomUUID } from 'crypto'
-import { and, eq, asc, desc } from 'drizzle-orm'
+import { and, eq, asc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -47,7 +47,7 @@ export async function postClassComment(data: {
 
   const userId = session.user.id
   let userName = session.user.name || 'Anonymous User'
-  let userRole = (session.user.role || 'STUDENT').toUpperCase()
+  const userRole = (session.user.role || 'STUDENT').toUpperCase()
   let userImage: string | null = (session.user as any)?.image || null
 
   // Resolve user profile name and image from specific profile tables if available

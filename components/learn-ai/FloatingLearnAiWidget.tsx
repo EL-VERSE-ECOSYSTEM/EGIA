@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Bot, LoaderCircle, MessageCircle, Send, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { loadLearnAiHistory, saveLearnAiHistory } from '@/lib/learn-ai-history'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 type Balance = { daily_remaining: number; paid_remaining: number; reset_at: string }
@@ -24,13 +25,20 @@ export function FloatingLearnAiWidget() {
   const [isSending, setIsSending] = useState(false)
   const [isBuying, setIsBuying] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [userId, setUserId] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const loadBalance = async () => {
     try {
       const response = await fetch('/api/learn-ai/chat', { cache: 'no-store' })
       const result = await response.json()
-      if (response.ok) setBalance(result)
+      if (response.ok) {
+        setBalance(result)
+        if (typeof result.user_id === 'string') {
+          setUserId(result.user_id)
+          setMessages(loadLearnAiHistory(result.user_id))
+        }
+      }
       else {
         const message = result.error || 'Sign in to use Learn AI.'
         setError(message)
@@ -41,6 +49,13 @@ export function FloatingLearnAiWidget() {
       toast.error('Learn AI is temporarily unavailable.')
     }
   }
+
+  useEffect(() => {
+    if (!userId) return
+    saveLearnAiHistory(userId, messages)
+    const expiry = window.setTimeout(() => setMessages([]), 24 * 60 * 60 * 1000)
+    return () => window.clearTimeout(expiry)
+  }, [messages, userId])
 
   useEffect(() => {
     if (!isOpen) return

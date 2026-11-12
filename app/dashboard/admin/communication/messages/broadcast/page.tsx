@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Megaphone, Send, ShieldAlert, Users } from 'lucide-react'
+import { Megaphone, Send, ShieldAlert } from 'lucide-react'
 import { broadcastMessage } from '@/app/actions/messaging'
 
 export default function AdminBroadcastPage() {

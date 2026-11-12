@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, GraduationCap, ChevronRight, UserPlus, Heart, Search, ArrowUpDown } from 'lucide-react'
+import { Plus, UserPlus, Heart, Search, ArrowUpDown } from 'lucide-react'
 import { getLinkedChildren } from '@/app/actions/user'
 import Link from 'next/link'
 

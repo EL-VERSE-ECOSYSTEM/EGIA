@@ -1,4 +1,4 @@
-export type RoleType = 'SUPER_ADMIN' | 'SCHOOL_ADMIN' | 'TEACHER' | 'PARENT' | 'STUDENT'
+export type RoleType = 'SUPER_ADMIN' | 'SCHOOL_ADMIN' | 'ADMIN' | 'TEACHER' | 'PARENT' | 'STUDENT'
 
 export interface IdentityRouteInfo {
   role: RoleType
@@ -30,6 +30,9 @@ export function getRedirectUrlForIdentity(identity: IdentityRouteInfo): string {
       }
       return '/dashboard/admin'
     }
+
+    case 'ADMIN':
+      return '/dashboard/admin'
 
     case 'TEACHER':
       return '/dashboard/teacher'

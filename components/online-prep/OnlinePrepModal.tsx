@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Sparkles, CreditCard, ShieldCheck, Lock, ExternalLink, Loader2, CheckCircle2 } from 'lucide-react'
+import { Sparkles, ExternalLink, Loader2, CheckCircle2 } from 'lucide-react'
 import {
   getPrepSubscriptionStatusAction,
   initializePrepSubscriptionAction,

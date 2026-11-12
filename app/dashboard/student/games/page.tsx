@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Gamepad2, Trophy, Clock, RefreshCw, Star, HelpCircle, ChevronRight, Check, AlertCircle, Sparkles } from 'lucide-react'
 import { checkStudentWeekendAssignmentsCompleteAction } from '@/app/actions/assessments'
-import { getSchoolStudentControlsAction, SchoolStudentControls } from '@/app/actions/school-controls'
+import { getSchoolStudentControlsAction } from '@/app/actions/school-controls'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
-import { getInterSchoolTournamentLeaderboardAction, submitTournamentGameScoreAction, SchoolTournamentScore } from '@/app/actions/tournament'
+import { getInterSchoolTournamentLeaderboardAction, SchoolTournamentScore } from '@/app/actions/tournament'
 
 // Game Types
 type GameType = 'CHESS' | 'MATH' | 'SCRAMBLE' | 'SUDOKU' | 'TRIVIA' | 'SCRABBLE' | 'MONOPOLY' | 'HOME'

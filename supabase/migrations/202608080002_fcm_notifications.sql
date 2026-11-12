@@ -12,5 +12,9 @@ create index if not exists idx_notification_history_user_id on public.notificati
 create unique index if not exists notification_history_user_event_key_unique on public.notification_history(user_id, event_key) where event_key is not null;
 alter table public.user_fcm_tokens enable row level security;
 alter table public.notification_history enable row level security;
-create policy "Users can read their notification history" on public.notification_history for select to authenticated using (auth.uid() = user_id);
-alter publication supabase_realtime add table public.notification_history;
+drop policy if exists "Users can read their notification history" on public.notification_history;
+create policy "Users can read their notification history" on public.notification_history for select to authenticated using (auth.uid()::text = user_id::text);
+do $$ begin
+  alter publication supabase_realtime add table public.notification_history;
+exception when duplicate_object then null;
+end $$;

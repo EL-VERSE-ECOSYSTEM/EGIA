@@ -26,7 +26,7 @@ export async function GET() {
   }
 
   try {
-    return NextResponse.json(await getLearnAiBalance(session.user.id))
+    return NextResponse.json({ ...await getLearnAiBalance(session.user.id), user_id: session.user.id })
   } catch {
     return errorResponse('Learn AI is temporarily unavailable.', 503)
   }

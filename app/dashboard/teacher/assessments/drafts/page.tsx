@@ -2,14 +2,13 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { getTeacherAssessments } from '@/app/actions/teacher'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import {
-  FileText, AlertTriangle, Check, RefreshCw,
-  Clock, Plus, Edit3, ArrowRight, Eye, Sparkles
+   AlertTriangle, Plus, Edit3, Eye
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'

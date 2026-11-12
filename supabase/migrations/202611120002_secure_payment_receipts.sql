@@ -54,6 +54,7 @@ using (
 );
 
 drop policy if exists school_receipts_parent_delete on storage.objects;
+drop policy if exists school_receipts_owner_delete on storage.objects;
 create policy school_receipts_parent_delete on storage.objects
 for delete to authenticated
 using (

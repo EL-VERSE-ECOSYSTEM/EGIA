@@ -82,7 +82,7 @@ export async function signUpAsParent(formData: unknown) {
       phoneNumber: phone,
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any).onConflictDoNothing()
+    }).onConflictDoNothing()
 
     // 4. Assign PARENT user role
     await db.insert(userRoleTable).values({
@@ -96,7 +96,7 @@ export async function signUpAsParent(formData: unknown) {
       userId,
       parentId,
     }
-  } catch (dbError: any) {
+  } catch (dbError: unknown) {
     return sanitizeServerError('signUpAsParent DB creation', dbError, 'Failed to complete parent registration profile. Please try again.')
   }
 }

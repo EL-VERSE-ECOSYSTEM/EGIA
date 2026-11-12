@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { ShieldAlert, Trash2, AlertCircle, Loader2 } from 'lucide-react'
 import { deleteUserAccount, updateStudentProfileSettingsAction, getStudentProfile } from '@/app/actions/user'
-import { User, Save, CheckCircle2 } from 'lucide-react'
+import { User, Save } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function StudentSettingsPage() {

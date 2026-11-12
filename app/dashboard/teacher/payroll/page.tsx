@@ -6,7 +6,7 @@ import { useSalaryDeductions } from '@/hooks/useSalaryDeductions'
 import { SalaryDeductionTable } from '@/components/payroll/SalaryDeductionTable'
 import { PayslipDownloadButton } from '@/components/payroll/PayslipDownloadButton'
 import { useAuth } from '@/hooks/useAuth'
-import { DollarSign, Wallet, Calendar, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react'
+import { DollarSign, AlertCircle, Loader2 } from 'lucide-react'
 
 export default function TeacherPayrollPage() {
   const { user } = useAuth()

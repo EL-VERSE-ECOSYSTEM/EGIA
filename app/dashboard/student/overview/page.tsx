@@ -7,18 +7,11 @@ import { Badge } from '@/components/ui/badge'
 import {
   GraduationCap,
   BookOpen,
-  Clock,
-  Calendar,
-  ChevronRight,
-  TrendingUp,
   AlertCircle,
   FileText,
-  Play,
   Activity,
   Award,
-  Laptop,
-  MessageSquare,
-  ShieldCheck
+  Laptop
 } from 'lucide-react'
 import { getStudentDashboardData, getStudentProfile } from '@/lib/api/queries'
 import { auth } from '@/lib/auth'

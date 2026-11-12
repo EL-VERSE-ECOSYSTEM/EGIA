@@ -409,10 +409,8 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
   if (!questions.length) throw new Error('Add at least one question before publishing an assessment')
   const assessmentId = crypto.randomUUID()
 
-  // Generate secure 6-character numeric access code using crypto
-  const generatedAccessCode = assessmentData.type === 'EXAM_CBT'
-    ? randomInt(100000, 999999).toString()
-    : null
+  // Access codes are issued by the school admin only after approval.
+  const generatedAccessCode = null
 
   return await db.transaction(async (tx) => {
     await tx.insert(assessment).values({

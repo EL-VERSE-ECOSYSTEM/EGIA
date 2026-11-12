@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { BookOpen, Calendar, Clock, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react'
+import {  Calendar, Clock, AlertTriangle, RefreshCw } from 'lucide-react'
 
 export default function ParentBorrowedBooksPage() {
   const [borrowedItems, setBorrowedItems] = useState([

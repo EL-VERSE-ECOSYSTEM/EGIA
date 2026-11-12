@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Video, VideoOff, Camera, AlertTriangle, ShieldCheck, RefreshCw, Circle } from 'lucide-react'
+import { Video, VideoOff, Camera, AlertTriangle, Circle } from 'lucide-react'
 
 export default function ProctorPage() {
   const [isRecording, setIsRecording] = useState(false)

@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { getParentWalletSummaryAction } from '@/app/actions/payments'
 import { createClient } from '@/lib/supabase/client'
-import { Wallet, ShieldCheck, Users, ArrowUpRight, CheckCircle2, Sparkles, RefreshCw, CreditCard, Receipt } from 'lucide-react'
+import { Wallet, ShieldCheck, Users, CheckCircle2, RefreshCw, CreditCard, Receipt } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 

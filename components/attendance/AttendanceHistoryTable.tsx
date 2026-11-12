@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Calendar, Clock, CheckCircle2, AlertTriangle, XCircle, FileText, Shield } from 'lucide-react'
+import { Calendar, Shield } from 'lucide-react'
 import type { TeacherAttendance } from '@/types/database.types'
 
 interface AttendanceHistoryTableProps {

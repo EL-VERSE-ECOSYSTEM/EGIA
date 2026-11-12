@@ -14,17 +14,9 @@ import { AdvancedCSVUploader } from '@/components/csv/AdvancedCSVUploader'
 import { LessonNoteUploader } from '@/components/library/LessonNoteUploader'
 import {
   Upload,
-  FileText,
-  Download,
   CheckCircle,
   AlertCircle,
-  XCircle,
-  RefreshCw,
-  FileSpreadsheet,
-  Clock,
-  ChevronRight,
-  ShieldCheck,
-  Loader2
+  RefreshCw
 } from 'lucide-react'
 
 interface ImportPreview {

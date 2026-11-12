@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Search, Link as LinkIcon, User, Users, CheckCircle, AlertTriangle, ShieldCheck, X } from 'lucide-react'
+import { Loader2, Search, Link as LinkIcon, Users, CheckCircle } from 'lucide-react'
 import { createParentProfile, getParentProfile, getLinkedChildren, checkWardLinkingStatus, linkChild } from '@/app/actions/user'
 import { toast } from 'sonner'
 

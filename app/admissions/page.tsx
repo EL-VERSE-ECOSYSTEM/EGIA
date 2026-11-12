@@ -1,9 +1,9 @@
 import React from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Footer } from '@/components/footer'
-import { CheckCircle2, ArrowRight, GraduationCap, MapPin, Phone, Mail, Clock, ShieldCheck } from 'lucide-react'
+import {  ArrowRight, GraduationCap, ShieldCheck } from 'lucide-react'
 
 export default function AdmissionsPage() {
   const steps = [

@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -93,7 +92,7 @@ export default function StudentRegistrationPage() {
         setSchoolDetails(null)
         setSchoolError('Invalid School Code. Please check with your school administrator.')
       }
-    } catch (err) {
+    } catch {
       setSchoolError('Could not verify school code at this time.')
     } finally {
       setVerifyingSchool(false)
@@ -190,17 +189,17 @@ export default function StudentRegistrationPage() {
       setGeneratedAdmissionNumber(admissionNum)
       localStorage.setItem('pending_student_admission', admissionNum)
 
-      let studentId: `${string}-${string}-${string}-${string}-${string}` | undefined = result.studentId as any
+      let studentId: string | undefined = typeof result.studentId === 'string' ? result.studentId : undefined
       if (!studentId) {
         const fetchedId = await getStudentIdByAdmissionNumber(admissionNum)
-        if (fetchedId) studentId = fetchedId as any
+        if (typeof fetchedId === 'string') studentId = fetchedId
       }
       if (!studentId) throw new Error('Registration record could not be loaded for payment.')
       const payment = await initializeStudentRegistrationPayment(studentId)
       window.location.assign(payment.checkoutUrl)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('Unexpected registration redirect handling failed:', err)
-      setError(err?.message || 'An unexpected error occurred during registration. Please refresh and try again.')
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred during registration. Please refresh and try again.')
       setLoading(false)
     }
   }

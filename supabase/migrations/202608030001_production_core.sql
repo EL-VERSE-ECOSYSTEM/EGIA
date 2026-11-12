@@ -37,11 +37,11 @@ create index if not exists study_video_question_video_idx on public.study_video_
 
 alter table public.student drop constraint if exists student_admission_number_format;
 alter table public.student add constraint student_admission_number_format check (
-  admissionnumber is null or admissionnumber ~ '^EGIA-(S|P)-[0-9]{6}$'
+  admissionnumber is null or admissionnumber ~ '^[A-Z]{4}-(S|P)-[0-9]{6}$'
 );
 alter table public.teacher drop constraint if exists teacher_staff_code_format;
 alter table public.teacher add constraint teacher_staff_code_format check (
-  staffcode is null or staffcode ~ '^EGIA-ST-[0-9]{6}$'
+  staffcode is null or staffcode ~ '^[A-Z]{4}-ST-[0-9]{6}$'
 );
 
 -- Registration source is explicit: imported/admin admissions remain free, while

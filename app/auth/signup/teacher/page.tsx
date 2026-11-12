@@ -3,11 +3,11 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { GraduationCap, Loader2, AlertCircle, Briefcase, User, CheckCircle2, BookOpen, Plus, X, Sparkles, Building2 } from 'lucide-react'
+import { GraduationCap, Loader2, AlertCircle, User, CheckCircle2, BookOpen, Plus, X, Sparkles } from 'lucide-react'
 import { registerTeacher, getRegistrationSubjects } from '@/app/actions/auth-server'
 import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
 
@@ -157,8 +157,8 @@ export default function TeacherSignUpPage() {
         setShowSuccessModal(true)
         setLoading(false)
       }
-    } catch (err: any) {
-      setError(err?.message || 'Account failed to create. Please try again.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Account failed to create. Please try again.')
       setLoading(false)
     }
   }

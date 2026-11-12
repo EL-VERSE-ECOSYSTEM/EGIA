@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Search, GraduationCap, RefreshCw, Eye, ExternalLink, ShieldCheck } from 'lucide-react'
+import { Search, GraduationCap, RefreshCw } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 
 export interface StudentListPageProps {

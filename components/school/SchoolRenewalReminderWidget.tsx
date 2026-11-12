@@ -1,9 +1,9 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { AlertTriangle, ShieldAlert, CreditCard, Clock, Loader2, CheckCircle2 } from 'lucide-react'
+import {  ShieldAlert, CreditCard, Clock, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import {
   getSchoolRegistrationRenewalStatusAction,
   initializeSchoolRenewalPaymentAction,

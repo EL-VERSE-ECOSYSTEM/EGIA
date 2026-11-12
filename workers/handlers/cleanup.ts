@@ -5,8 +5,8 @@ import { lt, and, eq } from 'drizzle-orm'
 
 export const cleanupHandler: JobHandler = async () => {
   const now = new Date()
-  let cleanedIdempotency = 0
-  let reapedStuckJobs = 0
+  const cleanedIdempotency = 0
+  const reapedStuckJobs = 0
 
   try {
     // 1. Delete expired idempotency keys

@@ -7,14 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Camera,
-  Shield,
-  Lock,
-  Bell
+  User
 } from 'lucide-react'
 
 import DashboardLayout from '@/components/layout/dashboard-layout'

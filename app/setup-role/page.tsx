@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { BookOpen, Users, School, UserCheck, Sparkles, GraduationCap, ArrowRight } from 'lucide-react'
+import { BookOpen, Users, UserCheck, GraduationCap, ArrowRight } from 'lucide-react'
 
 export default function SetupRolePage() {
   const router = useRouter()

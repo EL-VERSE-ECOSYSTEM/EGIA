@@ -32,16 +32,6 @@ export default function ParentChildrenPage() {
     },
   ]
 
-  const navItems = [
-    { label: 'Overview', href: '/parent', icon: '📊' },
-    { label: 'My Children', href: '/parent/children', icon: '👨‍👩‍👧‍👦', active: true },
-    { label: 'Results', href: '/parent/results', icon: '📈' },
-    { label: 'Payments', href: '/parent/payments', icon: '💳' },
-    { label: 'Messages', href: '/parent/messages', icon: '💬' },
-    { label: 'Calendar', href: '/parent/calendar', icon: '📅' },
-    { label: 'Profile', href: '/parent/profile', icon: '👤' },
-  ]
-
   const getGradeColor = (grade: string) => {
     if (grade === 'A' || grade === 'A-') return 'bg-green-100 text-green-700'
     if (grade === 'B' || grade === 'B+') return 'bg-blue-100 text-blue-700'
@@ -50,7 +40,7 @@ export default function ParentChildrenPage() {
   }
 
   return (
-    <DashboardLayout role="parent" userEmail="parent@email.com" navItems={navItems}>
+    <DashboardLayout role="parent">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

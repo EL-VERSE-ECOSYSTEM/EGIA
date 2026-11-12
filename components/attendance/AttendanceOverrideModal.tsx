@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { overrideAttendance } from '@/app/actions/attendance/overrideAttendance'
-import { X, Shield, Clock, AlertCircle, Loader2 } from 'lucide-react'
+import { X, Shield, AlertCircle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { TeacherAttendance } from '@/types/database.types'
 

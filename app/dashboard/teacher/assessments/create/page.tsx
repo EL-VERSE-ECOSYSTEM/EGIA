@@ -2,23 +2,15 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Tabs, TabsTrigger } from '@/components/ui/tabs'
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import {  AlertDescription } from '@/components/ui/alert'
 import {
   Upload,
-  FileText,
-  CheckCircle,
-  AlertCircle,
   Edit,
-  Eye,
-  Save,
-  Send,
-  FileSpreadsheet,
-  Zap,
-  Layout
+  FileSpreadsheet
 } from 'lucide-react'
 
 export default function CreateAssessmentPage() {

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { createTeacher } from '@/app/actions/admin'
-import { UserPlus, Briefcase, GraduationCap, FileText, Calendar } from 'lucide-react'
+import {  Briefcase, GraduationCap, FileText } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { CvUploadField } from '@/components/uploads/CvUploadField'
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 
 export function applyTheme(mode: 'auto' | 'light' | 'dark') {
   if (typeof window === "undefined") return

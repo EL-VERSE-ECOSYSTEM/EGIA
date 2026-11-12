@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Search, Filter, MoreVertical, MessageSquare, AlertCircle, ShieldAlert } from 'lucide-react'
+import { Search, AlertCircle } from 'lucide-react'
 
 import { getAdminDisputes, resolveDispute } from '@/app/actions/admin-ops'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'

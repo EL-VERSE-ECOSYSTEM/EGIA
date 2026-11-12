@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { student, parent, payment, assessmentResult } from '@/lib/db/schema'
+import { student, payment, assessmentResult } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 

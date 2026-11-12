@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Users, BookOpen, MoreVertical, Search, Edit2 } from 'lucide-react'
+import { Plus, Users, BookOpen, Edit2 } from 'lucide-react'
 import { getAllClasses } from '@/app/actions/admin'
 
 export default function AdminClassesPage() {

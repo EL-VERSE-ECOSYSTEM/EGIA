@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Award, Search, Filter, Loader2, CheckCircle2, Clock, BookOpen, GraduationCap, Sparkles } from 'lucide-react'
+import {  Search, Loader2, GraduationCap } from 'lucide-react'
 import { getTeacherClassResultsAction } from '@/app/actions/teacher'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 

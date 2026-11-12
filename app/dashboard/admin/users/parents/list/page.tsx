@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, UserCheck, ShieldCheck, Mail, Phone } from 'lucide-react'
+import { Plus, Search, Mail, Phone } from 'lucide-react'
 import { getAllParents } from '@/app/actions/admin'
 import { Input } from '@/components/ui/input'
 

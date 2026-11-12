@@ -1,4 +1,4 @@
-import { PerformanceObserver, performance } from "node:perf_hooks";
+import {  performance } from "node:perf_hooks";
 
 async function runLoadTest(
   targetUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",

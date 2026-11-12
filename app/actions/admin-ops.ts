@@ -10,16 +10,13 @@ import {
   payment,
   parent as parentTable,
   teacher as teacherTable,
-  notification,
   assessmentLogs,
   transactionLedger,
-  schoolAdminRoles,
-  school,
-  userRole
+  schoolAdminRoles
 } from '@/lib/db/schema'
 import bcrypt from 'bcryptjs'
 import { generateSequentialStaffCode } from '@/lib/admission'
-import { eq, and, sql, desc, inArray } from 'drizzle-orm'
+import { eq, and, sql, desc } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'

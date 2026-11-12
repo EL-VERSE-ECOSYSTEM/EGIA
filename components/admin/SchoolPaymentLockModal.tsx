@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { AlertTriangle, CreditCard, CheckCircle2, Loader2, ExternalLink } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Loader2, ExternalLink } from 'lucide-react'
 import { verifyKorapayPayment } from '@/app/actions/payments'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 

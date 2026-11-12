@@ -2,9 +2,9 @@
 
 import React, { useState, useMemo } from 'react'
 import {
-  Upload, FileSpreadsheet, Eye, Play, BookOpen, Layers,
-  ChevronLeft, ChevronRight, CheckCircle2, XCircle, Search,
-  Download, Moon, Sun, RotateCw, Bookmark, Sparkles, Sliders
+  Upload, FileSpreadsheet, Eye, Play,
+  ChevronLeft, ChevronRight, CheckCircle2, Search,
+  Download, Moon, Sun
 } from 'lucide-react'
 
 interface AdvancedCSVUploaderProps {

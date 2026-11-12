@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { ArrowRight, GraduationCap, AlertCircle, Search } from 'lucide-react'
+import { ArrowRight, GraduationCap, AlertCircle } from 'lucide-react'
 import { getAllStudents, processBulkPromotion } from '@/app/actions/admin'
 
 export default function StudentPromotionPage() {

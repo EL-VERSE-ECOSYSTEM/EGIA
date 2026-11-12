@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { FileText, Image as ImageIcon, Upload, CheckCircle2, Trash2, Link as LinkIcon } from "lucide-react";
+import { FileText, Image as ImageIcon, Upload, CheckCircle2 } from "lucide-react";
 
 interface ProofOfAddressUploadFieldProps {
   existingUrl?: string | null;

@@ -8,14 +8,8 @@ import {
   Users,
   CreditCard,
   MessageSquare,
-  TrendingUp,
-  ArrowRight,
   ShieldCheck,
-  Activity,
-  Calendar,
   Wallet,
-  CheckCircle2,
-  Clock,
   Plus
 } from 'lucide-react'
 import { getParentChildren, getParentProfile } from '@/lib/api/queries'
@@ -24,7 +18,7 @@ import Link from 'next/link'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { checkWeeklyPaymentStatus } from '@/app/actions/adult-education'
 import { getParentPaymentHistory } from '@/app/actions/payments'
-import { GraduationCap, Video, BookOpen, AlertTriangle } from 'lucide-react'
+import { GraduationCap } from 'lucide-react'
 
 export default async function ParentOverviewPage() {
   const session = await auth.getSession()

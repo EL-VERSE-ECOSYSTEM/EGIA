@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { getPendingAssessments, handleCBTDecision } from '@/app/actions/admin-cbt'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
-import { Check, X, Eye, FileText, AlertCircle, Clock, Award } from 'lucide-react'
+import { Check, X, FileText } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 

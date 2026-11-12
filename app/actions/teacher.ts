@@ -620,6 +620,7 @@ export async function updateAssessmentAndResubmit(data: {
         duration: data.duration,
         passingScore: data.passingScore || 40,
         status: 'pending_approval',
+        accessCode: null,
         adminComment: '', // clear old rejection reason upon resubmission
         updatedAt: new Date()
       })

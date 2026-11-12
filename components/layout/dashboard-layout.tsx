@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
-import { Bell, Search, User, Download, X, Smartphone, CheckCircle, Menu, LogOut, ChevronDown, Settings, Shield } from 'lucide-react'
+import { User, Download, X, Smartphone, CheckCircle, Menu, LogOut, ChevronDown, Settings } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSync'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
@@ -12,22 +12,27 @@ import { SchoolRenewalReminderWidget } from '@/components/school/SchoolRenewalRe
 import { StudentRegistrationLockoutWidget } from '@/components/student/StudentRegistrationLockoutWidget'
 import { MobileNav } from '@/components/layout/mobile-nav'
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
 export default function DashboardLayout({
   children,
   role = 'admin',
   userEmail,
-  navItems,
-  ...rest
+  schoolId,
+  studentId,
 }: {
   children: React.ReactNode
   role?: 'admin' | 'teacher' | 'parent' | 'student' | 'super-admin'
   userEmail?: string
-  navItems?: any[]
-  [key: string]: any
+  schoolId?: string | null
+  studentId?: string | null
 }) {
   const activeRole = role || 'admin'
   const [mounted, setMounted] = useState(false)
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallBtn, setShowInstallBtn] = useState(false)
   const [showIOSInstructions, setShowIOSInstructions] = useState(false)
   const [installedSuccess, setInstalledSuccess] = useState(false)
@@ -51,7 +56,7 @@ export default function DashboardLayout({
   useEffect(() => {
     setMounted(true)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-                          (window.navigator as any).standalone === true
+                          (window.navigator as Navigator & { standalone?: boolean }).standalone === true
 
     if (isStandalone) {
       return
@@ -59,13 +64,13 @@ export default function DashboardLayout({
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
-      setDeferredPrompt(e)
+      setDeferredPrompt(e as BeforeInstallPromptEvent)
       setShowInstallBtn(true)
     }
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 
-    const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !(window as any).MSStream
+    const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !('MSStream' in window)
     if (isIOS) {
       setShowInstallBtn(true)
     }
@@ -117,13 +122,13 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC] relative">
+    <div className="relative flex min-h-screen bg-slate-50 dark:bg-slate-950">
       {mounted && <DashboardRealtimeSync role={role} />}
       {mounted && activeRole === 'admin' && (
-        <SchoolRenewalReminderWidget schoolId={rest.schoolId || null} />
+        <SchoolRenewalReminderWidget schoolId={schoolId || null} />
       )}
       {mounted && activeRole === 'student' && (
-        <StudentRegistrationLockoutWidget studentId={rest.studentId || null} />
+        <StudentRegistrationLockoutWidget studentId={studentId || null} />
       )}
       {/* Mobile Sidebar backdrop overlay */}
       {isSidebarOpen && (
@@ -145,23 +150,23 @@ export default function DashboardLayout({
         <Sidebar role={activeRole} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       </div>
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-20 border-b border-slate-200 bg-white/50 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-3 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 sm:h-20 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             {/* Hamburger Button for Mobile Drawer Toggle */}
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
-              aria-label="Open Navigation"
+              className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 lg:hidden"
+              aria-label="Open navigation menu"
               aria-expanded={isSidebarOpen}
               aria-controls="mobile-sidebar-drawer"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <h1 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Dashboard / <span className="text-slate-900">{activeRole}</span></h1>
+            <h1 className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 sm:tracking-[0.18em] dark:text-slate-400">Dashboard <span className="px-1 text-slate-300">/</span> <span className="text-slate-900 dark:text-white">{activeRole}</span></h1>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             {mounted && <ThemeToggle />}
             {mounted && <NotificationBell />}
             <div className="h-10 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
@@ -171,7 +176,7 @@ export default function DashboardLayout({
                 aria-expanded={showUserMenu}
                 aria-haspopup="true"
                 aria-label="User Account Menu"
-                className="flex items-center gap-3 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-300"
+                className="flex items-center gap-2 rounded-xl p-1 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 dark:hover:bg-slate-800 sm:gap-3"
               >
                 <div className="text-right hidden md:block">
                   <p className="text-xs font-black text-slate-900 dark:text-white">EL LEARNERS</p>
@@ -223,16 +228,16 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-slate-50/50 relative pb-24 lg:pb-0">
+        <main className="relative flex-1 bg-slate-50/70 pb-24 dark:bg-slate-950 lg:pb-0">
           {mounted && <PermissionRequest />}
           {children}
 
           {/* Floating interactive PWA Download / Install App Prompt Widget */}
           {showInstallBtn && (
-            <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end">
+            <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-50 flex flex-col items-end sm:right-6 lg:bottom-8 lg:right-8">
               {/* iOS Manual PWA Install Instructions Popover */}
               {showIOSInstructions && (
-                <div className="mb-3 max-w-xs bg-white border border-slate-200 p-4 rounded-3xl shadow-2xl animate-in slide-in-from-bottom-5 duration-300">
+                <div className="mb-3 max-w-xs rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl animate-in slide-in-from-bottom-5 duration-300 dark:border-slate-700 dark:bg-slate-900">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-black text-slate-900 text-[11px] uppercase tracking-wider flex items-center gap-1.5">
                       <Smartphone className="w-3.5 h-3.5 text-slate-700" /> PWA Install on iOS
@@ -254,7 +259,7 @@ export default function DashboardLayout({
 
               <button
                 onClick={handleInstallClick}
-                className={`flex items-center gap-2 px-5 py-3 rounded-full font-black text-xs border shadow-2xl transition-all scale-100 hover:scale-105 active:scale-95 duration-200 ${themeColors.btn}`}
+                className={`flex min-h-11 items-center gap-2 rounded-full border px-4 py-3 text-xs font-bold shadow-xl transition-transform hover:scale-[1.02] active:scale-[0.98] ${themeColors.btn}`}
               >
                 <Download className="w-4 h-4 animate-bounce" />
                 DOWNLOAD PWA APP
@@ -264,7 +269,7 @@ export default function DashboardLayout({
 
           {/* PWA Successful Installation Prompt Banner */}
           {installedSuccess && (
-            <div className="fixed bottom-8 right-8 z-50 bg-white border border-emerald-100 p-4 rounded-3xl shadow-2xl flex items-center gap-3 animate-in fade-in zoom-in duration-300">
+            <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl border border-emerald-100 bg-white p-4 shadow-2xl animate-in fade-in zoom-in duration-300 dark:border-emerald-900 dark:bg-slate-900 sm:right-6 lg:bottom-8 lg:right-8">
               <div className="bg-emerald-100 p-2 rounded-xl text-emerald-600">
                 <CheckCircle className="w-5 h-5" />
               </div>

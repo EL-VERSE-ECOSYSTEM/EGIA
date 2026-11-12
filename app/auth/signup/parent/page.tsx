@@ -3,11 +3,10 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Users, Loader2, AlertCircle, GraduationCap, User, Search, Link as LinkIcon, CheckCircle, Trash2, Sparkles, Building2 } from 'lucide-react'
+import { Loader2, AlertCircle, GraduationCap, User, Search, Link as LinkIcon, Trash2, Sparkles } from 'lucide-react'
 import { registerParent } from '@/app/actions/auth-server'
 import { checkWardLinkingStatus } from '@/app/actions/user'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +14,8 @@ import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthInd
 import { toast } from 'sonner'
 
 export default function ParentSignUpPage() {
+  type WardCheck = Awaited<ReturnType<typeof checkWardLinkingStatus>>
+  type Ward = NonNullable<WardCheck['student']>
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -47,8 +48,8 @@ export default function ParentSignUpPage() {
   // Ward Search and Array states
   const [wardAdmissionNumber, setWardAdmissionNumber] = useState('')
   const [searching, setSearching] = useState(false)
-  const [checkedWard, setCheckedWard] = useState<any | null>(null)
-  const [addedWards, setAddedWards] = useState<any[]>([])
+  const [checkedWard, setCheckedWard] = useState<WardCheck | null>(null)
+  const [addedWards, setAddedWards] = useState<Ward[]>([])
 
   // Profile image upload
   const [profileImage, setProfileImage] = useState<string | null>(null)
@@ -84,25 +85,25 @@ export default function ParentSignUpPage() {
       } else {
         toast.error(res.message || 'Ward not found')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err)
-      toast.error(err.message || 'Error checking ward status')
+      toast.error(err instanceof Error ? err.message : 'Error checking ward status')
     } finally {
       setSearching(false)
     }
   }
 
   const handleAddWard = () => {
-    if (!checkedWard) return
+    if (!checkedWard?.canLink || !checkedWard.student) return
     if (addedWards.length >= 5) {
       toast.error('A parent account can be linked to a maximum of 5 children.')
       return
     }
-    if (addedWards.some(w => w.admissionNumber === checkedWard.admissionNumber)) {
+    if (addedWards.some(w => w.admissionNumber === checkedWard.student?.admissionNumber)) {
       toast.error('This ward is already added to your list.')
       return
     }
-    setAddedWards([...addedWards, checkedWard])
+    setAddedWards([...addedWards, checkedWard.student])
     setCheckedWard(null)
     setWardAdmissionNumber('')
     toast.success('Ward added to registration list!')
@@ -155,22 +156,18 @@ export default function ParentSignUpPage() {
     }
 
     try {
-      const result: any = await registerParent(payload)
+      const result = await registerParent(payload)
 
       if (result?.error) {
         setError(result.error)
         toast.error(result.error)
         setLoading(false)
       } else {
-        if (result?.checkoutUrl) {
-          window.location.assign(result.checkoutUrl)
-          return
-        }
         toast.success('Parent account registered successfully! Proceeding to Sign In.')
         router.push('/auth/signin')
       }
-    } catch (err: any) {
-      const msg = err?.message || 'Account failed to create. Please try again.'
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Account failed to create. Please try again.'
       setError(msg)
       toast.error(msg)
       setLoading(false)
@@ -397,17 +394,15 @@ export default function ParentSignUpPage() {
               <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col gap-3 animate-in fade-in duration-200">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-xs font-black text-white">{checkedWard.name}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{checkedWard.admissionNumber} • {checkedWard.class}</p>
+                    <p className="text-xs font-black text-white">{checkedWard.studentName}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{checkedWard.student?.admissionNumber} • {checkedWard.studentClass}</p>
                   </div>
                   <Badge className={`border-none font-black text-[8px] px-2.5 py-0.5 tracking-wider uppercase ${
-                    checkedWard.status === 'NOT_LINKED'
+                    checkedWard.canLink
                       ? 'bg-amber-500/20 text-amber-300'
-                      : checkedWard.status === 'LINKED_TO_ME'
-                      ? 'bg-emerald-500/20 text-emerald-300'
                       : 'bg-red-500/20 text-red-300'
                   }`}>
-                    {checkedWard.status.replaceAll('_', ' ')}
+                    {checkedWard.status?.replaceAll('_', ' ') || 'NOT FOUND'}
                   </Badge>
                 </div>
 
@@ -417,7 +412,7 @@ export default function ParentSignUpPage() {
 
                 <div className="flex gap-2 justify-end">
                   <Button type="button" variant="ghost" size="sm" onClick={() => setCheckedWard(null)} className="text-xs font-bold text-slate-400 rounded-lg">Cancel</Button>
-                  {checkedWard.status === 'NOT_LINKED' && (
+                  {checkedWard.canLink && (
                     <Button type="button" size="sm" onClick={handleAddWard} className="bg-indigo-600 text-white hover:bg-indigo-500 text-xs font-bold rounded-lg flex items-center gap-1">
                       <LinkIcon size={12} /> Add to Registration
                     </Button>
@@ -435,7 +430,7 @@ export default function ParentSignUpPage() {
                 {addedWards.map(w => (
                   <div key={w.admissionNumber} className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-black text-white">{w.name}</p>
+                      <p className="text-xs font-black text-white">{w.firstName} {w.lastName}</p>
                       <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">{w.admissionNumber} • {w.class}</p>
                     </div>
                     <button type="button" onClick={() => handleRemoveWard(w.admissionNumber)} className="text-red-400 hover:text-red-300 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">

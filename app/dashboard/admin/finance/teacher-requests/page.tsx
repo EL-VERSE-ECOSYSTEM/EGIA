@@ -11,10 +11,8 @@ import {
   XCircle,
   Clock,
   Loader2,
-  Wallet,
   Smartphone,
   Wifi,
-  Coins,
   ShieldCheck,
   Calendar,
   DollarSign

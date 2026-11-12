@@ -13,7 +13,6 @@ import {
   Building2,
   Sparkles,
   CreditCard,
-  Download,
   ShieldCheck,
   ArrowRight,
   BookOpen,

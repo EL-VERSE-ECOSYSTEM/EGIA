@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, CheckCircle2, Clock, HelpCircle, ShieldAlert, Sparkles } from 'lucide-react'
+import { BookOpen, HelpCircle, Sparkles } from 'lucide-react'
 import { getPrepQuestionsAction } from '@/app/actions/online-prep'
 import { OnlinePrepModal } from '@/components/online-prep/OnlinePrepModal'
 
