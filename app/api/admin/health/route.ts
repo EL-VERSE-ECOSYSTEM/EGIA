@@ -8,7 +8,7 @@ import { getOnlineUsersCount } from "@/lib/realtime-bus";
 export async function GET() {
   try {
     const session = await auth.getSession();
-    if (!session?.user || !["ADMIN", "SCHOOL_ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
+    if (!session?.user || session.user.role.toUpperCase() !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -28,9 +28,9 @@ export async function GET() {
         poolCapacity: 20,
       },
     });
-  } catch (error: any) {
+  } catch {
     return NextResponse.json(
-      { error: error.message || "Health status check failed." },
+      { error: "Health status check failed." },
       { status: 500 }
     );
   }

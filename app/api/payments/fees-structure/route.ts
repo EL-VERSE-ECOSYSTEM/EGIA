@@ -14,20 +14,19 @@ export async function GET() {
     const uRec = await db.query.user.findFirst({ where: eq(user.id, session.user.id) })
     const schoolId = uRec?.schoolId || session.user.schoolId
 
-    let list: any[] = []
-    if (schoolId) {
-      list = await db.query.feeStructure.findMany({
-        where: eq(feeStructure.schoolId, schoolId),
-        orderBy: [desc(feeStructure.createdAt)]
-      })
-    } else {
-      list = await db.query.feeStructure.findMany({
-        orderBy: [desc(feeStructure.createdAt)]
-      })
+    if (!schoolId && session.user.role.toUpperCase() !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'School context is required.' }, { status: 403 })
     }
 
+    const list = schoolId
+      ? await db.query.feeStructure.findMany({
+          where: eq(feeStructure.schoolId, schoolId),
+          orderBy: [desc(feeStructure.createdAt)]
+        })
+      : await db.query.feeStructure.findMany({ orderBy: [desc(feeStructure.createdAt)] })
+
     return NextResponse.json({ feeStructures: list })
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Server error' }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

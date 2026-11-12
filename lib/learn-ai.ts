@@ -45,6 +45,19 @@ export async function getLearnAiBalance(userId: string) {
   return balance as { daily_remaining: number; paid_remaining: number; reset_at: Date }
 }
 
+/** Learn AI is unavailable while this account has an active CBT session. */
+export async function hasActiveCbtSession(userId: string) {
+  const [session] = await sqlClient`
+    select cbt_sessions.id
+    from public.cbt_sessions
+    inner join public.student on student.id = cbt_sessions.student_id
+    where student.userid = ${userId}
+      and upper(cbt_sessions.status) = 'ONGOING'
+    limit 1
+  `
+  return Boolean(session)
+}
+
 export async function completeLearnAiPurchase(reference: string, amountKobo: number) {
   const [result] = await sqlClient`
     select public.complete_learn_ai_purchase(${reference}, ${amountKobo}) as completed

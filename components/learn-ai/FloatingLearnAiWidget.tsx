@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Bot, LoaderCircle, MessageCircle, Send, Sparkles, X } from 'lucide-react'
+import { toast } from 'sonner'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 type Balance = { daily_remaining: number; paid_remaining: number; reset_at: string }
@@ -30,9 +31,14 @@ export function FloatingLearnAiWidget() {
       const response = await fetch('/api/learn-ai/chat', { cache: 'no-store' })
       const result = await response.json()
       if (response.ok) setBalance(result)
-      else setError(result.error || 'Sign in to use Learn AI.')
+      else {
+        const message = result.error || 'Sign in to use Learn AI.'
+        setError(message)
+        toast.error(message)
+      }
     } catch {
       setError('Learn AI is temporarily unavailable.')
+      toast.error('Learn AI is temporarily unavailable.')
     }
   }
 
@@ -85,7 +91,9 @@ export function FloatingLearnAiWidget() {
       setMessages((current) => [...current, { role: 'assistant' as const, content: result.answer }].slice(-10))
       setBalance(result)
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Learn AI could not answer.')
+      const message = requestError instanceof Error ? requestError.message : 'Learn AI could not answer.'
+      setError(message)
+      toast.error(message)
     } finally {
       setIsSending(false)
     }
@@ -104,7 +112,9 @@ export function FloatingLearnAiWidget() {
       if (!response.ok || !result.checkoutUrl) throw new Error(result.error || 'Could not start checkout.')
       window.location.assign(result.checkoutUrl)
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Could not start checkout.')
+      const message = requestError instanceof Error ? requestError.message : 'Could not start checkout.'
+      setError(message)
+      toast.error(message)
       setIsBuying(null)
     }
   }
@@ -114,7 +124,12 @@ export function FloatingLearnAiWidget() {
     setIsOpen((open) => !open)
   }
 
-  if (pathname?.startsWith('/dashboard/learn-ai')) return null
+  const isCbtRoute = pathname?.includes('/assessments/cbt/') || pathname?.includes('/student/cbt/')
+  useEffect(() => {
+    if (isCbtRoute) setIsOpen(false)
+  }, [isCbtRoute])
+
+  if (pathname?.startsWith('/dashboard/learn-ai') || isCbtRoute) return null
 
   return (
     <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 sm:right-6 z-[998] font-sans">

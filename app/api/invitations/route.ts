@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { invitations, user as userTable, schoolAdminRoles } from '@/lib/db/schema'
-import { eq, desc, and } from 'drizzle-orm'
+import { invitations, user as userTable } from '@/lib/db/schema'
+import { eq, desc } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { auth } from '@/lib/auth'
 import { sanitizeServerError } from '@/lib/errors'
+import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'
 
 const ALLOWED_INVITE_ROLES = ['TEACHER', 'PARENT', 'STUDENT']
 
@@ -16,7 +17,9 @@ export async function POST(req: NextRequest) {
     }
 
     const role = (session.user.role || '').toUpperCase()
-    if (!['PRIMARY_ADMIN', 'SUPER_ADMIN', 'ADMIN', 'SCHOOL_ADMIN'].includes(role)) {
+    const canManageInvitations = role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'PRIMARY_ADMIN' ||
+      (role === 'SCHOOL_ADMIN' && canSchoolAdminAccess(session.user.adminLevel, 'create', 'invitation'))
+    if (!canManageInvitations) {
       return NextResponse.json({ error: 'Forbidden: Insufficient invitation privileges.' }, { status: 403 })
     }
 
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest) {
         expiresAt
       }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     const safeErr = sanitizeServerError('POST /api/invitations', error, 'Unable to create invitation.')
     return NextResponse.json({ error: safeErr.error, requestId: safeErr.requestId }, { status: 500 })
   }
@@ -84,7 +87,9 @@ export async function GET(req: NextRequest) {
     }
 
     const role = (session.user.role || '').toUpperCase()
-    if (!['PRIMARY_ADMIN', 'SUPER_ADMIN', 'ADMIN', 'SCHOOL_ADMIN'].includes(role)) {
+    const canManageInvitations = role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'PRIMARY_ADMIN' ||
+      (role === 'SCHOOL_ADMIN' && canSchoolAdminAccess(session.user.adminLevel, 'read', 'invitation'))
+    if (!canManageInvitations) {
       return NextResponse.json({ error: 'Forbidden: Insufficient privileges.' }, { status: 403 })
     }
 
@@ -122,7 +127,7 @@ export async function GET(req: NextRequest) {
     }))
 
     return NextResponse.json({ success: true, data: maskedList })
-  } catch (error: any) {
+  } catch (error: unknown) {
     const safeErr = sanitizeServerError('GET /api/invitations', error, 'Unable to fetch invitations.')
     return NextResponse.json({ error: safeErr.error, requestId: safeErr.requestId }, { status: 500 })
   }

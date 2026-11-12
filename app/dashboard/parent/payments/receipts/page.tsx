@@ -29,13 +29,24 @@ export default function ReceiptsPage() {
   }, [])
 
   const printReceipt = (p: any) => {
+    if (!['success', 'approved', 'cleared'].includes(String(p.status || '').toLowerCase())) return
     const printWin = window.open('', '_blank')
     if (!printWin) return
+
+    const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    })[char]!)
+    const reference = escapeHtml(p.transactionReference || p.id)
+    const learner = escapeHtml(p.childName || 'Linked Learner')
+    const description = escapeHtml(p.feeType || p.description || 'School Fee')
+    const paymentMethod = escapeHtml(p.paymentMethod || 'Payment gateway')
+    const paymentDate = escapeHtml(new Date(p.paidAt || p.createdAt || Date.now()).toLocaleDateString())
+    const amount = Number.isFinite(Number(p.amount)) ? Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00'
 
     printWin.document.write(`
       <html>
         <head>
-          <title>Payment Receipt - ${p.transactionReference || p.id}</title>
+          <title>Payment Receipt - ${reference}</title>
           <style>
             body { font-family: system-ui, sans-serif; padding: 40px; color: #0f172a; }
             .receipt-box { border: 2px solid #0f172a; padding: 30px; max-width: 600px; margin: auto; border-radius: 16px; }
@@ -55,15 +66,15 @@ export default function ReceiptsPage() {
               <div class="title">EL LEARNERS APP</div>
               <div style="font-size: 12px; color: #64748b; font-weight: bold; margin-top: 4px;">OFFICIAL TRANSACTION RECEIPT</div>
             </div>
-            <div class="row"><span class="label">Reference:</span><span class="value">${p.transactionReference || p.id}</span></div>
-            <div class="row"><span class="label">Learner:</span><span class="value">${p.childName || 'Linked Learner'}</span></div>
-            <div class="row"><span class="label">Fee Description:</span><span class="value">${p.feeType || p.description || 'School Fee'}</span></div>
-            <div class="row"><span class="label">Payment Method:</span><span class="value">${p.paymentMethod || 'KORAPAY'}</span></div>
-            <div class="row"><span class="label">Date:</span><span class="value">${new Date(p.createdAt || Date.now()).toLocaleDateString()}</span></div>
-            <div class="row"><span class="label">Status:</span><span class="value" style="color: #166534;">${(p.status || 'SUCCESS').toUpperCase()}</span></div>
+            <div class="row"><span class="label">Reference:</span><span class="value">${reference}</span></div>
+            <div class="row"><span class="label">Learner:</span><span class="value">${learner}</span></div>
+            <div class="row"><span class="label">Fee Description:</span><span class="value">${description}</span></div>
+            <div class="row"><span class="label">Payment Method:</span><span class="value">${paymentMethod}</span></div>
+            <div class="row"><span class="label">Date:</span><span class="value">${paymentDate}</span></div>
+            <div class="row"><span class="label">Status:</span><span class="value" style="color: #166534;">${escapeHtml(p.status.toUpperCase())}</span></div>
             <div class="total-box">
               <div class="label">Amount Paid:</div>
-              <div class="total-amount">NGN ${Number(p.amount).toLocaleString()}</div>
+              <div class="total-amount">NGN ${amount}</div>
             </div>
             <div class="footer">Thank you for your payment. Verified by EL LEARNERS APP Registry.</div>
           </div>
@@ -107,7 +118,7 @@ export default function ReceiptsPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-black text-slate-900 text-lg">{p.feeType || p.description || 'School Fee'}</p>
-                        <Badge className={`font-black text-[10px] uppercase ${p.status === 'success' || p.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                        <Badge className={`font-black text-[10px] uppercase ${['success', 'approved', 'cleared'].includes(String(p.status || '').toLowerCase()) ? 'bg-emerald-100 text-emerald-800' : String(p.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
                           {p.status}
                         </Badge>
                       </div>
@@ -119,9 +130,11 @@ export default function ReceiptsPage() {
 
                   <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
                     <p className="text-xl font-black text-slate-900 font-mono">NGN {Number(p.amount).toLocaleString()}</p>
-                    <Button onClick={() => printReceipt(p)} className="bg-slate-900 hover:bg-slate-800 text-white font-black text-xs h-11 px-5 rounded-xl flex items-center gap-2">
-                      <Printer className="w-4 h-4" /> Download / Print
-                    </Button>
+                    {['success', 'approved', 'cleared'].includes(String(p.status || '').toLowerCase()) ? (
+                      <Button onClick={() => printReceipt(p)} className="bg-slate-900 hover:bg-slate-800 text-white font-black text-xs h-11 px-5 rounded-xl flex items-center gap-2">
+                        <Printer className="w-4 h-4" /> Print Receipt
+                      </Button>
+                    ) : <span className="text-xs font-bold text-slate-500">Receipt available after confirmation</span>}
                   </div>
                 </div>
               </Card>

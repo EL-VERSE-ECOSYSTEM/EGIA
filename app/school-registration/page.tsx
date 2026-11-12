@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   registerSchoolAction,
   confirmSchoolPaymentAction,
+  retrySchoolRegistrationPaymentAction,
   uploadApplicationProofOfAddressAction,
   getSchoolApplicationStatusAction
 } from '@/app/actions/school'
@@ -149,7 +150,11 @@ export default function SchoolRegistrationPage() {
         documentVerificationStatus: 'PENDING',
         approvalStatus: 'PENDING_REVIEW',
       })
-      setSuccessMessage('School application submitted! Please complete subscription payment and upload proof of address.')
+      if (res.paymentInitializationFailed) {
+        setErrorMessage('Your application was saved, but Paystack is temporarily unavailable. Use Retry Paystack setup below.')
+      } else {
+        setSuccessMessage('School application submitted! Please complete subscription payment and upload proof of address.')
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'An unexpected error occurred.')
     } finally {
@@ -173,6 +178,20 @@ export default function SchoolRegistrationPage() {
       setSuccessMessage('Payment verified successfully! Please enter the OTP sent to your registered device.')
     } else {
       setErrorMessage(confirmRes.error || 'Payment confirmation failed.')
+    }
+    setLoading(false)
+  }
+
+  const handleRetryPayment = async () => {
+    if (!appState?.applicationId) return
+    setLoading(true)
+    setErrorMessage('')
+    const result = await retrySchoolRegistrationPaymentAction(appState.applicationId)
+    if (result.success) {
+      setAppState((prev: any) => ({ ...prev, paymentReference: result.paymentReference, checkoutUrl: result.checkoutUrl }))
+      setSuccessMessage('Paystack checkout is ready. Complete payment to continue.')
+    } else {
+      setErrorMessage(result.error || 'Paystack checkout could not be started.')
     }
     setLoading(false)
   }
@@ -411,15 +430,21 @@ export default function SchoolRegistrationPage() {
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-                  <a
-                    href={appState.checkoutUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 py-3 px-4 rounded-xl bg-[#1E3A8A] hover:bg-blue-800 text-white font-black text-xs uppercase flex items-center justify-center gap-2 transition"
-                  >
-                    <span>Paystack Checkout</span>
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+                  {appState.checkoutUrl ? (
+                    <a
+                      href={appState.checkoutUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex-1 py-3 px-4 rounded-xl bg-[#1E3A8A] hover:bg-blue-800 text-white font-black text-xs uppercase flex items-center justify-center gap-2 transition"
+                    >
+                      <span>Paystack Checkout</span>
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  ) : (
+                    <button onClick={handleRetryPayment} disabled={loading} className="flex-1 py-3 px-4 rounded-xl bg-[#1E3A8A] hover:bg-blue-800 text-white font-black text-xs uppercase disabled:opacity-50">
+                      {loading ? 'Starting…' : 'Retry Paystack Setup'}
+                    </button>
+                  )}
                   <button
                     onClick={handleConfirmPayment}
                     disabled={loading}

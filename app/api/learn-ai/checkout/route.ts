@@ -2,8 +2,34 @@ import { randomUUID } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { sqlClient } from '@/lib/db'
-import { isCrossOriginLearnAiRequest, LEARN_AI_PACKAGES, LEARN_AI_ROLES, type LearnAiPackageId } from '@/lib/learn-ai'
+import { hasActiveCbtSession, isCrossOriginLearnAiRequest, LEARN_AI_PACKAGES, LEARN_AI_ROLES, type LearnAiPackageId } from '@/lib/learn-ai'
 import { isSystemFeatureEnabled } from '@/lib/resilience/feature-flags'
+
+const MAX_PURCHASE_REQUEST_BYTES = 4_000
+
+async function readBoundedBody(request: Request): Promise<string | null> {
+  if (!request.body) return ''
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > MAX_PURCHASE_REQUEST_BYTES) {
+      await reader.cancel()
+      return null
+    }
+    chunks.push(value)
+  }
+  const bytes = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return new TextDecoder().decode(bytes)
+}
 
 export async function POST(request: Request) {
   if (isCrossOriginLearnAiRequest(request)) {
@@ -14,8 +40,15 @@ export async function POST(request: Request) {
   if (!LEARN_AI_ROLES.has(session.user.role.toUpperCase())) {
     return NextResponse.json({ error: 'Your role cannot buy Learn AI tokens.' }, { status: 403 })
   }
-  if (await isSystemFeatureEnabled('disable_ai', session.user.schoolId)) {
-    return NextResponse.json({ error: 'Learn AI purchases are temporarily disabled.' }, { status: 503 })
+  try {
+    if (await hasActiveCbtSession(session.user.id)) {
+      return NextResponse.json({ error: 'Learn AI is unavailable during an active CBT exam or assessment.' }, { status: 403 })
+    }
+    if (await isSystemFeatureEnabled('disable_ai', session.user.schoolId)) {
+      return NextResponse.json({ error: 'Learn AI purchases are temporarily disabled.' }, { status: 503 })
+    }
+  } catch {
+    return NextResponse.json({ error: 'Learn AI purchases are temporarily unavailable.' }, { status: 503 })
   }
 
   const secretKey = process.env.PAYSTACK_SECRET_KEY
@@ -23,7 +56,12 @@ export async function POST(request: Request) {
 
   let packageId: LearnAiPackageId
   try {
-    const body = await request.json() as { packageId?: string }
+    if (Number(request.headers.get('content-length') || 0) > MAX_PURCHASE_REQUEST_BYTES) {
+      return NextResponse.json({ error: 'Purchase request is too large.' }, { status: 413 })
+    }
+    const rawBody = await readBoundedBody(request)
+    if (rawBody === null) return NextResponse.json({ error: 'Purchase request is too large.' }, { status: 413 })
+    const body = JSON.parse(rawBody) as { packageId?: string }
     if (typeof body.packageId !== 'string' || !Object.hasOwn(LEARN_AI_PACKAGES, body.packageId)) {
       return NextResponse.json({ error: 'Choose a valid token package.' }, { status: 400 })
     }
@@ -38,7 +76,20 @@ export async function POST(request: Request) {
   const purchaseId = randomUUID()
   const reference = `learnai-${randomUUID().replaceAll('-', '')}`
   const amountKobo = selectedPackage.priceNgn * 100
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_SITE_URL || new URL(request.url).origin).replace(/\/$/, '')
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_SITE_URL
+  if (process.env.NODE_ENV === 'production' && !configuredSiteUrl) {
+    return NextResponse.json({ error: 'Payment checkout is temporarily unavailable.' }, { status: 503 })
+  }
+  let siteUrl: string
+  try {
+    const parsedSiteUrl = new URL(configuredSiteUrl || new URL(request.url).origin)
+    if (parsedSiteUrl.username || parsedSiteUrl.password || (process.env.NODE_ENV === 'production' && parsedSiteUrl.protocol !== 'https:')) {
+      throw new Error('Invalid configured application origin')
+    }
+    siteUrl = parsedSiteUrl.origin
+  } catch {
+    return NextResponse.json({ error: 'Payment checkout is temporarily unavailable.' }, { status: 503 })
+  }
 
   try {
     await sqlClient`

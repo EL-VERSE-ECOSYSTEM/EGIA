@@ -112,7 +112,7 @@ export default function PaymentHistoryPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Payment Gateway:</span>
-                  <span className="font-bold text-emerald-600 flex items-center gap-1 text-xs"><ShieldCheck className="w-3.5 h-3.5" /> Korapay Verified</span>
+                  <span className="font-bold text-emerald-600 flex items-center gap-1 text-xs"><ShieldCheck className="w-3.5 h-3.5" /> {activeReceipt.paymentMethod || 'Payment confirmed'}</span>
                 </div>
                 <div className="h-[1px] bg-slate-100 my-4" />
                 <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
@@ -130,13 +130,10 @@ export default function PaymentHistoryPage() {
                   <Printer size={16} /> PRINT
                 </Button>
                 <Button
-                  onClick={() => {
-                    alert('Receipt downloaded successfully to your device files folder.')
-                    setActiveReceipt(null)
-                  }}
+                  onClick={() => window.print()}
                   className="flex-1 bg-slate-900 hover:bg-slate-800 text-white h-12 rounded-xl font-bold flex items-center justify-center gap-1.5"
                 >
-                  <Download size={16} /> DOWNLOAD
+                  <Download size={16} /> SAVE AS PDF
                 </Button>
               </div>
             </Card>
@@ -215,7 +212,7 @@ export default function PaymentHistoryPage() {
                         {getStatusBadge(p.status)}
                       </td>
                       <td className="p-6 text-right">
-                        {p.status?.toLowerCase() === 'pending' ? (
+                        {!['success', 'approved', 'cleared'].includes(String(p.status || '').toLowerCase()) ? (
                           <span className="text-xs font-bold text-amber-700">Awaiting confirmation</span>
                         ) : (
                           <Button

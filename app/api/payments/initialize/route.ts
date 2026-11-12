@@ -1,37 +1,27 @@
 import { NextResponse } from 'next/server'
-import { initializePaystackPayment } from '@/lib/payments/service'
+import { auth } from '@/lib/auth'
+import { initializePaystackPayment } from '@/app/actions/payments'
 
 export async function POST(req: Request) {
   try {
+    const origin = req.headers.get('origin')
+    if (origin && new URL(origin).origin !== new URL(req.url).origin) {
+      return NextResponse.json({ error: 'Cross-origin payment initialization is not allowed.' }, { status: 403 })
+    }
+    const session = await auth.getSession()
+    if (!session?.user) return NextResponse.json({ error: 'Sign in before starting a payment.' }, { status: 401 })
     const body = await req.json()
-    const {
-      amount,
-      customerEmail,
-      customerName,
-      currency = 'NGN',
-      reference,
-      studentId,
-      feeType,
-      description,
-      schoolId,
-      callbackUrl,
-    } = body
+    const { amount, studentId, feeType } = body ?? {}
 
-    if (!amount || !customerEmail) {
-      return NextResponse.json({ error: 'Missing required payment details (amount, customerEmail)' }, { status: 400 })
+    if (typeof studentId !== 'string' || !studentId || typeof feeType !== 'string' || !feeType ||
+      typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json({ error: 'Choose a student and an active school fee.' }, { status: 400 })
     }
 
     const result = await initializePaystackPayment({
-      amount: Number(amount),
-      customerEmail,
-      customerName,
-      currency,
-      reference,
+      amount,
       studentId,
       feeType,
-      description,
-      schoolId,
-      callbackUrl,
     })
 
     return NextResponse.json({
@@ -40,14 +30,14 @@ export async function POST(req: Request) {
       authorizationUrl: result.checkoutUrl,
       reference: result.reference,
       paymentId: result.paymentId,
-      amount: result.amount,
-      currency: result.currency,
+      amount: result.totalAmount,
+      currency: 'NGN',
     })
-  } catch (error: any) {
-    console.error('Paystack initialization API error:', error)
+  } catch (error: unknown) {
+    console.error('Paystack initialization API error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json(
-      { error: error.message || 'Failed to initialize payment with Paystack' },
-      { status: 500 }
+      { error: 'Payment could not be initialized. Check the selected student and school fee, then try again.' },
+      { status: 400 }
     )
   }
 }

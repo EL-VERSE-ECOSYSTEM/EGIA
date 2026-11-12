@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { sqlClient } from '@/lib/db'
+import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'
 
 const SCHOOL_ADMIN_ROLES = new Set(['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'])
+
+function canEditGuidance(user: { role: string; adminLevel?: string | null }) {
+  const role = user.role.toUpperCase()
+  if (role === 'SUPER_ADMIN' || role === 'ADMIN') return true
+  return role === 'SCHOOL_ADMIN' && canSchoolAdminAccess(user.adminLevel, 'update', 'school_settings')
+}
 
 async function getSchoolId(user: { role: string; schoolId: string | null }, requestUrl: string) {
   if (user.role === 'SUPER_ADMIN') {
@@ -14,7 +21,7 @@ async function getSchoolId(user: { role: string; schoolId: string | null }, requ
 export async function GET(request: Request) {
   const session = await auth.getSession()
   if (!session?.user) return NextResponse.json({ error: 'Sign in required.' }, { status: 401 })
-  if (!SCHOOL_ADMIN_ROLES.has(session.user.role)) return NextResponse.json({ error: 'School administrator access required.' }, { status: 403 })
+  if (!SCHOOL_ADMIN_ROLES.has(session.user.role.toUpperCase()) || !canEditGuidance(session.user)) return NextResponse.json({ error: 'School administrator access required.' }, { status: 403 })
 
   const schoolId = await getSchoolId(session.user, request.url)
   if (!schoolId) return NextResponse.json({ error: 'Choose a school before editing its Learn AI guidance.' }, { status: 400 })
@@ -33,7 +40,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   const session = await auth.getSession()
   if (!session?.user) return NextResponse.json({ error: 'Sign in required.' }, { status: 401 })
-  if (!SCHOOL_ADMIN_ROLES.has(session.user.role)) return NextResponse.json({ error: 'School administrator access required.' }, { status: 403 })
+  if (!SCHOOL_ADMIN_ROLES.has(session.user.role.toUpperCase()) || !canEditGuidance(session.user)) return NextResponse.json({ error: 'School administrator access required.' }, { status: 403 })
 
   const origin = request.headers.get('origin')
   if (origin && new URL(origin).host !== new URL(request.url).host) {

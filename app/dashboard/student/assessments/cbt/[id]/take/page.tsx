@@ -4,9 +4,10 @@ import React, { useState, useEffect, useRef } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, ShieldAlert, Camera, CheckCircle2, Clock, Play, EyeOff, AlertOctagon, Loader2 } from 'lucide-react'
+import { AlertCircle, ShieldAlert, Camera, CheckCircle2, Clock, Play, AlertOctagon } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
-import { saveProctoredAssessmentResult, getLoggedInStudentAndQuestions } from '@/app/actions/assessments'
+import { saveProctoredAssessmentResult, getLoggedInStudentAndQuestions, startCbtSession } from '@/app/actions/assessments'
+import { toast } from 'sonner'
 
 export default function CBTExamTakingPage() {
   const router = useRouter()
@@ -16,16 +17,19 @@ export default function CBTExamTakingPage() {
   const [examStarted, setExamStarted] = useState(false)
   const [examFinished, setExamFinished] = useState(false)
   const [warningCount, setWarningCount] = useState(0)
+  const [review, setReview] = useState<Record<string, { isCorrect: boolean; correctAnswer: string }>>({})
+  const submissionInFlight = useRef(false)
   const [timeLeft, setTimeSpent] = useState(1800) // 30 minutes in seconds
 
   const [currentQuestionIdx, setCurrentQuestion] = useState(0)
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string | string[]>>({})
 
   // Real Database state
   const [studentId, setStudentId] = useState<string>('current-student-id')
   const [questions, setQuestions] = useState<any[]>([])
   const [assessmentTitle, setAssessmentTitle] = useState<string>('CBT Assessment')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   // Active Warning Overlay state (blocks exam progression)
   const [activeWarning, setActiveWarning] = useState<{
@@ -64,14 +68,10 @@ export default function CBTExamTakingPage() {
           setStudentId(data.studentId)
           setQuestions(data.questions)
           setAssessmentTitle(data.title)
-        }
+        } else setLoadError('This assessment is unavailable or has no questions.')
       } catch (err) {
-        console.warn('Could not retrieve DB data. Using default/fallback questions.', err)
-        setQuestions([
-          { id: 'q1', text: 'Which year did Nigeria gain independence?', options: ['1957', '1960', '1963', '1970'], answer: '1960' },
-          { id: 'q2', text: 'What is the capital city of Nigeria?', options: ['Lagos', 'Calabar', 'Abuja', 'Enugu'], answer: 'Abuja' },
-          { id: 'q3', text: 'How many geopolitical zones are in Nigeria?', options: ['4', '5', '6', '7'], answer: '6' }
-        ])
+        console.error('Could not load assessment from the database.', err)
+        setLoadError(err instanceof Error ? err.message : 'Could not load this assessment. Please try again.')
       } finally {
         setLoading(false)
       }
@@ -292,16 +292,27 @@ export default function CBTExamTakingPage() {
   }, [examStarted, examFinished])
 
   const startExam = async () => {
+    try {
+      await startCbtSession(assessmentId)
+    } catch (error) {
+      const { toast } = await import('sonner')
+      toast.error(error instanceof Error ? error.message : 'Could not start the CBT session.')
+      return
+    }
     setExamStarted(true)
     await startWebcamAndRecorder()
     logProctorEvent('SESSION_START', 'Exam started. Active camera recording initialized.')
   }
 
   const handleSelectOption = (qId: string, option: string) => {
-    setSelectedAnswers(prev => ({
-      ...prev,
-      [qId]: option
-    }))
+    const question = questions.find((item) => item.id === qId)
+    setSelectedAnswers((previous) => {
+      if (question?.questionType === 'MCQ_MULTIPLE') {
+        const current = Array.isArray(previous[qId]) ? previous[qId] as string[] : []
+        return { ...previous, [qId]: current.includes(option) ? current.filter((item) => item !== option) : [...current, option] }
+      }
+      return { ...previous, [qId]: option }
+    })
   }
 
   const compileVideoBlobAndSave = async () => {
@@ -316,11 +327,15 @@ export default function CBTExamTakingPage() {
     // Convert recorded blobs to storable base64 WebM format
     return new Promise<string>((resolve) => {
       if (recordedChunksRef.current.length === 0) {
-        resolve('data:video/webm;base64,GkXfo6NChgE...') // High-fidelity placeholder if camera recording was simulated
+        resolve('')
         return
       }
 
       const videoBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' })
+      if (videoBlob.size > 1_000_000) {
+        resolve('')
+        return
+      }
       const reader = new FileReader()
       reader.onloadend = () => {
         resolve(reader.result as string)
@@ -330,55 +345,53 @@ export default function CBTExamTakingPage() {
   }
 
   const autoSubmitExam = async (reason = 'Proctoring violation detected.') => {
-    if (examFinished) return
-    setExamFinished(true)
+    if (examFinished || submissionInFlight.current) return
+    submissionInFlight.current = true
     setActiveWarning(null)
-    const base64Vid = await compileVideoBlobAndSave()
-
-    // Save to PostgreSQL database via action in real time
-    await saveProctoredAssessmentResult({
-      assessmentId,
-      studentId,
-      score: 0,
-      totalQuestions: questions.length || 3,
-      correctAnswers: 0,
-      timeSpent: 1800 - timeLeft,
-      status: 'failed_proctoring',
-      assessmentVideo: base64Vid,
-      warningCount: warningCount + 1,
-      proctorLogs: [...proctorLogs, { timestamp: new Date().toLocaleTimeString(), type: 'AUTO_SUBMIT', message: `Exam auto-submitted: ${reason}` }]
-    })
-
-    alert(`EXAM AUTO-SUBMITTED: ${reason}`)
+    try {
+      const base64Vid = await compileVideoBlobAndSave()
+      const result = await saveProctoredAssessmentResult({
+        assessmentId,
+        studentId,
+        answers: Object.entries(selectedAnswers).map(([questionId, answer]) => ({ questionId, answer })),
+        timeSpent: 1800 - timeLeft,
+        status: 'failed_proctoring',
+        assessmentVideo: base64Vid,
+        warningCount: warningCount + 1,
+        proctorLogs: [...proctorLogs, { timestamp: new Date().toLocaleTimeString(), type: 'AUTO_SUBMIT', message: `Exam auto-submitted: ${reason}` }],
+      })
+      setReview(Object.fromEntries(result.review.map((item) => [item.questionId, item])))
+      setWarningCount((count) => Math.min(count + 1, 100))
+      setExamFinished(true)
+      toast.error(`Exam auto-submitted: ${reason}`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'The assessment could not be submitted. Please try again.')
+    } finally {
+      submissionInFlight.current = false
+    }
   }
 
   const manualSubmitExam = async () => {
-    if (confirm('Are you sure you want to submit your assessment?')) {
-      setExamFinished(true)
+    if (!confirm('Are you sure you want to submit your assessment?') || submissionInFlight.current) return
+    submissionInFlight.current = true
+    try {
       const base64Vid = await compileVideoBlobAndSave()
-
-      // Calculate score
-      let correct = 0
-      questions.forEach(q => {
-        if (selectedAnswers[q.id] === q.answer) {
-          correct++
-        }
-      })
-      const finalScore = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0
-
-      // Save to PostgreSQL database via action
-      await saveProctoredAssessmentResult({
+      const result = await saveProctoredAssessmentResult({
         assessmentId,
         studentId,
-        score: finalScore,
-        totalQuestions: questions.length || 3,
-        correctAnswers: correct,
+        answers: Object.entries(selectedAnswers).map(([questionId, answer]) => ({ questionId, answer })),
         timeSpent: 1800 - timeLeft,
         status: 'completed',
         assessmentVideo: base64Vid,
         warningCount,
-        proctorLogs: [...proctorLogs, { timestamp: new Date().toLocaleTimeString(), type: 'MANUAL_SUBMIT', message: 'Exam manually submitted.' }]
+        proctorLogs: [...proctorLogs, { timestamp: new Date().toLocaleTimeString(), type: 'MANUAL_SUBMIT', message: 'Exam manually submitted.' }],
       })
+      setReview(Object.fromEntries(result.review.map((item) => [item.questionId, item])))
+      setExamFinished(true)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'The assessment could not be submitted. Please try again.')
+    } finally {
+      submissionInFlight.current = false
     }
   }
 
@@ -429,6 +442,13 @@ export default function CBTExamTakingPage() {
             </svg>
             <p className="text-sm font-black text-slate-500 uppercase tracking-widest animate-pulse">Connecting to database & preparing assessment questions...</p>
           </div>
+        ) : loadError ? (
+          <Card role="alert" className="mx-auto max-w-xl border border-red-200 bg-white p-8 text-center shadow-lg">
+            <AlertCircle className="mx-auto mb-4 size-10 text-red-600" aria-hidden="true" />
+            <h1 className="text-xl font-bold text-slate-900">Assessment unavailable</h1>
+            <p className="mt-2 text-sm text-slate-600">{loadError}</p>
+            <Button onClick={() => router.back()} className="mt-6">Return to assessments</Button>
+          </Card>
         ) : !examStarted ? (
           <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] bg-white overflow-hidden text-center p-12">
             <div className="h-2 bg-orange-600 w-full absolute top-0 left-0" />
@@ -465,7 +485,7 @@ export default function CBTExamTakingPage() {
               </div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">CBT Submitted Successfully</h1>
               <p className="text-slate-500 font-bold mt-2 leading-relaxed text-sm">
-                Your answers and proctoring video feed have been securely synced to our databases. See below for your complete review.
+                Your answers and result have been recorded. See below for your review.
               </p>
               <div className="mt-4 text-xs text-slate-400 font-bold uppercase tracking-widest">Logged Warnings: {warningCount}</div>
             </Card>
@@ -478,8 +498,10 @@ export default function CBTExamTakingPage() {
               <div className="space-y-8">
                 {questions.map((q, idx) => {
                   const selected = selectedAnswers[q.id]
-                  const correct = q.answer
-                  const isCorrect = selected === correct
+                  const questionReview = review[q.id]
+                  const correct = questionReview?.correctAnswer || ''
+                  const correctOptions = correct.split(',').map((value: string) => value.trim())
+                  const isCorrect = questionReview?.isCorrect === true
 
                   return (
                     <div key={q.id} className="p-6 rounded-2xl bg-slate-50/50 border border-slate-100 space-y-4">
@@ -495,8 +517,8 @@ export default function CBTExamTakingPage() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {q.options.map((opt: string) => {
-                          const isSelectedOpt = selected === opt
-                          const isCorrectOpt = correct === opt
+                          const isSelectedOpt = Array.isArray(selected) ? selected.includes(opt) : selected === opt
+                          const isCorrectOpt = correctOptions.includes(opt)
 
                           let borderStyle = 'border-slate-200 bg-white text-slate-700'
                           if (isCorrectOpt) {
@@ -551,7 +573,11 @@ export default function CBTExamTakingPage() {
                       <div
                         key={opt}
                         onClick={() => handleSelectOption(questions[currentQuestionIdx].id, opt)}
-                        className={`p-5 rounded-2xl border-2 ${selectedAnswers[questions[currentQuestionIdx].id] === opt ? 'border-orange-500 bg-orange-50 text-orange-950 font-black' : 'border-slate-100 text-slate-700 font-medium'} cursor-pointer hover:border-orange-200 transition-all`}
+                        className={`p-5 rounded-2xl border-2 ${(Array.isArray(selectedAnswers[questions[currentQuestionIdx].id])
+                          ? (selectedAnswers[questions[currentQuestionIdx].id] as string[]).includes(opt)
+                          : selectedAnswers[questions[currentQuestionIdx].id] === opt)
+                          ? 'border-orange-500 bg-orange-50 text-orange-950 font-black'
+                          : 'border-slate-100 text-slate-700 font-medium'} cursor-pointer hover:border-orange-200 transition-all`}
                       >
                         {opt}
                       </div>

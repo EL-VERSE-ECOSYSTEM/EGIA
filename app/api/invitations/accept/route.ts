@@ -62,9 +62,12 @@ export async function POST(req: NextRequest) {
     let userId = randomUUID() as `${string}-${string}-${string}-${string}-${string}`
 
     const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    if (!secretKey || !supabaseUrl) {
+      return NextResponse.json({ error: 'Account setup is temporarily unavailable. Please contact support.' }, { status: 503 })
+    }
     if (secretKey) {
       const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
       const adminClient = createSupabaseAdminClient(supabaseUrl, secretKey, {
         auth: { autoRefreshToken: false, persistSession: false },
       })

@@ -12,7 +12,6 @@ import {
   Loader2,
   Calendar,
   Search,
-  ShieldCheck,
   Clock,
   Coins,
   TrendingUp,
@@ -65,7 +64,7 @@ export default function AdminPaymentsPage() {
       await verifyPayment(id, status)
       alert(`Payment was marked as ${status === 'success' ? 'successful' : 'failed'}.`)
       await loadPayments()
-    } catch (err) {
+    } catch {
       alert('Action failed. Ensure you have the required administrative permissions.')
     } finally {
       setProcessingId(null)
@@ -333,8 +332,8 @@ export default function AdminPaymentsPage() {
                     filteredPayments.map((p) => {
                       const parentName = p.parent?.fatherName || p.parent?.motherName || p.parent?.guardianName || p.parent?.user?.name || 'Parent / Guardian'
                       const totalAmt = parseFloat(p.amount || '0')
-                      const hasKorapayFee = (p.paymentMethod || '').toUpperCase() === 'KORAPAY'
-                      const gatewayFee = hasKorapayFee ? 161.25 : 0
+                      const hasGatewayFee = ['PAYSTACK', 'KORAPAY'].includes((p.paymentMethod || '').toUpperCase())
+                      const gatewayFee = hasGatewayFee ? 161.25 : 0
                       const baseAmt = Math.max(0, totalAmt - gatewayFee)
 
                       return (
@@ -358,8 +357,8 @@ export default function AdminPaymentsPage() {
                             <div className="text-[10px] font-bold text-slate-500 mt-1 space-y-0.5">
                               <p className="uppercase font-black text-slate-700">{p.feeType || 'GENERAL FEE'}</p>
                               <p>Base Fee: ₦{baseAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                              {hasKorapayFee && (
-                                <p className="text-amber-600">+ Korapay Fee: ₦{gatewayFee.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                              {hasGatewayFee && (
+                                <p className="text-amber-600">+ Paystack Fee: ₦{gatewayFee.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                               )}
                             </div>
                           </td>
@@ -377,7 +376,9 @@ export default function AdminPaymentsPage() {
                           </td>
                           <td className="p-8">{getStatusBadge(p.status)}</td>
                           <td className="p-8 text-right">
-                            {p.status?.toLowerCase() === 'pending' ? (
+                            {p.status?.toLowerCase() === 'pending' && hasGatewayFee ? (
+                              <span className="text-xs font-semibold text-slate-500">Awaiting Paystack confirmation</span>
+                            ) : p.status?.toLowerCase() === 'pending' ? (
                               <div className="flex justify-end gap-3">
                                 <Button
                                   onClick={() => handleVerify(p.id, 'success')}

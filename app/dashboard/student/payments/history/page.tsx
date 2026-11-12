@@ -104,13 +104,10 @@ export default function StudentPaymentHistoryPage() {
                   <Printer size={16} /> PRINT
                 </Button>
                 <Button
-                  onClick={() => {
-                    alert('Clearance receipt downloaded successfully.')
-                    setActiveReceipt(null)
-                  }}
+                  onClick={() => window.print()}
                   className="flex-1 bg-slate-900 hover:bg-slate-800 text-white h-12 rounded-xl font-bold flex items-center justify-center gap-1.5"
                 >
-                  <Download size={16} /> DOWNLOAD
+                  <Download size={16} /> SAVE AS PDF
                 </Button>
               </div>
             </Card>
@@ -157,7 +154,7 @@ export default function StudentPaymentHistoryPage() {
                         {getStatusBadge(p.status)}
                       </td>
                       <td className="p-5 text-right">
-                        {p.status?.toLowerCase() === 'success' || p.status?.toLowerCase() === 'cleared' ? (
+                        {['success', 'approved', 'cleared'].includes(String(p.status || '').toLowerCase()) ? (
                           <Button
                             onClick={() => setActiveReceipt(p)}
                             size="sm"

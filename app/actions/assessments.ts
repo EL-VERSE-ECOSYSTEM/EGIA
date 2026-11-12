@@ -1,11 +1,43 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { assessment, assessmentQuestion, assessmentResult, studentAnswer, student, teacher, term, assessmentSchedule } from '@/lib/db/schema'
+import { assessment, assessmentQuestion, assessmentResult, studentAnswer, student, teacher, term, assessmentSchedule, cbtSessions } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { randomInt } from 'crypto'
+
+type SubmittedCbtAnswer = { questionId: string; answer: string | string[] }
+type ProctorLogEntry = { timestamp: string; type: string; message: string }
+
+function sanitizeQuestionOptions(options: unknown): string[] {
+  let parsed = options
+  if (typeof parsed === 'string') {
+    const rawOptions = parsed
+    try {
+      parsed = JSON.parse(parsed)
+    } catch {
+      return rawOptions.trim() ? [rawOptions] : []
+    }
+  }
+  if (!Array.isArray(parsed)) return []
+  return parsed.map((option: unknown) => {
+    if (typeof option === 'string' || typeof option === 'number') return String(option)
+    if (!option || typeof option !== 'object') return ''
+    const record = option as Record<string, unknown>
+    const label = record.label ?? record.text ?? record.value
+    return typeof label === 'string' || typeof label === 'number' ? String(label) : ''
+  }).filter(Boolean)
+}
+
+function shuffleOptions<T>(options: T[]) {
+  const shuffled = [...options]
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomInt(index + 1)
+    ;[shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]]
+  }
+  return shuffled
+}
 
 function calculateGrade(percentage: number) {
   if (percentage >= 90) return 'A'
@@ -16,127 +48,41 @@ function calculateGrade(percentage: number) {
   return 'F'
 }
 
-export async function submitCBT(assessmentId: string, studentId: string, answers: { questionId: string, answer: any }[]) {
-  const session = await auth.getSession()
-  if (!session?.user || session.user.role !== 'STUDENT') throw new Error('Unauthorized')
-
-  const currentStudent = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
-  if (!currentStudent || currentStudent.id !== studentId) throw new Error('You can only submit your own assessment.')
-
-  const existingResult = await db.query.assessmentResult.findFirst({
-    where: and(
-      eq(assessmentResult.assessmentId, assessmentId),
-      eq(assessmentResult.studentId, currentStudent.id)
-    )
+export async function submitCBT(assessmentId: string, studentId: string, answers: SubmittedCbtAnswer[]) {
+  const saved = await saveProctoredAssessmentResult({
+    assessmentId,
+    studentId,
+    answers,
+    timeSpent: 0,
+    status: 'completed',
+    warningCount: 0,
+    proctorLogs: [],
   })
-
-  if (existingResult) {
-    throw new Error('You have already submitted this assessment.')
-  }
-
-  const resultId = crypto.randomUUID()
-
-  const assessmentData = await db.query.assessment.findFirst({
-    where: eq(assessment.id, assessmentId),
-    with: {
-      questions: true
-    }
+  const result = await db.query.assessmentResult.findFirst({
+    where: eq(assessmentResult.id, saved.resultId),
   })
-
-  if (!assessmentData) throw new Error('Assessment not found')
-
-  if (assessmentData.schoolId && currentStudent.schoolId && assessmentData.schoolId !== currentStudent.schoolId) {
-    throw new Error('This assessment is not available for your school.')
+  const assessmentData = await db.query.assessment.findFirst({ where: eq(assessment.id, assessmentId) })
+  const percentage = Number(result?.score || 0)
+  return {
+    resultId: saved.resultId,
+    totalScore: Number(((percentage / 100) * Number(assessmentData?.totalPoints || 0)).toFixed(2)),
+    percentage,
+    grade: calculateGrade(percentage),
   }
-
-  if (assessmentData.status !== 'approved' && assessmentData.status !== 'published') {
-    throw new Error('This assessment has not been approved by your School Admin.')
-  }
-
-  let totalScore = 0
-  const studentAnswersToInsert: any[] = []
-  let correctCount = 0
-
-  for (const q of assessmentData.questions) {
-    const studentAns = answers.find(a => a.questionId === q.id)
-    const submittedAnswer = studentAns?.answer
-
-    let isCorrect = false
-    let score = 0
-
-    if (q.questionType === 'MCQ_SINGLE' || q.questionType === 'TRUE_FALSE') {
-      isCorrect = submittedAnswer === q.correctAnswer
-    } else if (q.questionType === 'MCQ_MULTIPLE') {
-      const correctOptions = q.correctAnswer?.split(',').map(s => s.trim()).sort() || []
-      const submittedOptions = Array.isArray(submittedAnswer) ? [...submittedAnswer].sort() : []
-      isCorrect = JSON.stringify(correctOptions) === JSON.stringify(submittedOptions)
-    } else if (q.questionType === 'FILL_BLANK') {
-      const correctBlanks = q.correctAnswer?.split(',').map(s => s.trim().toLowerCase()) || []
-      const submittedBlanks = Array.isArray(submittedAnswer) ? submittedAnswer.map(s => s.trim().toLowerCase()) : []
-      isCorrect = JSON.stringify(correctBlanks) === JSON.stringify(submittedBlanks)
-    } else if (q.questionType === 'SHORT_ANSWER') {
-      isCorrect = submittedAnswer?.trim().toLowerCase() === q.correctAnswer?.trim().toLowerCase()
-    }
-
-    score = isCorrect ? (q.points || 0) : 0
-    if (isCorrect) {
-      totalScore += score
-      correctCount += 1
-    }
-
-    studentAnswersToInsert.push({
-      id: crypto.randomUUID(),
-      assessmentResultId: resultId,
-      questionId: q.id,
-      answerText: typeof submittedAnswer === 'string' ? submittedAnswer : JSON.stringify(submittedAnswer || ''),
-      pointsEarned: score,
-      isCorrect,
-    })
-  }
-
-  const percentage = (totalScore / (assessmentData.totalPoints || 1)) * 100
-  const grade = calculateGrade(percentage)
-
-  return await db.transaction(async (tx) => {
-    await tx.insert(assessmentResult).values({
-      id: resultId,
-      assessmentId,
-      studentId: currentStudent.id,
-      score: Number(percentage.toFixed(2)).toString(),
-      totalQuestions: assessmentData.questions.length,
-      correctAnswers: correctCount,
-      timeSpent: 0,
-      status: 'completed',
-      gradedBy: null,
-      assessmentVideo: null,
-      warningCount: 0,
-      proctorLogs: null,
-      createdAt: new Date(),
-    } as any)
-
-    if (studentAnswersToInsert.length > 0) {
-      await tx.insert(studentAnswer).values(studentAnswersToInsert as any)
-    }
-
-    revalidatePath('/dashboard/student/results')
-    return { resultId, totalScore, percentage, grade }
-  })
 }
 
 export async function saveProctoredAssessmentResult(data: {
   assessmentId: string
   studentId: string
-  score: number
-  totalQuestions: number
-  correctAnswers: number
+  answers: SubmittedCbtAnswer[]
   timeSpent: number
-  status: string
+  status: 'completed' | 'failed_proctoring'
   assessmentVideo?: string
   warningCount: number
-  proctorLogs: any
+  proctorLogs: ProctorLogEntry[]
 }) {
   const session = await auth.getSession()
-  if (!session?.user || session.user.role !== 'STUDENT') {
+  if (!session?.user || session.user.role.toUpperCase() !== 'STUDENT') {
     throw new Error('Unauthorized')
   }
 
@@ -148,52 +94,198 @@ export async function saveProctoredAssessmentResult(data: {
     throw new Error('Forbidden: Student identity mismatch.')
   }
 
-  const existingResult = await db.query.assessmentResult.findFirst({
-    where: and(
-      eq(assessmentResult.assessmentId, data.assessmentId),
-      eq(assessmentResult.studentId, studentProfile.id)
-    )
-  })
-
-  if (existingResult) {
-    throw new Error('You have already submitted this assessment.')
-  }
-
   const dbAssessment = await db.query.assessment.findFirst({
-    where: eq(assessment.id, data.assessmentId)
+    where: eq(assessment.id, data.assessmentId),
+    with: { questions: true },
   })
 
   if (!dbAssessment) throw new Error('Assessment not found.')
+  if (!['approved', 'published'].includes(dbAssessment.status || '')) {
+    throw new Error('This assessment is not currently available.')
+  }
 
-  if (dbAssessment.schoolId && studentProfile.schoolId && dbAssessment.schoolId !== studentProfile.schoolId) {
+  if (dbAssessment.schoolId && dbAssessment.schoolId !== studentProfile.schoolId) {
     throw new Error('Forbidden: Assessment tenant mismatch.')
   }
 
+  if (!Array.isArray(data.answers) || data.answers.length > dbAssessment.questions.length) {
+    throw new Error('Invalid assessment answers.')
+  }
+  if (!['completed', 'failed_proctoring'].includes(data.status)) {
+    throw new Error('Invalid assessment submission status.')
+  }
+  const answerMap = new Map<string, string | string[]>()
+  for (const answer of data.answers) {
+    if (!answer || typeof answer.questionId !== 'string' ||
+      !(typeof answer.answer === 'string' || (Array.isArray(answer.answer) && answer.answer.every((item) => typeof item === 'string')))) {
+      throw new Error('Invalid assessment answer.')
+    }
+    if (answer.answer.length > 4000 || (Array.isArray(answer.answer) && answer.answer.some((item) => item.length > 4000))) {
+      throw new Error('Assessment answer is too long.')
+    }
+    if (answerMap.has(answer.questionId)) throw new Error('Duplicate assessment answer.')
+    answerMap.set(answer.questionId, answer.answer)
+  }
+
+  const validQuestionIds = new Set(dbAssessment.questions.map((question) => question.id))
+  if ([...answerMap.keys()].some((questionId) => !validQuestionIds.has(questionId))) {
+    throw new Error('An answer references a question outside this assessment.')
+  }
+
+  const answerRows = dbAssessment.questions.map((question) => {
+    const submitted = answerMap.get(question.id)
+    const expected = question.correctAnswer || ''
+    let isCorrect = false
+    if (question.questionType === 'MCQ_SINGLE' || question.questionType === 'TRUE_FALSE') {
+      isCorrect = typeof submitted === 'string' && submitted === expected
+    } else if (question.questionType === 'MCQ_MULTIPLE') {
+      const correct = expected.split(',').map((value) => value.trim()).sort()
+      const provided = Array.isArray(submitted) ? submitted.map((value) => value.trim()).sort() : []
+      isCorrect = JSON.stringify(correct) === JSON.stringify(provided)
+    } else if (question.questionType === 'FILL_BLANK') {
+      const correct = expected.split(',').map((value) => value.trim().toLowerCase())
+      const submittedValues = Array.isArray(submitted)
+        ? submitted
+        : typeof submitted === 'string' ? submitted.split(',') : []
+      const provided = submittedValues.map((value) => value.trim().toLowerCase())
+      isCorrect = JSON.stringify(correct) === JSON.stringify(provided)
+    } else if (question.questionType === 'SHORT_ANSWER') {
+      isCorrect = typeof submitted === 'string' && submitted.trim().toLowerCase() === expected.trim().toLowerCase()
+    }
+    const pointsEarned = data.status === 'completed' && isCorrect ? Math.max(Math.trunc(Number(question.points) || 0), 0) : 0
+    return {
+      questionId: question.id,
+      answerText: typeof submitted === 'string' ? submitted : JSON.stringify(submitted || ''),
+      isCorrect: data.status === 'completed' && isCorrect,
+      pointsEarned,
+    }
+  })
+  const correctAnswers = answerRows.filter((answer) => answer.isCorrect).length
+  const totalPoints = dbAssessment.questions.reduce((total, question) => total + Math.max(Number(question.points) || 0, 0), 0)
+  const earnedPoints = answerRows.reduce((total, answer) => total + answer.pointsEarned, 0)
+  const score = totalPoints > 0 ? Number(((earnedPoints / totalPoints) * 100).toFixed(2)) : 0
+  const boundedTimeSpent = Number.isFinite(data.timeSpent) ? Math.max(0, Math.min(Math.trunc(data.timeSpent), 7_200)) : 0
+  const warningCount = Number.isInteger(data.warningCount) ? Math.max(0, Math.min(data.warningCount, 100)) : 0
+  const proctorLogs = Array.isArray(data.proctorLogs)
+    ? data.proctorLogs.filter((entry): entry is ProctorLogEntry => Boolean(entry) && typeof entry === 'object')
+      .slice(-100).map((entry) => ({
+        timestamp: String(entry.timestamp || '').slice(0, 40),
+        type: String(entry.type || '').slice(0, 80),
+        message: String(entry.message || '').slice(0, 500),
+      }))
+    : []
+  const assessmentVideo = typeof data.assessmentVideo === 'string' &&
+    data.assessmentVideo.startsWith('data:video/') && data.assessmentVideo.length <= 1_400_000
+    ? data.assessmentVideo
+    : null
+
   const resultId = crypto.randomUUID()
+  await db.transaction(async (tx) => {
+    const activeSession = await tx.query.cbtSessions.findFirst({
+      where: and(
+        eq(cbtSessions.studentId, studentProfile.id),
+        eq(cbtSessions.assessmentId, data.assessmentId),
+        eq(cbtSessions.status, 'ONGOING'),
+      ),
+    })
+    if (!activeSession) throw new Error('There is no active CBT session to submit.')
 
-  await db.insert(assessmentResult).values({
-    id: resultId,
-    assessmentId: data.assessmentId,
+    const [claimedSession] = await tx.update(cbtSessions)
+      .set({ status: 'COMPLETED', endedAt: new Date() })
+      .where(and(eq(cbtSessions.id, activeSession.id), eq(cbtSessions.status, 'ONGOING')))
+      .returning({ id: cbtSessions.id })
+    if (!claimedSession) throw new Error('This CBT session has already been submitted.')
+
+    const existingResult = await tx.query.assessmentResult.findFirst({
+      where: and(
+        eq(assessmentResult.assessmentId, data.assessmentId),
+        eq(assessmentResult.studentId, studentProfile.id),
+      ),
+    })
+    if (existingResult) throw new Error('You have already submitted this assessment.')
+
+    await tx.insert(assessmentResult).values({
+      id: resultId,
+      assessmentId: data.assessmentId,
+      studentId: studentProfile.id,
+      score: score.toString(),
+      totalQuestions: dbAssessment.questions.length,
+      correctAnswers,
+      timeSpent: boundedTimeSpent,
+      status: data.status,
+      assessmentVideo,
+      warningCount,
+      proctorLogs: JSON.stringify(proctorLogs),
+      createdAt: new Date(),
+    })
+
+    if (answerRows.length) {
+      await tx.insert(studentAnswer).values(answerRows.map((answer) => ({
+        id: crypto.randomUUID(),
+        assessmentResultId: resultId,
+        questionId: answer.questionId,
+        answerText: answer.answerText,
+        pointsEarned: answer.pointsEarned,
+        isCorrect: answer.isCorrect,
+      })))
+    }
+  })
+
+  revalidatePath('/dashboard/student/results')
+  return {
+    success: true,
+    resultId,
+    review: answerRows.map((answer) => ({
+      questionId: answer.questionId,
+      isCorrect: answer.isCorrect,
+      correctAnswer: dbAssessment.questions.find((question) => question.id === answer.questionId)?.correctAnswer || '',
+    })),
+  }
+}
+
+export async function startCbtSession(assessmentId: string) {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role.toUpperCase() !== 'STUDENT') throw new Error('Unauthorized')
+  const studentProfile = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
+  if (!studentProfile) throw new Error('Student profile not found.')
+  const dbAssessment = await db.query.assessment.findFirst({ where: eq(assessment.id, assessmentId) })
+  if (!dbAssessment || !['approved', 'published'].includes(dbAssessment.status || '')) throw new Error('This assessment is unavailable.')
+  if (dbAssessment.schoolId && dbAssessment.schoolId !== studentProfile.schoolId) {
+    throw new Error('This assessment is not available for your school.')
+  }
+  const existingResult = await db.query.assessmentResult.findFirst({
+    where: and(eq(assessmentResult.assessmentId, assessmentId), eq(assessmentResult.studentId, studentProfile.id)),
+  })
+  if (existingResult) throw new Error('You have already submitted this assessment.')
+  const active = await db.query.cbtSessions.findFirst({
+    where: and(eq(cbtSessions.studentId, studentProfile.id), eq(cbtSessions.status, 'ONGOING')),
+  })
+  if (active) {
+    if (active.assessmentId !== assessmentId) throw new Error('Finish your active CBT before starting another assessment.')
+    return { sessionId: active.id }
+  }
+  const sessionId = crypto.randomUUID()
+  await db.insert(cbtSessions).values({
+    id: sessionId,
+    assessmentId,
     studentId: studentProfile.id,
-    score: (data.score || 0).toString(),
-    totalQuestions: data.totalQuestions,
-    correctAnswers: data.correctAnswers,
-    timeSpent: data.timeSpent,
-    status: data.status || 'completed',
-    assessmentVideo: data.assessmentVideo || null,
-    warningCount: data.warningCount || 0,
-    proctorLogs: typeof data.proctorLogs === 'string' ? data.proctorLogs : JSON.stringify(data.proctorLogs || []),
-    createdAt: new Date()
-  } as any)
-
-  return { success: true, resultId }
+    accessCode: 'SESSION',
+    status: 'ONGOING',
+    startedAt: new Date(),
+  })
+  return { sessionId }
 }
 
 export async function getUpcomingAssessments(classId: string, schoolId?: string) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
-
-  const userSchoolId = schoolId || session.user.schoolId
+  const role = session.user.role.toUpperCase()
+  let userSchoolId = role === 'SUPER_ADMIN' ? schoolId || session.user.schoolId : session.user.schoolId
+  if (['STUDENT', 'PUPIL'].includes(role)) {
+    const profile = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
+    userSchoolId = profile?.schoolId || userSchoolId
+  }
+  if (role !== 'SUPER_ADMIN' && !userSchoolId) return []
 
   const all = await db.query.assessment.findMany({
     with: {
@@ -210,8 +302,13 @@ export async function getUpcomingAssessments(classId: string, schoolId?: string)
 export async function getApprovedCBTs(schoolId?: string) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
-
-  const userSchoolId = schoolId || session.user.schoolId
+  const role = session.user.role.toUpperCase()
+  let userSchoolId = role === 'SUPER_ADMIN' ? schoolId || session.user.schoolId : session.user.schoolId
+  if (['STUDENT', 'PUPIL'].includes(role)) {
+    const profile = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
+    userSchoolId = profile?.schoolId || userSchoolId
+  }
+  if (role !== 'SUPER_ADMIN' && !userSchoolId) return []
 
   const all = await db.query.assessment.findMany({
     with: {
@@ -224,14 +321,14 @@ export async function getApprovedCBTs(schoolId?: string) {
     a.status === 'approved' &&
     (!userSchoolId || !a.schoolId || a.schoolId === userSchoolId)
   ).map(a => {
-    if (session.user.role === 'STUDENT') {
+    if (!['TEACHER', 'ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(role)) {
       return {
         ...a,
         questions: a.questions.map(q => ({
           id: q.id,
           questionText: q.questionText,
           questionType: q.questionType,
-          options: q.options,
+          options: sanitizeQuestionOptions(q.options),
           points: q.points,
           order: q.order
         }))
@@ -244,6 +341,11 @@ export async function getApprovedCBTs(schoolId?: string) {
 export async function getAssessmentWithQuestions(id: string, providedAccessCode?: string) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
+  const role = session.user.role.toUpperCase()
+  const studentUser = ['STUDENT', 'PUPIL'].includes(role)
+  if (!studentUser && !['TEACHER', 'ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(role)) {
+    throw new Error('Assessment access is not allowed for this role.')
+  }
 
   const dbAssessment = await db.query.assessment.findFirst({
     where: eq(assessment.id, id),
@@ -257,8 +359,16 @@ export async function getAssessmentWithQuestions(id: string, providedAccessCode?
 
   if (!dbAssessment) return null
 
-  if (dbAssessment.schoolId && session.user.schoolId && dbAssessment.schoolId !== session.user.schoolId) {
+  const studentProfile = studentUser
+    ? await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
+    : null
+  if (studentUser && !studentProfile) throw new Error('Student profile not found.')
+  const userSchoolId = studentProfile?.schoolId || session.user.schoolId
+  if (dbAssessment.schoolId && role !== 'SUPER_ADMIN' && dbAssessment.schoolId !== userSchoolId) {
     throw new Error('Forbidden: Assessment school tenant mismatch.')
+  }
+  if (studentUser && !['approved', 'published'].includes(dbAssessment.status || '')) {
+    throw new Error('This assessment is not published or available.')
   }
 
   if (dbAssessment.accessCode && dbAssessment.accessCode.trim().length > 0) {
@@ -267,6 +377,25 @@ export async function getAssessmentWithQuestions(id: string, providedAccessCode?
     }
   }
 
+  if (studentUser) {
+    return {
+      id: dbAssessment.id,
+      title: dbAssessment.title,
+      status: dbAssessment.status,
+      schoolId: dbAssessment.schoolId,
+      totalPoints: dbAssessment.totalPoints,
+      subject: dbAssessment.subject,
+      questions: dbAssessment.questions.map((question) => ({
+        id: question.id,
+        questionText: question.questionText,
+        questionType: question.questionType,
+        options: sanitizeQuestionOptions(question.options),
+        imageUrl: question.imageUrl,
+        points: question.points,
+        order: question.order,
+      })),
+    }
+  }
   return dbAssessment
 }
 
@@ -341,7 +470,7 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
 
 export async function getLoggedInStudentAndQuestions(assessmentId: string, providedAccessCode?: string) {
   const session = await auth.getSession()
-  if (!session?.user) {
+  if (!session?.user || !['STUDENT', 'PUPIL'].includes(session.user.role.toUpperCase())) {
     throw new Error('Unauthorized')
   }
 
@@ -361,17 +490,17 @@ export async function getLoggedInStudentAndQuestions(assessmentId: string, provi
     throw new Error('This assessment is not published or available.')
   }
 
-  if (dbAssessment.schoolId && studentProfile.schoolId && dbAssessment.schoolId !== studentProfile.schoolId) {
+  if (dbAssessment.schoolId && dbAssessment.schoolId !== studentProfile.schoolId) {
     throw new Error('This assessment is not available for your school.')
   }
 
   // Omit correctAnswer and explanation from student response entirely
   const questionsList = dbAssessment.questions.map(q => {
-    const rawOptions = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : []
-    const shuffledOptions = Array.isArray(rawOptions) ? [...rawOptions].sort(() => Math.random() - 0.5) : rawOptions
+    const shuffledOptions = shuffleOptions(sanitizeQuestionOptions(q.options))
     return {
       id: q.id,
       text: q.questionText,
+      questionType: q.questionType,
       options: shuffledOptions,
       points: q.points || 1,
     }

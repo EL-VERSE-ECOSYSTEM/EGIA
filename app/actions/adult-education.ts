@@ -10,13 +10,15 @@ import {
   parent,
   teacher,
   user as userTable,
-  notification
+  notification,
+  transactions
 } from '@/lib/db/schema'
 import { eq, and, sql, desc } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
+import { initializePaystackPayment } from '@/lib/payments/service'
 
 async function getParentProfile() {
   const session = await auth.getSession()
@@ -116,103 +118,79 @@ export async function enrollInAdultEducation(data: {
   return { success: true }
 }
 
-export async function payAdultRegistration() {
-  const { profile } = await getParentProfile()
+async function initializeAdultEducationPayment(paymentType: 'REGISTRATION' | 'WEEKLY') {
+  const { session, profile } = await getParentProfile()
   const enrollment = await db.query.adultEducationEnrollment.findFirst({
     where: eq(adultEducationEnrollment.parentId, profile.id)
   })
 
   if (!enrollment) throw new Error('Enrollment not found.')
-  if (enrollment.registrationPaid) throw new Error('Registration is already paid.')
+  if (paymentType === 'REGISTRATION' && enrollment.registrationPaid) throw new Error('Registration is already paid.')
+  if (paymentType === 'WEEKLY' && !enrollment.registrationPaid) throw new Error('Please pay registration fee first.')
+  if (!session.user.email) throw new Error('A valid account email is required for Paystack checkout.')
 
-  const reference = `EL-ADULT-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
-  const paymentId = randomUUID()
-
-  await db.transaction(async (tx) => {
-    // Record payment
-    await tx.insert(adultEducationPayment).values({
-      id: paymentId,
-      parentId: profile.id,
-      amount: '2500.00',
-      paymentType: 'REGISTRATION',
-      reference,
-      status: 'success',
-      paidAt: new Date()
-    })
-
-    // Update enrollment - initial period valid for 8 days after enrollment before weekly payment starts
-    const weeklyPaidUntil = new Date()
-    weeklyPaidUntil.setDate(weeklyPaidUntil.getDate() + 8)
-
-    await tx.update(adultEducationEnrollment)
-      .set({
-        status: 'ACTIVE',
-        registrationPaid: true,
-        weeklyPaidUntil,
-        updatedAt: new Date()
-      })
-      .where(eq(adultEducationEnrollment.id, enrollment.id))
+  const amount = paymentType === 'REGISTRATION' ? 2500 : 2000
+  const reference = `adult-${paymentType.toLowerCase()}-${randomUUID()}`
+  const metadata = { paymentType: `ADULT_EDUCATION_${paymentType}`, enrollmentId: enrollment.id, parentId: profile.id }
+  const now = new Date()
+  await db.insert(transactions).values({
+    id: randomUUID(), reference, amount: amount.toFixed(2), currency: 'NGN', status: 'pending',
+    customerEmail: session.user.email, description: `Adult education ${paymentType.toLowerCase()} payment`,
+    metadata, createdAt: now, updatedAt: now,
   })
-
-  // Create real-time notification
   try {
-    await db.insert(notification).values({
-      id: randomUUID(),
-      userId: profile.userId,
-      title: 'Adult Education Activated',
-      message: 'Your Adult Education enrollment is now active! You have full access to your class materials, live sessions, and assignments for the next 7 days.',
-      type: 'success',
-      createdAt: new Date()
+    const checkout = await initializePaystackPayment({
+      amount, customerEmail: session.user.email, customerName: session.user.name || 'Parent',
+      reference, description: `Adult education ${paymentType.toLowerCase()} payment`, metadata,
+      redirectUrl: `${(process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`,
     })
-  } catch (err) {
-    console.warn('Could not post notification:', err)
+    await db.update(transactions).set({ checkoutUrl: checkout.checkoutUrl, updatedAt: new Date() }).where(eq(transactions.reference, reference))
+    return { success: true, checkoutUrl: checkout.checkoutUrl, reference }
+  } catch (error) {
+    await db.update(transactions).set({ status: 'failed', updatedAt: new Date() }).where(and(eq(transactions.reference, reference), eq(transactions.status, 'pending')))
+    throw error
   }
+}
 
-  revalidatePath('/dashboard/parent/overview')
-  revalidatePath('/dashboard/parent/payments/dashboard')
-  return { success: true }
+export async function payAdultRegistration() {
+  return initializeAdultEducationPayment('REGISTRATION')
 }
 
 export async function payAdultWeekly() {
-  const { profile } = await getParentProfile()
-  const enrollment = await db.query.adultEducationEnrollment.findFirst({
-    where: eq(adultEducationEnrollment.parentId, profile.id)
-  })
+  return initializeAdultEducationPayment('WEEKLY')
+}
 
-  if (!enrollment) throw new Error('Enrollment not found.')
-  if (!enrollment.registrationPaid) throw new Error('Please pay registration fee first.')
-
-  const reference = `EL-ADULT-WK-${Date.now()}-${randomUUID().slice(0, 8)}`
-  const paymentId = randomUUID()
-
+export async function fulfillAdultEducationPayment(reference: string, amount: string, metadata: Record<string, unknown>) {
+  const paymentType = metadata.paymentType === 'ADULT_EDUCATION_REGISTRATION' ? 'REGISTRATION' : metadata.paymentType === 'ADULT_EDUCATION_WEEKLY' ? 'WEEKLY' : null
+  const expectedAmount = paymentType === 'REGISTRATION' ? '2500.00' : paymentType === 'WEEKLY' ? '2000.00' : null
+  if (!paymentType || amount !== expectedAmount || typeof metadata.enrollmentId !== 'string' || typeof metadata.parentId !== 'string') throw new Error('Adult education payment metadata is invalid.')
+  const enrollment = await db.query.adultEducationEnrollment.findFirst({ where: and(eq(adultEducationEnrollment.id, metadata.enrollmentId), eq(adultEducationEnrollment.parentId, metadata.parentId)) })
+  if (!enrollment) throw new Error('Adult education enrollment was not found.')
+  const existing = await db.query.adultEducationPayment.findFirst({ where: eq(adultEducationPayment.reference, reference) })
+  if (existing?.status === 'success') return
+  if (paymentType === 'REGISTRATION' && enrollment.registrationPaid) return
+  if (paymentType === 'WEEKLY' && !enrollment.registrationPaid) throw new Error('Registration payment is required before weekly access.')
+  const now = new Date()
   await db.transaction(async (tx) => {
-    // Record payment
-    await tx.insert(adultEducationPayment).values({
-      id: paymentId,
-      parentId: profile.id,
-      amount: '2000.00',
-      paymentType: 'WEEKLY',
-      reference,
-      status: 'success',
-      paidAt: new Date()
-    })
-
-    // Extend weekly access
-    const currentPaidUntil = enrollment.weeklyPaidUntil ? new Date(enrollment.weeklyPaidUntil) : new Date()
-    const baseDate = currentPaidUntil > new Date() ? currentPaidUntil : new Date()
-    const newPaidUntil = new Date(baseDate.getTime() + 7 * 24 * 60 * 60 * 1000)
-
-    await tx.update(adultEducationEnrollment)
-      .set({
-        status: 'ACTIVE',
-        weeklyPaidUntil: newPaidUntil,
-        updatedAt: new Date()
-      })
-      .where(eq(adultEducationEnrollment.id, enrollment.id))
+    const inserted = await tx.insert(adultEducationPayment).values({ id: randomUUID(), parentId: metadata.parentId as string, amount: expectedAmount, paymentType, reference, status: 'success', paidAt: now }).onConflictDoNothing().returning({ id: adultEducationPayment.id })
+    if (!inserted.length) return
+    if (paymentType === 'REGISTRATION') {
+      await tx.update(adultEducationEnrollment).set({ status: 'ACTIVE', registrationPaid: true, weeklyPaidUntil: new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000), updatedAt: now }).where(and(eq(adultEducationEnrollment.id, enrollment.id), eq(adultEducationEnrollment.registrationPaid, false)))
+    } else {
+      const paidUntil = enrollment.weeklyPaidUntil ? new Date(enrollment.weeklyPaidUntil) : now
+      await tx.update(adultEducationEnrollment).set({ status: 'ACTIVE', weeklyPaidUntil: new Date(Math.max(paidUntil.getTime(), now.getTime()) + 7 * 24 * 60 * 60 * 1000), updatedAt: now }).where(eq(adultEducationEnrollment.id, enrollment.id))
+    }
   })
-
   revalidatePath('/dashboard/parent/overview')
   revalidatePath('/dashboard/parent/payments/dashboard')
+}
+
+export async function completeAdultEducationPayment(reference: string) {
+  const { profile } = await getParentProfile()
+  const transaction = await db.query.transactions.findFirst({ where: eq(transactions.reference, reference) })
+  const metadata = transaction?.metadata as Record<string, unknown> | null
+  if (!transaction || transaction.status !== 'success' || metadata?.parentId !== profile.id) throw new Error('Paystack has not confirmed this payment for your account.')
+  await fulfillAdultEducationPayment(reference, transaction.amount, metadata)
   return { success: true }
 }
 

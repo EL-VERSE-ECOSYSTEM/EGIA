@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
   try {
     const result = await verifyPaystackPayment({ reference })
-    return NextResponse.json(result)
+    return NextResponse.json({ success: result.success, status: result.status })
   } catch (error) {
     console.error('Error in Paystack payment callback:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

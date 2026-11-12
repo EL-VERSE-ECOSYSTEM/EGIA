@@ -11,8 +11,9 @@ import {
   onlinePrepLessons,
   transactionLedger,
   notification,
+  payment,
 } from '@/lib/db/schema'
-import { eq, and, or, gt, desc } from 'drizzle-orm'
+import { eq, and, or, desc } from 'drizzle-orm'
 import { initializePaystackPayment, verifyPaystackPayment } from '@/lib/payments/service'
 import { randomUUID } from 'crypto'
 import { sanitizeServerError } from '@/lib/errors'
@@ -94,8 +95,8 @@ export async function initializePrepSubscriptionAction(input: {
   }
 
   const cleanAccessCode = input.accessCode.trim().toLowerCase()
-  if (!cleanAccessCode || cleanAccessCode.length < 3) {
-    return { success: false, error: 'Username access code must be at least 3 characters long.' }
+  if (!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(cleanAccessCode)) {
+    return { success: false, error: 'Username access code must be 3–40 characters and use letters, numbers, dots, underscores, or hyphens.' }
   }
 
   const studentProfile = await db.query.student.findFirst({
@@ -110,7 +111,7 @@ export async function initializePrepSubscriptionAction(input: {
     where: eq(onlinePrepSubscriptions.accessCode, cleanAccessCode),
   })
 
-  if (existingCode && existingCode.studentId !== studentProfile.id) {
+  if (existingCode) {
     return { success: false, error: 'This username access code is already taken. Please choose another.' }
   }
 
@@ -155,6 +156,25 @@ export async function verifyPrepSubscriptionPaymentAction(reference: string, acc
       return { success: false, error: 'Student context missing' }
     }
 
+    const pendingPayment = await db.query.payment.findFirst({
+      where: and(
+        eq(payment.transactionReference, reference),
+        eq(payment.studentId, studentProfile.id),
+        eq(payment.schoolId, studentProfile.schoolId),
+        eq(payment.feeType, 'ONLINE_PREP_LESSONS'),
+      ),
+    })
+    if (!pendingPayment || Number(pendingPayment.amount) !== 3161.25 ||
+      typeof pendingPayment.status !== 'string' || !['pending', 'success'].includes(pendingPayment.status.toLowerCase())) {
+      return { success: false, error: 'No matching online prep payment was found for this student.' }
+    }
+
+    const cleanAccessCode = accessCode.trim().toLowerCase()
+    if (!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(cleanAccessCode) ||
+      !pendingPayment.description?.endsWith(` for ${cleanAccessCode}`)) {
+      return { success: false, error: 'The access code does not match the one submitted for this payment.' }
+    }
+
     const verification = await verifyPaystackPayment({
       reference,
       expectedAmount: 3161.25,
@@ -164,65 +184,83 @@ export async function verifyPrepSubscriptionPaymentAction(reference: string, acc
       return { success: false, error: 'Payment verification failed on gateway.' }
     }
 
-    const cleanAccessCode = accessCode.trim().toLowerCase()
     const now = new Date()
     const expiresAt = new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000) // 3 weeks (21 days)
 
-    // 1. Create or update Online Prep Subscription in Supabase Database
-    const subId = randomUUID()
-    await db.insert(onlinePrepSubscriptions).values({
-      id: subId,
-      studentId: studentProfile.id,
-      schoolId: studentProfile.schoolId,
-      department: studentProfile.department || 'Science',
-      accessCode: cleanAccessCode,
-      paymentReference: reference,
-      amount: '3161.25',
-      status: 'ACTIVE',
-      paidAt: now,
-      expiresAt: expiresAt,
-    }).onConflictDoUpdate({
-      target: [onlinePrepSubscriptions.paymentReference],
-      set: { status: 'ACTIVE', expiresAt, updatedAt: now },
-    })
+    const fulfillment = await db.transaction(async (tx) => {
+      let subscription = await tx.query.onlinePrepSubscriptions.findFirst({
+        where: eq(onlinePrepSubscriptions.paymentReference, reference),
+      })
+      if (subscription && (
+        subscription.studentId !== studentProfile.id || subscription.accessCode !== cleanAccessCode
+      )) {
+        throw new Error('This payment reference is already linked to another online prep subscription.')
+      }
 
-    // 2. Record transaction in Ledger
-    await db.insert(transactionLedger).values({
-      id: randomUUID(),
-      schoolId: studentProfile.schoolId,
-      userId: session.user.id,
-      studentId: studentProfile.id,
-      type: 'FEE_PAYMENT',
-      direction: 'IN',
-      amount: '3161.25',
-      reference,
-      gateway: 'PAYSTACK',
-      status: 'SUCCESS',
-      description: `3-Week SSS3/SSS2 Online Exam Prep Subscription (${cleanAccessCode})`,
-    }).onConflictDoNothing()
-
-    // 3. Notify Class Teachers and Subject Teachers in this school
-    const teachersInSchool = await db.query.teacher.findMany({
-      where: eq(teacher.schoolId, studentProfile.schoolId),
-    })
-
-    for (const t of teachersInSchool) {
-      if (t.userId) {
-        await db.insert(notification).values({
+      let firstFulfillment = false
+      if (!subscription) {
+        const [inserted] = await tx.insert(onlinePrepSubscriptions).values({
           id: randomUUID(),
-          userId: t.userId,
-          schoolId: studentProfile.schoolId,
-          title: 'New Online Exam Prep Registration',
-          message: `Student ${studentProfile.firstName} ${studentProfile.lastName} registered for 3-week WAEC/NECO/JAMB Online Lessons (Access Code: ${cleanAccessCode}).`,
-          type: 'ONLINE_PREP_REGISTRATION',
-        }).onConflictDoNothing()
+          studentId: studentProfile.id,
+          schoolId: studentProfile.schoolId!,
+          department: studentProfile.department || 'Science',
+          accessCode: cleanAccessCode,
+          paymentReference: reference,
+          amount: '3161.25',
+          status: 'ACTIVE',
+          paidAt: now,
+          expiresAt,
+        }).onConflictDoNothing({ target: onlinePrepSubscriptions.paymentReference }).returning()
+        subscription = inserted || await tx.query.onlinePrepSubscriptions.findFirst({
+          where: eq(onlinePrepSubscriptions.paymentReference, reference),
+        })
+        if (!subscription || subscription.studentId !== studentProfile.id || subscription.accessCode !== cleanAccessCode) {
+          throw new Error('This access code is already assigned to another subscription.')
+        }
+        firstFulfillment = Boolean(inserted)
+      }
+
+      await tx.insert(transactionLedger).values({
+        id: randomUUID(),
+        schoolId: studentProfile.schoolId!,
+        userId: session.user.id,
+        studentId: studentProfile.id,
+        type: 'FEE_PAYMENT',
+        direction: 'IN',
+        amount: '3161.25',
+        reference,
+        gateway: 'PAYSTACK',
+        status: 'SUCCESS',
+        description: `3-Week SSS3/SSS2 Online Exam Prep Subscription (${cleanAccessCode})`,
+      }).onConflictDoNothing()
+
+      return { subscription, firstFulfillment }
+    })
+
+    // Notify teachers only for the first successful fulfillment of this reference.
+    if (fulfillment.firstFulfillment) {
+      const teachersInSchool = await db.query.teacher.findMany({
+        where: eq(teacher.schoolId, studentProfile.schoolId),
+      })
+
+      for (const t of teachersInSchool) {
+        if (t.userId) {
+          await db.insert(notification).values({
+            id: randomUUID(),
+            userId: t.userId,
+            schoolId: studentProfile.schoolId,
+            title: 'New Online Exam Prep Registration',
+            message: `Student ${studentProfile.firstName} ${studentProfile.lastName} registered for 3-week WAEC/NECO/JAMB Online Lessons (Access Code: ${cleanAccessCode}).`,
+            type: 'ONLINE_PREP_REGISTRATION',
+          }).onConflictDoNothing()
+        }
       }
     }
 
     return {
       success: true,
       accessCode: cleanAccessCode,
-      expiresAt,
+      expiresAt: fulfillment.subscription!.expiresAt,
     }
   } catch (err: any) {
     return sanitizeServerError('verifyPrepSubscriptionPaymentAction', err, 'Failed to complete prep subscription.')

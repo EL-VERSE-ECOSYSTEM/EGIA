@@ -22,6 +22,7 @@ import { generateSequentialStaffCode } from '@/lib/admission'
 import { eq, and, sql, desc, inArray } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
+import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'
 
 async function requireAdmin() {
   const session = await auth.getSession()
@@ -385,7 +386,16 @@ export async function getRevenueSummary(schoolId?: string) {
 
 // ===== PAYMENT RECONCILIATION ACTIONS =====
 export async function reconcilePaymentAction(paymentId: string, status: 'RECONCILED' | 'DISPUTED') {
+  if (typeof paymentId !== 'string' || !paymentId || paymentId.length > 80 ||
+    !['RECONCILED', 'DISPUTED'].includes(status)) {
+    throw new Error('Invalid payment reconciliation request.')
+  }
   const schoolScope = await requireSchoolAdminScope()
+  const actor = await auth.getSession()
+  if (!actor?.user) throw new Error('Unauthorized')
+  if (actor.user.role === 'SCHOOL_ADMIN' && !canSchoolAdminAccess(actor.user.adminLevel, 'update', 'payment')) {
+    throw new Error('Forbidden: Your school administrator role cannot reconcile payments.')
+  }
 
   const paymentRecord = await db.query.payment.findFirst({
     where: schoolScope
@@ -393,31 +403,56 @@ export async function reconcilePaymentAction(paymentId: string, status: 'RECONCI
       : eq(payment.id, paymentId),
   })
   if (!paymentRecord) throw new Error('Payment record not found')
-
-  await db.update(payment).set({
-    reconciliationStatus: status,
-    reconciledBy: (await auth.getSession())!.user!.id,
-    reconciledAt: new Date(),
-    status: status === 'RECONCILED' ? 'cleared' : 'failed',
-    updatedAt: new Date()
-  }).where(schoolScope
-    ? and(eq(payment.id, paymentId), eq(payment.schoolId, schoolScope))
-    : eq(payment.id, paymentId))
-
-  if (status === 'RECONCILED' && paymentRecord.schoolId) {
-    await db.insert(transactionLedger).values({
-      id: randomUUID(),
-      schoolId: paymentRecord.schoolId,
-      studentId: paymentRecord.studentId,
-      type: paymentRecord.feeType?.toUpperCase() || 'FEE_PAYMENT',
-      direction: 'IN',
-      amount: paymentRecord.amount,
-      reference: paymentRecord.transactionReference || `REC-${Date.now()}`,
-      gateway: 'SCHOOL_ACCOUNT',
-      status: 'SUCCESS',
-      description: `Reconciled payment: ${paymentRecord.description || 'Manual transfer'}`,
-    })
+  if (['PAYSTACK', 'KORAPAY'].includes(paymentRecord.paymentMethod.toUpperCase())) {
+    throw new Error('Gateway payments must be reconciled against Paystack verification.')
   }
+  if (paymentRecord.status !== 'pending') throw new Error('Only pending manual payments can be reconciled.')
+
+  await db.transaction(async (tx) => {
+    const now = new Date()
+    const updated = await tx.update(payment).set({
+      reconciliationStatus: status,
+      reconciledBy: actor.user.id,
+      reconciledAt: now,
+      status: status === 'RECONCILED' ? 'success' : 'failed',
+      paidAt: status === 'RECONCILED' ? now : paymentRecord.paidAt,
+      paymentDate: status === 'RECONCILED' ? (paymentRecord.paymentDate || now) : paymentRecord.paymentDate,
+      updatedAt: now,
+    }).where(and(
+      eq(payment.id, paymentId),
+      eq(payment.status, 'pending'),
+      schoolScope ? eq(payment.schoolId, schoolScope) : undefined,
+    )).returning({ id: payment.id })
+    if (!updated.length) throw new Error('Payment is no longer pending.')
+
+    if (status === 'RECONCILED' && paymentRecord.schoolId && paymentRecord.studentId && typeof paymentRecord.feeType === 'string' &&
+      ['registration', 'STUDENT_4MONTH_REGISTRATION'].includes(paymentRecord.feeType)) {
+      await tx.update(student).set({
+        registrationStatus: 'ACTIVE',
+        lastRegistrationFeePaidAt: now,
+        registrationDueDate: new Date(now.getTime() + 120 * 24 * 60 * 60 * 1000),
+        updatedAt: now,
+      }).where(and(
+        eq(student.id, paymentRecord.studentId),
+        eq(student.schoolId, paymentRecord.schoolId),
+      ))
+    }
+
+    if (status === 'RECONCILED' && paymentRecord.schoolId) {
+      await tx.insert(transactionLedger).values({
+        id: randomUUID(),
+        schoolId: paymentRecord.schoolId,
+        studentId: paymentRecord.studentId,
+        type: paymentRecord.feeType?.toUpperCase() || 'FEE_PAYMENT',
+        direction: 'IN',
+        amount: paymentRecord.amount,
+        reference: paymentRecord.transactionReference || `REC-${Date.now()}`,
+        gateway: 'SCHOOL_ACCOUNT',
+        status: 'SUCCESS',
+        description: `Reconciled payment: ${paymentRecord.description || 'Manual transfer'}`,
+      }).onConflictDoNothing()
+    }
+  })
 
   revalidatePath('/dashboard/admin/finance/ledger')
   revalidatePath('/dashboard/admin/finance/reconciliation')

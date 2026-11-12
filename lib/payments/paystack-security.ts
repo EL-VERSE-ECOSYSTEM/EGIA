@@ -59,6 +59,9 @@ export function validatePaystackWebhook(
   signature: string | null,
   secret = process.env.PAYSTACK_SECRET_KEY,
 ): PaystackWebhookValidation {
+  if (Buffer.byteLength(rawBody, 'utf8') > 1_000_000) {
+    return { success: false, error: 'Webhook payload is too large' }
+  }
   if (!secret) {
     return { success: false, error: 'Paystack webhook secret key is not configured' }
   }
@@ -75,6 +78,9 @@ export function validatePaystackWebhook(
 
   const event = body.event
   const reference = body.data?.reference
+  if (typeof reference === 'string' && (reference.length > 100 || !/^[a-zA-Z0-9_-]+$/.test(reference))) {
+    return { success: false, error: 'Invalid payment reference' }
+  }
   if (!reference || !event) {
     return {
       success: true,
@@ -91,10 +97,11 @@ export function validatePaystackWebhook(
  */
 export function paystackAmountMatches(actualKobo: number | string | undefined, expectedNaira: number): boolean {
   if (actualKobo === undefined || actualKobo === null || actualKobo === '') return false
+  if (typeof actualKobo === 'string' && !/^\d+$/.test(actualKobo.trim())) return false
   const actualKoboNum = Number(actualKobo)
-  if (!Number.isFinite(actualKoboNum)) return false
+  if (!Number.isSafeInteger(actualKoboNum) || !Number.isFinite(expectedNaira) || expectedNaira <= 0) return false
   const expectedKobo = Math.round(expectedNaira * 100)
-  return Math.round(actualKoboNum) === expectedKobo
+  return Number.isSafeInteger(expectedKobo) && expectedKobo > 0 && actualKoboNum === expectedKobo
 }
 
 // Backward-compatibility aliases for Korapay naming where external scripts may call them

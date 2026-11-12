@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { ArrowUpRight, Bot, LoaderCircle, MessageSquare, RotateCcw, Send, Sparkles } from 'lucide-react'
+import { toast } from 'sonner'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 type Balance = { daily_remaining: number; paid_remaining: number; reset_at: string }
@@ -37,7 +38,11 @@ export function LearnAiChatPage() {
         if (active) setBalance(result)
       })
       .catch((requestError: unknown) => {
-        if (active) setError(requestError instanceof Error ? requestError.message : 'Learn AI is unavailable.')
+        if (active) {
+          const message = requestError instanceof Error ? requestError.message : 'Learn AI is unavailable.'
+          setError(message)
+          toast.error(message)
+        }
       })
     return () => { active = false }
   }, [])
@@ -75,7 +80,9 @@ export function LearnAiChatPage() {
       setMessages((current) => [...current, { role: 'assistant' as const, content: result.answer }].slice(-10))
       setBalance(result)
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Learn AI could not answer.')
+      const message = requestError instanceof Error ? requestError.message : 'Learn AI could not answer.'
+      setError(message)
+      toast.error(message)
     } finally {
       setIsSending(false)
     }
@@ -99,7 +106,9 @@ export function LearnAiChatPage() {
       if (!response.ok || !result.checkoutUrl) throw new Error(result.error || 'Could not start checkout.')
       window.location.assign(result.checkoutUrl)
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Could not start checkout.')
+      const message = requestError instanceof Error ? requestError.message : 'Could not start checkout.'
+      setError(message)
+      toast.error(message)
       setIsBuying(null)
     }
   }

@@ -17,7 +17,7 @@ import {
   feeStructure,
   schoolAdminRoles,
 } from '@/lib/db/schema'
-import { eq, sql, and, count, inArray } from 'drizzle-orm'
+import { eq, sql, and, count, notInArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
 import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'
@@ -25,6 +25,9 @@ import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, isValidAdmissionNumber, generateStaffId } from '@/lib/id'
 import { studentEnrollmentSchema } from '@/lib/validators/student.schema'
 import { initializePaystackPayment } from '@/lib/payments/service'
+
+const STUDENT_REGISTRATION_FEE = 2000
+const PAYSTACK_GATEWAY_FEE = 161.25
 
 async function getUserId() {
   const session = await auth.getSession()
@@ -100,7 +103,9 @@ export async function createStudent(data: any) {
     throw new Error('Permission denied')
   }
 
-  return await db.transaction(async (tx) => {
+  const shouldInitializeParentCheckout = actorRole === 'PARENT' || (actorRole === 'SCHOOL_ADMIN' && Boolean(data.parentId))
+  const registrationReference = shouldInitializeParentCheckout ? `EL-PARENT-REG-${Date.now()}-${randomUUID().slice(0, 8)}` : null
+  const newStudent = await db.transaction(async (tx) => {
     let parentId: string | null = null
     let schoolId: string | null
 
@@ -152,7 +157,6 @@ export async function createStudent(data: any) {
       sessionId: data.sessionId,
     }).returning())[0]
 
-    let checkoutUrl: string | undefined
     if (actorRole === 'ADMIN') {
       await tx.insert(payment).values({
         id: randomUUID(), schoolId, studentId, parentId: parentId || null, amount: '0.00', feeType: 'registration',
@@ -161,47 +165,49 @@ export async function createStudent(data: any) {
         description: 'Admission provisioned by school administration — registration fee waived.',
       })
     } else {
-      const reference = `EL-PARENT-REG-${Date.now()}-${randomUUID().slice(0, 8)}`
       await tx.update(student).set({ registrationStatus: 'PENDING_PAYMENT' }).where(eq(student.id, studentId))
-      await tx.insert(payment).values({
-        id: randomUUID(), schoolId, studentId, parentId: parentId || null, amount: '2100.00', feeType: 'registration',
-        paymentMethod: 'PAYSTACK', transactionReference: reference, status: 'pending',
-        description: 'Parent registration — awaiting Paystack confirmation.',
-      })
-      const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-      const returnUrl = `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(reference)}`
-      const studentFullName = `${data.firstName} ${data.lastName}`.trim()
-      const initResult = await initializePaystackPayment({
-        reference,
-        amount: 2100,
-        currency: 'NGN',
-        customerName: studentFullName,
-        customerEmail: `${admissionNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}@el.local`,
-        description: `Student Registration Fee for ${studentFullName}`,
-        redirectUrl: returnUrl,
-        schoolId,
-        studentId,
-        feeType: 'registration',
-        metadata: {
-          schoolId,
-          studentId,
-          feeType: 'registration',
-        },
-      })
-      checkoutUrl = initResult?.checkoutUrl || returnUrl
     }
 
     revalidatePath('/dashboard/admin/users/students/list')
     revalidatePath('/dashboard/parent/children/list')
-    return { ...newStudent, checkoutUrl }
+    return newStudent
   })
+
+  if (!registrationReference) return newStudent
+  const studentFullName = `${newStudent.firstName} ${newStudent.lastName}`.trim()
+  const linkedParent = actorRole === 'SCHOOL_ADMIN' && newStudent.parentId && newStudent.schoolId
+    ? await db.query.parent.findFirst({ where: and(eq(parentTable.id, newStudent.parentId), eq(parentTable.schoolId, newStudent.schoolId)) })
+    : null
+  const linkedParentUser = linkedParent
+    ? await db.query.user.findFirst({ where: eq(userTable.id, linkedParent.userId) })
+    : null
+  const customerEmail = actorRole === 'PARENT' ? session.user.email : linkedParentUser?.email
+  if (!customerEmail) throw new Error('A valid parent account email is required to start Paystack checkout.')
+  const initResult = await initializePaystackPayment({
+    reference: registrationReference,
+    amount: STUDENT_REGISTRATION_FEE + PAYSTACK_GATEWAY_FEE,
+    currency: 'NGN',
+    customerName: studentFullName,
+    customerEmail,
+    description: `Student registration fee for ${studentFullName} (₦${STUDENT_REGISTRATION_FEE.toFixed(2)} plus Paystack fee ₦${PAYSTACK_GATEWAY_FEE.toFixed(2)})`,
+    redirectUrl: `${(process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(registrationReference)}`,
+    schoolId: newStudent.schoolId,
+    studentId: newStudent.id,
+    feeType: 'registration',
+    metadata: { schoolId: newStudent.schoolId, studentId: newStudent.id, feeType: 'registration' },
+  })
+  return { ...newStudent, checkoutUrl: initResult.checkoutUrl }
 }
 
 export async function getPendingPayments() {
   await checkAdminPermission('read', 'payment')
   const schoolId = await getAdminSchoolId()
   return await db.query.payment.findMany({
-    where: and(eq(payment.schoolId, schoolId), eq(payment.status, 'pending')),
+    where: and(
+      eq(payment.schoolId, schoolId),
+      eq(payment.status, 'pending'),
+      notInArray(payment.paymentMethod, ['PAYSTACK', 'KORAPAY']),
+    ),
     with: {
        student: true
     }
@@ -244,6 +250,10 @@ export async function verifyPayment(paymentId: string, status: 'success' | 'fail
     })
 
     if (!existingPayment) throw new Error('Payment record not found or tenant mismatch.')
+    if (existingPayment.status !== 'pending') throw new Error('Only pending payments can be reviewed.')
+    if (['PAYSTACK', 'KORAPAY'].includes(existingPayment.paymentMethod.toUpperCase())) {
+      throw new Error('Gateway payments must be confirmed by Paystack verification.')
+    }
 
     const result = await tx.update(payment)
       .set({
@@ -251,8 +261,15 @@ export async function verifyPayment(paymentId: string, status: 'success' | 'fail
         paidAt: status === 'success' ? new Date() : null,
         updatedAt: new Date()
       })
-      .where(and(eq(payment.id, paymentId), eq(payment.schoolId, schoolId)))
+      .where(and(
+        eq(payment.id, paymentId),
+        eq(payment.schoolId, schoolId),
+        eq(payment.status, 'pending'),
+        notInArray(payment.paymentMethod, ['PAYSTACK', 'KORAPAY']),
+      ))
       .returning()
+
+    if (!result[0]) throw new Error('Payment is no longer pending or requires gateway verification.')
 
     if (result[0]?.feeType === 'registration' && status === 'success') {
       await tx.update(student)

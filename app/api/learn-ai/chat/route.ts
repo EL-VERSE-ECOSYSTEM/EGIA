@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { sqlClient } from '@/lib/db'
-import { getLearnAiBalance, isCrossOriginLearnAiRequest, LEARN_AI_ROLES } from '@/lib/learn-ai'
+import { getLearnAiBalance, hasActiveCbtSession, isCrossOriginLearnAiRequest, LEARN_AI_ROLES } from '@/lib/learn-ai'
 import { isSystemFeatureEnabled } from '@/lib/resilience/feature-flags'
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
@@ -13,7 +13,17 @@ function errorResponse(message: string, status: number) {
 export async function GET() {
   const session = await auth.getSession()
   if (!session?.user) return errorResponse('Sign in to use Learn AI.', 401)
-  if (!LEARN_AI_ROLES.has(session.user.role)) return errorResponse('Your role cannot use Learn AI.', 403)
+  if (!LEARN_AI_ROLES.has(session.user.role.toUpperCase())) return errorResponse('Your role cannot use Learn AI.', 403)
+  try {
+    if (await hasActiveCbtSession(session.user.id)) {
+      return errorResponse('Learn AI is unavailable during an active CBT exam or assessment.', 403)
+    }
+    if (await isSystemFeatureEnabled('disable_ai', session.user.schoolId)) {
+      return errorResponse('Learn AI is temporarily disabled.', 503)
+    }
+  } catch {
+    return errorResponse('Learn AI is temporarily unavailable.', 503)
+  }
 
   try {
     return NextResponse.json(await getLearnAiBalance(session.user.id))
@@ -29,15 +39,27 @@ export async function POST(request: Request) {
 
   const role = session.user.role.toUpperCase()
   if (!LEARN_AI_ROLES.has(role)) return errorResponse('Your role cannot use Learn AI.', 403)
-  if (await isSystemFeatureEnabled('disable_ai', session.user.schoolId)) {
-    return errorResponse('Learn AI is temporarily disabled.', 503)
+  try {
+    if (await hasActiveCbtSession(session.user.id)) {
+      return errorResponse('Learn AI is unavailable during an active CBT exam or assessment.', 403)
+    }
+    if (await isSystemFeatureEnabled('disable_ai', session.user.schoolId)) {
+      return errorResponse('Learn AI is temporarily disabled.', 503)
+    }
+  } catch {
+    return errorResponse('Learn AI is temporarily unavailable.', 503)
   }
   const apiKey = process.env.GROQ_API_KEY || process.env.GROQ_AI_API
   if (!apiKey) return errorResponse('Learn AI is not configured yet.', 503)
 
   let body: { messages?: unknown }
   try {
-    body = await request.json()
+    if (Number(request.headers.get('content-length') || 0) > 64_000) {
+      return errorResponse('Chat request is too large.', 413)
+    }
+    const rawBody = await request.text()
+    if (rawBody.length > 64_000) return errorResponse('Chat request is too large.', 413)
+    body = JSON.parse(rawBody)
   } catch {
     return errorResponse('Invalid chat request.', 400)
   }

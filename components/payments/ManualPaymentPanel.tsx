@@ -15,8 +15,8 @@ interface Props {
   amount: number;
   schoolId: string;
   studentId: string;
-  paymentId: string;
   parentId: string;
+  feeType: string;
   onReceiptUploaded?: () => void;
 }
 
@@ -25,11 +25,20 @@ export function ManualPaymentPanel({
   amount,
   schoolId,
   studentId,
-  paymentId,
   parentId,
+  feeType,
   onReceiptUploaded,
 }: Props) {
   const [copied, setCopied] = useState(false);
+  let safePaymentLink: string | null = null;
+  if (config?.custom_payment_link) {
+    try {
+      const parsed = new URL(config.custom_payment_link);
+      if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) safePaymentLink = parsed.toString();
+    } catch {
+      safePaymentLink = null;
+    }
+  }
 
   const copyAccount = () => {
     if (config?.account_number) {
@@ -87,9 +96,9 @@ export function ManualPaymentPanel({
       </div>
 
       {/* Custom Payment Link */}
-      {config?.custom_payment_link && (
+      {safePaymentLink && (
         <a
-          href={config.custom_payment_link}
+          href={safePaymentLink}
           target="_blank"
           rel="noreferrer"
           className="w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition"
@@ -111,8 +120,8 @@ export function ManualPaymentPanel({
       <ReceiptUploadField
         schoolId={schoolId}
         studentId={studentId}
-        paymentId={paymentId}
         parentId={parentId}
+        feeType={feeType}
         amountClaimed={amount}
         onUploaded={onReceiptUploaded}
       />

@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { submitManualPayment } from "@/app/actions/payments";
 
 interface Props {
   schoolId: string;
   studentId: string;
-  paymentId: string;
   parentId: string;
+  feeType: string;
   amountClaimed: number;
   onUploaded?: () => void;
 }
@@ -15,8 +16,8 @@ interface Props {
 export function ReceiptUploadField({
   schoolId,
   studentId,
-  paymentId,
   parentId,
+  feeType,
   amountClaimed,
   onUploaded,
 }: Props) {
@@ -37,8 +38,14 @@ export function ReceiptUploadField({
     }
 
     setBusy(true);
-    const path = `${schoolId}/parents/${parentId}/${paymentId}/${Date.now()}-${file.name}`;
     const supabase = createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      setBusy(false);
+      return setError("Sign in again before uploading your receipt.");
+    }
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100) || "receipt";
+    const path = `${schoolId}/${studentId}/${parentId}/${crypto.randomUUID()}-${safeName}`;
     const { error: upErr } = await supabase.storage.from("school-receipts").upload(path, file);
 
     if (upErr) {
@@ -47,27 +54,21 @@ export function ReceiptUploadField({
     }
 
     const { data: { publicUrl } } = supabase.storage.from("school-receipts").getPublicUrl(path);
-    const user = (await supabase.auth.getUser())?.data?.user;
-
-    const { error: dbErr } = await supabase.from("payment_receipt_uploads").insert({
-      schoolid: schoolId,
-      payment_id: paymentId,
-      student_id: studentId,
-      parent_id: parentId,
-      uploaded_by: user?.id || parentId,
-      uploaded_by_role: "PARENT",
-      file_url: publicUrl,
-      file_path: path,
-      file_type: file.type,
-      file_size_kb: Math.round(file.size / 1024),
-      amount_claimed: amountClaimed,
-      status: "PENDING",
-    });
+    try {
+      await submitManualPayment({
+        studentId,
+        feeType,
+        amount: amountClaimed.toFixed(2),
+        receiptUrl: publicUrl,
+        fileType: file.type,
+      });
+    } catch (err) {
+      await supabase.storage.from("school-receipts").remove([path]);
+      setBusy(false);
+      return setError(err instanceof Error ? err.message : "Could not submit receipt.");
+    }
 
     setBusy(false);
-    if (dbErr) {
-      return setError(dbErr.message);
-    }
 
     setSuccess(true);
     onUploaded?.();

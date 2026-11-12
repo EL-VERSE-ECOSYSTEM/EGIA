@@ -13,9 +13,8 @@ export default function PaymentLock({ reason }: { reason?: string }) {
   const handlePay = async () => {
     setSubmitting(true)
     try {
-      await payAdultWeekly()
-      toast.success('Weekly payment paid successfully! Content is now unlocked.')
-      window.location.reload()
+      const result = await payAdultWeekly()
+      window.location.assign(result.checkoutUrl)
     } catch (err: any) {
       toast.error(err.message || 'Payment failed')
     } finally {
@@ -37,7 +36,7 @@ export default function PaymentLock({ reason }: { reason?: string }) {
 
         <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-xs font-semibold flex items-center gap-3 text-left mb-6 text-slate-300">
           <AlertTriangle className="text-amber-500 w-5 h-5 shrink-0" />
-          <span>If you have already paid, your access will be instantly updated. Click the button below to process payment from your wallet.</span>
+          <span>Continue to Paystack to complete the payment. Access unlocks after Paystack confirms the charge.</span>
         </div>
 
         <Button

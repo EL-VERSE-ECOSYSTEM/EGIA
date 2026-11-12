@@ -68,6 +68,12 @@ test('validatePaystackWebhook - rejects malformed JSON even with a valid signatu
   }
 })
 
+test('validatePaystackWebhook - measures the payload limit in UTF-8 bytes', () => {
+  const oversizedPayload = 'é'.repeat(500_001)
+  const result = validatePaystackWebhook(oversizedPayload, null, 'sk_test_mock_paystack_secret_key')
+  assert.deepEqual(result, { success: false, error: 'Webhook payload is too large' })
+})
+
 test('validatePaystackWebhook - extracts event and reference on valid payload', () => {
   const secret = 'sk_test_mock_paystack_secret_key'
   const payload = JSON.stringify({
@@ -93,6 +99,9 @@ test('paystackAmountMatches - requires exact kobo conversion from naira to the c
   // ₦5,161.25 is 516125 kobo
   assert.equal(paystackAmountMatches(516125, 5161.25), true)
   assert.equal(paystackAmountMatches('516125', 5161.25), true)
+  assert.equal(paystackAmountMatches(516125.4, 5161.25), false)
+  assert.equal(paystackAmountMatches('516125.4', 5161.25), false)
+  assert.equal(paystackAmountMatches(Number.MAX_SAFE_INTEGER + 1, 5161.25), false)
   assert.equal(paystackAmountMatches(516100, 5161.25), false)
   assert.equal(paystackAmountMatches(516200, 5161.25), false)
   assert.equal(paystackAmountMatches(undefined, 5161.25), false)

@@ -2,16 +2,18 @@
 
 import { db } from '@/lib/db'
 import { payment, student, paymentReceiptUploads, user as userTable, parent as parentTable, feeStructure, studentGifts } from '@/lib/db/schema'
-import { eq, and, desc, sql } from 'drizzle-orm'
+import { eq, and, desc, sql, notInArray } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
+import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'
 import {
   initializePaystackPayment as serviceInitializePaystackPayment,
   verifyPaystackPayment as serviceVerifyPaystackPayment,
-  reconcilePayment as serviceReconcilePayment,
 } from '@/lib/payments/service'
 
 const PAYSTACK_GATEWAY_FEE = 161.25
@@ -60,15 +62,59 @@ export async function verifyPaystackPayment(reference: string) {
   return result
 }
 
-export async function submitManualPayment(data: { studentId: string; amount: string; feeType: string; receiptUrl: string }) {
+export async function submitManualPayment(data: { studentId: string; amount: string; feeType: string; receiptUrl: string; fileType: string }) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
+  if (session.user.role.toUpperCase() !== 'PARENT') throw new Error('Only the linked parent can submit a manual payment receipt.')
+  if (!data || typeof data.studentId !== 'string' || typeof data.feeType !== 'string' ||
+    typeof data.amount !== 'string' || typeof data.receiptUrl !== 'string' || typeof data.fileType !== 'string' ||
+    !/^\d+(?:\.\d{1,2})?$/.test(data.amount) || data.feeType.length > 80) {
+    throw new Error('Invalid payment details.')
+  }
 
   const currentStudent = await db.query.student.findFirst({ where: eq(student.id, data.studentId) })
   if (!currentStudent) throw new Error('Student record not found')
   await assertStudentPaymentAccess(session.user, currentStudent)
-
+  if (!currentStudent.schoolId) throw new Error('Student is not assigned to a school fee schedule.')
+  const schoolId = currentStudent.schoolId
   const pRec = await db.query.parent.findFirst({ where: eq(parentTable.userId, session.user.id) })
+  if (!pRec || pRec.id !== currentStudent.parentId || pRec.schoolId !== schoolId) {
+    throw new Error('This student is not linked to your parent account and school.')
+  }
+
+  const claimedAmount = Number(data.amount)
+  if (!Number.isFinite(claimedAmount) || claimedAmount <= 0) throw new Error('Enter a valid payment amount.')
+  const receiptUrl = new URL(data.receiptUrl)
+  const storageBaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!storageBaseUrl) throw new Error('Receipt storage is not configured.')
+  const storageOrigin = new URL(storageBaseUrl)
+  const localHttpStorage = process.env.NODE_ENV !== 'production' && storageOrigin.protocol === 'http:'
+  const receiptObjectPrefix = `/storage/v1/object/public/school-receipts/${schoolId}/${currentStudent.id}/${pRec.id}/`
+  if ((!localHttpStorage && receiptUrl.protocol !== 'https:') || receiptUrl.origin !== storageOrigin.origin ||
+    !receiptUrl.pathname.startsWith(receiptObjectPrefix) ||
+    receiptUrl.username || receiptUrl.password || receiptUrl.hash) {
+    throw new Error('Receipt must be stored in this application’s Supabase Storage.')
+  }
+  const receiptObjectPath = decodeURIComponent(receiptUrl.pathname.slice(receiptObjectPrefix.length))
+  if (!receiptObjectPath || receiptObjectPath.includes('/') || receiptObjectPath === '.' || receiptObjectPath === '..') {
+    throw new Error('Receipt storage path is invalid.')
+  }
+  if (!['image/png', 'image/jpeg', 'application/pdf'].includes(data.fileType)) {
+    throw new Error('Receipt must be a PNG, JPEG, or PDF file.')
+  }
+
+  const schoolFees = await db.query.feeStructure.findMany({
+    where: and(
+      eq(feeStructure.schoolId, schoolId),
+      eq(feeStructure.class, currentStudent.class),
+      eq(feeStructure.isActive, true),
+    ),
+  })
+  const approvedFee = schoolFees.find((fee) => fee.feeType === data.feeType && fee.department === currentStudent.department) ||
+    schoolFees.find((fee) => fee.feeType === data.feeType && !fee.department)
+  if (!approvedFee || Number(approvedFee.amount) !== claimedAmount) {
+    throw new Error('The amount and fee type must match an active fee set by your school.')
+  }
 
   const paymentId = randomUUID()
   const uploadId = randomUUID()
@@ -76,15 +122,15 @@ export async function submitManualPayment(data: { studentId: string; amount: str
   await db.transaction(async (tx) => {
     await tx.insert(payment).values({
       id: paymentId,
-      schoolId: currentStudent.schoolId || null,
+      schoolId,
       studentId: currentStudent.id,
-      parentId: pRec?.id || currentStudent.parentId || null,
-      amount: data.amount,
+      parentId: pRec.id,
+      amount: claimedAmount.toFixed(2),
       feeType: data.feeType,
       paymentMethod: 'BANK_TRANSFER',
       transactionReference: `MANUAL-${Date.now()}-${randomUUID().slice(0, 6)}`,
       status: 'pending',
-      receiptUrl: data.receiptUrl,
+      receiptUrl: receiptUrl.toString(),
       description: `Manual receipt upload for ${data.feeType}`,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -92,16 +138,16 @@ export async function submitManualPayment(data: { studentId: string; amount: str
 
     await tx.insert(paymentReceiptUploads).values({
       id: uploadId,
-      schoolId: currentStudent.schoolId || 'default-school',
+      schoolId,
       paymentId: paymentId,
       studentId: currentStudent.id,
-      parentId: pRec?.id || null,
+      parentId: pRec.id,
       uploadedBy: session.user.id,
-      uploadedByRole: session.user.role || 'PARENT',
-      fileUrl: data.receiptUrl,
-      filePath: data.receiptUrl,
-      fileType: 'image/jpeg',
-      amountClaimed: data.amount,
+      uploadedByRole: 'PARENT',
+      fileUrl: receiptUrl.toString(),
+      filePath: `${schoolId}/${currentStudent.id}/${pRec.id}/${receiptObjectPath}`,
+      fileType: data.fileType,
+      amountClaimed: claimedAmount.toFixed(2),
       status: 'PENDING',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -177,19 +223,19 @@ export async function initializePaystackPayment(data: { studentId: string; amoun
 
 export async function initializeStudentRegistrationPayment(studentId: string) {
   const session = await auth.getSession()
+  if (!session?.user) throw new Error('Sign in before paying student registration.')
   const child = await db.query.student.findFirst({ where: eq(student.id, studentId) })
   if (!child) throw new Error('Student registration record was not found.')
   if (child.registrationStatus !== 'PENDING_PAYMENT' || child.registrationPaid) {
     throw new Error('This student registration is not awaiting payment.')
   }
-  if (session?.user && session.user.role !== 'SUPER_ADMIN' && child.userId !== session.user.id) {
-    throw new Error('Forbidden: You can only pay for your own student registration.')
-  }
+  await assertStudentPaymentAccess({ ...session.user, role: session.user.role.toUpperCase() }, child)
 
   const studentAccount = child.userId
     ? await db.query.user.findFirst({ where: eq(userTable.id, child.userId) })
     : null
-  if (!studentAccount?.email) throw new Error('Student registration account is missing a payer email.')
+  const customerEmail = session.user.email || studentAccount?.email
+  if (!customerEmail) throw new Error('A valid payer email is required for registration checkout.')
 
   const totalAmount = REGISTRATION_FEE + PAYSTACK_GATEWAY_FEE
 
@@ -200,7 +246,7 @@ export async function initializeStudentRegistrationPayment(studentId: string) {
     amount: totalAmount,
     feeType: 'registration',
     description: `Session registration for ${child.firstName} ${child.lastName} (NGN 2000 + NGN 161.25 gateway fee)`,
-    customerEmail: studentAccount.email,
+    customerEmail,
     customerName: `${child.firstName} ${child.lastName}`,
     metadata: {
       studentId: child.id,
@@ -289,15 +335,32 @@ export async function getStudentIdByAdmissionNumber(admissionNumber: string) {
   return child?.userId === session.user.id ? child.id : null
 }
 
-export async function getFeeStructuresForClass(className: string, department?: string) {
+export async function getFeeStructuresForClass(className: string, department?: string, studentId?: string) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
-  const uRec = await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) })
-  if (!uRec?.schoolId) return []
+  const role = session.user.role.toUpperCase()
+  let schoolId = session.user.schoolId || (await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) }))?.schoolId || null
+  if (role === 'PARENT') {
+    if (!studentId) throw new Error('Choose one of your linked students.')
+    const parentProfile = await db.query.parent.findFirst({ where: eq(parentTable.userId, session.user.id) })
+    const child = parentProfile && await db.query.student.findFirst({
+      where: and(eq(student.id, studentId), eq(student.parentId, parentProfile.id)),
+    })
+    if (!child || child.class.toLowerCase() !== className.toLowerCase() ||
+      (department && child.department?.toLowerCase() !== department.toLowerCase())) {
+      throw new Error('Student payment scope does not match your account.')
+    }
+    schoolId = child.schoolId
+  } else if (['STUDENT', 'PUPIL'].includes(role)) {
+    const child = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
+    if (!child || child.id !== studentId) throw new Error('Student payment scope does not match your account.')
+    schoolId = child.schoolId
+  }
+  if (!schoolId) return []
 
   const list = await db.query.feeStructure.findMany({
-    where: and(eq(feeStructure.schoolId, uRec.schoolId), eq(feeStructure.isActive, true))
+    where: and(eq(feeStructure.schoolId, schoolId), eq(feeStructure.isActive, true))
   })
 
   return list.filter(f =>
@@ -315,19 +378,48 @@ export async function approveReceipt(uploadId: string) {
   const upload = await db.query.paymentReceiptUploads.findFirst({ where: eq(paymentReceiptUploads.id, uploadId) })
   if (!upload) throw new Error('Receipt upload record not found')
   assertReceiptSchoolAccess(session.user, upload.schoolId)
+  if (upload.status !== 'PENDING' || !upload.paymentId) throw new Error('Only pending receipts linked to a payment can be approved.')
 
   const now = new Date()
 
   await db.transaction(async (tx) => {
-    await tx.update(paymentReceiptUploads).set({
+    const paymentRecord = await tx.query.payment.findFirst({
+      where: and(eq(payment.id, upload.paymentId!), eq(payment.schoolId, upload.schoolId)),
+    })
+    if (!paymentRecord || paymentRecord.status !== 'pending' || ['PAYSTACK', 'KORAPAY'].includes(paymentRecord.paymentMethod.toUpperCase())) {
+      throw new Error('Receipt is not linked to a pending manual payment for this school.')
+    }
+
+    const updatedPayment = await tx.update(payment).set({
+      reconciliationStatus: 'RECONCILED',
+      reconciledBy: session.user.id,
+      reconciledAt: now,
+      status: 'success',
+      paidAt: now,
+      updatedAt: now,
+    }).where(and(
+      eq(payment.id, paymentRecord.id),
+      eq(payment.schoolId, upload.schoolId),
+      eq(payment.status, 'pending'),
+      notInArray(payment.paymentMethod, ['PAYSTACK', 'KORAPAY']),
+    )).returning({ id: payment.id, feeType: payment.feeType, studentId: payment.studentId })
+    if (!updatedPayment.length) throw new Error('Payment is no longer pending.')
+
+    const approvedUpload = await tx.update(paymentReceiptUploads).set({
       status: 'APPROVED',
       reviewedBy: session.user.id,
       reviewedAt: now,
       updatedAt: now,
-    }).where(eq(paymentReceiptUploads.id, uploadId))
+    }).where(and(
+      eq(paymentReceiptUploads.id, uploadId),
+      eq(paymentReceiptUploads.schoolId, upload.schoolId),
+      eq(paymentReceiptUploads.status, 'PENDING'),
+    )).returning({ id: paymentReceiptUploads.id })
+    if (!approvedUpload.length) throw new Error('Receipt is no longer pending.')
 
-    if (upload.paymentId) {
-      await serviceReconcilePayment(upload.paymentId, session.user.id)
+    if (updatedPayment[0].feeType === 'registration') {
+      await tx.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: now })
+        .where(and(eq(student.id, updatedPayment[0].studentId), eq(student.schoolId, upload.schoolId)))
     }
   })
 
@@ -356,6 +448,47 @@ export async function rejectReceipt(uploadId: string, reason: string) {
 
   revalidatePath('/dashboard/admin/payments/pending-receipts')
   return { success: true }
+}
+
+export async function getPaymentReceiptReviewList() {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Unauthorized')
+  const role = session.user.role.toUpperCase()
+  if (!['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(role)) throw new Error('Unauthorized')
+  if (role === 'SCHOOL_ADMIN' && !canSchoolAdminAccess(session.user.adminLevel, 'read', 'payment')) throw new Error('Unauthorized')
+
+  const schoolId = role === 'SUPER_ADMIN'
+    ? null
+    : session.user.schoolId || (await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) }))?.schoolId || null
+  if (role !== 'SUPER_ADMIN' && !schoolId) throw new Error('School context is required.')
+  const uploads = await db.query.paymentReceiptUploads.findMany({
+    where: schoolId
+      ? and(eq(paymentReceiptUploads.schoolId, schoolId), eq(paymentReceiptUploads.status, 'PENDING'))
+      : eq(paymentReceiptUploads.status, 'PENDING'),
+    orderBy: [desc(paymentReceiptUploads.createdAt)],
+    limit: 200,
+  })
+  const secretKey = getSupabaseSecretKey()
+  if (uploads.length && !secretKey) throw new Error('Private receipt storage is not configured.')
+  const storageAdmin = secretKey
+    ? createSupabaseClient(getSupabaseUrl(), secretKey, { auth: { persistSession: false, autoRefreshToken: false } })
+    : null
+  return Promise.all(uploads.map(async (upload) => {
+    const signed = upload.filePath && storageAdmin
+      ? await storageAdmin.storage.from('school-receipts').createSignedUrl(upload.filePath, 300)
+      : null
+    return {
+      id: upload.id,
+      schoolid: upload.schoolId,
+      payment_id: upload.paymentId,
+      student_id: upload.studentId,
+      amount_claimed: upload.amountClaimed,
+      status: upload.status,
+      created_at: upload.createdAt,
+      generated_receipt_url: null,
+      file_url: signed?.data?.signedUrl || null,
+    }
+  }))
 }
 
 export async function getReceiptDownloadUrl(uploadId: string) {

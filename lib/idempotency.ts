@@ -91,6 +91,13 @@ export async function checkOrAcquireIdempotency<T = any>(
     }
 
     const record = existing[0]
+    if (record.status === 'FAILED') {
+      const [reacquired] = await db.update(idempotencyKeys)
+        .set({ status: 'PENDING', requestHash, response: null, expiresAt })
+        .where(and(eq(idempotencyKeys.key, key), eq(idempotencyKeys.status, 'FAILED')))
+        .returning({ key: idempotencyKeys.key })
+      if (reacquired) return { isDuplicate: false, status: 'NEW' }
+    }
     return {
       isDuplicate: true,
       status: record.status as any,

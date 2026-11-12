@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { approveReceipt, rejectReceipt } from '@/app/actions/payments'
-import { createClient } from '@/lib/supabase/client'
+import { approveReceipt, rejectReceipt, getPaymentReceiptReviewList } from '@/app/actions/payments'
 import { CheckCircle2, XCircle, FileText, ExternalLink, RefreshCw, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -14,43 +13,24 @@ export default function AdminPendingReceiptsPage() {
   const [reason, setReason] = useState('')
   const [processingId, setProcessingId] = useState<string | null>(null)
 
-  const schoolId = 'school-elgoodnews-001'
-
-  useEffect(() => {
-    const supabase = createClient()
-    async function loadReceipts() {
-      const { data } = await supabase
-        .from('payment_receipt_uploads')
-        .select('*')
-        .eq('schoolid', schoolId)
-        .order('created_at', { ascending: false })
+  const loadReceipts = async () => {
+    try {
+      const data = await getPaymentReceiptReviewList()
       setRows(data || [])
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not load payment receipts.')
+    } finally {
       setLoading(false)
     }
-    loadReceipts()
+  }
 
-    // Real-time Subscription
-    const channel = supabase
-      .channel('pending_receipts_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'payment_receipt_uploads', filter: `schoolid=eq.${schoolId}` },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setRows((prev) => [payload.new, ...prev])
-          } else if (payload.eventType === 'UPDATE') {
-            setRows((prev) => prev.map((r) => (r.id === payload.new.id ? payload.new : r)))
-          } else if (payload.eventType === 'DELETE') {
-            setRows((prev) => prev.filter((r) => r.id !== payload.old.id))
-          }
-        }
-      )
-      .subscribe()
-
+  useEffect(() => {
+    void loadReceipts()
+    const refreshTimer = setInterval(() => { void loadReceipts() }, 15000)
     return () => {
-      supabase.removeChannel(channel)
+      clearInterval(refreshTimer)
     }
-  }, [schoolId])
+  }, [])
 
   const handleApprove = async (id: string) => {
     setProcessingId(id)
@@ -58,6 +38,7 @@ export default function AdminPendingReceiptsPage() {
       const res = await approveReceipt(id)
       if (res.success) {
         toast.success('Receipt approved and official PDF receipt generated!')
+        await loadReceipts()
       }
     } catch (err: any) {
       toast.error(err.message || 'Failed to approve receipt')
@@ -76,6 +57,7 @@ export default function AdminPendingReceiptsPage() {
         toast.success('Receipt rejected with reason')
         setRejectId(null)
         setReason('')
+        await loadReceipts()
       }
     } catch (err: any) {
       toast.error(err.message || 'Failed to reject receipt')
@@ -129,7 +111,8 @@ export default function AdminPendingReceiptsPage() {
                           href={row.file_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 transition font-bold"
+                          aria-disabled={!row.file_url}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 transition font-bold ${!row.file_url ? 'pointer-events-none opacity-50' : ''}`}
                         >
                           <Eye className="w-3.5 h-3.5" />
                           <span>View File</span>

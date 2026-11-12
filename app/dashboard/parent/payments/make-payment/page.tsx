@@ -13,13 +13,11 @@ import {
   Upload, Loader2
 } from 'lucide-react'
 import { getLinkedChildren } from '@/app/actions/user'
-import { initializeKorapayPayment, getFeeStructuresForClass } from '@/app/actions/payments'
+import { initializePaystackPayment, getFeeStructuresForClass } from '@/app/actions/payments'
 import { getSchoolPaymentConfigAction } from '@/app/actions/payment-config'
 import { ManualPaymentPanel } from '@/components/payments/ManualPaymentPanel'
-import { useRouter } from 'next/navigation'
 
 export default function MakePaymentPage() {
-  const router = useRouter()
   const [children, setChildren] = useState<any[]>([])
   const [childId, setChildId] = useState('')
   const [feeType, setFeeType] = useState('')
@@ -34,7 +32,6 @@ export default function MakePaymentPage() {
 
   useEffect(() => {
     getLinkedChildren().then(setChildren)
-    getSchoolPaymentConfigAction().then(setPaymentConfig)
   }, [])
 
   // Fetch fees when a child is selected
@@ -43,7 +40,10 @@ export default function MakePaymentPage() {
     const selectedChild = children.find(c => c.id === id)
     if (selectedChild) {
       try {
-        const fees = await getFeeStructuresForClass(selectedChild.class, selectedChild.department)
+        setPaymentConfig(selectedChild.schoolId
+          ? await getSchoolPaymentConfigAction(selectedChild.schoolId)
+          : null)
+        const fees = await getFeeStructuresForClass(selectedChild.class, selectedChild.department, selectedChild.id)
         setAvailableFees(fees || [])
         setFeeType('')
         setAmount('')
@@ -66,7 +66,7 @@ export default function MakePaymentPage() {
 
     setIsUploading(true)
     try {
-      const result = await initializeKorapayPayment({
+      const result = await initializePaystackPayment({
         studentId: childId,
         amount: parseFloat(amount),
         feeType,
@@ -141,14 +141,14 @@ export default function MakePaymentPage() {
               </CardContent>
             </Card>
 
-            {paymentConfig && !paymentConfig.useKorapay ? (
+            {(paymentConfig?.usePaystack ?? paymentConfig?.useKorapay ?? true) === false && children.some(c => c.id === childId) ? (
               <ManualPaymentPanel
                 config={paymentConfig}
                 amount={parseFloat(amount || '0')}
-                schoolId="school-elgoodnews-001"
+                schoolId={children.find(c => c.id === childId)?.schoolId || ''}
                 studentId={childId}
-                paymentId={`PAY-${Date.now()}`}
-                parentId="parent-demo-001"
+                parentId={children.find(c => c.id === childId)?.parentId || ''}
+                feeType={feeType}
                 onReceiptUploaded={() => alert('Receipt uploaded — awaiting admin confirmation')}
               />
             ) : (
@@ -159,7 +159,7 @@ export default function MakePaymentPage() {
                     <CreditCard size={32} />
                   </div>
                   <div>
-                    <p className="font-black text-slate-900">Instant Online Korapay Gateway</p>
+                    <p className="font-black text-slate-900">Instant Online Paystack Checkout</p>
                     <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Card/USSD/Transfer</p>
                   </div>
                   <CheckCircle2 className="ml-auto text-emerald-600 w-6 h-6" />
@@ -170,7 +170,7 @@ export default function MakePaymentPage() {
           </div>
 
           <div className="space-y-8">
-            {(!paymentConfig || paymentConfig.useKorapay) && (
+            {(paymentConfig?.usePaystack ?? paymentConfig?.useKorapay ?? true) && (
               <Card className="bg-slate-900 text-white border-none shadow-2xl rounded-[2.5rem] overflow-hidden sticky top-28">
                 <CardHeader className="p-10 pb-0">
                   <CardTitle className="text-amber-500 text-sm font-black uppercase tracking-[0.3em]">Checkout Summary</CardTitle>
@@ -200,7 +200,7 @@ export default function MakePaymentPage() {
                   </Button>
                   <div className="flex items-center gap-2 text-[10px] text-slate-500 font-black uppercase tracking-widest justify-center">
                     <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                    Secured by Korapay & SSL
+                    Secured by Paystack & SSL
                   </div>
                 </CardFooter>
               </Card>
