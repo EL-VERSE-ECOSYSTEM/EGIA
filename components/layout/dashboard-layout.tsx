@@ -121,6 +121,21 @@ export default function DashboardLayout({
     text: 'text-amber-600'
   }
 
+  const profileHref = {
+    student: '/dashboard/student/profile',
+    teacher: '/dashboard/teacher/profile',
+    parent: '/dashboard/parent/settings/profile',
+    admin: '/dashboard/admin/settings',
+    'super-admin': '/admin/super-admin',
+  }[activeRole]
+  const settingsHref = {
+    student: '/dashboard/student/profile/settings',
+    teacher: '/dashboard/teacher/profile/settings',
+    parent: '/dashboard/parent/settings/profile',
+    admin: '/dashboard/admin/settings',
+    'super-admin': '/admin/super-admin',
+  }[activeRole]
+
   return (
     <div className="relative flex min-h-screen bg-slate-50 dark:bg-slate-950">
       {mounted && <DashboardRealtimeSync role={role} />}
@@ -197,7 +212,7 @@ export default function DashboardLayout({
                   <button
                     onClick={() => {
                       setShowUserMenu(false)
-                      window.location.href = `/dashboard/${activeRole}/profile`
+                      window.location.href = profileHref
                     }}
                     className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2"
                   >
@@ -206,7 +221,7 @@ export default function DashboardLayout({
                   <button
                     onClick={() => {
                       setShowUserMenu(false)
-                      window.location.href = `/dashboard/${activeRole}/settings`
+                      window.location.href = settingsHref
                     }}
                     className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2"
                   >

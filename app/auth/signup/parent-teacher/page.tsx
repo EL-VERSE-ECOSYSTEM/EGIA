@@ -8,8 +8,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GraduationCap, Users, Loader2, AlertCircle, Briefcase, ShieldCheck } from 'lucide-react'
 import { registerParentTeacher } from '@/app/actions/auth-server'
+import { RegistrationProgress } from '@/components/auth/RegistrationProgress'
 
 export default function ParentTeacherSignUpPage() {
+  const [step, setStep] = useState(0)
+  const steps = ['Your profile', 'Child details', 'Secure your account']
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -40,6 +43,14 @@ export default function ParentTeacherSignUpPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const advanceStep = () => {
+    setError(null)
+    if (step === 0 && (!profileImage || !formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim() || !formData.phone.trim())) return setError('Add your photo and complete your contact details to continue.')
+    if (step === 1 && (!formData.childFirstName.trim() || !formData.childLastName.trim() || !formData.childDOB)) return setError('Complete the required child details to continue.')
+    if (step === 2 && (formData.password.length < 8 || formData.password !== formData.confirmPassword)) return setError(formData.password.length < 8 ? 'Password must be at least 8 characters long.' : 'Passwords do not match.')
+    setStep(value => Math.min(steps.length - 1, value + 1))
+  }
+
   const classesList = ['Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3']
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,14 +67,19 @@ export default function ParentTeacherSignUpPage() {
     e.preventDefault()
     setError(null)
 
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long.')
+      return
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
-      alert('Passwords do not match')
       return
     }
 
     if (!profileImage) {
-      return alert('Please upload a passport photo.')
+      setError('Please upload a passport photo.')
+      return
     }
 
     setLoading(true)
@@ -83,7 +99,6 @@ export default function ParentTeacherSignUpPage() {
 
       if (result.error) {
         setError(result.error)
-        alert(result.error)
         setLoading(false)
       } else {
         if ('checkoutUrl' in result && typeof result.checkoutUrl === 'string') {
@@ -95,7 +110,6 @@ export default function ParentTeacherSignUpPage() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Account failed to create'
       setError(message)
-      alert(message)
       setLoading(false)
     }
   }
@@ -121,7 +135,9 @@ export default function ParentTeacherSignUpPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-10 pb-12">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form noValidate onSubmit={handleSubmit} className="space-y-6">
+            <RegistrationProgress steps={steps} currentStep={step} onBack={() => setStep(value => Math.max(0, value - 1))} onNext={advanceStep} accentClass="bg-orange-600" />
+            <section hidden={step !== 0} className="space-y-6">
             {error && (
               <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-black rounded-2xl flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 shrink-0" />
@@ -244,6 +260,8 @@ export default function ParentTeacherSignUpPage() {
               </div>
             </div>
 
+            </section>
+            <section hidden={step !== 1} className="space-y-6">
             <div className="text-xs font-black text-amber-950 bg-amber-50 border border-amber-100 p-4 rounded-2xl">
               👶 STAGE 2: ENTER REGISTERED CHILD / PUPIL DETAILS
             </div>
@@ -359,6 +377,8 @@ export default function ParentTeacherSignUpPage() {
               </div>
             </div>
 
+            </section>
+            <section hidden={step !== 2} className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="password" title="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Password</Label>
@@ -386,11 +406,12 @@ export default function ParentTeacherSignUpPage() {
 
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || step !== steps.length - 1}
               className="w-full bg-orange-600 hover:bg-orange-700 text-white h-14 rounded-2xl font-black text-lg shadow-xl shadow-orange-200 mt-6 transition-all"
             >
               {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 'Complete Registration'}
             </Button>
+            </section>
           </form>
           <div className="mt-8 text-center text-sm font-bold text-slate-400">
             Already have an account? <Link href="/auth/signin" className="text-orange-600 font-black hover:underline ml-1">Sign In</Link>

@@ -71,10 +71,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
           });
       })
       .subscribe((nextStatus) => {
-        if (nextStatus === "SUBSCRIBED") {
-          setStatus("SUBSCRIBED" as ConnectionStatus);
-        } else if (nextStatus === "CLOSED" || nextStatus === "CHANNEL_ERROR" || nextStatus === "TIMED_OUT") {
-          setStatus("CONNECTING");
+        setStatus(nextStatus);
+        if (nextStatus === "CLOSED" || nextStatus === "CHANNEL_ERROR" || nextStatus === "TIMED_OUT") {
           queryClient.invalidateQueries({ queryKey: ["notifications"] }).catch(() => {});
         }
       });

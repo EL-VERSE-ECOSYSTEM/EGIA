@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,8 +12,12 @@ import { initializeStudentRegistrationPayment, getStudentIdByAdmissionNumber } f
 import { getSchoolByCodeAction } from '@/app/actions/school'
 import { Badge } from '@/components/ui/badge'
 import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
+import { RegistrationProgress } from '@/components/auth/RegistrationProgress'
 
 export default function StudentRegistrationPage() {
+  const [step, setStep] = useState(0)
+  const schoolLookupVersion = useRef(0)
+  const steps = ['School', 'Student details', 'Academic details', 'Account security']
   const [formData, setFormData] = useState({
     schoolCode: '',
     firstName: '',
@@ -69,10 +73,12 @@ export default function StudentRegistrationPage() {
   }, [])
 
   const handleSchoolCodeCheck = async (code: string) => {
+    const requestVersion = ++schoolLookupVersion.current
     const cleanCode = code.trim().toUpperCase()
     if (cleanCode.length < 5) {
       setSchoolDetails(null)
       setSchoolError(null)
+      setVerifyingSchool(false)
       return
     }
 
@@ -81,6 +87,7 @@ export default function StudentRegistrationPage() {
 
     try {
       const res = await getSchoolByCodeAction(cleanCode)
+      if (requestVersion !== schoolLookupVersion.current) return
       if (res.success && res.school) {
         setSchoolDetails({
           id: res.school.id,
@@ -93,9 +100,10 @@ export default function StudentRegistrationPage() {
         setSchoolError('Invalid School Code. Please check with your school administrator.')
       }
     } catch {
+      if (requestVersion !== schoolLookupVersion.current) return
       setSchoolError('Could not verify school code at this time.')
     } finally {
-      setVerifyingSchool(false)
+      if (requestVersion === schoolLookupVersion.current) setVerifyingSchool(false)
     }
   }
 
@@ -126,6 +134,15 @@ export default function StudentRegistrationPage() {
   }
 
   const isSeniorClass = formData.class === 'SSS1' || formData.class === 'SSS2' || formData.class === 'SSS3'
+
+  const advanceStep = () => {
+    setError(null)
+    if (step === 0 && (!formData.schoolCode.trim() || !schoolDetails || schoolError)) return setError('Enter a valid school registration code to continue.')
+    if (step === 1 && (!formData.firstName.trim() || !formData.lastName.trim() || !formData.dateOfBirth || !formData.dateOfResumption || !formData.email.trim() || !passportImage)) return setError('Complete the required student details and add a passport photo to continue.')
+    if (step === 2 && subjectsDone.length === 0) return setError('Select or add at least one subject to continue.')
+    if (step === 3 && (formData.password.length < 8 || formData.password !== formData.confirmPassword)) return setError(formData.password.length < 8 ? 'Password must be at least 8 characters long.' : 'Passwords do not match.')
+    setStep(value => Math.min(steps.length - 1, value + 1))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -258,7 +275,8 @@ export default function StudentRegistrationPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="px-4 sm:px-10 pb-12">
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form noValidate onSubmit={handleSubmit} className="space-y-5">
+              <RegistrationProgress steps={steps} currentStep={step} onBack={() => setStep(value => Math.max(0, value - 1))} onNext={advanceStep} accentClass="bg-orange-600" />
               {error && (
                 <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-black rounded-2xl flex items-center gap-3">
                   <AlertCircle className="w-5 h-5 shrink-0" />
@@ -266,6 +284,7 @@ export default function StudentRegistrationPage() {
                 </div>
               )}
 
+              <section hidden={step !== 0} className="space-y-5">
               {/* Real-time School Code Verification Block */}
               <div className="space-y-2 bg-orange-500/10 border border-orange-500/30 p-4 rounded-2xl">
                 <div className="flex justify-between items-center">
@@ -311,6 +330,8 @@ export default function StudentRegistrationPage() {
                 )}
               </div>
 
+              </section>
+              <section hidden={step !== 1} className="space-y-5">
               {/* Passport Picture Upload */}
               <div className="flex flex-col items-center justify-center p-6 bg-slate-950 rounded-3xl border border-slate-800 space-y-4">
                 <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Passport Photograph</Label>
@@ -425,6 +446,8 @@ export default function StudentRegistrationPage() {
                 </div>
               </div>
 
+              </section>
+              <section hidden={step !== 2} className="space-y-5">
               {/* Class & Department Selection */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -566,6 +589,8 @@ export default function StudentRegistrationPage() {
                 </div>
               </div>
 
+              </section>
+              <section hidden={step !== 3} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Password *</Label>
                 <Input
@@ -592,11 +617,12 @@ export default function StudentRegistrationPage() {
 
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loading || step !== steps.length - 1}
                 className="w-full bg-orange-600 hover:bg-orange-500 text-white h-14 rounded-2xl font-black text-lg shadow-xl shadow-orange-500/20 mt-6 transition-all"
               >
                 {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 'Register & Proceed to Payment'}
               </Button>
+              </section>
             </form>
           </CardContent>
         </Card>

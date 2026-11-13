@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -11,9 +11,12 @@ import { registerParent } from '@/app/actions/auth-server'
 import { checkWardLinkingStatus } from '@/app/actions/user'
 import { Badge } from '@/components/ui/badge'
 import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
+import { RegistrationProgress } from '@/components/auth/RegistrationProgress'
 import { toast } from 'sonner'
 
 export default function ParentSignUpPage() {
+  const [step, setStep] = useState(0)
+  const steps = ['Your profile', 'Link your child', 'Secure your account']
   type WardCheck = Awaited<ReturnType<typeof checkWardLinkingStatus>>
   type Ward = NonNullable<WardCheck['student']>
   const [formData, setFormData] = useState({
@@ -56,7 +59,17 @@ export default function ParentSignUpPage() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [schoolVerified, setSchoolVerified] = useState(false)
+  const schoolLookupVersion = useRef(0)
   const router = useRouter()
+
+  const advanceStep = () => {
+    setError(null)
+    if (step === 0 && (!profileImage || !formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim() || !formData.phone.trim())) return setError('Add your photo and complete your contact details to continue.')
+    if (step === 1 && (!formData.occupation.trim() || addedWards.length === 0 || (formData.schoolCode.trim() && !schoolVerified))) return setError(formData.schoolCode.trim() && !schoolVerified ? 'Verify the school code or clear it to continue.' : 'Enter your occupation and link at least one child to continue.')
+    if (step === 2 && (formData.password.length < 8 || formData.password !== formData.confirmPassword)) return setError(formData.password.length < 8 ? 'Password must be at least 8 characters long.' : 'Passwords do not match.')
+    setStep(value => Math.min(steps.length - 1, value + 1))
+  }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -224,7 +237,9 @@ export default function ParentSignUpPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form noValidate onSubmit={handleSubmit} className="space-y-6">
+          <RegistrationProgress steps={steps} currentStep={step} onBack={() => setStep(value => Math.max(0, value - 1))} onNext={advanceStep} accentClass="bg-indigo-600" />
+          <section hidden={step !== 0} className="space-y-6">
           {/* Passport picture Upload Block */}
           <div className="flex flex-col items-center justify-center p-6 bg-slate-950 rounded-3xl border border-slate-800 space-y-4">
             <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Passport Photograph *</Label>
@@ -327,6 +342,8 @@ export default function ParentSignUpPage() {
             </div>
           </div>
 
+          </section>
+          <section hidden={step !== 1} className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label htmlFor="occupation" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Occupation *</Label>
@@ -347,22 +364,34 @@ export default function ParentSignUpPage() {
                 value={formData.schoolCode}
                 onChange={async e => {
                   const code = e.target.value.toUpperCase()
+                  const requestVersion = ++schoolLookupVersion.current
+                  setSchoolVerified(false)
                   setFormData({ ...formData, schoolCode: code })
                   if (code.length >= 5) {
-                    const { getSchoolByCodeAction } = await import('@/app/actions/school')
-                    const res = await getSchoolByCodeAction(code)
-                    if (res.success && res.school) {
-                      if (!res.school.allowParents) {
-                        setError(`Parent registration is disabled for ${res.school.name}. Please contact school administration.`)
-                        toast.error(`Parent registration is disabled for ${res.school.name}`)
+                    try {
+                      const { getSchoolByCodeAction } = await import('@/app/actions/school')
+                      const res = await getSchoolByCodeAction(code)
+                      if (requestVersion !== schoolLookupVersion.current) return
+                      if (res.success && res.school) {
+                        if (!res.school.allowParents) {
+                          setSchoolVerified(false)
+                          setError(`Parent registration is disabled for ${res.school.name}. Please contact school administration.`)
+                          toast.error(`Parent registration is disabled for ${res.school.name}`)
+                        } else {
+                          setSchoolVerified(true)
+                          setError(null)
+                          toast.success(`School verified: ${res.school.name}`)
+                        }
                       } else {
-                        setError(null)
-                        toast.success(`School verified: ${res.school.name}`)
+                        setSchoolVerified(false)
+                        setError('Invalid School Code. Please verify with school admin.')
                       }
-                    } else {
-                      setError('Invalid School Code. Please verify with school admin.')
+                    } catch {
+                      if (requestVersion !== schoolLookupVersion.current) return
+                      setSchoolVerified(false)
+                      setError('Could not verify the school code. Please try again.')
                     }
-                  } else {
+                  } else if (requestVersion === schoolLookupVersion.current) {
                     setError(null)
                   }
                 }}
@@ -446,6 +475,8 @@ export default function ParentSignUpPage() {
             )}
           </div>
 
+          </section>
+          <section hidden={step !== 2} className="space-y-6">
           <div className="space-y-3">
             <Label htmlFor="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Password *</Label>
             <Input
@@ -473,11 +504,12 @@ export default function ParentSignUpPage() {
 
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || step !== steps.length - 1}
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-14 rounded-2xl font-black text-lg shadow-xl shadow-indigo-900/30 transition-all uppercase tracking-wider"
           >
             {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 'Register Parent Account'}
           </Button>
+          </section>
         </form>
       </main>
 

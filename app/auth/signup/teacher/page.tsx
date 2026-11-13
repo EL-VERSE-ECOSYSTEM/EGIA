@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/card'
@@ -10,8 +10,11 @@ import { Label } from '@/components/ui/label'
 import { GraduationCap, Loader2, AlertCircle, User, CheckCircle2, BookOpen, Plus, X, Sparkles } from 'lucide-react'
 import { registerTeacher, getRegistrationSubjects } from '@/app/actions/auth-server'
 import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
+import { RegistrationProgress } from '@/components/auth/RegistrationProgress'
 
 export default function TeacherSignUpPage() {
+  const [step, setStep] = useState(0)
+  const steps = ['Your profile', 'School & role', 'Teaching details']
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -81,10 +84,20 @@ export default function TeacherSignUpPage() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [schoolVerified, setSchoolVerified] = useState(false)
   const [generatedStaffId, setGeneratedStaffId] = useState<string | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [copied, setCopied] = useState(false)
   const router = useRouter()
+  const schoolLookupVersion = useRef(0)
+
+  const advanceStep = () => {
+    setError(null)
+    if (step === 0 && (!passportImage || !formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim() || !formData.phoneNumber.trim() || !formData.schoolCode.trim() || !schoolVerified)) return setError('Add your photo, complete your details and verify your school code to continue.')
+    if (step === 1 && (!formData.email.trim() || !formData.phoneNumber.trim() || !formData.schoolCode.trim() || formData.password.length < 8 || !formData.resumptionDate)) return setError('Complete your school, contact, password and employment details to continue.')
+    if (step === 2 && !formData.bio.trim()) return setError('Add a short professional bio to continue.')
+    setStep(value => Math.min(steps.length - 1, value + 1))
+  }
 
   // Class / Days options
   const classesList = ['Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3']
@@ -126,7 +139,8 @@ export default function TeacherSignUpPage() {
     }
 
     if (!passportImage) {
-      return alert('Please upload a passport photograph.')
+      setError('Please upload a passport photograph.')
+      return
     }
 
     setLoading(true)
@@ -213,7 +227,9 @@ export default function TeacherSignUpPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form noValidate onSubmit={handleSubmit} className="space-y-6">
+          <RegistrationProgress steps={steps} currentStep={step} onBack={() => setStep(value => Math.max(0, value - 1))} onNext={advanceStep} accentClass="bg-teal-600" />
+          <section hidden={step !== 0} className="space-y-6">
           {/* Passport picture Upload Block */}
           <div className="flex flex-col items-center justify-center p-6 bg-slate-950 rounded-3xl border border-slate-800 space-y-4">
             <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Passport Photograph *</Label>
@@ -322,14 +338,25 @@ export default function TeacherSignUpPage() {
                 value={formData.schoolCode}
                 onChange={async e => {
                   const code = e.target.value.toUpperCase()
+                  const requestVersion = ++schoolLookupVersion.current
+                  setSchoolVerified(false)
                   setFormData({ ...formData, schoolCode: code })
                   if (code.length >= 5) {
-                    const { getSchoolByCodeAction } = await import('@/app/actions/school')
-                    const res = await getSchoolByCodeAction(code)
-                    if (res.success && res.school) {
-                      setError(null)
-                    } else {
-                      setError('Invalid School Registration Code. Please verify with your school administration.')
+                    try {
+                      const { getSchoolByCodeAction } = await import('@/app/actions/school')
+                      const res = await getSchoolByCodeAction(code)
+                      if (requestVersion !== schoolLookupVersion.current) return
+                      if (res.success && res.school) {
+                        setSchoolVerified(true)
+                        setError(null)
+                      } else {
+                        setSchoolVerified(false)
+                        setError('Invalid School Registration Code. Please verify with your school administration.')
+                      }
+                    } catch {
+                      if (requestVersion !== schoolLookupVersion.current) return
+                      setSchoolVerified(false)
+                      setError('Could not verify the school code. Please try again.')
                     }
                   }
                 }}
@@ -339,6 +366,8 @@ export default function TeacherSignUpPage() {
             </div>
           </div>
 
+          </section>
+          <section hidden={step !== 1} className="space-y-6">
           <div className="space-y-3">
             <Label htmlFor="password" className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Password *</Label>
             <Input
@@ -493,6 +522,8 @@ export default function TeacherSignUpPage() {
             </div>
           )}
 
+          </section>
+          <section hidden={step !== 2} className="space-y-6">
           {/* Dual Role Teacher + Parent Setup Checkbox */}
           <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
             <div className="flex items-center space-x-3">
@@ -538,11 +569,12 @@ export default function TeacherSignUpPage() {
 
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || step !== steps.length - 1}
             className="w-full bg-teal-600 hover:bg-teal-500 text-white h-14 rounded-2xl font-black text-lg shadow-xl shadow-teal-900/30 transition-all uppercase tracking-wider"
           >
             {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 'Register Staff Member'}
           </Button>
+          </section>
         </form>
       </main>
 

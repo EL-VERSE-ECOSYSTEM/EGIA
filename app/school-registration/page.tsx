@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { LogoUploadField } from '@/components/uploads/LogoUploadField'
 import { ProofOfAddressUploadField } from '@/components/uploads/ProofOfAddressUploadField'
+import { RegistrationProgress } from '@/components/auth/RegistrationProgress'
 
 const AVAILABLE_CLASSES = [
   'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
@@ -32,7 +33,23 @@ const AVAILABLE_CLASSES = [
   'SSS1', 'SSS2', 'SSS3'
 ]
 
+type SchoolApplicationState = {
+  applicationId?: string
+  schoolId?: string | null
+  schoolCode?: string
+  paymentReference?: string | null
+  checkoutUrl?: string | null
+  schoolName?: string
+  paymentStatus?: string
+  documentVerificationStatus?: string
+  approvalStatus?: string
+  rejectionReason?: string | null
+}
+
 export default function SchoolRegistrationPage() {
+  const [step, setStep] = useState(0)
+  const [termsAccepted, setTermsAccepted] = useState(false)
+  const steps = ['School profile', 'Applicant & payment']
   const [formData, setFormData] = useState({
     name: '',
     location: '',
@@ -73,14 +90,13 @@ export default function SchoolRegistrationPage() {
   }
 
   // Application / Checkout state
-  const [appState, setAppState] = useState<any>(null)
+  const [appState, setAppState] = useState<SchoolApplicationState | null>(null)
   const [documentType, setDocumentType] = useState('ELECTRICITY_BILL')
   const [documentUrl, setDocumentTypeUrl] = useState('')
   const [uploadingDoc, setUploadingDoc] = useState(false)
 
   // Logo Re-upload Modal State
   const [showLogoModal, setShowLogoModal] = useState(false)
-  const [reuploadingLogo, setReuploadingLogo] = useState(false)
 
   // Post-payment OTP Verification & Glassy UI state
   const [showOtpStep, setShowOtpStep] = useState(false)
@@ -122,6 +138,11 @@ export default function SchoolRegistrationPage() {
       return
     }
 
+    if (!termsAccepted) {
+      setErrorMessage('Please accept the terms and policies to continue.')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -154,8 +175,8 @@ export default function SchoolRegistrationPage() {
       } else {
         setSuccessMessage('School application submitted! Please complete subscription payment and upload proof of address.')
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'An unexpected error occurred.')
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'An unexpected error occurred.')
     } finally {
       setLoading(false)
     }
@@ -167,12 +188,12 @@ export default function SchoolRegistrationPage() {
     setErrorMessage('')
     const confirmRes = await confirmSchoolPaymentAction(appState.paymentReference)
     if (confirmRes.success) {
-      setAppState((prev: any) => ({
+      setAppState((prev) => prev ? ({
         ...prev,
         paymentStatus: 'SUCCESS',
         documentVerificationStatus: confirmRes.documentVerificationStatus || prev.documentVerificationStatus,
         approvalStatus: confirmRes.approvalStatus || prev.approvalStatus,
-      }))
+      }) : prev)
       setShowOtpStep(true)
       setSuccessMessage('Payment verified successfully! Please enter the OTP sent to your registered device.')
     } else {
@@ -187,7 +208,7 @@ export default function SchoolRegistrationPage() {
     setErrorMessage('')
     const result = await retrySchoolRegistrationPaymentAction(appState.applicationId)
     if (result.success) {
-      setAppState((prev: any) => ({ ...prev, paymentReference: result.paymentReference, checkoutUrl: result.checkoutUrl }))
+      setAppState((prev) => prev ? ({ ...prev, paymentReference: result.paymentReference, checkoutUrl: result.checkoutUrl }) : prev)
       setSuccessMessage('Paystack checkout is ready. Complete payment to continue.')
     } else {
       setErrorMessage(result.error || 'Paystack checkout could not be started.')
@@ -223,10 +244,10 @@ export default function SchoolRegistrationPage() {
     )
 
     if (res.success) {
-      setAppState((prev: any) => ({
+      setAppState((prev) => prev ? ({
         ...prev,
         documentVerificationStatus: 'PENDING',
-      }))
+      }) : prev)
       setSuccessMessage('Proof of address document submitted successfully! Application is now under Super-Admin review.')
     } else {
       setErrorMessage(res.error || 'Document submission failed.')
@@ -239,13 +260,13 @@ export default function SchoolRegistrationPage() {
     setLoading(true)
     const statusRes = await getSchoolApplicationStatusAction(appState.applicationId)
     if (statusRes.success && statusRes.application) {
-      setAppState((prev: any) => ({
+      setAppState((prev) => prev ? ({
         ...prev,
         paymentStatus: statusRes.application.paymentStatus,
         documentVerificationStatus: statusRes.application.documentVerificationStatus,
         approvalStatus: statusRes.application.approvalStatus,
         rejectionReason: statusRes.application.rejectionReason,
-      }))
+      }) : prev)
     }
     setLoading(false)
   }
@@ -520,7 +541,26 @@ export default function SchoolRegistrationPage() {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form noValidate onSubmit={handleSubmit} className="space-y-6">
+            <RegistrationProgress
+              steps={steps}
+              currentStep={step}
+              onBack={() => setStep(value => Math.max(0, value - 1))}
+              onNext={() => {
+                setErrorMessage('')
+                if (!formData.name.trim() || !formData.location.trim()) {
+                  setErrorMessage('Enter the school name and location to continue.')
+                  return
+                }
+                if (selectedClasses.length === 0) {
+                  setErrorMessage('Select at least one class to continue.')
+                  return
+                }
+                setStep(1)
+              }}
+              accentClass="bg-blue-700"
+            />
+            <section hidden={step !== 0} className="space-y-6">
             {/* School Profile */}
             <div className="space-y-4">
               <h2 className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-2">
@@ -650,6 +690,8 @@ export default function SchoolRegistrationPage() {
             </div>
 
             {/* Applicant Details & Document Verification */}
+            </section>
+            <section hidden={step !== 1} className="space-y-6">
             <div className="space-y-4">
               <h2 className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-2">
                 <Building2 className="w-4 h-4" /> Applicant Details & Password Security
@@ -770,7 +812,8 @@ export default function SchoolRegistrationPage() {
               <input
                 type="checkbox"
                 id="school_terms_consent"
-                required
+                checked={termsAccepted}
+                onChange={e => setTermsAccepted(e.target.checked)}
                 className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-slate-950 text-blue-600 focus:ring-blue-500"
               />
               <label htmlFor="school_terms_consent" className="text-xs text-slate-300 font-medium leading-relaxed">
@@ -808,7 +851,7 @@ export default function SchoolRegistrationPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || step !== steps.length - 1}
               className="w-full py-4 rounded-2xl bg-[#1E3A8A] hover:bg-blue-800 text-white font-black text-sm uppercase tracking-wider shadow-xl shadow-blue-900/30 transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? (
@@ -820,6 +863,7 @@ export default function SchoolRegistrationPage() {
                 </>
               )}
             </button>
+            </section>
           </form>
         )}
       </main>
