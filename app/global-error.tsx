@@ -18,8 +18,9 @@ export default function GlobalError({
           </div>
           <h1 className="text-2xl font-black">System Recovery Mode</h1>
           <p className="text-slate-400 text-xs font-semibold leading-relaxed">
-            A critical unexpected system error occurred. Click below to re-initialize your session smoothly.
+            {error.message || 'A critical application error prevented this page from loading.'}
           </p>
+          {error.digest && <p className="text-xs font-mono text-slate-500">Reference: {error.digest}</p>}
           <button
             onClick={() => reset()}
             className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl h-12 text-xs uppercase tracking-wider flex items-center justify-center gap-2"

@@ -49,9 +49,9 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
 
   const configMap = {
     'super-admin': {
-      color: 'bg-slate-950 border-r border-indigo-500/20',
-      activeColor: 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-black shadow-indigo-500/20',
-      hoverColor: 'hover:bg-indigo-500/10 hover:text-indigo-300',
+      color: 'bg-slate-950 border-r border-amber-500/20',
+      activeColor: 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black shadow-amber-500/20',
+      hoverColor: 'hover:bg-amber-500/10 hover:text-amber-300',
       links: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/super-admin/overview' },
         { label: 'Learn AI Chat', icon: Sparkles, href: '/dashboard/learn-ai' },
@@ -86,9 +86,9 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       ]
     },
     admin: {
-      color: 'bg-slate-900 border-r border-amber-500/20',
-      activeColor: 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-amber-500/20',
-      hoverColor: 'hover:bg-amber-500/10 hover:text-amber-300',
+      color: 'bg-slate-900 border-r border-purple-500/20',
+      activeColor: 'bg-gradient-to-r from-purple-600 to-purple-700 text-white font-black shadow-purple-500/20',
+      hoverColor: 'hover:bg-purple-500/10 hover:text-purple-300',
       links: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/admin/overview' },
         { label: 'Learn AI Chat', icon: Sparkles, href: '/dashboard/learn-ai' },
@@ -110,9 +110,9 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       ]
     },
     teacher: {
-      color: 'bg-slate-950 border-r border-purple-500/20',
-      activeColor: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-purple-600/20',
-      hoverColor: 'hover:bg-purple-500/10 hover:text-purple-300',
+      color: 'bg-slate-950 border-r border-red-500/20',
+      activeColor: 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-red-600/20',
+      hoverColor: 'hover:bg-red-500/10 hover:text-red-300',
       links: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/teacher/overview' },
         { label: 'Learn AI Chat', icon: Sparkles, href: '/dashboard/learn-ai' },
@@ -132,9 +132,9 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       ]
     },
     parent: {
-      color: 'bg-slate-950 border-r border-emerald-500/20',
-      activeColor: 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-emerald-600/20',
-      hoverColor: 'hover:bg-emerald-500/10 hover:text-emerald-300',
+      color: 'bg-slate-950 border-r border-blue-500/20',
+      activeColor: 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-blue-600/20',
+      hoverColor: 'hover:bg-blue-500/10 hover:text-blue-300',
       links: [
         { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/parent/overview' },
         { label: 'Learn AI Chat', icon: Sparkles, href: '/dashboard/learn-ai' },
@@ -151,9 +151,9 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
       ]
     },
     student: {
-      color: 'bg-slate-950 border-r border-orange-500/20',
-      activeColor: 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black shadow-orange-500/20',
-      hoverColor: 'hover:bg-orange-500/10 hover:text-orange-300',
+      color: 'bg-slate-950 border-r border-green-500/20',
+      activeColor: 'bg-gradient-to-r from-green-600 to-green-700 text-white font-black shadow-green-500/20',
+      hoverColor: 'hover:bg-green-500/10 hover:text-green-300',
       links: [
         { label: 'Dashboard Overview', icon: LayoutDashboard, href: '/dashboard/student/overview' },
         { label: 'Learn AI Chat', icon: Sparkles, href: '/dashboard/learn-ai' },

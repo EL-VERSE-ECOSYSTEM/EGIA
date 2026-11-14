@@ -6,6 +6,7 @@ import { TimeThemeProvider } from '@/components/TimeThemeProvider'
 import { FloatingSupportWidget } from '@/components/support/FloatingSupportWidget'
 import { FloatingLearnAiWidget } from '@/components/learn-ai/FloatingLearnAiWidget'
 import { CookieConsentBanner } from '@/components/CookieConsentBanner'
+import { SessionInactivityGuard } from '@/components/auth/SessionInactivityGuard'
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_SITE_URL || 'https://el-goodnews-academy.com'
 
@@ -111,6 +112,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased flex flex-col min-h-screen">
         <RealtimeProvider>
+          <SessionInactivityGuard />
           <TimeThemeProvider />
           <div className="flex-1">
             {children}

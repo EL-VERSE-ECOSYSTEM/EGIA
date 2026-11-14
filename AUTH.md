@@ -16,3 +16,12 @@ Users can log into the platform using any of the following credentials:
 - `TEACHER`: Educator portal, CBT grading, attendance, and lesson notes (`/dashboard/teacher/overview`).
 - `STUDENT` / `PUPIL`: CBT exams, games, study materials, and timetable (`/dashboard/student/overview`).
 - `PARENT`: Multi-ward academic monitoring, report cards, and fee payments (`/dashboard/parent/overview`).
+
+## Session inactivity and CBT fee clearance
+
+- The browser signs authenticated users out after 150 seconds without pointer, keyboard, touch, or scroll activity. Activity timestamps are shared between same-origin tabs/windows; the guard signs out through Supabase Auth and returns the user to sign-in.
+- Student and pupil CBT access requires at least 75% of the active fee schedule for their school, class, and department to be covered by successful, approved, or cleared payment records. The server checks clearance when listing CBTs, verifying exam codes, loading questions, starting a session, and submitting results.
+- Exam access codes are verified server-side and are never included in the student CBT listing response. Invalid attempts are rate-limited per signed-in user.
+- When a student is below the fee threshold, the student CBT page shows the amount/progress and the linked parent portal displays a reminder. A push/in-app reminder is sent to the student and linked parent at most once per 24 hours when either portal checks clearance.
+
+The inactivity timer is a browser-session control; API/server authorization and Supabase token/session expiry remain necessary and must not rely on the client timer as an authorization boundary.

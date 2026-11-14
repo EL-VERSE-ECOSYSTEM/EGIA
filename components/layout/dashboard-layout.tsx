@@ -11,6 +11,8 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { SchoolRenewalReminderWidget } from '@/components/school/SchoolRenewalReminderWidget'
 import { StudentRegistrationLockoutWidget } from '@/components/student/StudentRegistrationLockoutWidget'
 import { MobileNav } from '@/components/layout/mobile-nav'
+import { getParentCbtFeeAlerts } from '@/app/actions/assessments'
+import { toast } from 'sonner'
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
@@ -80,6 +82,32 @@ export default function DashboardLayout({
     }
   }, [])
 
+  useEffect(() => {
+    if (activeRole !== 'parent') return
+
+    let active = true
+    getParentCbtFeeAlerts()
+      .then((alerts) => {
+        if (!active || alerts.length === 0) return
+        const key = `el-learners:fee-alert:${new Date().toISOString().slice(0, 10)}`
+        if (window.sessionStorage.getItem(key)) return
+        window.sessionStorage.setItem(key, 'shown')
+        toast.warning('School fee payment needed', {
+          description: alerts.map((alert) =>
+            `${alert.studentName}: ${alert.paidPercentage.toFixed(1)}% paid; ${alert.requiredPercentage}% is required for CBT access.`,
+          ).join(' '),
+          duration: 10_000,
+        })
+      })
+      .catch((error: unknown) => {
+        console.error('Could not load linked student fee clearance alerts:', error)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [activeRole])
+
   const handleInstallClick = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt()
@@ -97,28 +125,28 @@ export default function DashboardLayout({
 
   const themeColors = {
     'super-admin': {
-      btn: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100 border-indigo-500',
-      text: 'text-indigo-600'
+      btn: 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-amber-100 border-amber-400',
+      text: 'text-amber-600'
     },
     student: {
-      btn: 'bg-orange-600 hover:bg-orange-700 text-white shadow-orange-100 border-orange-500',
-      text: 'text-orange-600'
+      btn: 'bg-green-600 hover:bg-green-700 text-white shadow-green-100 border-green-500',
+      text: 'text-green-600'
     },
     parent: {
-      btn: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100 border-emerald-500',
-      text: 'text-emerald-600'
+      btn: 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-100 border-blue-500',
+      text: 'text-blue-600'
     },
     teacher: {
+      btn: 'bg-red-600 hover:bg-red-700 text-white shadow-red-100 border-red-500',
+      text: 'text-red-600'
+    },
+    admin: {
       btn: 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-100 border-purple-500',
       text: 'text-purple-600'
     },
-    admin: {
-      btn: 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-100 border-amber-500',
-      text: 'text-amber-600'
-    },
   }[activeRole] || {
-    btn: 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-100 border-amber-500',
-    text: 'text-amber-600'
+    btn: 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-100 border-purple-500',
+    text: 'text-purple-600'
   }
 
   const profileHref = {

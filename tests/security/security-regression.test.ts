@@ -5,6 +5,7 @@ import { verifyDocumentAccessAuthorization } from '../../lib/storage-media'
 import { rateLimit } from '../../lib/rate-limit'
 import { getRedirectUrlForIdentity } from '../../lib/auth/redirectMap'
 import { canSchoolAdminAccess } from '../../lib/auth/school-admin-permissions'
+import { getCbtFeeClearance } from '../../lib/fees/cbt-clearance'
 
 test('Multi-tenant storage document access prevents cross-school leaking', () => {
   // A teacher from school A requesting a document owned by school B must be denied
@@ -81,4 +82,33 @@ test('School admin levels isolate financial and promotion permissions', () => {
   assert.equal(canSchoolAdminAccess('HOD_SCIENCE', 'update', 'student', 'expulsion'), false)
   assert.equal(canSchoolAdminAccess('HOD_SCIENCE', 'update', 'teacher', 'teacher promotion'), false)
   assert.equal(canSchoolAdminAccess('HOD_SCIENCE', 'create', 'payment'), false)
+})
+
+test('CBT fee clearance requires 75% of active class fees and excludes pending payments', () => {
+  const feeSchedule = [
+    { feeType: 'tuition', department: null, amount: '1000' },
+    { feeType: 'lab', department: 'SCIENCE', amount: '500' },
+    { feeType: 'lab', department: null, amount: '250' },
+  ]
+  const belowThreshold = getCbtFeeClearance(
+    feeSchedule,
+    [
+      { feeType: 'tuition', amount: '1000', status: 'success' },
+      { feeType: 'lab', amount: '200', status: 'pending' },
+    ],
+    'SCIENCE',
+  )
+  assert.equal(belowThreshold.totalDue, 1500)
+  assert.equal(belowThreshold.totalPaid, 1000)
+  assert.equal(belowThreshold.eligible, false)
+
+  const atThreshold = getCbtFeeClearance(
+    feeSchedule,
+    [
+      { feeType: 'tuition', amount: '1000', status: 'success' },
+      { feeType: 'lab', amount: '125', status: 'approved' },
+    ],
+    'SCIENCE',
+  )
+  assert.equal(atThreshold.eligible, true)
 })

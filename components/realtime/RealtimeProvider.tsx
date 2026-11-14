@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { REALTIME_SUBSCRIBE_STATES } from "@supabase/supabase-js";
 import { Toaster, toast } from "sonner";
+import { AlertTriangle, CheckCircle2, Info, LoaderCircle, TriangleAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { createMessageQueue } from "@/lib/async-message-queue";
 import { LiveIndicator } from "./LiveIndicator";
@@ -90,7 +91,25 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <RealtimeContext.Provider value={value}>
         {children}
-        <Toaster richColors position="top-right" />
+        <Toaster
+          richColors
+          closeButton
+          position="top-right"
+          icons={{
+            success: <CheckCircle2 className="h-4 w-4 animate-icon-bounce" aria-hidden="true" />,
+            info: <Info className="h-4 w-4 animate-icon-pulse" aria-hidden="true" />,
+            warning: <TriangleAlert className="h-4 w-4 animate-icon-wiggle" aria-hidden="true" />,
+            error: <AlertTriangle className="h-4 w-4 animate-icon-wiggle" aria-hidden="true" />,
+            loading: <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />,
+          }}
+          toastOptions={{
+            classNames: {
+              toast: "rounded-2xl border shadow-xl",
+              title: "font-semibold",
+              description: "text-sm opacity-90",
+            },
+          }}
+        />
         <LiveIndicator />
       </RealtimeContext.Provider>
     </QueryClientProvider>

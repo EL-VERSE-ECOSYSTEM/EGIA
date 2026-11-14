@@ -12,7 +12,7 @@ export default function Error({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error('Unhandled app error:', error)
+    console.error('Unhandled app error:', { message: error.message, digest: error.digest })
   }, [error])
 
   return (
@@ -23,8 +23,9 @@ export default function Error({
       <div className="max-w-md space-y-2">
         <h1 className="text-3xl font-black">Something went wrong!</h1>
         <p className="text-slate-400 text-sm font-semibold leading-relaxed">
-          The application encountered an unexpected issue. Don't worry, your data is safe and our resilient system captured the event.
+          {error.message || 'The application could not complete this page request.'}
         </p>
+        {error.digest && <p className="text-xs font-mono text-slate-500">Reference: {error.digest}</p>}
       </div>
 
       <div className="flex gap-4">

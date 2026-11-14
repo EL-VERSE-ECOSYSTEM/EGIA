@@ -1,4 +1,4 @@
-export type NotificationKind = "assessment_result" | "payment" | "attendance" | "announcement" | "message" | "dispute" | "reminder";
+export type NotificationKind = "assessment_result" | "payment" | "payment_reminder" | "attendance" | "announcement" | "message" | "dispute" | "reminder";
 
 export type PushNotification = {
   title: string;

@@ -21,6 +21,12 @@
 3. If dashboard live refresh is required, enable Supabase Realtime for the tables consumed by the role-specific subscriptions and retain the polling fallback.
 4. Apply `202611120002_secure_payment_receipts.sql` before enabling manual transfer receipts; receipt metadata is server-written and file uploads are scoped to the signed-in parent's linked student.
 
+## CBT fee eligibility and reminders
+
+- CBT access is gated at 75% of the active class/department fee schedule. Only payment rows for that student and school in `success`, `approved`, or `cleared` status count toward the threshold.
+- Fee clearance is enforced by server actions as well as shown in the student CBT portal; hiding or disabling a client-side button is not the security control.
+- Student and linked-parent push/in-app reminders are deduplicated to once per 24 hours when the parent dashboard or student CBT clearance is checked. Ensure FCM credentials and device subscriptions are configured for push delivery.
+
 ## Release checks requiring external credentials
 
 - Verify Paystack test-mode checkout end to end with a disposable test payment: initialization, redirect, callback, webhook, database status, and exactly-once fulfillment. Do not use a real card or create a live charge for routine checks.

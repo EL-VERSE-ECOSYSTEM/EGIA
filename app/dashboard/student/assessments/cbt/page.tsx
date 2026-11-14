@@ -1,30 +1,42 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { getApprovedCBTs } from '@/app/actions/assessments'
+import { getApprovedCBTs, getStudentCbtFeeStatus, verifyCbtAccessCode } from '@/app/actions/assessments'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
-import { BookOpen, Key, Lock, Unlock, ArrowRight, Clock, HelpCircle } from 'lucide-react'
+import { BookOpen, Key, Lock, Unlock, ArrowRight, Clock, HelpCircle, CircleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
 export default function StudentCBTDashboard() {
   const router = useRouter()
-  const [assessments, setAssessments] = useState<any[]>([])
+  const [assessments, setAssessments] = useState<Awaited<ReturnType<typeof getApprovedCBTs>>>([])
   const [loading, setLoading] = useState(true)
   const [enteredCodes, setEnteredCodes] = useState<Record<string, string>>({})
   const [unlockedExams, setUnlockedExams] = useState<Record<string, boolean>>({})
+  const [feeClearance, setFeeClearance] = useState<Awaited<ReturnType<typeof getStudentCbtFeeStatus>> | null>(null)
+  const feeAlertShown = useRef(false)
 
   const fetchCBTs = async () => {
     try {
-      const data = await getApprovedCBTs()
+      const [data, clearance] = await Promise.all([getApprovedCBTs(), getStudentCbtFeeStatus()])
       setAssessments(data)
+      setFeeClearance(clearance)
+      if (!clearance.eligible && !feeAlertShown.current) {
+        feeAlertShown.current = true
+        toast.warning('CBT access is temporarily locked', {
+          description: `At least ${clearance.requiredPercentage}% of school fees must be paid. Recorded payment: ${clearance.paidPercentage.toFixed(1)}%.`,
+          duration: 10_000,
+        })
+      }
     } catch (err) {
-      toast.error('Failed to load CBT assessments')
+      toast.error('Could not load CBT access', {
+        description: err instanceof Error ? err.message : 'Check your connection and try again.',
+      })
     } finally {
       setLoading(false)
     }
@@ -39,13 +51,17 @@ export default function StudentCBTDashboard() {
     fetchCBTs()
   })
 
-  const handleVerifyCode = (cbtId: string, correctCode: string) => {
-    const input = enteredCodes[cbtId]?.trim().toUpperCase()
-    if (input === correctCode?.trim().toUpperCase()) {
+  const handleVerifyCode = async (cbtId: string) => {
+    const input = enteredCodes[cbtId]?.trim()
+    try {
+      await verifyCbtAccessCode(cbtId, input || '')
+      window.sessionStorage.setItem(`cbt-access-code:${cbtId}`, input || '')
       setUnlockedExams(prev => ({ ...prev, [cbtId]: true }))
       toast.success('Exam unlocked successfully!')
-    } else {
-      toast.error('Incorrect access code. Please check and try again.')
+    } catch (err) {
+      toast.error('Exam could not be unlocked', {
+        description: err instanceof Error ? err.message : 'Check the code provided by your school and try again.',
+      })
     }
   }
 
@@ -65,6 +81,24 @@ export default function StudentCBTDashboard() {
             Access your real-time Assessment CBTs and unlock Exam CBTs using codes provided by the administration.
           </p>
         </div>
+
+        {feeClearance && !feeClearance.eligible && (
+          <div role="alert" className="flex items-start gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950 shadow-sm">
+            <CircleAlert className="mt-0.5 h-6 w-6 shrink-0 animate-icon-pulse text-amber-700" aria-hidden="true" />
+            <div className="space-y-1">
+              <p className="font-bold">CBT access is temporarily locked</p>
+              <p className="text-sm">
+                At least {feeClearance.requiredPercentage}% of school fees must be paid. Our records show
+                {' '}{feeClearance.paidPercentage.toFixed(1)}% paid
+                {feeClearance.totalDue > 0 && ` (₦${feeClearance.totalPaid.toLocaleString()} of ₦${feeClearance.totalDue.toLocaleString()})`}.
+                Contact your school office if a recent payment is missing.
+              </p>
+              <a href="/dashboard/student/payments" className="inline-flex pt-1 text-sm font-bold text-amber-900 underline underline-offset-2">
+                Review school fee payments
+              </a>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="p-20 text-center font-bold text-slate-400">Loading assessments...</div>
@@ -105,6 +139,7 @@ export default function StudentCBTDashboard() {
                       </div>
                       <Button
                         onClick={() => handleTakeExam(cbt.id)}
+                        disabled={feeClearance?.eligible === false}
                         className="bg-purple-600 hover:bg-purple-700 font-black rounded-xl h-12 px-6 shadow-lg shadow-purple-100 gap-2 text-white"
                       >
                         TAKE ASSESSMENT <ArrowRight className="w-4 h-4" />
@@ -170,7 +205,8 @@ export default function StudentCBTDashboard() {
                               />
                             </div>
                             <Button
-                              onClick={() => handleVerifyCode(cbt.id, cbt.accessCode || '')}
+                              onClick={() => handleVerifyCode(cbt.id)}
+                              disabled={feeClearance?.eligible === false}
                               className="bg-orange-600 hover:bg-orange-700 text-white font-black rounded-xl h-12 px-6"
                             >
                               UNLOCK

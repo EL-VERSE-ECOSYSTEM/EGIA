@@ -63,7 +63,8 @@ export default function CBTExamTakingPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const data = await getLoggedInStudentAndQuestions(assessmentId)
+        const accessCode = window.sessionStorage.getItem(`cbt-access-code:${assessmentId}`) || undefined
+        const data = await getLoggedInStudentAndQuestions(assessmentId, accessCode)
         if (data) {
           setStudentId(data.studentId)
           setQuestions(data.questions)
@@ -293,7 +294,8 @@ export default function CBTExamTakingPage() {
 
   const startExam = async () => {
     try {
-      await startCbtSession(assessmentId)
+      const accessCode = window.sessionStorage.getItem(`cbt-access-code:${assessmentId}`) || undefined
+      await startCbtSession(assessmentId, accessCode)
     } catch (error) {
       const { toast } = await import('sonner')
       toast.error(error instanceof Error ? error.message : 'Could not start the CBT session.')

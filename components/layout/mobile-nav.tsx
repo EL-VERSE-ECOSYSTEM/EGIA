@@ -28,8 +28,8 @@ export function MobileNav({ role, onOpenSidebar }: MobileNavProps) {
 
   const configMap = {
     admin: {
-      activeColor: 'text-amber-500 font-black',
-      activeBg: 'bg-amber-500/10 border-amber-500/30 text-amber-500',
+      activeColor: 'text-purple-400 font-black',
+      activeBg: 'bg-purple-500/10 border-purple-500/30 text-purple-400',
       items: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/admin/overview' },
         { label: 'Students', icon: Users, href: '/dashboard/admin/users/students/list' },
@@ -38,8 +38,8 @@ export function MobileNav({ role, onOpenSidebar }: MobileNavProps) {
       ],
     },
     teacher: {
-      activeColor: 'text-purple-400 font-black',
-      activeBg: 'bg-purple-500/10 border-purple-500/30 text-purple-400',
+      activeColor: 'text-red-400 font-black',
+      activeBg: 'bg-red-500/10 border-red-500/30 text-red-400',
       items: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/teacher/overview' },
         { label: 'Classes', icon: School, href: '/dashboard/teacher/my-classes' },
@@ -48,8 +48,8 @@ export function MobileNav({ role, onOpenSidebar }: MobileNavProps) {
       ],
     },
     parent: {
-      activeColor: 'text-emerald-400 font-black',
-      activeBg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+      activeColor: 'text-blue-400 font-black',
+      activeBg: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
       items: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/parent/overview' },
         { label: 'Children', icon: Users, href: '/dashboard/parent/children/list' },
@@ -58,8 +58,8 @@ export function MobileNav({ role, onOpenSidebar }: MobileNavProps) {
       ],
     },
     student: {
-      activeColor: 'text-orange-400 font-black',
-      activeBg: 'bg-orange-500/10 border-orange-500/30 text-orange-400',
+      activeColor: 'text-green-400 font-black',
+      activeBg: 'bg-green-500/10 border-green-500/30 text-green-400',
       items: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/student/overview' },
         { label: 'Wallet', icon: Wallet, href: '/dashboard/student/wallet' },
@@ -68,8 +68,8 @@ export function MobileNav({ role, onOpenSidebar }: MobileNavProps) {
       ],
     },
     'super-admin': {
-      activeColor: 'text-emerald-400 font-black',
-      activeBg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+      activeColor: 'text-amber-400 font-black',
+      activeBg: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
       items: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/super-admin/overview' },
         { label: 'Schools', icon: Building2, href: '/dashboard/super-admin/overview' },
