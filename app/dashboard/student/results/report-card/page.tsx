@@ -6,7 +6,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ShieldCheck, Award, Printer, Download, Filter } from 'lucide-react'
-import { getReportCards, ReportCard } from '@/app/actions/report-cards'
+import { getOfficialReportCardPdf, getReportCards, type ReportCard } from '@/app/actions/report-cards'
+import { toast } from 'sonner'
 
 export default function StudentReportCardPage() {
   const [allReportCards, setAllReportCards] = useState<ReportCard[]>([])
@@ -48,8 +49,26 @@ export default function StudentReportCardPage() {
   const terms = Array.from(new Set(allReportCards.map(c => c.term || 'First Term')))
   const classes = Array.from(new Set(allReportCards.map(c => c.className)))
 
-  // Pure HTML5 Canvas rendering for high-quality PNG download
-  const downloadPNG = (c: ReportCard) => {
+  // Canvas exports include the uploaded school logo; the PDF remains the official full-length copy.
+  const downloadPNG = async (c: ReportCard) => {
+    const schoolLogoUrl = c.schoolLogoUrl
+    if (!schoolLogoUrl) {
+      toast.error('This school has no uploaded logo. Contact the school administrator before downloading.')
+      return
+    }
+    const logoImage = new Image()
+    logoImage.crossOrigin = 'anonymous'
+    try {
+      await new Promise<void>((resolve, reject) => {
+        logoImage.onload = () => resolve()
+        logoImage.onerror = () => reject(new Error('The school logo could not be loaded.'))
+        logoImage.src = schoolLogoUrl
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'The school logo could not be loaded.')
+      return
+    }
+
     const canvas = document.createElement('canvas')
     canvas.width = 1000
     canvas.height = 1350
@@ -77,24 +96,20 @@ export default function StudentReportCardPage() {
     ctx.fillStyle = '#F97316'
     ctx.fillRect(38, 218, canvas.width - 76, 12)
 
-    // School Logo representation on Canvas
-    ctx.fillStyle = '#EA580C' // Orange
+    ctx.save()
     ctx.beginPath()
     ctx.arc(120, 128, 45, 0, Math.PI * 2)
-    ctx.fill()
-
-    ctx.fillStyle = '#FFFFFF'
-    ctx.font = 'bold 36px sans-serif'
-    ctx.fillText('EG', 95, 140)
+    ctx.clip()
+    ctx.drawImage(logoImage, 75, 83, 90, 90)
+    ctx.restore()
 
     // School details
     ctx.fillStyle = '#FFFFFF'
     ctx.font = 'black 36px sans-serif'
-    ctx.fillText("EL LEARNERS APP", 200, 115)
+    ctx.fillText(c.schoolName || 'School', 200, 115, 740)
     ctx.font = 'bold 18px sans-serif'
     ctx.fillStyle = '#94A3B8'
-    ctx.fillText('OFFICIAL ACADEMIC REPORT TRANSCRIPT', 200, 150)
-    ctx.fillText('MOTTO: EXCELLENCE, INTEGRITY AND KNOWLEDGE', 200, 175)
+    ctx.fillText('OFFICIAL ACADEMIC REPORT CARD', 200, 150)
 
     // Student Title Section
     ctx.fillStyle = '#0F172A'
@@ -137,8 +152,8 @@ export default function StudentReportCardPage() {
     let currentY = tableTop + 50
     c.marks.forEach((m) => {
       ctx.fillStyle = '#FFFFFF'
-      ctx.fillRect(60, currentY, canvas.width - 120, 55)
-      ctx.strokeRect(60, currentY, canvas.width - 120, 55)
+      ctx.fillRect(60, currentY, canvas.width - 120, 70)
+      ctx.strokeRect(60, currentY, canvas.width - 120, 70)
 
       ctx.fillStyle = '#0F172A'
       ctx.font = 'bold 16px sans-serif'
@@ -162,7 +177,16 @@ export default function StudentReportCardPage() {
       ctx.font = 'bold 16px sans-serif'
       ctx.fillText(m.grade, 905, currentY + 32)
 
-      currentY += 55
+      const additionalScores = (m.otherScores || [])
+        .map((score) => `${score.label}: ${score.score}/${score.maxScore}`)
+        .join(' · ')
+      if (additionalScores) {
+        ctx.fillStyle = '#64748B'
+        ctx.font = '12px sans-serif'
+        ctx.fillText(additionalScores, 80, currentY + 56, 840)
+      }
+
+      currentY += 70
     })
 
     // Remarks Section
@@ -220,6 +244,24 @@ export default function StudentReportCardPage() {
 
   // PDF Download is achieved by printing a high-resolution, perfectly-fit report card print window or saving as PDF
   const downloadPDF = (c: ReportCard) => {
+    if (c.status === 'ENDORSED') {
+      void getOfficialReportCardPdf(c.id).then((file) => {
+        const binary = window.atob(file.base64)
+        const bytes = new Uint8Array(binary.length)
+        for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+        const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+        const link = document.createElement('a')
+        link.href = url
+        link.download = file.fileName
+        link.click()
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+      }).catch((error: unknown) => {
+        console.error('Could not generate official report-card PDF:', error)
+        toast.error(error instanceof Error ? error.message : 'Could not generate the official report card.')
+      })
+      return
+    }
+
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
 

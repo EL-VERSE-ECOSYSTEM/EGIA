@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, Clock3, XCircle } from 'lucide-react'
@@ -13,110 +13,114 @@ function PaystackReturnContent() {
   const [state, setState] = useState<'loading' | 'success' | 'pending' | 'failed' | 'error'>('loading')
   const [message, setMessage] = useState('Confirming your payment securely with Paystack…')
   const [showModal, setShowModal] = useState(false)
-  const [countdown, setCountdown] = useState(10)
-  const [paymentDetails, setPaymentDetails] = useState<{ amount?: string; feeType?: string; admissionNumber?: string; schoolCode?: string; schoolName?: string } | null>(null)
+  const [paymentDetails, setPaymentDetails] = useState<{ amount?: string; feeType?: string; schoolCode?: string; schoolName?: string } | null>(null)
 
-  useEffect(() => {
+  const verifyPayment = useCallback(async () => {
     if (!reference) {
       setState('error')
       setMessage('No Paystack payment reference was supplied.')
+      setShowModal(true)
       return
     }
-    verifyPaystackPayment(reference)
-      .then(result => {
-        const resStatus = result.status as 'loading' | 'success' | 'pending' | 'failed' | 'error'
-        setState(resStatus || 'failed')
-        if (result.payment) {
-          setPaymentDetails({
-            amount: result.payment.amount,
-            feeType: result.payment.feeType || undefined,
-            admissionNumber: (result as any).admissionNumber,
-            schoolCode: (result as any).schoolCode,
-            schoolName: (result as any).schoolName
-          })
-        }
-        if (resStatus === 'success') {
-          setMessage('Payment confirmed. Your account and transaction history are updated in real time with Supabase Database.')
-          setShowModal(true)
-        } else if (resStatus === 'pending') {
-          setMessage('Your payment is still processing. Please check again shortly.')
-        } else {
-          setMessage('Paystack reported that this payment was unsuccessful.')
-        }
-      })
-      .catch(error => {
-        setState('error')
-        setMessage(error instanceof Error ? error.message : 'Payment verification could not be completed.')
-      })
+    setState('loading')
+    setShowModal(false)
+    setMessage('Confirming your payment securely with Paystack…')
+    try {
+      const result = await verifyPaystackPayment(reference)
+      const resultDetails = result as typeof result & { schoolCode?: string; schoolName?: string }
+      const rawStatus = String(result.status || '').toLowerCase()
+      const resStatus = rawStatus === 'success'
+        ? 'success'
+        : ['pending', 'ongoing', 'processing'].includes(rawStatus)
+          ? 'pending'
+          : 'failed'
+      setState(resStatus)
+      if (result.payment) {
+        setPaymentDetails({
+          amount: result.payment.amount,
+          feeType: result.payment.feeType || undefined,
+          schoolCode: resultDetails.schoolCode,
+          schoolName: resultDetails.schoolName
+        })
+      }
+      if (resStatus === 'success') {
+        setMessage('Your payment has been confirmed. The payment ledger and linked account notifications have been updated.')
+      } else if (resStatus === 'pending') {
+        setMessage('Paystack has not completed this transaction yet. Your payment is still being processed; check again shortly.')
+      } else {
+        setMessage(result.error || 'Paystack could not confirm this payment. No successful payment was recorded.')
+      }
+    } catch (error) {
+      setState('error')
+      setMessage(error instanceof Error ? error.message : 'Payment verification could not be completed.')
+    } finally {
+      setShowModal(true)
+    }
   }, [reference])
 
   useEffect(() => {
-    if (!showModal) return
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [showModal])
+    void verifyPayment()
+  }, [verifyPayment])
 
   const handlePrintReceipt = () => {
     window.print()
   }
 
   const Icon = state === 'success' ? CheckCircle2 : state === 'pending' || state === 'loading' ? Clock3 : XCircle
+  const statusStyles = state === 'success'
+    ? { color: 'emerald', label: 'PAYMENT SUCCESSFUL' }
+    : state === 'pending' || state === 'loading'
+      ? { color: 'amber', label: 'PAYMENT PROCESSING' }
+      : { color: 'red', label: state === 'error' ? 'VERIFICATION ERROR' : 'PAYMENT FAILED' }
+
   return (
     <main className="min-h-screen grid place-items-center bg-slate-950 p-5 relative text-white">
-      {/* Success Modal 10 Sec Display & Receipt Download */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-slate-900 border border-emerald-500/50 rounded-[2.5rem] shadow-2xl p-8 max-w-lg w-full text-center space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 h-3 bg-emerald-500 w-full" />
-            <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 border border-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg">
-              <CheckCircle2 className="w-12 h-12" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md animate-in fade-in duration-300">
+          <div className={`relative w-full max-w-lg space-y-6 overflow-hidden rounded-[2rem] border bg-slate-900 p-8 text-center shadow-2xl animate-in zoom-in-95 duration-300 ${statusStyles.color === 'emerald' ? 'border-emerald-500/50' : statusStyles.color === 'amber' ? 'border-amber-500/50' : 'border-red-500/50'}`}>
+            <div className={`absolute left-0 top-0 h-1.5 w-full ${statusStyles.color === 'emerald' ? 'bg-emerald-500' : statusStyles.color === 'amber' ? 'bg-amber-500' : 'bg-red-500'}`} />
+            <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full shadow-lg ${statusStyles.color === 'emerald' ? 'border border-emerald-500 bg-emerald-500/20 text-emerald-400' : statusStyles.color === 'amber' ? 'border border-amber-500 bg-amber-500/20 text-amber-400' : 'border border-red-500 bg-red-500/20 text-red-400'}`}>
+              <Icon className={`h-12 w-12 ${state === 'pending' ? 'animate-pulse' : ''} ${state === 'success' ? 'animate-in zoom-in duration-500' : ''}`} />
             </div>
             <div>
-              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest px-3.5 py-1 rounded-full">
-                Payment Successful & Synced
+              <span className={`inline-flex rounded-full border px-3.5 py-1 text-[10px] font-black uppercase tracking-widest ${statusStyles.color === 'emerald' ? 'border-emerald-500/30 bg-emerald-500/20 text-emerald-300' : statusStyles.color === 'amber' ? 'border-amber-500/30 bg-amber-500/20 text-amber-300' : 'border-red-500/30 bg-red-500/20 text-red-300'}`}>
+                {statusStyles.label}
               </span>
-              <h2 className="text-3xl font-black text-white mt-3">Transaction Confirmed!</h2>
-              <p className="text-slate-400 font-bold text-xs mt-1">Ref: <span className="font-mono text-emerald-400">{reference}</span></p>
+              <h2 className="mt-3 text-3xl font-black text-white">{state === 'success' ? 'Transaction Confirmed' : state === 'pending' ? 'We’re checking your payment' : 'Payment not confirmed'}</h2>
+              <p className="mt-2 text-sm font-medium leading-relaxed text-slate-400">{message}</p>
+              <p className="mt-2 text-xs font-bold text-slate-500">Ref: <span className="font-mono text-slate-300">{reference || 'Not provided'}</span></p>
             </div>
 
-            <div className="p-5 bg-slate-950 rounded-2xl border border-slate-800 text-left space-y-2.5 text-xs font-semibold text-slate-300 font-mono">
-              <p className="flex justify-between border-b border-slate-800 pb-1.5"><span>Status:</span> <span className="text-emerald-400 font-black">PAID & VERIFIED</span></p>
-              <p className="flex justify-between border-b border-slate-800 pb-1.5"><span>Amount Paid:</span> <span className="font-bold text-white">NGN {paymentDetails?.amount ? Number(paymentDetails.amount).toLocaleString('en-NG', { minimumFractionDigits: 2 }) : '2,161.25'}</span></p>
-              {paymentDetails?.admissionNumber && (
-                <p className="flex justify-between border-b border-slate-800 pb-1.5"><span className="text-orange-400 font-bold">Admission Number:</span> <span className="font-black text-orange-400 text-sm tracking-wider">{paymentDetails.admissionNumber}</span></p>
-              )}
+            <div className="space-y-2.5 rounded-2xl border border-slate-800 bg-slate-950 p-5 text-left font-mono text-xs font-semibold text-slate-300">
+              <p className="flex justify-between border-b border-slate-800 pb-1.5"><span>Status:</span> <span className={statusStyles.color === 'emerald' ? 'font-black text-emerald-400' : statusStyles.color === 'amber' ? 'font-black text-amber-400' : 'font-black text-red-400'}>{statusStyles.label}</span></p>
+              {paymentDetails?.amount && <p className="flex justify-between border-b border-slate-800 pb-1.5"><span>Amount:</span> <span className="font-bold text-white">NGN {Number(paymentDetails.amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span></p>}
               {paymentDetails?.schoolCode && (
                 <p className="flex justify-between border-b border-slate-800 pb-1.5"><span className="text-blue-400 font-bold">School Registration Code:</span> <span className="font-black text-blue-400 text-sm tracking-wider">{paymentDetails.schoolCode}</span></p>
               )}
               {paymentDetails?.schoolName && (
                 <p className="flex justify-between border-b border-slate-800 pb-1.5"><span>School Name:</span> <span className="font-bold text-white">{paymentDetails.schoolName}</span></p>
               )}
-              <p className="flex justify-between border-b border-slate-800 pb-1.5"><span>Fee Type:</span> <span className="font-bold text-orange-400 uppercase">{paymentDetails?.feeType || 'registration'}</span></p>
+              {paymentDetails?.feeType && <p className="flex justify-between"><span>Fee Type:</span> <span className="font-bold uppercase text-orange-400">{paymentDetails.feeType}</span></p>}
               <p className="flex justify-between"><span>Payment Gateway:</span> <span className="font-bold text-blue-400">Paystack Checkout</span></p>
             </div>
 
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] font-bold text-amber-300">
-              ⏱️ Modal displaying for <span className="font-black text-amber-400">{countdown}s</span> before continuing.
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={handlePrintReceipt}
-                className="flex-1 rounded-2xl bg-slate-800 hover:bg-slate-700 h-12 flex items-center justify-center text-xs font-black text-white transition border border-slate-700"
-              >
-                Download Receipt
-              </button>
-              <Link href="/auth/signin" className="flex-1 rounded-2xl bg-emerald-600 hover:bg-emerald-500 h-12 flex items-center justify-center text-xs font-black text-white shadow-lg transition">
-                Proceed to Sign In
-              </Link>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              {state === 'success' ? (
+                <>
+                  <button onClick={handlePrintReceipt} className="flex h-12 flex-1 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 text-xs font-black text-white transition hover:bg-slate-700">Print receipt</button>
+                  <Link href="/dashboard/parent/payments/history" className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-emerald-600 text-xs font-black text-white shadow-lg transition hover:bg-emerald-500">View payment history</Link>
+                </>
+              ) : state === 'pending' ? (
+                <>
+                  <button onClick={() => setShowModal(false)} className="h-12 flex-1 rounded-2xl border border-slate-700 bg-slate-800 text-xs font-black text-white hover:bg-slate-700">Close</button>
+                  <button onClick={() => void verifyPayment()} className="h-12 flex-1 rounded-2xl bg-amber-500 text-xs font-black text-slate-950 hover:bg-amber-400">Check payment again</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => setShowModal(false)} className="h-12 flex-1 rounded-2xl border border-slate-700 bg-slate-800 text-xs font-black text-white hover:bg-slate-700">Close</button>
+                  <Link href="/dashboard/parent/payments/make-payment" className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-red-600 text-xs font-black text-white hover:bg-red-500">Return to payment portal</Link>
+                </>
+              )}
             </div>
           </div>
         </div>

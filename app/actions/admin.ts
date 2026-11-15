@@ -16,6 +16,7 @@ import {
   paymentInstallment,
   feeStructure,
   schoolAdminRoles,
+  school,
 } from '@/lib/db/schema'
 import { eq, sql, and, count, notInArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
@@ -25,6 +26,7 @@ import { randomUUID } from 'crypto'
 import { generateAdmissionNumber, isValidAdmissionNumber, generateStaffId } from '@/lib/id'
 import { studentEnrollmentSchema } from '@/lib/validators/student.schema'
 import { initializePaystackPayment } from '@/lib/payments/service'
+import { notifyPaymentStatus } from '@/lib/payments/notifications'
 
 const STUDENT_REGISTRATION_FEE = 2000
 const PAYSTACK_GATEWAY_FEE = 161.25
@@ -244,7 +246,7 @@ export async function verifyPayment(paymentId: string, status: 'success' | 'fail
   await checkAdminPermission('update', 'payment')
   const schoolId = await getAdminSchoolId()
 
-  return await db.transaction(async (tx) => {
+  const updatedPayment = await db.transaction(async (tx) => {
     const existingPayment = await tx.query.payment.findFirst({
       where: and(eq(payment.id, paymentId), eq(payment.schoolId, schoolId))
     })
@@ -280,6 +282,8 @@ export async function verifyPayment(paymentId: string, status: 'success' | 'fail
     revalidatePath('/dashboard/admin/finance/fees/pending')
     return result[0]
   })
+  await notifyPaymentStatus(updatedPayment.id, status)
+  return updatedPayment
 }
 
 export async function getAdminDashboardStats() {
@@ -621,22 +625,93 @@ export async function processBulkPromotion(data: any) {
 export async function setFees(data: { class: string, department?: string, feeType: string, amount: string, dueDate?: string, warningDate?: string }) {
   await checkAdminPermission('create', 'payment')
   const schoolId = await getAdminSchoolId()
+  const feeData = await validateFeeStructureInput(schoolId, data)
 
   const inserted = await db.insert(feeStructure).values({
     id: randomUUID(),
     schoolId,
-    class: data.class,
-    department: data.department || null,
-    feeType: data.feeType,
-    amount: data.amount,
-    dueDate: data.dueDate || null,
-    warningDate: data.warningDate || null,
+    ...feeData,
     createdAt: new Date(),
     updatedAt: new Date(),
   }).returning()
 
   revalidatePath('/dashboard/admin/finance/fees/structure')
   return inserted[0]
+}
+
+async function validateFeeStructureInput(
+  schoolId: string,
+  data: { class: string, department?: string, feeType: string, amount: string, dueDate?: string, warningDate?: string },
+) {
+  const className = data.class.trim()
+  const feeType = data.feeType.trim()
+  const department = data.department?.trim() || null
+  const amount = Number(data.amount)
+  if (!className || className.length > 80) throw new Error('Choose a valid class.')
+  if (!feeType || feeType.length > 100) throw new Error('Fee category must contain 1 to 100 characters.')
+  if (department && department.length > 80) throw new Error('Department must be no more than 80 characters.')
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 9_999_999_999.99) {
+    throw new Error('Enter a fee amount greater than zero and within the supported range.')
+  }
+
+  const schoolRecord = await db.query.school.findFirst({ where: eq(school.id, schoolId) })
+  const registeredClasses = Array.isArray(schoolRecord?.registeredClasses)
+    ? schoolRecord.registeredClasses.filter((value): value is string => typeof value === 'string')
+    : []
+  if (!registeredClasses.some((registeredClass) =>
+    registeredClass.trim().toLocaleLowerCase() === className.toLocaleLowerCase()
+  )) {
+    throw new Error('The selected class is not registered for your school.')
+  }
+
+  const normalizeDate = (value?: string) => {
+    if (!value) return null
+    const parsedDate = new Date(`${value}T00:00:00.000Z`)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+      Number.isNaN(parsedDate.getTime()) ||
+      parsedDate.toISOString().slice(0, 10) !== value) {
+      throw new Error('Enter a valid fee due or warning date.')
+    }
+    return value
+  }
+
+  return {
+    class: className,
+    department,
+    feeType,
+    amount: amount.toFixed(2),
+    dueDate: normalizeDate(data.dueDate),
+    warningDate: normalizeDate(data.warningDate),
+  }
+}
+
+export async function updateFeeStructureAction(
+  id: string,
+  data: { class: string, department?: string, feeType: string, amount: string, dueDate?: string, warningDate?: string },
+) {
+  await checkAdminPermission('update', 'payment')
+  const schoolId = await getAdminSchoolId()
+  const feeData = await validateFeeStructureInput(schoolId, data)
+  const updated = await db.update(feeStructure)
+    .set({ ...feeData, updatedAt: new Date() })
+    .where(and(eq(feeStructure.id, id), eq(feeStructure.schoolId, schoolId)))
+    .returning()
+  if (!updated[0]) throw new Error('Fee structure not found in your school.')
+  revalidatePath('/dashboard/admin/finance/fees/structure')
+  return updated[0]
+}
+
+export async function getFeeStructureClassesAction() {
+  await checkAdminPermission('read', 'class')
+  const schoolId = await getAdminSchoolId()
+  const schoolRecord = await db.query.school.findFirst({ where: eq(school.id, schoolId) })
+  if (!schoolRecord) throw new Error('School identity context missing for fee configuration.')
+  const registeredClasses = Array.isArray(schoolRecord.registeredClasses)
+    ? schoolRecord.registeredClasses.filter((value): value is string => typeof value === 'string')
+    : []
+  if (registeredClasses.length) return [...new Set(registeredClasses)]
+  const classes = await db.query.class_.findMany({ where: eq(class_.schoolId, schoolId) })
+  return [...new Set(classes.map((record) => record.name))]
 }
 
 export async function getFeeStructuresAction() {

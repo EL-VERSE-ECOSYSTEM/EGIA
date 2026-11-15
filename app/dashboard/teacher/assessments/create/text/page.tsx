@@ -6,8 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { createAssessment } from '@/app/actions/teacher'
-import { getRegistrationSubjects } from '@/app/actions/auth-server'
+import { createAssessment, getTeacherAssessmentTargets } from '@/app/actions/teacher'
 import { toast } from 'sonner'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 
@@ -16,25 +15,39 @@ export default function CreateAssessmentPage() {
   const [loading, setLoading] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [subjectId, setSubjectId] = useState('')
+  const [targetKey, setTargetKey] = useState('')
+  const [targetDepartment, setTargetDepartment] = useState('')
   const [duration, setDuration] = useState(60)
-  const [subjects, setSubjects] = useState<any[]>([])
+  const [targets, setTargets] = useState<Array<{
+    classId: string
+    className: string
+    subjectId: string
+    subjectName: string
+    departments: string[] | null
+  }>>([])
   const [type, setType] = useState('ASSESSMENT_CBT') // ASSESSMENT_CBT or EXAM_CBT
   const [questions, setQuestions] = useState([{ questionText: '', options: ['', '', '', ''], correctAnswer: '', imageUrl: '', marks: 5 }])
 
   useEffect(() => {
-    async function loadSubjects() {
+    async function loadTargets() {
       try {
-        const list = await getRegistrationSubjects()
-        setSubjects(list || [])
-        if (list && list.length > 0) {
-          setSubjectId(list[0].id)
+        const { targets: assignedTargets, teacherDepartment } = await getTeacherAssessmentTargets()
+        setTargets(assignedTargets)
+        if (assignedTargets.length > 0) {
+          setTargetKey(`${assignedTargets[0].classId}:${assignedTargets[0].subjectId}`)
+          if (teacherDepartment && assignedTargets[0].departments?.some(
+            (department) => department.toLowerCase() === teacherDepartment.toLowerCase()
+          )) {
+            setTargetDepartment(teacherDepartment)
+          }
         }
       } catch (err) {
-        console.error('Failed to load subjects:', err)
+        toast.error('Could not load your class and subject assignments', {
+          description: err instanceof Error ? err.message : 'Refresh and try again.',
+        })
       }
     }
-    loadSubjects()
+    loadTargets()
   }, [])
 
   const handleAddQuestion = () => {
@@ -50,6 +63,8 @@ export default function CreateAssessmentPage() {
 
   const handleSubmit = async () => {
     if (!title.trim()) return toast.error('Please enter an assessment title.')
+    const target = targets.find((item) => `${item.classId}:${item.subjectId}` === targetKey)
+    if (!target) return toast.error('Select an assigned class and subject.')
     if (questions.some(q => !q.questionText.trim() || !q.correctAnswer.trim())) {
       return toast.error('Please ensure all questions and correct answers are filled in.')
     }
@@ -60,7 +75,9 @@ export default function CreateAssessmentPage() {
         title,
         description,
         type,
-        subjectId,
+        subjectId: target.subjectId,
+        targetClassId: target.classId,
+        targetDepartment: targetDepartment || null,
         duration: Number(duration),
         totalMarks: questions.reduce((acc, q) => acc + q.marks, 0),
         scheduleDate: new Date(),
@@ -77,6 +94,9 @@ export default function CreateAssessmentPage() {
       setLoading(false)
     }
   }
+
+  const selectedTarget = targets.find((item) => `${item.classId}:${item.subjectId}` === targetKey)
+  const departments = selectedTarget?.departments || []
 
   return (
     <DashboardLayout role="teacher">
@@ -95,19 +115,36 @@ export default function CreateAssessmentPage() {
                 <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Mid-Term Mathematics Exam" className="h-12 rounded-xl" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-700">Subject</Label>
+                <Label className="text-xs font-bold text-slate-700">Assigned Class & Subject</Label>
                 <select
-                  value={subjectId}
-                  onChange={e => setSubjectId(e.target.value)}
+                  value={targetKey}
+                  onChange={e => {
+                    setTargetKey(e.target.value)
+                    setTargetDepartment('')
+                  }}
                   className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 outline-none"
+                  required
                 >
-                  {subjects.length === 0 ? (
-                    <option value="">General Mathematics</option>
-                  ) : (
-                    subjects.map((sub) => (
-                      <option key={sub.id} value={sub.id}>{sub.name} ({sub.code || 'SUB'})</option>
-                    ))
-                  )}
+                  <option value="">Select class and subject</option>
+                  {targets.map((target) => (
+                    <option key={`${target.classId}:${target.subjectId}`} value={`${target.classId}:${target.subjectId}`}>
+                      {target.className} — {target.subjectName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-700">Department (if applicable)</Label>
+                <select
+                  value={targetDepartment}
+                  onChange={e => setTargetDepartment(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 outline-none"
+                  disabled={!departments.length}
+                >
+                  <option value="">All departments in selected class</option>
+                  {departments.map((department) => (
+                    <option key={department} value={department}>{department}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -120,8 +157,9 @@ export default function CreateAssessmentPage() {
                   onChange={e => setType(e.target.value)}
                   className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 outline-none"
                 >
-                  <option value="ASSESSMENT_CBT">Assessment CBT (Viewable by Class, Requires Admin Approval)</option>
-                  <option value="EXAM_CBT">Exam CBT (Access code required, Requires Admin Approval)</option>
+                  <option value="ASSESSMENT_CBT">Assessment CBT (Assigned class, Requires Admin Approval)</option>
+                  <option value="EXAM_CBT">Exam CBT (6-character code, Requires Admin Approval)</option>
+                  <option value="WEEKEND_ASSIGNMENT">Weekend Assignment (Assigned class, Requires Admin Approval)</option>
                 </select>
               </div>
               <div className="space-y-2">

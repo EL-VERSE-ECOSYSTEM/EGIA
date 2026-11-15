@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,12 +8,16 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import {  Plus, Clock } from 'lucide-react'
-import { createDispute } from '@/app/actions/support'
-import { auth } from '@/lib/auth'
+import { Plus, Clock } from 'lucide-react'
+import { createDispute, getMyDisputes } from '@/app/actions/support'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { toast } from 'sonner'
 
 export default function parentDisputesPage() {
   const [isAdding, setIsAdding] = useState(false)
+  const [disputes, setDisputes] = useState<Awaited<ReturnType<typeof getMyDisputes>>>([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
     category: '',
@@ -21,18 +25,42 @@ export default function parentDisputesPage() {
     description: ''
   })
 
-  const handleSubmit = async () => {
-    if (!formData.title || !formData.category) return alert('Fill required fields')
+  const loadDisputes = async () => {
     try {
-      // In production, get user ID from session
-      await createDispute({
-        ...formData,
-        raisedById: 'parent-sim-id'
+      setDisputes(await getMyDisputes())
+    } catch (error) {
+      toast.error('Could not load your disputes', {
+        description: error instanceof Error ? error.message : 'Refresh and try again.',
       })
-      alert('Dispute ticket raised successfully')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadDisputes()
+  }, [])
+
+  useRealtimeSubscription('dispute', () => void loadDisputes())
+  useRealtimeSubscription('dispute_message', () => void loadDisputes())
+
+  const handleSubmit = async () => {
+    if (!formData.title.trim() || !formData.category || !formData.description.trim()) {
+      return toast.error('Complete the title, category, and description.')
+    }
+    setSubmitting(true)
+    try {
+      await createDispute(formData)
+      toast.success('Dispute raised successfully.')
       setIsAdding(false)
-    } catch (err) {
-      alert('Failed to raise dispute')
+      setFormData({ title: '', category: '', priority: 'MEDIUM', description: '' })
+      await loadDisputes()
+    } catch (error) {
+      toast.error('Could not raise dispute', {
+        description: error instanceof Error ? error.message : 'Try again.',
+      })
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -84,42 +112,55 @@ export default function parentDisputesPage() {
                 </div>
                 <div className="flex justify-end gap-4 pt-4">
                    <Button variant="ghost" onClick={() => setIsAdding(false)} className="rounded-xl font-black h-14 px-8">Cancel</Button>
-                   <Button onClick={handleSubmit} className="bg-emerald-600 hover:bg-emerald-700 h-14 px-10 rounded-xl font-black shadow-lg shadow-emerald-100">Raise Ticket</Button>
+                   <Button onClick={handleSubmit} disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700 h-14 px-10 rounded-xl font-black shadow-lg shadow-emerald-100">
+                     {submitting ? 'Submitting…' : 'Raise Ticket'}
+                   </Button>
                 </div>
              </CardContent>
           </Card>
         )}
 
+        {loading ? (
+          <div className="rounded-2xl bg-white p-12 text-center text-slate-500">Loading your disputes…</div>
+        ) : disputes.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-500">Your dispute history and administrator replies will appear here.</div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-           {[1,2].map(i => (
-             <Card key={i} className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-white overflow-hidden group">
-                <div className={`h-2 ${i === 1 ? 'bg-amber-400' : 'bg-emerald-500'}`} />
+           {disputes.map((item) => (
+             <Card key={item.id} className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-white overflow-hidden group">
+                <div className={`h-2 ${item.status === 'RESOLVED' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
                 <CardHeader className="p-8 pb-4">
                    <div className="flex justify-between items-start mb-4">
-                      <Badge className={`${i === 1 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'} border-none font-black px-3`}>
-                         {i === 1 ? 'OPEN' : 'RESOLVED'}
+                      <Badge className={`${item.status === 'RESOLVED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'} border-none font-black px-3`}>
+                         {item.status}
                       </Badge>
-                      <span className="text-[10px] font-black text-slate-400">#DSP-20240625-000{i}</span>
+                      <span className="text-[10px] font-black text-slate-400">{item.ticketNumber}</span>
                    </div>
                    <CardTitle className="text-lg font-black text-slate-900 group-hover:text-emerald-600 transition-colors">
-                      {i === 1 ? 'Tuition Payment Discrepancy' : 'Result Clarification JSS2'}
+                      {item.title}
                    </CardTitle>
                 </CardHeader>
                 <CardContent className="p-8 pt-0 space-y-6">
                    <p className="text-slate-500 text-sm font-medium line-clamp-2">
-                      My payment for the first term was made via bank transfer but my child's dashboard still shows pending.
+                      {item.description}
                    </p>
+                   {item.resolution && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{item.resolution}</p>}
+                   {item.messages.map((message) => (
+                     <div key={message.id} className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+                       {message.message}
+                     </div>
+                   ))}
                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                       <div className="flex items-center gap-2 text-slate-400">
                          <Clock size={14} />
-                         <span className="text-[10px] font-bold">Raised 2 days ago</span>
+                         <span className="text-[10px] font-bold">{new Date(item.updatedAt).toLocaleString()}</span>
                       </div>
-                      <Button variant="ghost" size="sm" className="rounded-lg font-black text-emerald-600 hover:bg-emerald-50">VIEW THREAD</Button>
                    </div>
                 </CardContent>
              </Card>
            ))}
         </div>
+        )}
       </div>
     </DashboardLayout>
   )

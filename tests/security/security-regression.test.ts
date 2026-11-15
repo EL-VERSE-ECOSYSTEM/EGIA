@@ -6,6 +6,7 @@ import { rateLimit } from '../../lib/rate-limit'
 import { getRedirectUrlForIdentity } from '../../lib/auth/redirectMap'
 import { canSchoolAdminAccess } from '../../lib/auth/school-admin-permissions'
 import { getCbtFeeClearance } from '../../lib/fees/cbt-clearance'
+import { generateExamAccessCode, isValidExamAccessCode } from '../../lib/assessments/access-code'
 
 test('Multi-tenant storage document access prevents cross-school leaking', () => {
   // A teacher from school A requesting a document owned by school B must be denied
@@ -111,4 +112,13 @@ test('CBT fee clearance requires 75% of active class fees and excludes pending p
     'SCIENCE',
   )
   assert.equal(atThreshold.eligible, true)
+})
+
+test('Exam CBT access codes are exactly six alphanumeric characters', () => {
+  const generated = generateExamAccessCode()
+  assert.match(generated, /^[A-Z0-9]{6}$/)
+  assert.equal(isValidExamAccessCode('a1B2c3'), true)
+  assert.equal(isValidExamAccessCode('12345'), false)
+  assert.equal(isValidExamAccessCode('1234567'), false)
+  assert.equal(isValidExamAccessCode('ABC-12'), false)
 })

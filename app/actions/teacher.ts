@@ -26,7 +26,7 @@ async function getTeacherRequestAdminScope() {
 
 export async function createAssessment(data: any) {
   const session = await auth.getSession()
-  if (!session?.user) throw new Error('Unauthorized')
+  if (!session?.user || session.user.role.toUpperCase() !== 'TEACHER') throw new Error('Unauthorized')
   const teacherProfile = await db.query.teacher.findFirst({ where: eq(teacher.userId, session.user.id) })
   if (!teacherProfile) throw new Error('Teacher profile not found')
   const teacherId = teacherProfile.id
@@ -40,25 +40,36 @@ export async function createAssessment(data: any) {
   if (!currentTerm) throw new Error('No academic term configured in database')
 
   const assessmentId = randomUUID()
-  const { title, description, subjectId, totalMarks, duration, scheduleDate, questions, type } = data
-
-  // Resolve valid subjectId
-  let validSubjectId = subjectId
-  if (!validSubjectId || validSubjectId === 'temp-subject-id') {
-    const firstSubject = await db.query.subject.findFirst()
-    if (firstSubject) {
-      validSubjectId = firstSubject.id
-    } else {
-      // Insert default subject if none exist
-      const defaultSubId = randomUUID()
-      await db.insert(subject).values({
-        id: defaultSubId,
-        name: 'General Mathematics',
-        code: 'MATH101',
-        isActive: true,
-      } as any)
-      validSubjectId = defaultSubId
-    }
+  const { title, description, subjectId, totalMarks, duration, scheduleDate, questions, type, targetClassId, targetDepartment } = data
+  if (!['ASSESSMENT_CBT', 'EXAM_CBT', 'WEEKEND_ASSIGNMENT'].includes(type)) {
+    throw new Error('Choose a supported assessment type.')
+  }
+  if (!Number.isInteger(duration) || duration < 1 || duration > 600) {
+    throw new Error('Assessment duration must be between 1 and 600 minutes.')
+  }
+  if (!teacherProfile.schoolId) throw new Error('Your teacher profile is not linked to a school.')
+  if (!targetClassId) throw new Error('Choose a class for this assessment.')
+  const targetAssignment = await db.query.teacherOnSubject.findFirst({
+    where: and(
+      eq(teacherOnSubject.teacherId, teacherId),
+      eq(teacherOnSubject.subjectId, subjectId),
+      eq(teacherOnSubject.classId, targetClassId),
+    ),
+  })
+  if (!targetAssignment) throw new Error('You can only create assessments for your assigned class and subject.')
+  const targetClass = await db.query.class_.findFirst({
+    where: and(
+      eq(class_.id, targetClassId),
+      eq(class_.schoolId, teacherProfile.schoolId),
+    ),
+  })
+  if (!targetClass) throw new Error('The selected class does not belong to your school.')
+  const validSubject = await db.query.subject.findFirst({ where: eq(subject.id, subjectId) })
+  if (!validSubject) throw new Error('Choose a valid subject.')
+  if (targetDepartment && !validSubject.departments?.some(
+    (department) => department.toLowerCase() === String(targetDepartment).toLowerCase()
+  )) {
+    throw new Error('The selected department is not configured for this subject.')
   }
 
   const result = await db.transaction(async (tx) => {
@@ -66,12 +77,18 @@ export async function createAssessment(data: any) {
       id: assessmentId,
       title: title || 'New Assessment',
       description: description || '',
-      subjectId: validSubjectId,
+      schoolId: teacherProfile.schoolId,
+      subjectId,
+      targetClassId,
+      targetDepartment: targetDepartment || null,
       termId: currentTerm.id,
       createdBy: teacherId,
       duration: duration || 60,
       type: type || 'ASSESSMENT_CBT', // ASSESSMENT_CBT or EXAM_CBT
       status: 'pending_approval', // newly created CBT starts as pending_approval for Admin review
+      scheduledDate: scheduleDate instanceof Date
+        ? scheduleDate.toISOString()
+        : typeof scheduleDate === 'string' ? scheduleDate : null,
       passingScore: 40,
       totalPoints: totalMarks || (questions ? questions.reduce((sum: number, q: any) => sum + (q.marks || 1), 0) : 100),
       createdAt: new Date(),
@@ -100,6 +117,36 @@ export async function createAssessment(data: any) {
   revalidatePath('/dashboard/teacher/assessments')
   revalidatePath('/dashboard/admin/assessments/pending')
   return result
+}
+
+export async function getTeacherAssessmentTargets() {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role.toUpperCase() !== 'TEACHER') throw new Error('Unauthorized')
+  const teacherProfile = await db.query.teacher.findFirst({
+    where: eq(teacher.userId, session.user.id),
+  })
+  if (!teacherProfile) throw new Error('Teacher profile not found.')
+
+  const targets = await db
+    .select({
+      classId: class_.id,
+      className: class_.name,
+      subjectId: subject.id,
+      subjectName: subject.name,
+      departments: subject.departments,
+    })
+    .from(teacherOnSubject)
+    .innerJoin(class_, eq(class_.id, teacherOnSubject.classId))
+    .innerJoin(subject, eq(subject.id, teacherOnSubject.subjectId))
+    .where(and(
+      eq(teacherOnSubject.teacherId, teacherProfile.id),
+      eq(class_.schoolId, teacherProfile.schoolId || ''),
+    ))
+
+  return {
+    targets,
+    teacherDepartment: teacherProfile.department,
+  }
 }
 
 export async function getTeacherProfile() {

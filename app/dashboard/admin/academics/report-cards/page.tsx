@@ -5,15 +5,26 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Check, X, Award, Loader2 } from 'lucide-react'
-import { getReportCards, endorseReportCard, rejectReportCard, ReportCard } from '@/app/actions/report-cards'
+import { Check, X, Award, Loader2, Pencil, Plus, Save, Trash2 } from 'lucide-react'
+import {
+  getReportCards,
+  endorseReportCard,
+  rejectReportCard,
+  updateReportCardScores,
+  type ReportCard,
+  type ReportCardMark,
+  type ReportCardScore,
+} from '@/app/actions/report-cards'
 
 export default function AdminReportCardsPage() {
   const [reportCards, setReportCards] = useState<ReportCard[]>([])
   const [loading, setLoading] = useState(true)
   const [feedback, setFeedback] = useState<{ [key: string]: string }>({})
   const [processing, setProcessing] = useState<{ [key: string]: boolean }>({})
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editedMarks, setEditedMarks] = useState<Record<string, ReportCardMark[]>>({})
 
   useEffect(() => {
     fetchCards()
@@ -61,6 +72,58 @@ export default function AdminReportCardsPage() {
     }
   }
 
+  const startEditing = (card: ReportCard) => {
+    setEditedMarks((current) => ({
+      ...current,
+      [card.id]: card.marks.map((mark) => ({
+        ...mark,
+        otherScores: (mark.otherScores || []).map((score) => ({ ...score })),
+      })),
+    }))
+    setEditingId(card.id)
+  }
+
+  const updateMark = (cardId: string, markIndex: number, patch: Partial<ReportCardMark>) => {
+    setEditedMarks((current) => ({
+      ...current,
+      [cardId]: current[cardId].map((mark, index) => index === markIndex ? { ...mark, ...patch } : mark),
+    }))
+  }
+
+  const updateOtherScore = (cardId: string, markIndex: number, scoreIndex: number, patch: Partial<ReportCardScore>) => {
+    const mark = editedMarks[cardId][markIndex]
+    updateMark(cardId, markIndex, {
+      otherScores: (mark.otherScores || []).map((score, index) => index === scoreIndex ? { ...score, ...patch } : score),
+    })
+  }
+
+  const addOtherScore = (cardId: string, markIndex: number) => {
+    const mark = editedMarks[cardId][markIndex]
+    updateMark(cardId, markIndex, {
+      otherScores: [...(mark.otherScores || []), { label: '', score: 0, maxScore: 10 }],
+    })
+  }
+
+  const saveScores = async (id: string) => {
+    setProcessing((current) => ({ ...current, [id]: true }))
+    try {
+      const updated = await updateReportCardScores(id, editedMarks[id])
+      setReportCards((current) => current.map((card) => card.id === id ? updated : card))
+      setEditingId(null)
+      setEditedMarks((current) => {
+        const next = { ...current }
+        delete next[id]
+        return next
+      })
+      alert('Scores saved and report card returned to pending approval.')
+    } catch (error) {
+      console.error('Could not update report-card scores:', error)
+      alert(error instanceof Error ? error.message : 'Failed to update report-card scores.')
+    } finally {
+      setProcessing((current) => ({ ...current, [id]: false }))
+    }
+  }
+
   return (
     <DashboardLayout role="admin">
       <div className="p-8 max-w-6xl mx-auto space-y-10">
@@ -84,7 +147,7 @@ export default function AdminReportCardsPage() {
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-50 pb-6">
                     <div>
                       <h3 className="text-2xl font-black text-slate-900">{c.studentName}</h3>
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">{c.className} • Compiled by Teacher</p>
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">{c.className} • {c.term} • {c.session}</p>
                     </div>
                     <Badge className={
                       c.status === 'ENDORSED' ? 'bg-emerald-50 text-emerald-700 border-none font-bold px-4 py-1.5' :
@@ -97,21 +160,72 @@ export default function AdminReportCardsPage() {
 
                   <div className="grid md:grid-cols-2 gap-8 mb-6">
                     <div className="space-y-4">
-                      <h4 className="font-black text-sm uppercase tracking-wider text-slate-400">Subject Performance</h4>
-                      <div className="space-y-2">
-                        {c.marks.map((m, idx) => (
-                          <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="font-black text-sm uppercase tracking-wider text-slate-400">Subject Performance</h4>
+                        {editingId !== c.id && (
+                          <Button type="button" variant="outline" size="sm" onClick={() => startEditing(c)} className="rounded-xl font-bold">
+                            <Pencil className="mr-1 h-4 w-4" /> Edit scores
+                          </Button>
+                        )}
+                      </div>
+                      <div className="space-y-3">
+                        {(editingId === c.id ? editedMarks[c.id] : c.marks).map((m, idx) => (
+                          <div key={`${m.subject}-${idx}`} className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div className="flex flex-wrap justify-between items-center gap-3">
                               <p className="font-bold text-slate-800">{m.subject}</p>
-                              <p className="text-xs text-slate-400 font-bold">Test: {m.testScore} | Exam: {m.examScore}</p>
+                              {editingId === c.id ? (
+                                <div className="flex items-center gap-2">
+                                  <Input aria-label={`${m.subject} test score`} type="number" min={0} max={30} step="0.5"
+                                    value={m.testScore} onChange={(event) => updateMark(c.id, idx, { testScore: Number(event.target.value) })}
+                                    className="h-9 w-24 text-center" />
+                                  <Input aria-label={`${m.subject} exam score`} type="number" min={0} max={70} step="0.5"
+                                    value={m.examScore} onChange={(event) => updateMark(c.id, idx, { examScore: Number(event.target.value) })}
+                                    className="h-9 w-24 text-center" />
+                                </div>
+                              ) : (
+                                <p className="text-xs text-slate-500 font-bold">Test: {m.testScore}/30 | Exam: {m.examScore}/70</p>
+                              )}
                             </div>
-                            <div className="text-right">
+                            {(m.otherScores || []).map((score, scoreIndex) => (
+                              <div key={scoreIndex} className="grid grid-cols-[minmax(0,1fr)_5rem_5rem_auto] gap-2 items-center">
+                                {editingId === c.id ? (
+                                  <>
+                                    <Input aria-label="Score section name" value={score.label} maxLength={60}
+                                      onChange={(event) => updateOtherScore(c.id, idx, scoreIndex, { label: event.target.value })} />
+                                    <Input aria-label="Section score" type="number" min={0} max={score.maxScore}
+                                      value={score.score} onChange={(event) => updateOtherScore(c.id, idx, scoreIndex, { score: Number(event.target.value) })} />
+                                    <Input aria-label="Section maximum" type="number" min={1} max={100}
+                                      value={score.maxScore} onChange={(event) => updateOtherScore(c.id, idx, scoreIndex, { maxScore: Number(event.target.value) })} />
+                                    <Button type="button" variant="ghost" size="icon" aria-label="Remove score section"
+                                      onClick={() => updateMark(c.id, idx, { otherScores: (m.otherScores || []).filter((_, index) => index !== scoreIndex) })}>
+                                      <Trash2 className="h-4 w-4 text-rose-500" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <p className="col-span-4 text-xs text-slate-500 font-semibold">{score.label}: {score.score}/{score.maxScore}</p>
+                                )}
+                              </div>
+                            ))}
+                            {editingId === c.id && (
+                              <Button type="button" variant="ghost" size="sm" onClick={() => addOtherScore(c.id, idx)} className="font-bold text-indigo-700">
+                                <Plus className="mr-1 h-4 w-4" /> Add score section
+                              </Button>
+                            )}
+                            <div className="flex justify-end items-center gap-3">
                               <p className="font-black text-slate-950">Total: {m.total}</p>
                               <Badge className="bg-slate-900 text-white font-black rounded-lg text-xs">{m.grade}</Badge>
                             </div>
                           </div>
                         ))}
                       </div>
+                      {editingId === c.id && (
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
+                          <Button type="button" onClick={() => void saveScores(c.id)} disabled={processing[c.id]} className="bg-indigo-700 text-white hover:bg-indigo-800">
+                            {processing[c.id] ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Save className="mr-1 h-4 w-4" /> Save scores</>}
+                          </Button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-4">

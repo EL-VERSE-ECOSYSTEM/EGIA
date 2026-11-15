@@ -1,6 +1,6 @@
 import { db, sqlClient } from '@/lib/db'
-import { payment, schoolRegistrationApplication, student, school, transactionLedger, transactions, paymentWebhookLogs } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { payment, schoolRegistrationApplication, student, school, transactionLedger, transactions, paymentWebhookLogs, paymentInstallment } from '@/lib/db/schema'
+import { eq, and, inArray } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import {
   paystackAmountMatches,
@@ -9,6 +9,8 @@ import {
 } from './paystack-security'
 import { checkOrAcquireIdempotency, completeIdempotencyKey, failIdempotencyKey } from '@/lib/idempotency'
 import { completeLearnAiPurchase } from '@/lib/learn-ai'
+import { notifyPaymentConfirmed, notifyPaymentStatus } from '@/lib/payments/notifications'
+import { allocatePaymentAcrossInstallments } from '@/lib/payments/installments'
 
 export { validPaystackSignature, validatePaystackWebhook, paystackAmountMatches }
 export { validPaystackSignature as validKorapaySignature } from './paystack-security'
@@ -24,6 +26,8 @@ export interface InitializePaymentParams {
   description?: string
   schoolId?: string | null
   parentId?: string | null
+  termId?: string | null
+  installmentId?: string
   callbackUrl?: string
   redirectUrl?: string
   metadata?: Record<string, any>
@@ -41,31 +45,50 @@ export type WebhookProcessResult =
 
 export async function createStudentPaymentRecord(params: {
   studentId: string
+  parentId?: string | null
+  termId?: string | null
   amount: number
   feeType: string
   description?: string
   schoolId?: string
   reference?: string
+  installmentId?: string
 }) {
   const reference = params.reference || `pay_${randomUUID()}`
   const now = new Date()
 
-  const [record] = await db.insert(payment).values({
-    id: randomUUID(),
-    studentId: params.studentId,
-    amount: params.amount.toString(),
-    feeType: params.feeType,
-    description: params.description || `Payment for ${params.feeType}`,
-    paymentMethod: 'PAYSTACK',
-    status: 'pending',
-    transactionReference: reference,
-    paymentDate: now,
-    schoolId: params.schoolId,
-    createdAt: now,
-    updatedAt: now,
-  }).returning()
+  return db.transaction(async (tx) => {
+    const [record] = await tx.insert(payment).values({
+      id: randomUUID(),
+      studentId: params.studentId,
+      parentId: params.parentId,
+      termId: params.termId,
+      amount: params.amount.toString(),
+      feeType: params.feeType,
+      description: params.description || `Payment for ${params.feeType}`,
+      paymentMethod: 'PAYSTACK',
+      status: 'pending',
+      transactionReference: reference,
+      paymentDate: now,
+      schoolId: params.schoolId,
+      createdAt: now,
+      updatedAt: now,
+    }).returning()
 
-  return record
+    if (params.installmentId) {
+      const linked = await tx.update(paymentInstallment)
+        .set({ paymentId: record.id })
+        .where(and(
+          eq(paymentInstallment.id, params.installmentId),
+          eq(paymentInstallment.status, 'processing'),
+          eq(paymentInstallment.studentId, params.studentId),
+        ))
+        .returning({ id: paymentInstallment.id })
+      if (!linked.length) throw new Error('This installment is already being processed or is no longer available.')
+    }
+
+    return record
+  })
 }
 
 /**
@@ -114,11 +137,14 @@ export async function initializePaystackPayment(params: InitializePaymentParams)
       feeType: params.feeType,
       description: params.description,
       schoolId: params.schoolId || undefined,
+      parentId: params.parentId || undefined,
+      termId: params.termId || undefined,
       reference,
+      installmentId: params.installmentId,
     })
   }
 
-  let checkoutUrl = ''
+  let checkoutUrl: string
   try {
     const koboAmount = Math.round(params.amount * 100)
 
@@ -168,12 +194,12 @@ export async function initializePaystackPayment(params: InitializePaymentParams)
     checkoutUrl = paystackData.data.authorization_url
   } catch (error) {
     if (paymentRecord) {
-      await db.update(payment)
-        .set({ status: 'failed', updatedAt: new Date() })
-        .where(eq(payment.id, paymentRecord.id))
+      await markPaymentFailed(paymentRecord.id)
     }
     throw error
   }
+
+  if (paymentRecord) await notifyPaymentStatus(paymentRecord.id, 'processing')
 
   return {
     checkoutUrl,
@@ -296,7 +322,7 @@ export async function verifyPaystackPayment(params: PaymentVerificationParams) {
       await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schoolRec.id))
       await db.update(schoolRegistrationApplication).set({ paymentStatus: 'SUCCESS', updatedAt: new Date() }).where(eq(schoolRegistrationApplication.schoolId, schoolRec.id))
     }
-  } else if (status === 'failed') {
+  } else if (status === 'failed' || status === 'abandoned') {
     if (paymentRec) {
       await markPaymentFailed(paymentRec.id)
     }
@@ -583,7 +609,7 @@ export async function processPaystackWebhook(rawBody: string, signature: string 
 export const processKorapayWebhook = processPaystackWebhook
 
 export async function markPaymentSuccessful(paymentId: string, paystackRef?: string) {
-  return db.transaction(async (tx) => {
+  const updatedPayment = await db.transaction(async (tx) => {
     const existingPayment = await tx.query.payment.findFirst({
       where: eq(payment.id, paymentId),
     })
@@ -616,21 +642,77 @@ export async function markPaymentSuccessful(paymentId: string, paystackRef?: str
         .where(eq(student.id, updated[0].studentId))
     }
 
+    if (updated.length > 0) {
+        const linkedInstallment = await tx.query.paymentInstallment.findFirst({
+          where: eq(paymentInstallment.paymentId, paymentId),
+        })
+        if (linkedInstallment) {
+          if (linkedInstallment.status !== 'paid') {
+            await tx.update(paymentInstallment)
+              .set({ paidAmount: linkedInstallment.amount, status: 'paid', paidAt: now })
+              .where(and(
+                eq(paymentInstallment.id, linkedInstallment.id),
+                eq(paymentInstallment.paymentId, paymentId),
+              ))
+          }
+        } else if (updated[0].schoolId && updated[0].termId && updated[0].feeType) {
+          const scheduledInstallments = await tx.query.paymentInstallment.findMany({
+            where: and(
+              eq(paymentInstallment.studentId, updated[0].studentId),
+              eq(paymentInstallment.schoolId, updated[0].schoolId),
+              eq(paymentInstallment.termId, updated[0].termId),
+              eq(paymentInstallment.feeType, updated[0].feeType),
+              inArray(paymentInstallment.status, ['pending', 'partial', 'overdue']),
+            ),
+            orderBy: (record, { asc }) => [asc(record.dueDate), asc(record.installmentNumber)],
+          })
+          const netPaymentAmount = Math.max(
+            0,
+            Number(updated[0].amount) - (['PAYSTACK', 'KORAPAY'].includes(updated[0].paymentMethod.toUpperCase()) ? 161.25 : 0),
+          )
+          const allocation = allocatePaymentAcrossInstallments(scheduledInstallments, netPaymentAmount)
+          for (const installmentUpdate of allocation.updates) {
+            await tx.update(paymentInstallment)
+              .set({
+                paidAmount: installmentUpdate.paidAmount,
+                status: installmentUpdate.status,
+                paidAt: installmentUpdate.isPaid ? now : null,
+              })
+              .where(eq(paymentInstallment.id, installmentUpdate.id))
+          }
+        }
+    }
+
     return updated[0] || null
   })
+  if (updatedPayment) await notifyPaymentConfirmed(updatedPayment.id)
+  return updatedPayment
 }
 
 export async function markPaymentFailed(paymentId: string) {
   const now = new Date()
-  const updated = await db.update(payment)
-    .set({
-      status: 'failed',
-      updatedAt: now,
-    })
-    .where(and(eq(payment.id, paymentId), eq(payment.status, 'pending')))
-    .returning()
-
-  return updated[0] || null
+  const updatedPayment = await db.transaction(async (tx) => {
+    const updated = await tx.update(payment)
+        .set({ status: 'failed', updatedAt: now })
+        .where(and(eq(payment.id, paymentId), eq(payment.status, 'pending')))
+        .returning()
+    if (updated.length) {
+        const linkedInstallment = await tx.query.paymentInstallment.findFirst({
+          where: eq(paymentInstallment.paymentId, paymentId),
+        })
+        if (linkedInstallment && linkedInstallment.status !== 'paid') {
+          await tx.update(paymentInstallment)
+            .set({ status: Number(linkedInstallment.paidAmount || 0) > 0 ? 'partial' : 'pending' })
+            .where(and(
+              eq(paymentInstallment.id, linkedInstallment.id),
+              eq(paymentInstallment.paymentId, paymentId),
+            ))
+        }
+    }
+    return updated[0] || null
+  })
+  if (updatedPayment) await notifyPaymentStatus(updatedPayment.id, 'failed')
+  return updatedPayment
 }
 
 export async function reconcilePayment(paymentId: string, adminUserId: string) {

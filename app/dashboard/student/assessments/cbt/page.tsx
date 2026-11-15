@@ -198,7 +198,12 @@ export default function StudentCBTDashboard() {
                             <div className="relative flex-grow">
                               <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                               <Input
+                                aria-label="Six-character exam access code"
                                 placeholder="Enter access code..."
+                                maxLength={6}
+                                autoCapitalize="characters"
+                                autoComplete="off"
+                                spellCheck={false}
                                 value={enteredCodes[cbt.id] || ''}
                                 onChange={e => setEnteredCodes(prev => ({ ...prev, [cbt.id]: e.target.value }))}
                                 className="pl-12 h-12 rounded-xl border-slate-200 font-bold text-slate-700 uppercase"

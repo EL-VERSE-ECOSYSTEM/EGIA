@@ -1,8 +1,8 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { assessment, assessmentQuestion, assessmentResult, studentAnswer, student, teacher, term, assessmentSchedule, cbtSessions, feeStructure, payment, parent, notificationHistory, subject } from '@/lib/db/schema'
-import { eq, and, desc, gt } from 'drizzle-orm'
+import { assessment, assessmentQuestion, assessmentResult, studentAnswer, student, teacher, term, assessmentSchedule, cbtSessions, feeStructure, payment, parent, subject, class_, teacherOnSubject } from '@/lib/db/schema'
+import { eq, and, desc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { randomInt } from 'crypto'
@@ -12,6 +12,8 @@ import { getTeacherClassResultsAction } from '@/app/actions/teacher'
 import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'
 import { rateLimit } from '@/lib/rate-limit'
 import type { PushNotification } from '@/lib/firebase/types'
+import { isValidExamAccessCode } from '@/lib/assessments/access-code'
+import { claimFeeReminder, releaseFeeReminderClaim } from '@/lib/fees/fee-reminder-claims'
 
 type SubmittedCbtAnswer = { questionId: string; answer: string | string[] }
 type ProctorLogEntry = { timestamp: string; type: string; message: string }
@@ -52,9 +54,11 @@ function assertCbtFeeCleared(clearance: Awaited<ReturnType<typeof getCbtFeeStatu
 }
 
 function assertCbtAccessCode(userId: string, expectedCode: string | null, providedCode?: string) {
-  const isValid = Boolean(typeof providedCode === 'string' && providedCode.length <= 100 &&
-    expectedCode?.trim() && providedCode.trim() &&
-    providedCode.trim().toUpperCase() === expectedCode.trim().toUpperCase())
+  const normalizedCode = providedCode?.trim().toUpperCase()
+  const normalizedExpectedCode = expectedCode?.trim().toUpperCase()
+  const isValid = Boolean(normalizedCode && normalizedExpectedCode &&
+    isValidExamAccessCode(normalizedCode) && isValidExamAccessCode(normalizedExpectedCode) &&
+    normalizedCode === normalizedExpectedCode)
   if (isValid) return
 
   const attempts = rateLimit(`cbt-access-code:${userId}`, 5, 5 * 60)
@@ -62,6 +66,47 @@ function assertCbtAccessCode(userId: string, expectedCode: string | null, provid
     throw new Error(`Too many code attempts. Try again in ${attempts.retryAfter} seconds.`)
   }
   throw new Error('Incorrect access code. Check the code provided by your school and try again.')
+}
+
+async function getStudentClassId(studentProfile: typeof student.$inferSelect) {
+  if (!studentProfile.schoolId) return null
+  const classRecord = await db.query.class_.findFirst({
+    where: and(eq(class_.schoolId, studentProfile.schoolId), eq(class_.name, studentProfile.class)),
+    columns: { id: true },
+  })
+  return classRecord?.id ?? null
+}
+
+async function isAssessmentTargetedToStudent(
+  assessmentRecord: typeof assessment.$inferSelect,
+  studentProfile: typeof student.$inferSelect,
+  classId: string | null,
+) {
+  if (assessmentRecord.targetDepartment &&
+    assessmentRecord.targetDepartment.trim().toLowerCase() !== studentProfile.department?.trim().toLowerCase()) {
+    return false
+  }
+  if (assessmentRecord.targetClassId) return assessmentRecord.targetClassId === classId
+  if (!classId) return false
+
+  const legacyTarget = await db.query.teacherOnSubject.findFirst({
+    where: and(
+      eq(teacherOnSubject.teacherId, assessmentRecord.createdBy),
+      eq(teacherOnSubject.subjectId, assessmentRecord.subjectId),
+      eq(teacherOnSubject.classId, classId),
+    ),
+  })
+  return Boolean(legacyTarget)
+}
+
+async function assertAssessmentTargetedToStudent(
+  assessmentRecord: typeof assessment.$inferSelect,
+  studentProfile: typeof student.$inferSelect,
+) {
+  const classId = await getStudentClassId(studentProfile)
+  if (!await isAssessmentTargetedToStudent(assessmentRecord, studentProfile, classId)) {
+    throw new Error('This assessment is assigned to a different class or department.')
+  }
 }
 
 async function notifyFeeDefaulter(studentProfile: typeof student.$inferSelect, paidPercentage: number) {
@@ -73,21 +118,6 @@ async function notifyFeeDefaulter(studentProfile: typeof student.$inferSelect, p
     }
   }
 
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
-  const pendingRecipients = (await Promise.all(
-    recipients.filter((id): id is string => Boolean(id)).map((userId) =>
-      db.query.notificationHistory.findFirst({
-      where: and(
-        eq(notificationHistory.userId, userId),
-        eq(notificationHistory.type, 'payment_reminder'),
-        gt(notificationHistory.sentAt, since),
-      ),
-      orderBy: [desc(notificationHistory.sentAt)],
-      }).then((recentNotice) => recentNotice ? null : userId),
-    ),
-  )).filter((userId): userId is string => Boolean(userId))
-  if (!pendingRecipients.length) return
-
   const notice: PushNotification = {
     title: 'School fee payment needed for CBT access',
     body: `At least ${CBT_FEE_CLEARANCE_PERCENTAGE}% of school fees must be paid before CBT access. Recorded payment: ${paidPercentage.toFixed(1)}%.`,
@@ -95,14 +125,20 @@ async function notifyFeeDefaulter(studentProfile: typeof student.$inferSelect, p
     link: '/dashboard/student/assessments/cbt',
     data: { studentId: studentProfile.id, paidPercentage: paidPercentage.toFixed(1) },
   }
-  try {
-    await Promise.all(pendingRecipients.map((userId) => notifyUser(userId, notice)))
-  } catch (error) {
-    console.error('Could not send CBT fee clearance notifications:', {
-      studentId: studentProfile.id,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
+  await Promise.all(recipients.filter((id): id is string => Boolean(id)).map(async (userId) => {
+    let claimed = false
+    try {
+      claimed = await claimFeeReminder(userId, studentProfile.id)
+      if (claimed) await notifyUser(userId, notice)
+    } catch (error) {
+      if (claimed) await releaseFeeReminderClaim(userId, studentProfile.id)
+      console.error('Could not send CBT fee clearance notifications:', {
+        studentId: studentProfile.id,
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }))
 }
 
 function sanitizeQuestionOptions(options: unknown): string[] {
@@ -177,7 +213,7 @@ export async function saveProctoredAssessmentResult(data: {
   proctorLogs: ProctorLogEntry[]
 }) {
   const session = await auth.getSession()
-  if (!session?.user || session.user.role.toUpperCase() !== 'STUDENT') {
+  if (!session?.user || !['STUDENT', 'PUPIL'].includes(session.user.role.toUpperCase())) {
     throw new Error('Unauthorized')
   }
 
@@ -199,9 +235,10 @@ export async function saveProctoredAssessmentResult(data: {
     throw new Error('This assessment is not currently available.')
   }
 
-  if (dbAssessment.schoolId && dbAssessment.schoolId !== studentProfile.schoolId) {
+  if (!dbAssessment.schoolId || dbAssessment.schoolId !== studentProfile.schoolId) {
     throw new Error('Forbidden: Assessment tenant mismatch.')
   }
+  await assertAssessmentTargetedToStudent(dbAssessment, studentProfile)
   if (['ASSESSMENT_CBT', 'EXAM_CBT'].includes(dbAssessment.type)) {
     assertCbtFeeCleared(await getCbtFeeStatus(studentProfile))
   }
@@ -343,14 +380,15 @@ export async function saveProctoredAssessmentResult(data: {
 
 export async function startCbtSession(assessmentId: string, providedAccessCode?: string) {
   const session = await auth.getSession()
-  if (!session?.user || session.user.role.toUpperCase() !== 'STUDENT') throw new Error('Unauthorized')
+  if (!session?.user || !['STUDENT', 'PUPIL'].includes(session.user.role.toUpperCase())) throw new Error('Unauthorized')
   const studentProfile = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
   if (!studentProfile) throw new Error('Student profile not found.')
   const dbAssessment = await db.query.assessment.findFirst({ where: eq(assessment.id, assessmentId) })
   if (!dbAssessment || !['approved', 'published'].includes(dbAssessment.status || '')) throw new Error('This assessment is unavailable.')
-  if (dbAssessment.schoolId && dbAssessment.schoolId !== studentProfile.schoolId) {
+  if (!dbAssessment.schoolId || dbAssessment.schoolId !== studentProfile.schoolId) {
     throw new Error('This assessment is not available for your school.')
   }
+  await assertAssessmentTargetedToStudent(dbAssessment, studentProfile)
   if (['ASSESSMENT_CBT', 'EXAM_CBT'].includes(dbAssessment.type)) {
     assertCbtFeeCleared(await getCbtFeeStatus(studentProfile))
   }
@@ -365,7 +403,9 @@ export async function startCbtSession(assessmentId: string, providedAccessCode?:
     if (active.assessmentId !== assessmentId) throw new Error('Finish your active CBT before starting another assessment.')
     return { sessionId: active.id }
   }
-  if (dbAssessment.accessCode?.trim()) {
+  if (dbAssessment.type === 'EXAM_CBT') {
+    assertCbtAccessCode(session.user.id, dbAssessment.accessCode, providedAccessCode)
+  } else if (dbAssessment.accessCode?.trim()) {
     assertCbtAccessCode(session.user.id, dbAssessment.accessCode, providedAccessCode)
   }
   const sessionId = crypto.randomUUID()
@@ -385,8 +425,8 @@ export async function verifyCbtAccessCode(assessmentId: string, providedAccessCo
   if (!session?.user || !['STUDENT', 'PUPIL'].includes(session.user.role.toUpperCase())) {
     throw new Error('Student sign-in is required to verify an exam access code.')
   }
-  if (typeof providedAccessCode !== 'string' || providedAccessCode.trim().length === 0 || providedAccessCode.length > 100) {
-    throw new Error('Enter the exam access code provided by your school.')
+  if (typeof providedAccessCode !== 'string' || !isValidExamAccessCode(providedAccessCode.trim())) {
+    throw new Error('Enter the 6-character alphanumeric exam access code provided by your school.')
   }
   const studentProfile = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
   if (!studentProfile) throw new Error('Student profile not found.')
@@ -399,6 +439,7 @@ export async function verifyCbtAccessCode(assessmentId: string, providedAccessCo
   if (!dbAssessment.schoolId || dbAssessment.schoolId !== studentProfile.schoolId) {
     throw new Error('This exam is not available for your school.')
   }
+  await assertAssessmentTargetedToStudent(dbAssessment, studentProfile)
   assertCbtAccessCode(session.user.id, dbAssessment.accessCode, providedAccessCode)
   return { valid: true }
 }
@@ -408,9 +449,13 @@ export async function getUpcomingAssessments(classId: string, schoolId?: string)
   if (!session?.user) throw new Error('Unauthorized')
   const role = session.user.role.toUpperCase()
   let userSchoolId = role === 'SUPER_ADMIN' ? schoolId || session.user.schoolId : session.user.schoolId
+  let studentProfile: typeof student.$inferSelect | null = null
+  let studentClassId: string | null = null
   if (['STUDENT', 'PUPIL'].includes(role)) {
-    const profile = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
-    userSchoolId = profile?.schoolId || userSchoolId
+    studentProfile = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) }) || null
+    if (!studentProfile?.schoolId) return []
+    userSchoolId = studentProfile.schoolId
+    if (studentProfile) studentClassId = await getStudentClassId(studentProfile)
   }
   if (role !== 'SUPER_ADMIN' && !userSchoolId) return []
 
@@ -420,9 +465,15 @@ export async function getUpcomingAssessments(classId: string, schoolId?: string)
     }
   })
 
-  return all.filter(a =>
-    (a.status === 'published' || a.status === 'approved') &&
-    (!userSchoolId || !a.schoolId || a.schoolId === userSchoolId)
+  const studentAccess = studentProfile
+    ? await Promise.all(all.map((record) =>
+        isAssessmentTargetedToStudent(record, studentProfile!, studentClassId)
+      ))
+    : []
+  return all.filter((record, index) =>
+    (record.status === 'published' || record.status === 'approved') &&
+    (role === 'SUPER_ADMIN' || record.schoolId === userSchoolId) &&
+    (!studentProfile || studentAccess[index])
   )
 }
 
@@ -431,13 +482,16 @@ export async function getApprovedCBTs(schoolId?: string) {
   if (!session?.user) throw new Error('Unauthorized')
   const role = session.user.role.toUpperCase()
   let userSchoolId = role === 'SUPER_ADMIN' ? schoolId || session.user.schoolId : session.user.schoolId
+  let studentProfile: typeof student.$inferSelect | null = null
+  let studentClassId: string | null = null
   if (['STUDENT', 'PUPIL'].includes(role)) {
-    const profile = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
-    userSchoolId = profile?.schoolId || userSchoolId
-    if (!profile) return []
-    const clearance = await getCbtFeeStatus(profile)
+    studentProfile = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) }) || null
+    userSchoolId = studentProfile?.schoolId || userSchoolId
+    if (!studentProfile) return []
+    studentClassId = await getStudentClassId(studentProfile)
+    const clearance = await getCbtFeeStatus(studentProfile)
     if (!clearance.eligible) {
-      await notifyFeeDefaulter(profile, clearance.paidPercentage)
+      await notifyFeeDefaulter(studentProfile, clearance.paidPercentage)
       return []
     }
   }
@@ -450,9 +504,15 @@ export async function getApprovedCBTs(schoolId?: string) {
     }
   })
 
-  return all.filter(a =>
+  const studentAccess = studentProfile
+    ? await Promise.all(all.map((record) =>
+        isAssessmentTargetedToStudent(record, studentProfile!, studentClassId)
+      ))
+    : []
+  return all.filter((a, index) =>
     a.status === 'approved' &&
-    (!userSchoolId || !a.schoolId || a.schoolId === userSchoolId)
+    (role === 'SUPER_ADMIN' || a.schoolId === userSchoolId) &&
+    (!studentProfile || studentAccess[index])
   ).map(a => {
     if (!['TEACHER', 'ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(role)) {
       return {
@@ -497,8 +557,9 @@ export async function getAssessmentWithQuestions(id: string, providedAccessCode?
     ? await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
     : null
   if (studentUser && !studentProfile) throw new Error('Student profile not found.')
+  if (studentProfile) await assertAssessmentTargetedToStudent(dbAssessment, studentProfile)
   const userSchoolId = studentProfile?.schoolId || session.user.schoolId
-  if (dbAssessment.schoolId && role !== 'SUPER_ADMIN' && dbAssessment.schoolId !== userSchoolId) {
+  if (role !== 'SUPER_ADMIN' && (!userSchoolId || dbAssessment.schoolId !== userSchoolId)) {
     throw new Error('Forbidden: Assessment school tenant mismatch.')
   }
   if (studentUser && !['approved', 'published'].includes(dbAssessment.status || '')) {
@@ -508,7 +569,9 @@ export async function getAssessmentWithQuestions(id: string, providedAccessCode?
     assertCbtFeeCleared(await getCbtFeeStatus(studentProfile!))
   }
 
-  if (dbAssessment.accessCode && dbAssessment.accessCode.trim().length > 0) {
+  if (studentUser && dbAssessment.type === 'EXAM_CBT') {
+    assertCbtAccessCode(session.user.id, dbAssessment.accessCode, providedAccessCode)
+  } else if (dbAssessment.accessCode && dbAssessment.accessCode.trim().length > 0) {
     if (studentUser) assertCbtAccessCode(session.user.id, dbAssessment.accessCode, providedAccessCode)
     else if (!providedAccessCode || providedAccessCode.trim().toUpperCase() !== dbAssessment.accessCode.trim().toUpperCase()) {
       throw new Error('Invalid or missing CBT Access Code for this exam.')
@@ -542,6 +605,32 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
   if (!session?.user || session.user.role !== 'TEACHER') throw new Error('Unauthorized')
   const teacherProfile = await db.query.teacher.findFirst({ where: eq(teacher.userId, session.user.id) })
   if (!teacherProfile) throw new Error('Teacher profile not found')
+  if (!assessmentData.targetClassId) throw new Error('Choose a class for this assessment.')
+  const targetAssignment = await db.query.teacherOnSubject.findFirst({
+    where: and(
+      eq(teacherOnSubject.teacherId, teacherProfile.id),
+      eq(teacherOnSubject.subjectId, assessmentData.subjectId),
+      eq(teacherOnSubject.classId, assessmentData.targetClassId),
+    ),
+  })
+  if (!targetAssignment) throw new Error('You can only create assessments for your assigned class and subject.')
+  const targetClass = await db.query.class_.findFirst({
+    where: and(
+      eq(class_.id, assessmentData.targetClassId),
+      eq(class_.schoolId, teacherProfile.schoolId || ''),
+    ),
+  })
+  if (!targetClass) throw new Error('The selected class does not belong to your school.')
+  const selectedSubject = await db.query.subject.findFirst({
+    where: eq(subject.id, assessmentData.subjectId),
+  })
+  if (!selectedSubject) throw new Error('The selected subject is unavailable.')
+  if (assessmentData.targetDepartment &&
+    !selectedSubject.departments?.some((department) =>
+      department.toLowerCase() === String(assessmentData.targetDepartment).toLowerCase()
+    )) {
+    throw new Error('The selected department is not configured for this subject.')
+  }
   const currentTerm = await db.query.term.findFirst({ where: eq(term.isCurrent, true) })
   if (!currentTerm) throw new Error('No current academic term is configured')
   if (!questions.length) throw new Error('Add at least one question before publishing an assessment')
@@ -559,6 +648,8 @@ export async function saveAssessmentWithQuestions(assessmentData: any, questions
       subjectId: assessmentData.subjectId,
       termId: currentTerm.id,
       createdBy: teacherProfile.id,
+      targetClassId: assessmentData.targetClassId,
+      targetDepartment: assessmentData.targetDepartment || null,
       duration: assessmentData.duration,
       type: assessmentData.type || 'ASSESSMENT_CBT',
       status: 'draft',
@@ -626,7 +717,7 @@ export async function getLoggedInStudentAndQuestions(assessmentId: string, provi
     throw new Error('This assessment is not published or available.')
   }
 
-  if (dbAssessment.schoolId && dbAssessment.schoolId !== studentProfile.schoolId) {
+  if (!dbAssessment.schoolId || dbAssessment.schoolId !== studentProfile.schoolId) {
     throw new Error('This assessment is not available for your school.')
   }
 
@@ -730,8 +821,13 @@ export async function checkStudentWeekendAssignmentsCompleteAction(studentId?: s
       eq(assessment.schoolId, studentProfile.schoolId || '')
     )
   })
+  const studentClassId = await getStudentClassId(studentProfile)
+  const weekendAvailability = await Promise.all(weekendAssessments.map((record) =>
+    isAssessmentTargetedToStudent(record, studentProfile, studentClassId)
+  ))
+  const assignedWeekendAssessments = weekendAssessments.filter((_, index) => weekendAvailability[index])
 
-  if (!weekendAssessments.length) {
+  if (!assignedWeekendAssessments.length) {
     return { isComplete: true, count: 0, completedCount: 0 }
   }
 
@@ -740,11 +836,11 @@ export async function checkStudentWeekendAssignmentsCompleteAction(studentId?: s
   })
 
   const completedIds = new Set(results.map(r => r.assessmentId))
-  const completedCount = weekendAssessments.filter(a => completedIds.has(a.id)).length
+  const completedCount = assignedWeekendAssessments.filter(a => completedIds.has(a.id)).length
 
   return {
-    isComplete: completedCount >= Math.min(3, weekendAssessments.length),
-    count: weekendAssessments.length,
+    isComplete: completedCount >= Math.min(3, assignedWeekendAssessments.length),
+    count: assignedWeekendAssessments.length,
     completedCount
   }
 }

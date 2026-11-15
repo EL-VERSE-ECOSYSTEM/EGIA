@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,96 +8,143 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Trash2, Loader2 } from 'lucide-react'
-import { getReportCards, saveReportCard, ReportCard } from '@/app/actions/report-cards'
+import {
+  getReportCards,
+  getReportCardStudents,
+  getTeacherReportCardTargets,
+  saveReportCard,
+  type ReportCard,
+  type ReportCardScore,
+} from '@/app/actions/report-cards'
+import { toast } from 'sonner'
+
+type SubjectRow = {
+  subject: string
+  testScore: number
+  examScore: number
+  otherScores: ReportCardScore[]
+}
 
 export default function TeacherReportCardsPage() {
   const [reportCards, setReportCards] = useState<ReportCard[]>([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-
-  // Form State
-  const [studentName, setStudentName] = useState('')
-  const [className, setClassName] = useState('Primary 3')
+  const [targets, setTargets] = useState<Awaited<ReturnType<typeof getTeacherReportCardTargets>>>([])
+  const [students, setStudents] = useState<Awaited<ReturnType<typeof getReportCardStudents>>>([])
+  const [selectedClassId, setSelectedClassId] = useState('')
   const [studentId, setStudentId] = useState('')
   const [teacherRemarks, setTeacherRemarks] = useState('')
-  const [subjectRows, setSubjectRows] = useState<{ subject: string; testScore: number; examScore: number }[]>([
-    { subject: 'Mathematics', testScore: 0, examScore: 0 },
-    { subject: 'English Language', testScore: 0, examScore: 0 }
-  ])
+  const [subjectRows, setSubjectRows] = useState<SubjectRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadingStudents, setLoadingStudents] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    fetchCards()
-  }, [])
+  const classOptions = useMemo(() => {
+    const classes = new Map<string, string>()
+    for (const target of targets) classes.set(target.classId, target.className)
+    return [...classes].map(([id, name]) => ({ id, name }))
+  }, [targets])
+
+  const availableSubjects = useMemo(
+    () => targets.filter((target) => target.classId === selectedClassId),
+    [targets, selectedClassId],
+  )
 
   const fetchCards = async () => {
+    const cards = await getReportCards()
+    setReportCards(cards)
+  }
+
+  useEffect(() => {
+    Promise.all([getReportCards(), getTeacherReportCardTargets()])
+      .then(([cards, teacherTargets]) => {
+        setReportCards(cards)
+        setTargets(teacherTargets)
+        if (teacherTargets[0]) {
+          setSelectedClassId(teacherTargets[0].classId)
+          setSubjectRows(teacherTargets
+            .filter((target) => target.classId === teacherTargets[0].classId)
+            .map((target) => ({ subject: target.subjectName, testScore: 0, examScore: 0, otherScores: [] })))
+          return getReportCardStudents(teacherTargets[0].classId)
+        }
+        return []
+      })
+      .then((roster) => setStudents(roster))
+      .catch((error: unknown) => {
+        console.error('Could not load report-card setup:', error)
+        toast.error(error instanceof Error ? error.message : 'Could not load your assigned classes.')
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleClassChange = async (classId: string) => {
+    setSelectedClassId(classId)
+    setStudentId('')
+    setLoadingStudents(true)
+    setSubjectRows(targets
+      .filter((target) => target.classId === classId)
+      .map((target) => ({ subject: target.subjectName, testScore: 0, examScore: 0, otherScores: [] })))
     try {
-      const cards = await getReportCards()
-      setReportCards(cards)
-    } catch (err) {
-      console.error(err)
+      setStudents(await getReportCardStudents(classId))
+    } catch (error) {
+      setStudents([])
+      toast.error(error instanceof Error ? error.message : 'Could not load the assigned class roster.')
     } finally {
-      setLoading(false)
+      setLoadingStudents(false)
     }
   }
 
-  const addSubjectRow = () => {
-    setSubjectRows([...subjectRows, { subject: '', testScore: 0, examScore: 0 }])
+  const addSubjectRow = () => setSubjectRows((rows) => [...rows, {
+    subject: '',
+    testScore: 0,
+    examScore: 0,
+    otherScores: [],
+  }])
+
+  const updateSubject = (index: number, patch: Partial<SubjectRow>) => {
+    setSubjectRows((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row))
   }
 
-  const removeSubjectRow = (idx: number) => {
-    setSubjectRows(subjectRows.filter((_, i) => i !== idx))
+  const addOtherScore = (rowIndex: number) => {
+    setSubjectRows((rows) => rows.map((row, index) => index === rowIndex
+      ? { ...row, otherScores: [...row.otherScores, { label: '', score: 0, maxScore: 10 }] }
+      : row))
   }
 
-  const handleRowChange = (idx: number, field: string, value: any) => {
-    const updated = [...subjectRows]
-    updated[idx] = { ...updated[idx], [field]: value }
-    setSubjectRows(updated)
+  const updateOtherScore = (rowIndex: number, scoreIndex: number, patch: Partial<ReportCardScore>) => {
+    setSubjectRows((rows) => rows.map((row, index) => index === rowIndex
+      ? {
+          ...row,
+          otherScores: row.otherScores.map((score, itemIndex) =>
+            itemIndex === scoreIndex ? { ...score, ...patch } : score),
+        }
+      : row))
   }
 
-  const handleCreateReportCard = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!studentName.trim()) return alert('Please enter student name')
+  const handleCreateReportCard = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!selectedClassId || !studentId) {
+      toast.error('Choose an assigned class and student.')
+      return
+    }
+    if (subjectRows.some((row) => !row.subject)) {
+      toast.error('Choose an assigned subject for each score row.')
+      return
+    }
     setSaving(true)
-
-    const mappedMarks = subjectRows.map(row => {
-      const total = Number(row.testScore) + Number(row.examScore)
-      let grade = 'F'
-      if (total >= 80) grade = 'A'
-      else if (total >= 70) grade = 'B'
-      else if (total >= 60) grade = 'C'
-      else if (total >= 50) grade = 'D'
-      else if (total >= 40) grade = 'E'
-
-      return {
-        subject: row.subject,
-        testScore: Number(row.testScore),
-        examScore: Number(row.examScore),
-        total,
-        grade
-      }
-    })
-
     try {
       await saveReportCard({
-        studentId: studentId || `stud-${Date.now()}`,
-        studentName,
-        className,
-        marks: mappedMarks,
-        teacherRemarks
+        studentId,
+        marks: subjectRows,
+        teacherRemarks,
       })
-
-      alert('Report Card submitted successfully for Admin endorsement!')
-      setStudentName('')
-      setStudentId('')
+      toast.success('Report card submitted for school-admin approval.')
       setTeacherRemarks('')
-      setSubjectRows([
-        { subject: 'Mathematics', testScore: 0, examScore: 0 },
-        { subject: 'English Language', testScore: 0, examScore: 0 }
-      ])
-      fetchCards()
-    } catch (err) {
-      console.error(err)
-      alert('Failed to submit report card')
+      setSubjectRows(availableSubjects.map((target) => ({
+        subject: target.subjectName, testScore: 0, examScore: 0, otherScores: [],
+      })))
+      await fetchCards()
+    } catch (error) {
+      console.error('Could not submit report card:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to submit report card.')
     } finally {
       setSaving(false)
     }
@@ -109,7 +156,7 @@ export default function TeacherReportCardsPage() {
         <div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Report Cards</h1>
           <p className="text-slate-500 text-lg font-medium">
-             Generate comprehensive term report cards for students and submit to Admin for endorsement.
+            Enter scores only for your assigned students and subjects. School administration must approve each report before families can view it.
           </p>
         </div>
 
@@ -117,107 +164,87 @@ export default function TeacherReportCardsPage() {
           <Card className="lg:col-span-2 border-none shadow-2xl rounded-[2.5rem] bg-white overflow-hidden">
             <CardHeader className="p-8 pb-4">
               <CardTitle className="text-2xl font-black text-slate-900">Compile Report Card</CardTitle>
-              <CardDescription className="text-slate-500 font-medium">Input Continuous Assessment and Exam marks</CardDescription>
+              <CardDescription className="text-slate-500 font-medium">Enter continuous assessment, exam, and any additional score sections.</CardDescription>
             </CardHeader>
             <CardContent className="p-8 pt-0">
               <form onSubmit={handleCreateReportCard} className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Student Full Name</Label>
-                    <Input
-                      placeholder="e.g. Amina Bello"
-                      value={studentName}
-                      onChange={e => setStudentName(e.target.value)}
-                      required
-                      className="h-12 rounded-xl border-slate-200"
-                    />
+                    <Label htmlFor="report-class">Assigned class</Label>
+                    <select id="report-class" value={selectedClassId} onChange={(event) => void handleClassChange(event.target.value)} required
+                      className="w-full h-12 rounded-xl border border-slate-200 bg-white px-4 font-bold text-slate-800">
+                      {classOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+                    </select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Class</Label>
-                    <select
-                      value={className}
-                      onChange={e => setClassName(e.target.value)}
-                      className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-4 font-bold text-slate-800"
-                    >
-                      <option value="Primary 3">Primary 3</option>
-                      <option value="Primary 4">Primary 4</option>
-                      <option value="Primary 5">Primary 5</option>
-                      <option value="Primary 6">Primary 6</option>
-                      <option value="JSS 1">JSS 1</option>
-                      <option value="JSS 2">JSS 2</option>
-                      <option value="JSS 3">JSS 3</option>
-                      <option value="SSS 1">SSS 1</option>
-                      <option value="SSS 2">SSS 2</option>
-                      <option value="SSS 3">SSS 3</option>
+                    <Label htmlFor="report-student">Student</Label>
+                    <select id="report-student" value={studentId} onChange={(event) => setStudentId(event.target.value)} required disabled={loadingStudents || !students.length}
+                      className="w-full h-12 rounded-xl border border-slate-200 bg-white px-4 font-bold text-slate-800 disabled:opacity-50">
+                      <option value="">{loadingStudents ? 'Loading class roster…' : 'Select a student'}</option>
+                      {students.map((student) => (
+                        <option key={student.id} value={student.id}>
+                          {[student.name, student.middleName, student.lastName].filter(Boolean).join(' ')}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
+                {classOptions.length === 0 && !loading && (
+                  <p className="rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">No classes and subjects are assigned to your teacher account.</p>
+                )}
+
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Subject Grades & Performance</Label>
+                  <div className="flex flex-wrap justify-between items-center gap-3">
+                    <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Subject Scores</Label>
                     <Button type="button" variant="outline" size="sm" onClick={addSubjectRow} className="rounded-xl border-slate-200 font-bold">
                       <Plus className="w-4 h-4 mr-1" /> Add Subject
                     </Button>
                   </div>
 
-                  <div className="space-y-3">
-                    {subjectRows.map((row, idx) => (
-                      <div key={idx} className="flex gap-3 items-center">
-                        <Input
-                          placeholder="e.g. Mathematics"
-                          value={row.subject}
-                          onChange={e => handleRowChange(idx, 'subject', e.target.value)}
-                          required
-                          className="h-12 rounded-xl border-slate-200 flex-grow font-bold"
-                        />
-                        <div className="w-24">
-                          <Input
-                            type="number"
-                            placeholder="Test (30)"
-                            value={row.testScore}
-                            onChange={e => handleRowChange(idx, 'testScore', e.target.value)}
-                            required
-                            max={30}
-                            min={0}
-                            className="h-12 rounded-xl border-slate-200 font-bold text-center"
-                          />
-                        </div>
-                        <div className="w-24">
-                          <Input
-                            type="number"
-                            placeholder="Exam (70)"
-                            value={row.examScore}
-                            onChange={e => handleRowChange(idx, 'examScore', e.target.value)}
-                            required
-                            max={70}
-                            min={0}
-                            className="h-12 rounded-xl border-slate-200 font-bold text-center"
-                          />
-                        </div>
-                        {subjectRows.length > 1 && (
-                          <Button type="button" variant="ghost" size="icon" onClick={() => removeSubjectRow(idx)} className="text-slate-400 hover:text-red-500 rounded-xl">
-                            <Trash2 className="w-5 h-5" />
-                          </Button>
-                        )}
+                  {subjectRows.map((row, rowIndex) => (
+                    <div key={`${row.subject}-${rowIndex}`} className="space-y-3 rounded-2xl border border-slate-200 p-4">
+                      <div className="grid grid-cols-[minmax(0,1fr)_5rem_5rem_auto] gap-2 items-center">
+                        <select value={row.subject} onChange={(event) => updateSubject(rowIndex, { subject: event.target.value })} required
+                          className="h-11 min-w-0 rounded-xl border border-slate-200 bg-white px-3 font-bold text-slate-800">
+                          <option value="">Select assigned subject</option>
+                          {availableSubjects.map((target) => <option key={target.subjectId} value={target.subjectName}>{target.subjectName}</option>)}
+                        </select>
+                        <Input aria-label="Test score out of 30" type="number" placeholder="Test /30" value={row.testScore} min={0} max={30} step="0.5"
+                          onChange={(event) => updateSubject(rowIndex, { testScore: Number(event.target.value) })} required className="h-11 px-2 text-center" />
+                        <Input aria-label="Exam score out of 70" type="number" placeholder="Exam /70" value={row.examScore} min={0} max={70} step="0.5"
+                          onChange={(event) => updateSubject(rowIndex, { examScore: Number(event.target.value) })} required className="h-11 px-2 text-center" />
+                        {subjectRows.length > 1 && <Button type="button" variant="ghost" size="icon" aria-label="Remove subject" onClick={() => setSubjectRows((rows) => rows.filter((_, index) => index !== rowIndex))}><Trash2 className="w-4 h-4 text-rose-500" /></Button>}
                       </div>
-                    ))}
-                  </div>
+                      <div className="space-y-2 pl-1">
+                        {row.otherScores.map((score, scoreIndex) => (
+                          <div key={scoreIndex} className="grid grid-cols-[minmax(0,1fr)_5rem_5rem_auto] gap-2">
+                            <Input aria-label="Additional score section name" placeholder="e.g. Project" value={score.label}
+                              onChange={(event) => updateOtherScore(rowIndex, scoreIndex, { label: event.target.value })} required className="h-10" />
+                            <Input aria-label="Additional score" type="number" value={score.score} min={0} max={score.maxScore} step="0.5"
+                              onChange={(event) => updateOtherScore(rowIndex, scoreIndex, { score: Number(event.target.value) })} required className="h-10 px-2 text-center" />
+                            <Input aria-label="Additional score maximum" type="number" value={score.maxScore} min={1} max={100}
+                              onChange={(event) => updateOtherScore(rowIndex, scoreIndex, { maxScore: Number(event.target.value) })} required className="h-10 px-2 text-center" />
+                            <Button type="button" variant="ghost" size="icon" aria-label="Remove additional score" onClick={() => updateSubject(rowIndex, { otherScores: row.otherScores.filter((_, index) => index !== scoreIndex) })}><Trash2 className="w-4 h-4 text-rose-500" /></Button>
+                          </div>
+                        ))}
+                        <Button type="button" variant="ghost" size="sm" onClick={() => addOtherScore(rowIndex)} className="font-bold text-indigo-700">
+                          <Plus className="w-4 h-4 mr-1" /> Add score section
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase text-slate-400 tracking-wider">Teacher Remarks</Label>
-                  <Input
-                    placeholder="e.g. Very focused student. Excellent results."
-                    value={teacherRemarks}
-                    onChange={e => setTeacherRemarks(e.target.value)}
-                    required
-                    className="h-12 rounded-xl border-slate-200 font-bold"
-                  />
+                  <Label htmlFor="teacher-remarks">Teacher remarks</Label>
+                  <Input id="teacher-remarks" placeholder="Learning progress and next steps" value={teacherRemarks}
+                    onChange={(event) => setTeacherRemarks(event.target.value)} required maxLength={2000}
+                    className="h-12 rounded-xl border-slate-200 font-semibold" />
                 </div>
 
-                <Button type="submit" disabled={saving} className="w-full bg-purple-600 hover:bg-purple-700 text-white h-14 rounded-2xl font-black text-lg">
-                  {saving ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Submit for Admin Endorsement'}
+                <Button type="submit" disabled={saving || loading || !classOptions.length} className="w-full bg-purple-600 hover:bg-purple-700 text-white h-14 rounded-2xl font-black text-lg">
+                  {saving ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Submit for Admin Approval'}
                 </Button>
               </form>
             </CardContent>
@@ -227,31 +254,23 @@ export default function TeacherReportCardsPage() {
             <h3 className="text-xl font-black text-slate-900 mb-6">Recent Reports Status</h3>
             <div className="space-y-4">
               {loading ? (
-                <div className="text-slate-400 font-bold py-10 text-center">Loading status...</div>
+                <div className="text-slate-400 font-bold py-10 text-center">Loading status…</div>
               ) : reportCards.length === 0 ? (
                 <div className="text-slate-400 font-bold py-10 text-center">No report cards logged yet</div>
-              ) : (
-                reportCards.map((c) => (
-                  <div key={c.id} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl space-y-2">
-                    <div className="flex justify-between items-center">
-                      <p className="font-black text-sm text-slate-900">{c.studentName}</p>
-                      <Badge className={
-                        c.status === 'ENDORSED' ? 'bg-emerald-50 text-emerald-700 border-none font-bold' :
-                        c.status === 'REJECTED' ? 'bg-red-50 text-red-700 border-none font-bold' :
-                        'bg-amber-50 text-amber-700 border-none font-bold'
-                      }>
-                        {c.status}
-                      </Badge>
-                    </div>
-                    <p className="text-xs font-bold text-slate-400 uppercase">{c.className}</p>
-                    {c.adminFeedback && (
-                      <p className="text-xs font-bold text-slate-500 bg-white p-3 rounded-xl border border-slate-100 mt-2">
-                        <span className="font-black text-slate-700">Admin: </span>{c.adminFeedback}
-                      </p>
-                    )}
+              ) : reportCards.map((card) => (
+                <div key={card.id} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl space-y-2">
+                  <div className="flex justify-between items-center gap-2">
+                    <p className="font-black text-sm text-slate-900">{card.studentName}</p>
+                    <Badge className={
+                      card.status === 'ENDORSED' ? 'bg-emerald-50 text-emerald-700 border-none font-bold' :
+                      card.status === 'REJECTED' ? 'bg-red-50 text-red-700 border-none font-bold' :
+                      'bg-amber-50 text-amber-700 border-none font-bold'
+                    }>{card.status}</Badge>
                   </div>
-                ))
-              )}
+                  <p className="text-xs font-bold text-slate-400 uppercase">{card.className} · {card.term} · {card.session}</p>
+                  {card.adminFeedback && <p className="text-xs font-semibold text-slate-600 bg-white p-3 rounded-xl border border-slate-100"><span className="font-black text-slate-700">Admin: </span>{card.adminFeedback}</p>}
+                </div>
+              ))}
             </div>
           </Card>
         </div>

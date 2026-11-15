@@ -5,11 +5,11 @@ import { assessment, teacher, user, userRole, notification } from '@/lib/db/sche
 import { eq, desc, and, inArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
-import { randomInt } from 'crypto'
+import { generateExamAccessCode } from '@/lib/assessments/access-code'
 import { sendPushNotification } from '@/lib/services/notifications'
 
 function generateSecureAccessCode(): string {
-  return randomInt(100000, 999999).toString()
+  return generateExamAccessCode()
 }
 
 interface AssessmentScopeUser {

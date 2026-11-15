@@ -12,6 +12,7 @@ import { SchoolRenewalReminderWidget } from '@/components/school/SchoolRenewalRe
 import { StudentRegistrationLockoutWidget } from '@/components/student/StudentRegistrationLockoutWidget'
 import { MobileNav } from '@/components/layout/mobile-nav'
 import { getParentCbtFeeAlerts } from '@/app/actions/assessments'
+import { getDashboardIdentity } from '@/app/actions/user'
 import { toast } from 'sonner'
 
 type BeforeInstallPromptEvent = Event & {
@@ -42,6 +43,8 @@ export default function DashboardLayout({
   // Mobile sidebar drawer state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [identityName, setIdentityName] = useState<string | null>(null)
 
   // Escape key handler for drawer
   useEffect(() => {
@@ -57,6 +60,15 @@ export default function DashboardLayout({
 
   useEffect(() => {
     setMounted(true)
+    getDashboardIdentity()
+      .then((identity) => {
+        setAvatarUrl(identity?.avatarUrl || null)
+        setIdentityName(identity?.name || null)
+      })
+      .catch((error: unknown) => {
+        console.error('Could not load dashboard identity:', error)
+      })
+
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
                           (window.navigator as Navigator & { standalone?: boolean }).standalone === true
 
@@ -222,11 +234,20 @@ export default function DashboardLayout({
                 className="flex items-center gap-2 rounded-xl p-1 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 dark:hover:bg-slate-800 sm:gap-3"
               >
                 <div className="text-right hidden md:block">
-                  <p className="text-xs font-black text-slate-900 dark:text-white">EL LEARNERS</p>
+                  <p className="text-xs font-black text-slate-900 dark:text-white">{identityName || 'EL LEARNERS'}</p>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userEmail || `${activeRole} Portal`}</p>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-md">
-                  <User className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-md overflow-hidden">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={() => setAvatarUrl(null)}
+                    />
+                  ) : (
+                    <User className="w-5 h-5" />
+                  )}
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
               </button>

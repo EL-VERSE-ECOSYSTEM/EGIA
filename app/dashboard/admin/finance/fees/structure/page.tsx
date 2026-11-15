@@ -7,21 +7,29 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { setFees, getFeeStructuresAction, deleteFeeStructureAction } from '@/app/actions/admin'
+import {
+  setFees,
+  updateFeeStructureAction,
+  getFeeStructureClassesAction,
+  getFeeStructuresAction,
+  deleteFeeStructureAction,
+} from '@/app/actions/admin'
 import { getSchoolPaymentConfigAction, saveSchoolPaymentConfigAction } from '@/app/actions/payment-config'
 import { useNigerianBanks } from '@/hooks/useNigerianBanks'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Trash2, Save, Layers, CreditCard, Building, Link as LinkIcon, CheckCircle2, Bell, Sparkles, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, Save, Pencil, Layers, CreditCard, Building, Link as LinkIcon, CheckCircle2, Bell, Sparkles, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function FeesStructurePage() {
   const [loadingFee, setLoadingFee] = useState(false)
   const [loadingConfig, setLoadingConfig] = useState(false)
   const [feeStructures, setFeeStructures] = useState<any[]>([])
+  const [classes, setClasses] = useState<string[]>([])
+  const [editingFeeId, setEditingFeeId] = useState<string | null>(null)
 
   // Fee Form State
   const [formData, setFormData] = useState({
-    class: 'JSS1',
+    class: '',
     department: '',
     feeType: 'Tuition Fees',
     amount: '',
@@ -50,16 +58,23 @@ export default function FeesStructurePage() {
     message: ''
   })
 
-  const classes = ['Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3']
-  const departments = ['Science', 'Art', 'Commercial']
-  const feeTypes = ['Tuition Fees', 'Development Levy', 'Examination Fees', 'Sports Fees', 'PTA Levies', 'Library Fees', 'ICT Fees', 'Uniform Fees']
-
   const fetchFeeStructures = async () => {
     try {
       const data = await getFeeStructuresAction()
       setFeeStructures(data || [])
     } catch (err) {
       console.warn('Could not fetch fee structures:', err)
+    }
+  }
+
+  const fetchClasses = async () => {
+    try {
+      const schoolClasses = await getFeeStructureClassesAction()
+      setClasses(schoolClasses)
+      setFormData((current) => ({ ...current, class: current.class || schoolClasses[0] || '' }))
+    } catch (error) {
+      console.error('Could not fetch school classes:', error)
+      toast.error(error instanceof Error ? error.message : 'Could not load registered school classes.')
     }
   }
 
@@ -81,6 +96,7 @@ export default function FeesStructurePage() {
 
   useEffect(() => {
     fetchFeeStructures()
+    fetchClasses()
     fetchPaymentConfig()
 
     // Real-Time Supabase Database Subscriptions
@@ -114,14 +130,19 @@ export default function FeesStructurePage() {
 
     setLoadingFee(true)
     try {
-      const inserted = await setFees(formData)
-      toast.success('Fee structure uploaded in real time!')
+      if (editingFeeId) {
+        await updateFeeStructureAction(editingFeeId, formData)
+        toast.success('Fee structure updated.')
+      } else {
+        await setFees(formData)
+        toast.success('Fee structure added.')
+      }
 
       // Pop-up Notification
       setPopupNotification({
         open: true,
-        title: 'Fee Structure Added & Uploaded in Real Time',
-        message: 'The new fee configuration has been saved directly to the Supabase Database and is now active for all matching students in real time.',
+        title: editingFeeId ? 'Fee Structure Updated' : 'Fee Structure Added',
+        message: 'The school-scoped fee configuration has been saved and is active for matching students.',
         details: {
           Class: formData.class,
           Department: formData.department || 'General',
@@ -132,7 +153,8 @@ export default function FeesStructurePage() {
         }
       })
 
-      setFormData({ class: 'JSS1', department: '', feeType: 'Tuition Fees', amount: '', dueDate: '', warningDate: '' })
+      setEditingFeeId(null)
+      setFormData({ class: classes[0] || '', department: '', feeType: '', amount: '', dueDate: '', warningDate: '' })
       fetchFeeStructures()
     } catch (error: any) {
       toast.error(error.message || 'Failed to save fee structure')
@@ -180,6 +202,10 @@ export default function FeesStructurePage() {
     try {
       await deleteFeeStructureAction(id)
       toast.success('Fee structure deleted in real time')
+      if (editingFeeId === id) {
+        setEditingFeeId(null)
+        setFormData({ class: classes[0] || '', department: '', feeType: '', amount: '', dueDate: '', warningDate: '' })
+      }
       fetchFeeStructures()
     } catch (err: any) {
       toast.error(err.message || 'Delete failed')
@@ -263,36 +289,29 @@ export default function FeesStructurePage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Department (Optional)</Label>
-                    <Select value={formData.department} onValueChange={(v) => setFormData({ ...formData, department: v })}>
-                      <SelectTrigger className="h-12 rounded-2xl bg-slate-50 border-slate-200 font-bold text-xs">
-                        <SelectValue placeholder="General / All" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="GENERAL">General / All</SelectItem>
-                        {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="fee-department" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Department (Optional)</Label>
+                    <Input id="fee-department" value={formData.department} maxLength={80}
+                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                      placeholder="Blank applies to all departments"
+                      className="h-12 rounded-2xl bg-slate-50 border-slate-200 font-bold text-xs" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Fee Category *</Label>
-                    <Select value={formData.feeType} onValueChange={(v) => setFormData({ ...formData, feeType: v })}>
-                      <SelectTrigger className="h-12 rounded-2xl bg-slate-50 border-slate-200 font-bold text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {feeTypes.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="fee-category" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Fee Category *</Label>
+                    <Input id="fee-category" required maxLength={100} value={formData.feeType}
+                      onChange={(e) => setFormData({ ...formData, feeType: e.target.value })}
+                      placeholder="e.g. Tuition Fees, Uniform, Transport"
+                      className="h-12 rounded-2xl bg-slate-50 border-slate-200 font-bold text-xs" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Amount (₦) *</Label>
                     <Input
                       type="number"
                       required
+                      min="0.01"
+                      step="0.01"
                       placeholder="0.00"
                       value={formData.amount}
                       onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
@@ -324,10 +343,10 @@ export default function FeesStructurePage() {
 
                 <Button
                   type="submit"
-                  disabled={loadingFee}
+                  disabled={loadingFee || !classes.length}
                   className="w-full h-14 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs uppercase tracking-wider shadow-xl shadow-amber-200/50 gap-2 transition"
                 >
-                  <Save size={18} /> {loadingFee ? 'UPLOADING TO SUPABASE...' : 'PUBLISH FEE STRUCTURE IN REAL TIME'}
+                  <Save size={18} /> {loadingFee ? 'SAVING FEE STRUCTURE...' : editingFeeId ? 'UPDATE FEE STRUCTURE' : 'PUBLISH FEE STRUCTURE'}
                 </Button>
               </form>
             </CardContent>
@@ -514,6 +533,24 @@ export default function FeesStructurePage() {
                       <td className="py-3.5 px-4 text-slate-500">{f.dueDate || 'Standard'}</td>
                       <td className="py-3.5 px-4 text-amber-700 font-bold">{f.warningDate ? new Date(f.warningDate).toLocaleDateString() : 'None'}</td>
                       <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={() => {
+                            setEditingFeeId(f.id)
+                            setFormData({
+                              class: f.class,
+                              department: f.department || '',
+                              feeType: f.feeType,
+                              amount: String(f.amount),
+                              dueDate: f.dueDate || '',
+                              warningDate: f.warningDate || '',
+                            })
+                            window.scrollTo({ top: 0, behavior: 'smooth' })
+                          }}
+                          className="p-2 rounded-xl text-amber-700 hover:bg-amber-50 transition"
+                          title="Edit fee structure"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => handleDeleteFee(f.id)}
                           className="p-2 rounded-xl text-red-500 hover:bg-red-50 transition"

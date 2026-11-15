@@ -61,7 +61,7 @@ export default function SupportTicketsPage() {
   }
 
   const filtered = tickets.filter(t =>
-    t.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.userEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.category?.toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -116,7 +116,7 @@ export default function SupportTicketsPage() {
               <div key={ticket.id} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-4">
                   <div>
-                    <h3 className="text-base font-black text-slate-900">{ticket.subject}</h3>
+                    <h3 className="text-base font-black text-slate-900">{ticket.title}</h3>
                     <p className="text-xs font-bold text-slate-400">By: {ticket.userEmail || ticket.userId} • Category: {ticket.category || 'General'}</p>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
@@ -127,7 +127,7 @@ export default function SupportTicketsPage() {
                 </div>
 
                 <div className="p-4 bg-slate-50 rounded-2xl text-xs font-medium text-slate-700 leading-relaxed">
-                  {ticket.description || ticket.message}
+                  {ticket.description}
                 </div>
 
                 {ticket.replies && ticket.replies.length > 0 && (
@@ -136,7 +136,7 @@ export default function SupportTicketsPage() {
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {ticket.replies.map((rep: any) => (
                         <div key={rep.id} className="p-3 bg-slate-100 rounded-xl text-xs space-y-1">
-                          <p className="font-bold text-slate-900 text-[11px]">{rep.senderRole}: {rep.message}</p>
+                          <p className="font-bold text-slate-900 text-[11px]">Super Admin reply: {rep.message}</p>
                           <p className="text-[9px] text-slate-400">{new Date(rep.createdAt).toLocaleString()}</p>
                         </div>
                       ))}

@@ -230,6 +230,57 @@ export async function getTeacherProfile(userId?: string) {
   })
 }
 
+export async function getDashboardIdentity() {
+  const session = await auth.getSession()
+  if (!session?.user) return null
+
+  const userRecord = await db.query.user.findFirst({
+    where: eq(userTable.id, session.user.id),
+  })
+  if (!userRecord) return null
+
+  let profileImage: string | null = null
+  let profileSchoolId: string | null = null
+  switch (session.user.role.toUpperCase()) {
+    case 'STUDENT':
+    case 'PUPIL': {
+      const profile = await db.query.student.findFirst({
+        where: eq(student.userId, session.user.id),
+      })
+      profileImage = profile?.profileImage || null
+      profileSchoolId = profile?.schoolId || null
+      break
+    }
+    case 'PARENT': {
+      const profile = await db.query.parent.findFirst({
+        where: eq(parentTable.userId, session.user.id),
+      })
+      profileImage = profile?.profileImage || null
+      profileSchoolId = profile?.schoolId || null
+      break
+    }
+    case 'TEACHER': {
+      const profile = await db.query.teacher.findFirst({
+        where: eq(teacherTable.userId, session.user.id),
+      })
+      profileImage = profile?.profileImage || null
+      profileSchoolId = profile?.schoolId || null
+      break
+    }
+  }
+
+  const schoolId = profileSchoolId || userRecord.schoolId
+  const schoolRecord = schoolId
+    ? await db.query.school.findFirst({ where: eq(schoolTable.id, schoolId) })
+    : null
+
+  return {
+    name: userRecord.name || session.user.name || null,
+    email: userRecord.email || session.user.email || null,
+    avatarUrl: profileImage || userRecord.image || schoolRecord?.logoUrl || null,
+  }
+}
+
 export async function getUserRole(userId: string) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized session')

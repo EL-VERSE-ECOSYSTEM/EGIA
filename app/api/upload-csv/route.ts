@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseCSVAdvanced, mapCSVFields } from '@/lib/csv-parser'
 import { db } from '@/lib/db'
-import { libraryBooks, assessmentQuestion, assessment, user as userTable } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { libraryBooks, assessmentQuestion, assessment, user as userTable, teacher, teacherOnSubject } from '@/lib/db/schema'
+import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { auth } from '@/lib/auth'
 import { sanitizeServerError } from '@/lib/errors'
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Target assessment not found.' }, { status: 404 })
       }
 
-      // Enforce school tenant isolation for non-SUPER_ADMIN users
+      // Enforce school tenant isolation for non-SUPER_ADMIN users.
       if (role !== 'SUPER_ADMIN') {
         let userSchoolId = session.user.schoolId || null
 
@@ -138,10 +138,32 @@ export async function POST(req: NextRequest) {
           userSchoolId = userRecord?.schoolId || null
         }
 
-        if (existingAssessment.schoolId && existingAssessment.schoolId !== userSchoolId) {
+        if (!userSchoolId || existingAssessment.schoolId !== userSchoolId) {
           return NextResponse.json({
             error: 'Forbidden: School tenant isolation mismatch. You cannot modify assessments belonging to another school.'
           }, { status: 403 })
+        }
+      }
+
+      if (role === 'TEACHER') {
+        const teacherProfile = await db.query.teacher.findFirst({
+          where: eq(teacher.userId, session.user.id),
+          columns: { id: true },
+        })
+        if (!teacherProfile || existingAssessment.createdBy !== teacherProfile.id || !existingAssessment.targetClassId) {
+          return NextResponse.json({ error: 'You can only add questions to your own class-targeted assessments.' }, { status: 403 })
+        }
+
+        const assignment = await db.query.teacherOnSubject.findFirst({
+          where: and(
+            eq(teacherOnSubject.teacherId, teacherProfile.id),
+            eq(teacherOnSubject.subjectId, existingAssessment.subjectId),
+            eq(teacherOnSubject.classId, existingAssessment.targetClassId),
+          ),
+          columns: { teacherId: true },
+        })
+        if (!assignment) {
+          return NextResponse.json({ error: 'You are no longer assigned to this assessment class and subject.' }, { status: 403 })
         }
       }
 

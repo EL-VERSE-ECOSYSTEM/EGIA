@@ -506,15 +506,15 @@ export async function getSuperAdminSupportTicketsAction() {
 
     const result: any[] = []
     for (const t of tickets) {
-      const userRec = await db.query.user.findFirst({
-        where: eq(user.id, t.userId),
-      })
+      const userRec = t.userId
+        ? await db.query.user.findFirst({ where: eq(user.id, t.userId) })
+        : null
       const replies = await db.select().from(supportTicketReply).where(eq(supportTicketReply.ticketId, t.id)).orderBy(desc(supportTicketReply.createdAt))
 
       result.push({
         ...t,
-        userName: userRec?.name || 'Portal User',
-        userEmail: userRec?.email || 'N/A',
+        userName: userRec?.name || t.contactName || 'Portal User',
+        userEmail: userRec?.email || t.contactEmail || 'N/A',
         replies,
       })
     }
@@ -528,6 +528,10 @@ export async function getSuperAdminSupportTicketsAction() {
 export async function replyToSupportTicketAction(ticketId: string, message: string) {
   try {
     const adminUser = await checkSuperAdminPermission()
+    const trimmedMessage = message.trim()
+    if (!trimmedMessage || trimmedMessage.length > 5000) {
+      return { success: false, error: 'Reply must be between 1 and 5,000 characters.' }
+    }
 
     const { supportTicket, supportTicketReply } = await import('@/lib/db/schema')
     const ticket = await db.query.supportTicket.findFirst({
@@ -543,7 +547,7 @@ export async function replyToSupportTicketAction(ticketId: string, message: stri
       id: replyId,
       ticketId,
       senderId: adminUser.id,
-      message,
+      message: trimmedMessage,
       createdAt: new Date(),
     })
 
@@ -554,15 +558,16 @@ export async function replyToSupportTicketAction(ticketId: string, message: stri
       })
       .where(eq(supportTicket.id, ticketId))
 
-    // Real-time notification for user
-    await db.insert(notification).values({
-      id: randomUUID(),
-      userId: ticket.userId,
-      title: `SUPPORT RESPONSE: ${ticket.ticketNumber}`,
-      message: `Super Admin Response: "${message}"`,
-      type: 'SUPPORT_REPLY',
-      createdAt: new Date(),
-    })
+    if (ticket.userId) {
+      await db.insert(notification).values({
+        id: randomUUID(),
+        userId: ticket.userId,
+        title: `SUPPORT RESPONSE: ${ticket.ticketNumber}`,
+        message: `Super Admin Response: "${trimmedMessage}"`,
+        type: 'SUPPORT_REPLY',
+        createdAt: new Date(),
+      })
+    }
 
     revalidatePath('/dashboard/super-admin/overview')
     return { success: true, replyId }

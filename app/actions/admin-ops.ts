@@ -20,6 +20,7 @@ import { eq, and, sql, desc } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'
+import { notifyPaymentConfirmed } from '@/lib/payments/notifications'
 
 async function requireAdmin() {
   const session = await auth.getSession()
@@ -41,30 +42,40 @@ async function requireSchoolAdminScope(requestedSchoolId?: string) {
   return user.schoolId
 }
 
+async function requirePaymentAdminScope(action: 'read' | 'update') {
+  const schoolId = await requireSchoolAdminScope()
+  const user = (await auth.getSession())?.user
+  if (user?.role === 'SCHOOL_ADMIN' && !canSchoolAdminAccess(user.adminLevel, action, 'payment')) {
+    throw new Error('Your school administrator role does not have permission to manage payments.')
+  }
+  return schoolId
+}
+
 // ===== SUPPORT TICKETS ACTIONS =====
 export async function getAdminSupportTickets() {
   const schoolId = await requireSchoolAdminScope()
   const query = db.select({ ticket: supportTicket, userRecord: userTable })
     .from(supportTicket)
-    .innerJoin(userTable, eq(userTable.id, supportTicket.userId))
+    .leftJoin(userTable, eq(userTable.id, supportTicket.userId))
   const list = schoolId
     ? await query.where(eq(userTable.schoolId, schoolId)).orderBy(desc(supportTicket.createdAt))
     : await query.orderBy(desc(supportTicket.createdAt))
 
   return list.map(({ ticket, userRecord }) => ({
     ...ticket,
-    userName: userRecord.name || 'Portal User',
-    userEmail: userRecord.email || 'N/A',
+    userName: userRecord?.name || ticket.contactName || 'Portal User',
+    userEmail: userRecord?.email || ticket.contactEmail || 'N/A',
   }))
 }
 
 export async function resolveSupportTicket(ticketId: string, resolution: string) {
   const schoolId = await requireSchoolAdminScope()
-  if (!resolution) throw new Error('Please provide a resolution notes.')
+  const resolutionText = resolution.trim()
+  if (!resolutionText || resolutionText.length > 2000) throw new Error('Please provide resolution notes of up to 2,000 characters.')
 
   const [ticket] = await db.select({ ticket: supportTicket, ownerSchoolId: userTable.schoolId })
     .from(supportTicket)
-    .innerJoin(userTable, eq(userTable.id, supportTicket.userId))
+    .leftJoin(userTable, eq(userTable.id, supportTicket.userId))
     .where(eq(supportTicket.id, ticketId))
     .limit(1)
   if (!ticket || (schoolId && ticket.ownerSchoolId !== schoolId)) {
@@ -74,7 +85,7 @@ export async function resolveSupportTicket(ticketId: string, resolution: string)
   const result = await db.update(supportTicket)
     .set({
       status: 'RESOLVED',
-      resolution,
+      resolution: resolutionText,
       resolvedAt: new Date(),
       updatedAt: new Date()
     })
@@ -103,9 +114,11 @@ export async function getAdminDisputes() {
 
     if (
       schoolId &&
-      userRecord?.schoolId !== schoolId &&
-      studentRecord?.schoolId !== schoolId &&
-      paymentRecord?.schoolId !== schoolId
+      (
+        ![userRecord?.schoolId, studentRecord?.schoolId, paymentRecord?.schoolId].some(Boolean) ||
+        [userRecord?.schoolId, studentRecord?.schoolId, paymentRecord?.schoolId]
+          .some((referencedSchoolId) => referencedSchoolId && referencedSchoolId !== schoolId)
+      )
     ) {
       continue
     }
@@ -136,7 +149,9 @@ export async function resolveDispute(disputeId: string, resolution: string) {
     const relatedPayment = complaint.relatedPaymentId
       ? await db.query.payment.findFirst({ where: eq(payment.id, complaint.relatedPaymentId) })
       : null
-    if (reporter?.schoolId !== schoolId && relatedStudent?.schoolId !== schoolId && relatedPayment?.schoolId !== schoolId) {
+    const referencedSchoolIds = [reporter?.schoolId, relatedStudent?.schoolId, relatedPayment?.schoolId]
+      .filter((referencedSchoolId): referencedSchoolId is string => Boolean(referencedSchoolId))
+    if (!referencedSchoolIds.length || referencedSchoolIds.some((referencedSchoolId) => referencedSchoolId !== schoolId)) {
       throw new Error('Complaint not found in the active school.')
     }
   }
@@ -222,38 +237,54 @@ export async function resolveDisciplinaryRecord(recordId: string, notes: string)
 
 // ===== ADMIN UPDATE USER WALLET & OVERVIEW AMOUNTS =====
 export async function updateParentOutstandingFee(parentId: string, amount: string) {
-  await requireAdmin()
-  const num = parseFloat(amount)
-  if (isNaN(num) || num < 0) throw new Error('Please enter a valid amount.')
+  const schoolId = await requirePaymentAdminScope('update')
+  const targetParent = await db.query.parent.findFirst({
+    where: schoolId
+      ? and(eq(parentTable.id, parentId), eq(parentTable.schoolId, schoolId))
+      : eq(parentTable.id, parentId),
+  })
+  if (!targetParent?.schoolId) throw new Error('Parent account was not found in an active school.')
+  const targetSchoolId = targetParent.schoolId
 
-  // Check if parent has any child
+  const num = parseFloat(amount)
+  if (!Number.isFinite(num) || num < 0) throw new Error('Please enter a valid amount.')
+
   const children = await db.query.student.findMany({
-    where: eq(student.parentId, parentId)
+    where: and(
+      eq(student.parentId, targetParent.id),
+      eq(student.schoolId, targetSchoolId),
+    ),
   })
 
   if (children.length === 0) throw new Error('This parent does not have any linked wards to assign fees to.')
 
-  // Create a pending fee record for the first linked ward
   const studentId = children[0].id
   const reference = `FEE-UPDATE-${Date.now()}-${randomUUID().slice(0, 8)}`
 
-  // Deactivate any existing pending fees and insert a new one representing their balance
-  await db.update(payment)
-    .set({ status: 'failed', updatedAt: new Date() })
-    .where(and(eq(payment.parentId, parentId), eq(payment.status, 'pending')))
+  await db.transaction(async (tx) => {
+    await tx.update(payment)
+      .set({ status: 'failed', updatedAt: new Date() })
+      .where(and(
+        eq(payment.parentId, targetParent.id),
+        eq(payment.schoolId, targetSchoolId),
+        eq(payment.status, 'pending'),
+        eq(payment.paymentMethod, 'ADMIN'),
+      ))
 
-  await db.insert(payment).values({
-    id: randomUUID(),
-    studentId,
-    parentId,
-    amount: num.toFixed(2),
-    feeType: 'tuition',
-    paymentMethod: 'ADMIN',
-    transactionReference: reference,
-    status: 'pending',
-    description: 'Updated fee obligation set by school administration.',
-    createdAt: new Date(),
-    updatedAt: new Date()
+    await tx.insert(payment).values({
+      id: randomUUID(),
+      schoolId: targetSchoolId,
+      studentId,
+      parentId: targetParent.id,
+      amount: num.toFixed(2),
+      feeType: 'tuition',
+      paymentMethod: 'ADMIN',
+      transactionReference: reference,
+      status: 'pending',
+      description: 'Updated fee obligation set by school administration.',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    })
   })
 
   revalidatePath('/dashboard/parent/overview')
@@ -262,11 +293,14 @@ export async function updateParentOutstandingFee(parentId: string, amount: strin
 }
 
 export async function getParentsWithPendingFees() {
-  await requireAdmin()
-  const parentsList = await db.select().from(parentTable)
+  const schoolId = await requirePaymentAdminScope('read')
+  const parentsList = schoolId
+    ? await db.select().from(parentTable).where(eq(parentTable.schoolId, schoolId))
+    : await db.select().from(parentTable)
   const result: any[] = []
 
   for (const p of parentsList) {
+    if (!p.schoolId) continue
     const userRecord = await db.query.user.findFirst({
       where: eq(userTable.id, p.userId)
     })
@@ -275,6 +309,7 @@ export async function getParentsWithPendingFees() {
     const pendingPayments = await db.query.payment.findMany({
       where: and(
         eq(payment.parentId, p.id),
+        eq(payment.schoolId, p.schoolId),
         eq(payment.status, 'pending')
       )
     })
@@ -451,6 +486,7 @@ export async function reconcilePaymentAction(paymentId: string, status: 'RECONCI
     }
   })
 
+  if (status === 'RECONCILED') await notifyPaymentConfirmed(paymentRecord.id)
   revalidatePath('/dashboard/admin/finance/ledger')
   revalidatePath('/dashboard/admin/finance/reconciliation')
   return { success: true }

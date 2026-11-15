@@ -18,30 +18,44 @@ import {
   FileSpreadsheet,
   Download,
   Printer,
-  X
+  X,
+  Plus,
+  ReceiptText
 } from 'lucide-react'
 import { getAllPaymentsWithStudents, verifyPayment } from '@/app/actions/admin'
+import { getManualPaymentOptions, recordManualSchoolPayment } from '@/app/actions/payments'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
+type PaymentLedger = Awaited<ReturnType<typeof getAllPaymentsWithStudents>>
+type PaymentRow = PaymentLedger['payments'][number]
+type FeeStructureRow = PaymentLedger['feeStructures'][number]
+type ManualPaymentOptions = Awaited<ReturnType<typeof getManualPaymentOptions>>
+
 export default function AdminPaymentsPage() {
-  const [payments, setPayments] = useState<any[]>([])
+  const [payments, setPayments] = useState<PaymentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [activeReceipt, setActiveReceipt] = useState<any | null>(null)
+  const [activeReceipt, setActiveReceipt] = useState<PaymentRow | null>(null)
 
-  const [feeStructures, setFeeStructures] = useState<any[]>([])
+  const [feeStructures, setFeeStructures] = useState<FeeStructureRow[]>([])
+  const [manualOptions, setManualOptions] = useState<ManualPaymentOptions>({ students: [], fees: [] })
+  const [showManualPayment, setShowManualPayment] = useState(false)
+  const [manualStudentId, setManualStudentId] = useState('')
+  const [manualFeeType, setManualFeeType] = useState('')
+  const [manualAmount, setManualAmount] = useState('')
+  const [manualMethod, setManualMethod] = useState('CASH')
+  const [manualReceiptReference, setManualReceiptReference] = useState('')
+  const [manualError, setManualError] = useState('')
+  const [manualSuccess, setManualSuccess] = useState('')
+  const [savingManualPayment, setSavingManualPayment] = useState(false)
 
   const loadPayments = async () => {
     try {
       const res = await getAllPaymentsWithStudents()
-      if (Array.isArray(res)) {
-        setPayments(res)
-      } else {
-        setPayments(res?.payments || [])
-        setFeeStructures(res?.feeStructures || [])
-      }
+      setPayments(res.payments)
+      setFeeStructures(res.feeStructures)
     } catch (err) {
       console.error('Error loading payments:', err)
     } finally {
@@ -71,7 +85,46 @@ export default function AdminPaymentsPage() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const openManualPayment = async () => {
+    setShowManualPayment(true)
+    setManualError('')
+    setManualSuccess('')
+    try {
+      setManualOptions(await getManualPaymentOptions())
+    } catch (error) {
+      setManualError(error instanceof Error ? error.message : 'Unable to load your school payment options.')
+    }
+  }
+
+  const selectedManualStudent = manualOptions.students.find((record) => record.id === manualStudentId)
+  const selectedManualFees = manualOptions.fees.filter((fee) =>
+    selectedManualStudent &&
+    fee.class.toLowerCase() === selectedManualStudent.class.toLowerCase() &&
+    (!fee.department || fee.department === selectedManualStudent.department)
+  )
+
+  const handleRecordManualPayment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSavingManualPayment(true)
+    setManualError('')
+    try {
+      const result = await recordManualSchoolPayment({
+        studentId: manualStudentId,
+        amount: manualAmount,
+        feeType: manualFeeType,
+        paymentMethod: manualMethod,
+        receiptReference: manualReceiptReference,
+      })
+      setManualSuccess(`Payment saved successfully. Reference: ${result.reference}`)
+      await loadPayments()
+    } catch (error) {
+      setManualError(error instanceof Error ? error.message : 'Payment could not be recorded.')
+    } finally {
+      setSavingManualPayment(false)
+    }
+  }
+
+  const getStatusBadge = (status: string | null) => {
     const s = (status || 'pending').toLowerCase()
     if (s === 'success' || s === 'approved') {
       return (
@@ -118,6 +171,96 @@ export default function AdminPaymentsPage() {
   return (
     <DashboardLayout role="admin">
       <div className="p-8 max-w-7xl mx-auto space-y-10 relative">
+        {showManualPayment && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+            <section role="dialog" aria-modal="true" aria-labelledby="manual-payment-title" className="relative w-full max-w-xl rounded-3xl bg-white p-7 shadow-2xl">
+              <button onClick={() => setShowManualPayment(false)} aria-label="Close payment form" className="absolute right-5 top-5 rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200">
+                <X className="h-4 w-4" />
+              </button>
+              {manualSuccess ? (
+                <div className="space-y-5 py-5 text-center animate-in zoom-in-95 duration-300">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                    <CheckCircle2 className="h-10 w-10 animate-in zoom-in duration-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900">Payment Recorded</h2>
+                    <p className="mt-2 text-sm font-medium text-slate-500">{manualSuccess}</p>
+                  </div>
+                  <Button onClick={() => setShowManualPayment(false)} className="h-12 rounded-xl bg-emerald-600 px-8 font-bold hover:bg-emerald-700">Done</Button>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-6 flex items-center gap-4">
+                    <div className="rounded-2xl bg-emerald-100 p-3 text-emerald-700"><ReceiptText className="h-6 w-6" /></div>
+                    <div>
+                      <h2 id="manual-payment-title" className="text-xl font-black text-slate-900">Record In-School Payment</h2>
+                      <p className="text-sm font-medium text-slate-500">Each receipt is saved as a separate payment.</p>
+                    </div>
+                  </div>
+                  <form onSubmit={handleRecordManualPayment} className="space-y-4">
+                    <label className="block space-y-1.5 text-sm font-bold text-slate-700">
+                      Student / pupil
+                      <select required value={manualStudentId} onChange={(event) => {
+                        setManualStudentId(event.target.value)
+                        setManualFeeType('')
+                      }} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3">
+                        <option value="">Select a student</option>
+                        {manualOptions.students.map((record) => (
+                          <option key={record.id} value={record.id}>
+                            {record.firstName} {record.lastName} · {record.class} · {record.admissionNumber} · Parent: {record.parentName || 'Not linked'}{record.parentEmail ? ` (${record.parentEmail})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {selectedManualStudent && (
+                      <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        Linked parent account: <span className="font-bold text-slate-800">{selectedManualStudent.parentName || 'No parent account linked'}</span>
+                        {selectedManualStudent.parentEmail && <span> · {selectedManualStudent.parentEmail}</span>}
+                      </p>
+                    )}
+                    <label className="block space-y-1.5 text-sm font-bold text-slate-700">
+                      Fee category
+                      <select required value={manualFeeType} onChange={(event) => setManualFeeType(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3">
+                        <option value="">Select a school fee</option>
+                        {selectedManualFees.map((fee) => (
+                          <option key={fee.id} value={fee.feeType}>{fee.feeType} · ₦{Number(fee.amount).toLocaleString()}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="block space-y-1.5 text-sm font-bold text-slate-700">
+                        Amount received (₦)
+                        <Input required type="number" min="0.01" step="0.01" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} placeholder="e.g. 15000.00" className="h-12 rounded-xl" />
+                      </label>
+                      <label className="block space-y-1.5 text-sm font-bold text-slate-700">
+                        Payment method
+                        <select required value={manualMethod} onChange={(event) => setManualMethod(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3">
+                          <option value="CASH">Cash</option>
+                          <option value="BANK_TRANSFER">Bank transfer</option>
+                          <option value="POS">POS</option>
+                          <option value="CHEQUE">Cheque</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </label>
+                    </div>
+                    <label className="block space-y-1.5 text-sm font-bold text-slate-700">
+                      Receipt / external reference <span className="font-medium text-slate-400">(optional)</span>
+                      <Input value={manualReceiptReference} onChange={(event) => setManualReceiptReference(event.target.value)} maxLength={100} placeholder="School receipt number or transfer note" className="h-12 rounded-xl" />
+                    </label>
+                    {manualError && <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{manualError}</p>}
+                    <div className="flex justify-end gap-3 pt-2">
+                      <Button type="button" variant="outline" onClick={() => setShowManualPayment(false)} className="h-12 rounded-xl">Cancel</Button>
+                      <Button type="submit" disabled={savingManualPayment || !manualOptions.students.length} className="h-12 rounded-xl bg-emerald-600 px-6 font-bold hover:bg-emerald-700">
+                        {savingManualPayment ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…</> : 'Save Payment'}
+                      </Button>
+                    </div>
+                  </form>
+                </>
+              )}
+            </section>
+          </div>
+        )}
+
         {/* Downloadable / Printable Transaction Receipt Modal */}
         {activeReceipt && (
           <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-6 animate-in fade-in duration-300">
@@ -201,6 +344,12 @@ export default function AdminPaymentsPage() {
             className="bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl h-12 px-6 flex items-center gap-2"
           >
             <FileSpreadsheet size={16} /> EXPORT LEDGER
+          </Button>
+          <Button
+            onClick={openManualPayment}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl h-12 px-6 flex items-center gap-2"
+          >
+            <Plus size={16} /> RECORD IN-SCHOOL PAYMENT
           </Button>
         </div>
 
@@ -330,7 +479,7 @@ export default function AdminPaymentsPage() {
                     </tr>
                   ) : (
                     filteredPayments.map((p) => {
-                      const parentName = p.parent?.fatherName || p.parent?.motherName || p.parent?.guardianName || p.parent?.user?.name || 'Parent / Guardian'
+                      const parentName = p.parent?.user?.name || 'Parent / Guardian'
                       const totalAmt = parseFloat(p.amount || '0')
                       const hasGatewayFee = ['PAYSTACK', 'KORAPAY'].includes((p.paymentMethod || '').toUpperCase())
                       const gatewayFee = hasGatewayFee ? 161.25 : 0

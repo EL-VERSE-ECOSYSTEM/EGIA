@@ -90,6 +90,7 @@ export const userRole = pgTable('user_role', {
 
 export const reportCardTable = pgTable('report_card', {
   id: text('id').primaryKey(),
+  schoolId: text('school_id').references(() => school.id, { onDelete: 'cascade' }),
   studentId: text('studentId').notNull(),
   studentName: text('studentName').notNull(),
   className: text('className').notNull(),
@@ -285,6 +286,8 @@ export const assessment = pgTable('assessment', {
   type: text('type').notNull(),
   status: text('status').default('draft'),
   accessCode: text('accesscode'), // Exam Code / Access Code for CBT session
+  targetClassId: text('target_class_id'),
+  targetDepartment: text('target_department'),
   adminComment: text('adminComment'),
   passingScore: integer('passingScore').default(40),
   totalPoints: integer('totalPoints').default(100),
@@ -571,8 +574,14 @@ export const schoolAdminRoles = pgTable('school_admin_roles', {
 
 export const paymentInstallment = pgTable('payment_installment', {
   id: text('id').primaryKey(),
-  paymentId: text('paymentId').notNull(),
+  paymentId: text('paymentId'),
+  schoolId: text('school_id'),
+  studentId: text('student_id'),
+  parentId: text('parent_id'),
+  termId: text('term_id'),
+  feeType: text('fee_type'),
   amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  paidAmount: numeric('paid_amount', { precision: 12, scale: 2 }).notNull().default('0'),
   dueDate: date('dueDate').notNull(),
   paidAt: timestamp('paidAt', { withTimezone: true }),
   status: text('status').default('pending'),
@@ -740,7 +749,9 @@ export const supportTicket = pgTable('support_ticket', {
   status: text('status').default('OPEN'),
   description: text('description').notNull(),
   screenshots: jsonb('screenshots'),
-  userId: text('userId').notNull(),
+  userId: text('userId'),
+  contactName: text('contact_name'),
+  contactEmail: text('contact_email'),
   assignedAgentId: text('assignedAgentId'),
   resolution: text('resolution'),
   satisfaction: text('satisfaction'),

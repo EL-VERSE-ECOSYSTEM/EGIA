@@ -1,8 +1,8 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { payment, student, paymentReceiptUploads, user as userTable, parent as parentTable, feeStructure, studentGifts } from '@/lib/db/schema'
-import { eq, and, desc, sql, notInArray } from 'drizzle-orm'
+import { payment, student, paymentReceiptUploads, user as userTable, parent as parentTable, feeStructure, studentGifts, term, paymentInstallment, schoolAdminRoles } from '@/lib/db/schema'
+import { eq, and, desc, sql, notInArray, inArray } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
@@ -11,6 +11,8 @@ import { cookies } from 'next/headers'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
 import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'
+import { allocatePaymentAcrossInstallments, splitAmountIntoInstallments, createInstallmentDueDates, INSTALLMENTS_PER_TERM } from '@/lib/payments/installments'
+import { notifyPaymentConfirmed, notifyPaymentStatus } from '@/lib/payments/notifications'
 import {
   initializePaystackPayment as serviceInitializePaystackPayment,
   verifyPaystackPayment as serviceVerifyPaystackPayment,
@@ -53,6 +55,502 @@ function assertReceiptSchoolAccess(user: { role: string; schoolId: string | null
 
 export async function getPaystackGatewayFee() {
   return PAYSTACK_GATEWAY_FEE
+}
+
+async function getSchoolPaymentAdminContext(action: 'read' | 'create') {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Sign in before managing school payments.')
+  const role = session.user.role.toUpperCase()
+  if (!['ADMIN', 'SCHOOL_ADMIN'].includes(role)) throw new Error('Only school administrators can manage in-school payments.')
+  if (role === 'SCHOOL_ADMIN' && !canSchoolAdminAccess(session.user.adminLevel, action, 'payment')) {
+    throw new Error('Your school administrator role does not have permission to manage payments.')
+  }
+
+  const [userRecord, adminRole] = await Promise.all([
+    db.query.user.findFirst({ where: eq(userTable.id, session.user.id) }),
+    db.query.schoolAdminRoles.findFirst({
+      where: and(eq(schoolAdminRoles.userId, session.user.id), eq(schoolAdminRoles.isActive, true)),
+    }),
+  ])
+  const schoolId = session.user.schoolId || userRecord?.schoolId || adminRole?.schoolId || null
+  if (!schoolId) throw new Error('Your administrator account is not assigned to a school.')
+  return { session, schoolId }
+}
+
+export async function getManualPaymentOptions() {
+  const { schoolId } = await getSchoolPaymentAdminContext('read')
+  const [students, fees] = await Promise.all([
+    db.query.student.findMany({
+      where: and(eq(student.schoolId, schoolId), eq(student.isActive, true)),
+      orderBy: (record, { asc }) => [asc(record.lastName), asc(record.firstName)],
+    }),
+    db.query.feeStructure.findMany({
+      where: and(eq(feeStructure.schoolId, schoolId), eq(feeStructure.isActive, true)),
+      orderBy: (record, { asc }) => [asc(record.feeType)],
+    }),
+  ])
+  const parentIds = [...new Set(students.map((record) => record.parentId).filter(
+    (id): id is string => Boolean(id),
+  ))]
+  const linkedParents = parentIds.length
+    ? await db.query.parent.findMany({
+      where: and(inArray(parentTable.id, parentIds), eq(parentTable.schoolId, schoolId)),
+    })
+    : []
+  const parentUsers = linkedParents.length
+    ? await db.query.user.findMany({
+      where: inArray(userTable.id, linkedParents.map((record) => record.userId)),
+    })
+    : []
+  const usersById = new Map(parentUsers.map((record) => [record.id, record]))
+  const parentsById = new Map(linkedParents.map((record) => [record.id, record]))
+  return {
+    students: students.map(({ id, firstName, lastName, class: className, admissionNumber, department, parentId }) => {
+      const linkedParent = parentId ? parentsById.get(parentId) : null
+      return {
+        id,
+        firstName,
+        lastName,
+        class: className,
+        admissionNumber,
+        department,
+        parentName: linkedParent ? `${linkedParent.firstName} ${linkedParent.lastName}`.trim() : null,
+        parentEmail: linkedParent ? usersById.get(linkedParent.userId)?.email || null : null,
+      }
+    }),
+    fees: fees.map(({ id, class: className, department, feeType, amount }) => ({
+      id, class: className, department, feeType, amount,
+    })),
+  }
+}
+
+export async function recordManualSchoolPayment(data: {
+  studentId: string
+  amount: string
+  feeType: string
+  paymentMethod: string
+  receiptReference?: string
+}) {
+  const { session, schoolId } = await getSchoolPaymentAdminContext('create')
+  if (!data || typeof data.studentId !== 'string' || typeof data.feeType !== 'string' ||
+    typeof data.amount !== 'string' || !/^\d+(?:\.\d{1,2})?$/.test(data.amount) ||
+    typeof data.paymentMethod !== 'string' ||
+    (data.receiptReference !== undefined && typeof data.receiptReference !== 'string')) {
+    throw new Error('Enter a student, fee category, payment method, and valid amount.')
+  }
+  const amount = Number(data.amount)
+  const feeType = data.feeType.trim()
+  const method = data.paymentMethod.toUpperCase()
+  const receiptReference = data.receiptReference?.trim()
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000_000) {
+    throw new Error('Enter a valid payment amount greater than zero.')
+  }
+  if (!feeType || feeType.length > 80) throw new Error('Select a valid fee category.')
+  if (!['CASH', 'BANK_TRANSFER', 'POS', 'CHEQUE', 'OTHER'].includes(method)) {
+    throw new Error('Select a supported in-school payment method.')
+  }
+  if (receiptReference && receiptReference.length > 100) {
+    throw new Error('Receipt reference must be 100 characters or fewer.')
+  }
+
+  const currentStudent = await db.query.student.findFirst({
+    where: and(eq(student.id, data.studentId), eq(student.schoolId, schoolId), eq(student.isActive, true)),
+  })
+  if (!currentStudent) throw new Error('Select an active student from your school.')
+  const applicableFees = await db.query.feeStructure.findMany({
+    where: and(
+      eq(feeStructure.schoolId, schoolId),
+      eq(feeStructure.class, currentStudent.class),
+      eq(feeStructure.isActive, true),
+    ),
+  })
+  const approvedFee = applicableFees.find((fee) =>
+    fee.feeType === feeType && fee.department === currentStudent.department
+  ) || applicableFees.find((fee) => fee.feeType === feeType && !fee.department)
+  if (!approvedFee) throw new Error('The selected fee category is not active for this student.')
+  const paymentTermId = currentStudent.termId || (await getParentTerm(currentStudent))?.id || null
+
+  const now = new Date()
+  const paymentId = randomUUID()
+  const transactionReference = `SCHOOL-${Date.now()}-${randomUUID().slice(0, 8).toUpperCase()}`
+  const recordedPayment = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(payment).values({
+      id: paymentId,
+      schoolId,
+      studentId: currentStudent.id,
+      parentId: currentStudent.parentId,
+      termId: paymentTermId,
+      amount: amount.toFixed(2),
+      feeType,
+      paymentMethod: method,
+      transactionReference,
+      reconciliationStatus: 'RECONCILED',
+      reconciledBy: session.user.id,
+      reconciledAt: now,
+      status: 'success',
+      paymentDate: now,
+      paidAt: now,
+      description: receiptReference
+        ? `In-school payment recorded by administrator. Receipt: ${receiptReference}`
+        : 'In-school payment recorded by administrator.',
+      createdAt: now,
+      updatedAt: now,
+    }).returning()
+
+    if (paymentTermId) {
+      const scheduledInstallments = await tx.query.paymentInstallment.findMany({
+        where: and(
+          eq(paymentInstallment.studentId, currentStudent.id),
+          eq(paymentInstallment.schoolId, schoolId),
+          eq(paymentInstallment.termId, paymentTermId),
+          eq(paymentInstallment.feeType, feeType),
+          inArray(paymentInstallment.status, ['pending', 'partial', 'overdue']),
+        ),
+        orderBy: (record, { asc }) => [asc(record.dueDate), asc(record.installmentNumber)],
+      })
+      const allocation = allocatePaymentAcrossInstallments(scheduledInstallments, amount)
+      for (const update of allocation.updates) {
+        await tx.update(paymentInstallment)
+          .set({
+            paidAmount: update.paidAmount,
+            status: update.status,
+            paidAt: update.isPaid ? now : null,
+          })
+          .where(eq(paymentInstallment.id, update.id))
+      }
+    }
+
+    if (feeType.toLowerCase() === 'registration') {
+      const paidRecords = await tx.query.payment.findMany({
+        where: and(
+          eq(payment.studentId, currentStudent.id),
+          eq(payment.schoolId, schoolId),
+          eq(payment.feeType, feeType),
+          eq(payment.status, 'success'),
+        ),
+      })
+      const netPaid = paidRecords.reduce((sum, record) => sum + Math.max(
+        0,
+        Number(record.amount || 0) - (['PAYSTACK', 'KORAPAY'].includes(record.paymentMethod.toUpperCase()) ? PAYSTACK_GATEWAY_FEE : 0),
+      ), 0)
+      if (netPaid >= Number(approvedFee.amount)) {
+        await tx.update(student)
+          .set({ registrationStatus: 'ACTIVE', registrationPaid: true, updatedAt: now })
+          .where(and(eq(student.id, currentStudent.id), eq(student.schoolId, schoolId)))
+      }
+    }
+
+    return created
+  })
+
+  await notifyPaymentConfirmed(recordedPayment.id)
+  revalidatePath('/dashboard/admin/finance/fees/payments')
+  revalidatePath('/dashboard/parent/payments/history')
+  revalidatePath('/dashboard/student/payments/history')
+  return { success: true, paymentId: recordedPayment.id, reference: recordedPayment.transactionReference }
+}
+
+async function getParentTerm(studentRecord: typeof student.$inferSelect) {
+  const currentTerm = studentRecord.termId
+    ? await db.query.term.findFirst({ where: eq(term.id, studentRecord.termId) })
+    : await db.query.term.findFirst({ where: eq(term.isCurrent, true) })
+  return currentTerm || null
+}
+
+async function getSuccessfulFeePayments(studentId: string, schoolId: string, termId: string, feeType?: string) {
+  return db.query.payment.findMany({
+    where: and(
+      eq(payment.studentId, studentId),
+      eq(payment.schoolId, schoolId),
+      eq(payment.termId, termId),
+      ...(feeType ? [eq(payment.feeType, feeType)] : []),
+      eq(payment.status, 'success'),
+    ),
+  })
+}
+
+function getNetPaidAmount(records: typeof payment.$inferSelect[]) {
+  return records.reduce((sum, record) => sum + Math.max(
+    0,
+    Number(record.amount || 0) - (['PAYSTACK', 'KORAPAY'].includes(record.paymentMethod.toUpperCase()) ? PAYSTACK_GATEWAY_FEE : 0),
+  ), 0)
+}
+
+export async function getParentInstallmentOptions() {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role.toUpperCase() !== 'PARENT') {
+    throw new Error('Only a parent account can manage linked student installments.')
+  }
+  const parentProfile = await db.query.parent.findFirst({
+    where: eq(parentTable.userId, session.user.id),
+  })
+  if (!parentProfile?.schoolId) return []
+
+  const children = await db.query.student.findMany({
+    where: and(eq(student.parentId, parentProfile.id), eq(student.schoolId, parentProfile.schoolId)),
+    orderBy: (record, { asc }) => [asc(record.lastName), asc(record.firstName)],
+  })
+  return Promise.all(children.map(async (child) => {
+    const [fees, currentTerm] = await Promise.all([
+      child.schoolId ? db.query.feeStructure.findMany({
+        where: and(
+          eq(feeStructure.schoolId, child.schoolId),
+          eq(feeStructure.class, child.class),
+          eq(feeStructure.isActive, true),
+        ),
+      }) : Promise.resolve([]),
+      getParentTerm(child),
+    ])
+    const applicableFees = fees.filter((fee) =>
+      !fee.department || fee.department === child.department
+    )
+    const termPayments = child.schoolId && currentTerm
+      ? await getSuccessfulFeePayments(child.id, child.schoolId, currentTerm.id)
+      : []
+    return {
+      studentId: child.id,
+      studentName: `${child.firstName} ${child.lastName}`.trim(),
+      className: child.class,
+      termId: currentTerm?.id || null,
+      termName: currentTerm?.name || null,
+      termStartDate: currentTerm?.startDate || null,
+      termEndDate: currentTerm?.endDate || null,
+      gatewayFee: PAYSTACK_GATEWAY_FEE,
+      fees: applicableFees.map((fee) => ({
+        id: fee.id,
+        feeType: fee.feeType,
+        amount: fee.amount,
+        remainingAmount: Math.max(0, Number(fee.amount) - getNetPaidAmount(termPayments.filter((record) => record.feeType === fee.feeType))),
+      })),
+    }
+  }))
+}
+
+export async function getParentInstallments() {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role.toUpperCase() !== 'PARENT') {
+    throw new Error('Only a parent account can view student installments.')
+  }
+  const parentProfile = await db.query.parent.findFirst({
+    where: eq(parentTable.userId, session.user.id),
+  })
+  if (!parentProfile?.schoolId) return []
+
+  const installments = await db.query.paymentInstallment.findMany({
+    where: and(
+      eq(paymentInstallment.parentId, parentProfile.id),
+      eq(paymentInstallment.schoolId, parentProfile.schoolId),
+    ),
+    orderBy: (record, { asc }) => [asc(record.dueDate), asc(record.installmentNumber)],
+    limit: 500,
+  })
+  const studentIds = [...new Set(installments.map((item) => item.studentId).filter(
+    (id): id is string => Boolean(id),
+  ))]
+  const students = studentIds.length
+    ? await db.query.student.findMany({
+      where: and(inArray(student.id, studentIds), eq(student.schoolId, parentProfile.schoolId)),
+    })
+    : []
+  const studentById = new Map(students.map((record) => [record.id, record]))
+  return installments.map((item) => ({
+    id: item.id,
+    studentId: item.studentId,
+    studentName: item.studentId
+      ? `${studentById.get(item.studentId)?.firstName || ''} ${studentById.get(item.studentId)?.lastName || ''}`.trim()
+      : 'Student',
+    termId: item.termId,
+    feeType: item.feeType,
+    amount: item.amount,
+    paidAmount: item.paidAmount,
+    dueDate: item.dueDate,
+    installmentNumber: item.installmentNumber,
+    status: item.status,
+  }))
+}
+
+export async function createParentInstallmentPlan(studentId: string, feeType: string) {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role.toUpperCase() !== 'PARENT') {
+    throw new Error('Only a parent account can create a payment plan.')
+  }
+  const parentProfile = await db.query.parent.findFirst({
+    where: eq(parentTable.userId, session.user.id),
+  })
+  if (!parentProfile?.schoolId) throw new Error('Parent profile is not assigned to a school.')
+  const child = await db.query.student.findFirst({
+    where: and(eq(student.id, studentId), eq(student.parentId, parentProfile.id), eq(student.schoolId, parentProfile.schoolId)),
+  })
+  if (!child || !child.schoolId) throw new Error('This student is not linked to your school account.')
+  const currentTerm = await getParentTerm(child)
+  if (!currentTerm) throw new Error('Your school has not assigned this student to an active term.')
+  const today = new Date()
+  const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+  const termEnd = new Date(`${currentTerm.endDate}T00:00:00.000Z`)
+  if (!Number.isFinite(termEnd.getTime()) || termEnd.getTime() < todayUtc) {
+    throw new Error('This term has ended. Contact your school to confirm the current fee schedule.')
+  }
+  const fees = await db.query.feeStructure.findMany({
+    where: and(
+      eq(feeStructure.schoolId, child.schoolId),
+      eq(feeStructure.class, child.class),
+      eq(feeStructure.isActive, true),
+    ),
+  })
+  const selectedFee = fees.find((fee) =>
+    fee.feeType === feeType && fee.department === child.department
+  ) || fees.find((fee) => fee.feeType === feeType && !fee.department)
+  if (!selectedFee) throw new Error('The selected fee is not active for this student.')
+
+  const existingPlan = await db.query.paymentInstallment.findMany({
+    where: and(
+      eq(paymentInstallment.studentId, child.id),
+      eq(paymentInstallment.schoolId, child.schoolId),
+      eq(paymentInstallment.termId, currentTerm.id),
+      eq(paymentInstallment.feeType, selectedFee.feeType),
+    ),
+  })
+  if (existingPlan.length && existingPlan.length !== INSTALLMENTS_PER_TERM) {
+    throw new Error('An incomplete plan already exists for this student and term. Contact your school administrator.')
+  }
+  if (existingPlan.length === INSTALLMENTS_PER_TERM) {
+    return { success: true, alreadyCreated: true, installments: existingPlan }
+  }
+
+  const termPayments = await getSuccessfulFeePayments(child.id, child.schoolId, currentTerm.id, selectedFee.feeType)
+  const remainingAmount = Number(selectedFee.amount) - getNetPaidAmount(termPayments)
+  if (remainingAmount <= 0) throw new Error('This school fee has already been paid in full for the term.')
+  const amountPieces = splitAmountIntoInstallments(remainingAmount)
+  const termStart = new Date(`${currentTerm.startDate}T00:00:00.000Z`)
+  const rangeStart = new Date(Math.max(todayUtc, termStart.getTime()))
+  const dueDates = createInstallmentDueDates(rangeStart, termEnd, INSTALLMENTS_PER_TERM)
+
+  const now = new Date()
+  const records = amountPieces.map((amount, index) => ({
+    id: randomUUID(),
+    paymentId: null,
+    schoolId: child.schoolId,
+    studentId: child.id,
+    parentId: parentProfile.id,
+    termId: currentTerm.id,
+    feeType: selectedFee.feeType,
+    amount,
+    dueDate: dueDates[index],
+    installmentNumber: index + 1,
+    status: 'pending',
+    createdAt: now,
+  }))
+
+  await db.transaction(async (tx) => {
+    await tx.insert(paymentInstallment).values(records).onConflictDoNothing()
+  })
+  const plan = await db.query.paymentInstallment.findMany({
+    where: and(
+      eq(paymentInstallment.studentId, child.id),
+      eq(paymentInstallment.termId, currentTerm.id),
+      eq(paymentInstallment.feeType, selectedFee.feeType),
+    ),
+    orderBy: (record, { asc }) => [asc(record.installmentNumber)],
+  })
+  if (plan.length !== INSTALLMENTS_PER_TERM) {
+    throw new Error('The installment plan could not be created completely. Please retry or contact your school.')
+  }
+
+  revalidatePath('/dashboard/parent/payments/installments')
+  return { success: true, alreadyCreated: false, installments: plan }
+}
+
+export async function initializeInstallmentPayment(installmentId: string) {
+  const session = await auth.getSession()
+  if (!session?.user || session.user.role.toUpperCase() !== 'PARENT') {
+    throw new Error('Only a parent account can pay linked student installments.')
+  }
+  const parentProfile = await db.query.parent.findFirst({
+    where: eq(parentTable.userId, session.user.id),
+  })
+  if (!parentProfile?.schoolId) throw new Error('Parent profile is not assigned to a school.')
+  const installment = await db.query.paymentInstallment.findFirst({
+    where: and(eq(paymentInstallment.id, installmentId), eq(paymentInstallment.parentId, parentProfile.id)),
+  })
+  if (!installment || !installment.studentId || !installment.schoolId || !installment.termId || !installment.feeType) {
+    throw new Error('Installment not found for your linked students.')
+  }
+  if (installment.status === 'paid') throw new Error('This installment has already been paid.')
+  if (installment.status === 'processing' && !installment.paymentId) {
+    throw new Error('This installment payment is already being initialized.')
+  }
+
+  if (installment.paymentId) {
+    const previousAttempt = await db.query.payment.findFirst({
+      where: eq(payment.id, installment.paymentId),
+    })
+    if (previousAttempt?.status === 'pending') {
+      const previousVerification = previousAttempt.transactionReference
+        ? await serviceVerifyPaystackPayment({ reference: previousAttempt.transactionReference })
+        : null
+      const terminalFailure = previousVerification?.data &&
+        ['failed', 'abandoned'].includes(String(previousVerification.data.status).toLowerCase())
+      if (!terminalFailure) {
+        if (previousVerification?.success) throw new Error('This installment has already been paid.')
+        throw new Error('The previous checkout has not reached a confirmed failure. Check its status before trying again.')
+      }
+    }
+  }
+
+  const claim = await db.update(paymentInstallment)
+    .set({ status: 'processing' })
+    .where(and(
+      eq(paymentInstallment.id, installment.id),
+      eq(paymentInstallment.parentId, parentProfile.id),
+      inArray(paymentInstallment.status, ['pending', 'partial', 'overdue']),
+    ))
+    .returning({ id: paymentInstallment.id })
+  if (!claim.length) throw new Error('This installment is no longer available to pay.')
+
+  const child = await db.query.student.findFirst({
+    where: and(eq(student.id, installment.studentId), eq(student.parentId, parentProfile.id), eq(student.schoolId, installment.schoolId)),
+  })
+  const payer = await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) })
+  if (!child || !payer?.email) {
+    await db.update(paymentInstallment)
+      .set({ status: Number(installment.paidAmount || 0) > 0 ? 'partial' : 'pending' })
+      .where(eq(paymentInstallment.id, installment.id))
+    throw new Error('A linked student and valid parent email are required for checkout.')
+  }
+
+  try {
+    const remainingAmount = Number((Number(installment.amount) - Number(installment.paidAmount || 0)).toFixed(2))
+    if (remainingAmount <= 0) throw new Error('This installment has already been paid.')
+    const totalAmount = Number((remainingAmount + PAYSTACK_GATEWAY_FEE).toFixed(2))
+    const paymentResult = await serviceInitializePaystackPayment({
+      schoolId: installment.schoolId,
+      studentId: child.id,
+      parentId: parentProfile.id,
+      termId: installment.termId,
+      installmentId: installment.id,
+      amount: totalAmount,
+      feeType: installment.feeType,
+      description: `Installment ${installment.installmentNumber} of ${INSTALLMENTS_PER_TERM} for ${child.firstName} ${child.lastName}`,
+      customerEmail: payer.email,
+      customerName: `${child.firstName} ${child.lastName}`,
+      metadata: {
+        studentId: child.id,
+        parentId: parentProfile.id,
+        termId: installment.termId,
+        installmentId: installment.id,
+        installmentNumber: installment.installmentNumber,
+        baseAmount: remainingAmount,
+        gatewayFee: PAYSTACK_GATEWAY_FEE,
+      },
+    })
+    revalidatePath('/dashboard/parent/payments/installments')
+    return paymentResult
+  } catch (error) {
+    await db.update(paymentInstallment)
+      .set({ status: Number(installment.paidAmount || 0) > 0 ? 'partial' : 'pending' })
+      .where(and(eq(paymentInstallment.id, installment.id), eq(paymentInstallment.status, 'processing')))
+    throw error
+  }
 }
 
 export async function verifyPaystackPayment(reference: string) {
@@ -154,6 +652,7 @@ export async function submitManualPayment(data: { studentId: string; amount: str
     })
   })
 
+  await notifyPaymentStatus(paymentId, 'pending')
   revalidatePath('/dashboard/parent/payments/history')
   return { success: true, paymentId, uploadId }
 }
@@ -187,17 +686,26 @@ export async function initializePaystackPayment(data: { studentId: string; amoun
   ) || schoolFees.find((fee) =>
     fee.feeType === data.feeType && !fee.department
   )
-  if (!approvedFee || Number(approvedFee.amount) !== Number(data.amount)) {
+  if (!approvedFee || !Number.isFinite(data.amount) || data.amount <= 0) {
     throw new Error('The selected fee or amount is not approved by this school.')
   }
 
-  const baseAmount = Number(approvedFee.amount)
+  const paymentTerm = await getParentTerm(child)
+  const termId = paymentTerm?.id || child.termId || undefined
+  const previousPayments = child.schoolId && termId
+    ? await getSuccessfulFeePayments(child.id, child.schoolId, termId, approvedFee.feeType)
+    : []
+  const baseAmount = Math.max(0, Number(approvedFee.amount) - getNetPaidAmount(previousPayments))
+  if (baseAmount <= 0 || Math.round(baseAmount * 100) !== Math.round(Number(data.amount) * 100)) {
+    throw new Error('The amount must match the remaining fee balance for this student and term.')
+  }
   const totalAmount = Number((baseAmount + PAYSTACK_GATEWAY_FEE).toFixed(2))
 
   const paymentConfirmationMessage = `Payment of ₦${baseAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} for ${approvedFee.feeType.toUpperCase()} (${child.firstName} ${child.lastName}, Class: ${child.class}) + Paystack Gateway Fee (₦161.25)`
 
   const paymentRes = await serviceInitializePaystackPayment({
     schoolId: child.schoolId || undefined,
+    termId,
     studentId: child.id,
     parentId: child.parentId || undefined,
     amount: totalAmount,
@@ -209,6 +717,7 @@ export async function initializePaystackPayment(data: { studentId: string; amoun
       studentId: child.id,
       type: data.feeType,
       baseAmount,
+      termId,
       gatewayFee: PAYSTACK_GATEWAY_FEE,
     },
   })
@@ -341,6 +850,7 @@ export async function getFeeStructuresForClass(className: string, department?: s
 
   const role = session.user.role.toUpperCase()
   let schoolId = session.user.schoolId || (await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) }))?.schoolId || null
+  let paymentStudent: typeof student.$inferSelect | null = null
   if (role === 'PARENT') {
     if (!studentId) throw new Error('Choose one of your linked students.')
     const parentProfile = await db.query.parent.findFirst({ where: eq(parentTable.userId, session.user.id) })
@@ -352,10 +862,12 @@ export async function getFeeStructuresForClass(className: string, department?: s
       throw new Error('Student payment scope does not match your account.')
     }
     schoolId = child.schoolId
+    paymentStudent = child
   } else if (['STUDENT', 'PUPIL'].includes(role)) {
     const child = await db.query.student.findFirst({ where: eq(student.userId, session.user.id) })
     if (!child || child.id !== studentId) throw new Error('Student payment scope does not match your account.')
     schoolId = child.schoolId
+    paymentStudent = child
   }
   if (!schoolId) return []
 
@@ -363,10 +875,25 @@ export async function getFeeStructuresForClass(className: string, department?: s
     where: and(eq(feeStructure.schoolId, schoolId), eq(feeStructure.isActive, true))
   })
 
-  return list.filter(f =>
+  const applicableFees = list.filter(f =>
     f.class.toLowerCase() === className.toLowerCase() &&
-    (!department || !f.department || f.department.toLowerCase() === department.toLowerCase())
+    (!f.department || (!!department && f.department.toLowerCase() === department.toLowerCase()))
   )
+  if (!paymentStudent?.schoolId) return applicableFees
+  const currentTerm = await getParentTerm(paymentStudent)
+  if (!currentTerm) return applicableFees
+  const termPayments = await getSuccessfulFeePayments(
+    paymentStudent.id,
+    paymentStudent.schoolId,
+    currentTerm.id,
+  )
+  return applicableFees.map((fee) => ({
+    ...fee,
+    amount: Math.max(
+      0,
+      Number(fee.amount) - getNetPaidAmount(termPayments.filter((record) => record.feeType === fee.feeType)),
+    ).toFixed(2),
+  }))
 }
 
 export async function approveReceipt(uploadId: string) {
@@ -382,7 +909,7 @@ export async function approveReceipt(uploadId: string) {
 
   const now = new Date()
 
-  await db.transaction(async (tx) => {
+  const approvedPaymentId = await db.transaction(async (tx) => {
     const paymentRecord = await tx.query.payment.findFirst({
       where: and(eq(payment.id, upload.paymentId!), eq(payment.schoolId, upload.schoolId)),
     })
@@ -421,8 +948,10 @@ export async function approveReceipt(uploadId: string) {
       await tx.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: now })
         .where(and(eq(student.id, updatedPayment[0].studentId), eq(student.schoolId, upload.schoolId)))
     }
+    return updatedPayment[0].id
   })
 
+  await notifyPaymentConfirmed(approvedPaymentId)
   revalidatePath('/dashboard/admin/payments/pending-receipts')
   return { success: true }
 }
@@ -438,14 +967,35 @@ export async function rejectReceipt(uploadId: string, reason: string) {
   if (!upload) throw new Error('Receipt upload record not found')
   assertReceiptSchoolAccess(session.user, upload.schoolId)
 
-  await db.update(paymentReceiptUploads).set({
-    status: 'REJECTED',
-    rejectionReason: reason,
-    reviewedBy: session.user.id,
-    reviewedAt: now,
-    updatedAt: now,
-  }).where(and(eq(paymentReceiptUploads.id, uploadId), eq(paymentReceiptUploads.schoolId, upload.schoolId)))
+  const failedPaymentId = await db.transaction(async (tx) => {
+    const [rejectedUpload] = await tx.update(paymentReceiptUploads).set({
+      status: 'REJECTED',
+      rejectionReason: reason,
+      reviewedBy: session.user.id,
+      reviewedAt: now,
+      updatedAt: now,
+    }).where(and(
+      eq(paymentReceiptUploads.id, uploadId),
+      eq(paymentReceiptUploads.schoolId, upload.schoolId),
+      eq(paymentReceiptUploads.status, 'PENDING'),
+    )).returning({ paymentId: paymentReceiptUploads.paymentId })
+    if (!rejectedUpload) throw new Error('Only a pending receipt can be rejected.')
+    if (!rejectedUpload.paymentId) return null
 
+    const [failedPayment] = await tx.update(payment).set({
+      status: 'failed',
+      updatedAt: now,
+    }).where(and(
+      eq(payment.id, rejectedUpload.paymentId),
+      eq(payment.schoolId, upload.schoolId),
+      eq(payment.status, 'pending'),
+      notInArray(payment.paymentMethod, ['PAYSTACK', 'KORAPAY']),
+    )).returning({ id: payment.id })
+    if (!failedPayment) throw new Error('Receipt is not linked to a pending manual payment for this school.')
+    return failedPayment.id
+  })
+
+  if (failedPaymentId) await notifyPaymentStatus(failedPaymentId, 'failed')
   revalidatePath('/dashboard/admin/payments/pending-receipts')
   return { success: true }
 }

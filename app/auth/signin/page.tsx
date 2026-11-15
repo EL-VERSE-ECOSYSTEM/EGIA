@@ -135,14 +135,14 @@ export default function SignInPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-950 to-slate-950 px-4 py-10 text-white sm:px-6">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 px-4 py-10 text-white sm:px-6">
       {/* Background Decor */}
-      <div aria-hidden="true" className="pointer-events-none absolute -top-40 left-1/2 size-[32rem] -translate-x-1/2 rounded-full bg-blue-500/10 blur-[120px]" />
+      <div aria-hidden="true" className="pointer-events-none absolute -top-40 left-1/2 size-[32rem] -translate-x-1/2 rounded-full bg-slate-500/5 blur-[120px]" />
 
       <div className="relative z-10 w-full max-w-md space-y-6">
         {/* Header */}
         <div className="space-y-3 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.14em] text-blue-200">
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-400/20 bg-slate-800/60 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-200">
             <GraduationCap className="w-4 h-4" />
             <span>EL LEARNERS APP</span>
           </div>
@@ -164,7 +164,7 @@ export default function SignInPage() {
             aria-pressed={loginMode === 'standard'}
             className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all ${
               loginMode === 'standard'
-                ? 'bg-blue-600 text-white shadow-lg'
+                ? 'bg-slate-700 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -177,8 +177,8 @@ export default function SignInPage() {
             aria-pressed={loginMode === 'superadmin'}
             className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all ${
               loginMode === 'superadmin'
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg border border-purple-400/30'
-                : 'text-purple-400 hover:text-purple-300'
+                ? 'bg-slate-700 text-white shadow-sm border border-slate-600'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <Crown className="w-4 h-4 text-amber-400" />
@@ -224,7 +224,7 @@ export default function SignInPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     aria-describedby="email-hint"
-                    className="h-12 rounded-xl border-slate-700 bg-slate-950/70 pl-11 text-sm font-medium text-white placeholder:text-slate-500 focus-visible:ring-blue-400"
+                    className="h-12 rounded-xl border-slate-700 bg-slate-950/70 pl-11 text-sm font-medium text-white placeholder:text-slate-500 focus-visible:ring-slate-400"
                   />
                 </div>
                 <p id="email-hint" className="pl-1 text-xs leading-5 text-slate-400">
@@ -241,7 +241,7 @@ export default function SignInPage() {
                   </Label>
                   <Link
                     href="/auth/forgot-password"
-                    className="text-sm font-medium text-blue-300 underline-offset-4 hover:underline hover:text-blue-200"
+                    className="text-sm font-medium text-slate-300 underline-offset-4 hover:underline hover:text-white"
                   >
                     Forgot Password?
                   </Link>
@@ -256,14 +256,14 @@ export default function SignInPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="h-12 rounded-xl border-slate-700 bg-slate-950/70 pl-11 pr-11 text-sm font-medium text-white placeholder:text-slate-500 focus-visible:ring-blue-400"
+                    className="h-12 rounded-xl border-slate-700 bg-slate-950/70 pl-11 pr-11 text-sm font-medium text-white placeholder:text-slate-500 focus-visible:ring-slate-400"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     aria-pressed={showPassword}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
                   </button>
@@ -276,7 +276,7 @@ export default function SignInPage() {
                   id="remember"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="size-4 rounded border-slate-600 bg-slate-950 text-blue-500 focus:ring-blue-400"
+                  className="size-4 rounded border-slate-600 bg-slate-950 text-slate-300 focus:ring-slate-400"
                 />
                 <label htmlFor="remember" className="cursor-pointer select-none text-sm text-slate-300">
                   Use this portal automatically next time
@@ -288,8 +288,8 @@ export default function SignInPage() {
                 disabled={loading}
                 className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold tracking-wide text-white shadow-lg transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
                   loginMode === 'superadmin'
-                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-600/20'
-                    : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20'
+                    ? 'bg-slate-700 hover:bg-slate-600 shadow-black/20'
+                    : 'bg-slate-700 hover:bg-slate-600 shadow-black/20'
                 }`}
               >
                 {loading ? (
@@ -312,7 +312,7 @@ export default function SignInPage() {
                 Don't have a User Account?{' '}
                 <Link
                   href="/auth/signup"
-                  className="font-semibold text-blue-300 underline underline-offset-4 hover:text-blue-200"
+                  className="font-semibold text-slate-200 underline underline-offset-4 hover:text-white"
                 >
                   Create User Account
                 </Link>

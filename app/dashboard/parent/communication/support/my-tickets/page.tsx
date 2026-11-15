@@ -1,19 +1,72 @@
-import DashboardLayout from '@/components/layout/dashboard-layout'
+'use client'
 
-export default function Page({ params }: { params: any }) {
-  const role = 'parent';
-  const title = 'My Tickets';
+import { useCallback, useEffect, useState } from 'react'
+import DashboardLayout from '@/components/layout/dashboard-layout'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { getMySupportTickets } from '@/app/actions/support'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { toast } from 'sonner'
+
+export default function ParentSupportTicketsPage() {
+  const [tickets, setTickets] = useState<Awaited<ReturnType<typeof getMySupportTickets>>>([])
+  const [loading, setLoading] = useState(true)
+
+  const loadTickets = useCallback(async () => {
+    try {
+      setTickets(await getMySupportTickets())
+    } catch (error) {
+      toast.error('Could not load your support tickets', {
+        description: error instanceof Error ? error.message : 'Refresh and try again.',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadTickets()
+  }, [loadTickets])
+
+  useRealtimeSubscription('support_ticket', () => void loadTickets())
+  useRealtimeSubscription('support_ticket_replies', () => void loadTickets())
 
   return (
-    <DashboardLayout role={role as any}>
-      <div className="p-8">
-        <h1 className="text-2xl font-bold mb-4">{title}</h1>
-        <p className="text-muted-foreground">
-          Welcome to the {title} page. This is a placeholder for the parent dashboard.
-        </p>
-        <div className="mt-8 p-12 border-2 border-dashed rounded-xl flex items-center justify-center text-muted-foreground">
-          Content for {title} will be implemented here.
+    <DashboardLayout role="parent">
+      <div className="mx-auto max-w-5xl space-y-6 p-6 sm:p-8">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900">My Support Tickets</h1>
+          <p className="mt-2 text-sm text-slate-500">Ticket status and Super Admin replies update in real time.</p>
         </div>
+        {loading ? (
+          <div className="rounded-2xl bg-white p-12 text-center text-slate-500">Loading your tickets…</div>
+        ) : tickets.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-500">
+            You have no support tickets yet.
+          </div>
+        ) : tickets.map((ticket) => (
+          <Card key={ticket.id} className="rounded-2xl border-slate-200">
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <CardTitle className="text-lg">{ticket.title}</CardTitle>
+                <Badge variant="outline">{ticket.status}</Badge>
+              </div>
+              <p className="text-xs text-slate-500">{ticket.ticketNumber} · Updated {new Date(ticket.updatedAt).toLocaleString()}</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="whitespace-pre-wrap text-sm text-slate-700">{ticket.description}</p>
+              <div className="space-y-2 border-t pt-4">
+                <h2 className="text-sm font-bold text-slate-800">Replies</h2>
+                {ticket.replies.length ? ticket.replies.map((reply) => (
+                  <div key={reply.id} className="rounded-xl bg-slate-50 p-3">
+                    <p className="text-sm text-slate-700">{reply.message}</p>
+                    <p className="mt-1 text-xs text-slate-400">{new Date(reply.createdAt).toLocaleString()}</p>
+                  </div>
+                )) : <p className="text-sm text-slate-500">A support agent will reply here.</p>}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </DashboardLayout>
   )

@@ -34,6 +34,8 @@ export function ContactForm() {
         category: 'GENERAL',
         priority: 'MEDIUM',
         description,
+        contactName: `${firstName} ${lastName}`.trim(),
+        contactEmail: email,
       })
 
       if (res && res.id) {

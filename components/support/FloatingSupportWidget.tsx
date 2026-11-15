@@ -1,9 +1,9 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { MessageSquare, Phone, Mail, X, ExternalLink, HelpCircle, Send, CheckCircle2, Loader2, Sparkles, CornerDownLeft } from 'lucide-react'
+import { MessageSquare, Phone, Mail, X, ExternalLink, HelpCircle, Send, CheckCircle2, Loader2, Sparkles } from 'lucide-react'
 import { subscribeToTable, unsubscribeFromTable } from '@/utils/supabase/client'
-import { createSupportTicket } from '@/app/actions/support'
+import { createSupportTicket, getSupportTicketReplies } from '@/app/actions/support'
 import { toast } from 'sonner'
 
 export function FloatingSupportWidget() {
@@ -14,8 +14,11 @@ export function FloatingSupportWidget() {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('TECHNICAL')
   const [description, setDescription] = useState('')
+  const [contactName, setContactName] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submittedTicket, setSubmittedTicket] = useState<any | null>(null)
+  const [ticketReplies, setTicketReplies] = useState<Awaited<ReturnType<typeof getSupportTicketReplies>>>([])
 
   // Close modal when pressing Escape key
   useEffect(() => {
@@ -46,7 +49,12 @@ export function FloatingSupportWidget() {
 
     const repliesChannel = subscribeToTable('support_ticket_replies', {
       callback: () => {
-        toast.success('Super Admin sent a real-time support response!')
+        if (submittedTicket?.id) {
+          void getSupportTicketReplies(submittedTicket.id).then(setTicketReplies).catch((error: unknown) => {
+            console.error('Could not refresh support replies:', error)
+          })
+          toast.success('Super Admin sent a real-time support response!')
+        }
       },
     })
 
@@ -55,7 +63,7 @@ export function FloatingSupportWidget() {
       unsubscribeFromTable(ticketChannel)
       unsubscribeFromTable(repliesChannel)
     }
-  }, [isOpen])
+  }, [isOpen, submittedTicket?.id])
 
   const handleSubmitSupport = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,13 +79,19 @@ export function FloatingSupportWidget() {
         category,
         priority: 'HIGH',
         description,
+        contactName,
+        contactEmail,
       })
 
       if (res && res.id) {
         setSubmittedTicket(res)
+        const replies = res.userId ? await getSupportTicketReplies(res.id) : []
+        setTicketReplies(replies)
         toast.success('Support request submitted! Super Admin will respond in real time.')
         setTitle('')
         setDescription('')
+        setContactName('')
+        setContactEmail('')
         setMode('MY_TICKETS')
       } else {
         toast.error('Could not submit support request. Please try again.')
@@ -182,10 +196,10 @@ export function FloatingSupportWidget() {
               <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
                   <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>Real-Time Super Admin Quick Reply</span>
+                  <span>Real-Time Super Admin Replies</span>
                 </div>
                 <p className="text-[11px] text-slate-400 font-medium">
-                  Submit a ticket inside this widget. Our Super Admin team responds instantly via Supabase Database sync with auto-acknowledgments and updates.
+                  Submit a ticket inside this widget. Replies are stored in Supabase and this panel refreshes when the support team responds.
                 </p>
                 <button
                   type="button"
@@ -202,6 +216,28 @@ export function FloatingSupportWidget() {
           {/* SUBMIT MODE */}
           {mode === 'SUBMIT' && (
             <form onSubmit={handleSubmitSupport} className="space-y-3 pt-1">
+              <div>
+                <label htmlFor="support-contact-name" className="block text-[10px] font-black uppercase text-slate-400 mb-1">Your name</label>
+                <input
+                  id="support-contact-name"
+                  type="text"
+                  autoComplete="name"
+                  value={contactName}
+                  onChange={e => setContactName(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="support-contact-email" className="block text-[10px] font-black uppercase text-slate-400 mb-1">Contact email (for public inquiries)</label>
+                <input
+                  id="support-contact-email"
+                  type="email"
+                  autoComplete="email"
+                  value={contactEmail}
+                  onChange={e => setContactEmail(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                />
+              </div>
               <div>
                 <label htmlFor="support-subject" className="block text-[10px] font-black uppercase text-slate-400 mb-1">
                   Issue Title <span aria-hidden="true" className="text-emerald-400">*</span>
@@ -285,16 +321,19 @@ export function FloatingSupportWidget() {
               <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-black text-emerald-400">
                   <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>Real-time Response Status</span>
+                  <span>Support Replies</span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 text-[11px] text-slate-300 space-y-1">
-                  <p className="font-bold text-white flex items-center gap-1">
-                    <CornerDownLeft className="w-3 h-3 text-emerald-400" aria-hidden="true" /> Super Admin Quick Response:
+                {ticketReplies.length ? ticketReplies.map((reply) => (
+                  <div key={reply.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 text-[11px] text-slate-300 space-y-1">
+                    <p className="font-bold text-white">Super Admin</p>
+                    <p>{reply.message}</p>
+                    <p className="text-[9px] text-slate-500">{new Date(reply.createdAt).toLocaleString()}</p>
+                  </div>
+                )) : (
+                  <p className="p-3 rounded-xl bg-slate-950 text-[11px] text-slate-400">
+                    Your ticket is open. New support replies will appear here.
                   </p>
-                  <p className="italic text-slate-400">
-                    &quot;We have taken note of the support submitted, we&apos;ll get back to you shortly.&quot;
-                  </p>
-                </div>
+                )}
               </div>
 
               <button

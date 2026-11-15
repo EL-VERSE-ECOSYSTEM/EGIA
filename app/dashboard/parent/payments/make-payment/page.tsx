@@ -9,28 +9,43 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   CreditCard, ShieldCheck,
-  CheckCircle2, Info, Loader2
+  CheckCircle2, Info, Loader2, XCircle
 } from 'lucide-react'
 import { getLinkedChildren } from '@/app/actions/user'
-import { initializePaystackPayment, getFeeStructuresForClass } from '@/app/actions/payments'
+import { getPaystackGatewayFee, initializePaystackPayment, getFeeStructuresForClass } from '@/app/actions/payments'
 import { getSchoolPaymentConfigAction } from '@/app/actions/payment-config'
 import { ManualPaymentPanel } from '@/components/payments/ManualPaymentPanel'
 
+type ChildRecord = Awaited<ReturnType<typeof getLinkedChildren>>[number]
+type PaymentConfig = Awaited<ReturnType<typeof getSchoolPaymentConfigAction>>
+type AvailableFee = Awaited<ReturnType<typeof getFeeStructuresForClass>>[number]
+
 export default function MakePaymentPage() {
-  const [children, setChildren] = useState<any[]>([])
+  const [children, setChildren] = useState<ChildRecord[]>([])
   const [childId, setChildId] = useState('')
   const [feeType, setFeeType] = useState('')
   const [amount, setAmount] = useState('')
   const [isUploading, setIsUploading] = useState(false)
+  const [gatewayFee, setGatewayFee] = useState(0)
+  const [checkoutStatus, setCheckoutStatus] = useState<'processing' | 'failed' | null>(null)
+  const [checkoutError, setCheckoutError] = useState('')
 
   // Payment configuration state
-  const [paymentConfig, setPaymentConfig] = useState<any>(null)
+  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig>(null)
 
   // Dynamic Admin Fee structures
-  const [availableFees, setAvailableFees] = useState<any[]>([])
+  const [availableFees, setAvailableFees] = useState<AvailableFee[]>([])
 
   useEffect(() => {
-    getLinkedChildren().then(setChildren)
+    const loadPaymentData = async () => {
+      try {
+        setChildren(await getLinkedChildren())
+        setGatewayFee(await getPaystackGatewayFee())
+      } catch (error) {
+        console.error('Unable to load payment information:', error)
+      }
+    }
+    void loadPaymentData()
   }, [])
 
   // Fetch fees when a child is selected
@@ -42,7 +57,7 @@ export default function MakePaymentPage() {
         setPaymentConfig(selectedChild.schoolId
           ? await getSchoolPaymentConfigAction(selectedChild.schoolId)
           : null)
-        const fees = await getFeeStructuresForClass(selectedChild.class, selectedChild.department, selectedChild.id)
+        const fees = await getFeeStructuresForClass(selectedChild.class, selectedChild.department ?? undefined, selectedChild.id)
         setAvailableFees(fees || [])
         setFeeType('')
         setAmount('')
@@ -61,19 +76,32 @@ export default function MakePaymentPage() {
   }
 
   const handlePayment = async () => {
-    if (!childId || !feeType || !amount) return alert('Fill all details')
+    if (!childId || !feeType) {
+      setCheckoutError('Choose a student and fee category before continuing.')
+      setCheckoutStatus('failed')
+      return
+    }
+    if (!amount || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+      setCheckoutError('There is no outstanding amount available for this fee category.')
+      setCheckoutStatus('failed')
+      return
+    }
 
     setIsUploading(true)
+    setCheckoutError('')
+    setCheckoutStatus('processing')
     try {
       const result = await initializePaystackPayment({
         studentId: childId,
         amount: parseFloat(amount),
         feeType,
       })
+      setCheckoutStatus(null)
       window.location.assign(result.checkoutUrl)
     } catch (err) {
       console.error(err)
-      alert('Payment failed to initialize')
+      setCheckoutError(err instanceof Error ? err.message : 'Paystack checkout could not be initialized.')
+      setCheckoutStatus('failed')
     } finally {
       setIsUploading(false)
     }
@@ -82,6 +110,29 @@ export default function MakePaymentPage() {
   return (
     <DashboardLayout role="parent">
       <div className="p-8 max-w-7xl mx-auto min-h-screen bg-slate-50/30">
+        {checkoutStatus && (
+          <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/75 p-4 backdrop-blur-sm">
+            <section role="dialog" aria-modal="true" aria-labelledby="checkout-status-title" className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-2xl animate-in zoom-in-95 duration-300">
+              <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full ${checkoutStatus === 'processing' ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
+                {checkoutStatus === 'processing' ? <Loader2 className="h-9 w-9 animate-spin" /> : <XCircle className="h-9 w-9 animate-in zoom-in duration-300" />}
+              </div>
+              <p className={`text-xs font-black uppercase tracking-[0.2em] ${checkoutStatus === 'processing' ? 'text-amber-700' : 'text-red-700'}`}>
+                {checkoutStatus === 'processing' ? 'Secure checkout' : 'Checkout could not start'}
+              </p>
+              <h2 id="checkout-status-title" className="mt-2 text-2xl font-black text-slate-900">
+                {checkoutStatus === 'processing' ? 'Connecting to Paystack' : 'Payment not started'}
+              </h2>
+              <p className="mt-3 text-sm font-medium leading-relaxed text-slate-500">
+                {checkoutStatus === 'processing'
+                  ? 'Your payment details are being validated and a secure checkout session is being prepared.'
+                  : checkoutError}
+              </p>
+              {checkoutStatus === 'failed' && (
+                <Button onClick={() => setCheckoutStatus(null)} className="mt-6 h-12 rounded-xl bg-slate-900 px-7 font-bold hover:bg-slate-800">Review details</Button>
+              )}
+            </section>
+          </div>
+        )}
         <div className="mb-12">
           <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Secure Payment Portal</h1>
           <p className="text-slate-500 text-lg font-medium">Quick and reliable fee processing for EL LEARNERS APP.</p>
@@ -120,7 +171,9 @@ export default function MakePaymentPage() {
                         <SelectItem value="none" disabled>No active fees set by Admin for this class</SelectItem>
                       ) : (
                         availableFees.map(f => (
-                          <SelectItem key={f.id} value={f.feeType}>{f.feeType} (₦{parseFloat(f.amount).toLocaleString()})</SelectItem>
+                          <SelectItem key={f.id} value={f.feeType} disabled={Number(f.amount) <= 0}>
+                            {f.feeType} (₦{parseFloat(f.amount).toLocaleString()}{Number(f.amount) <= 0 ? ' · Paid' : ' remaining'})
+                          </SelectItem>
                         ))
                       )}
                     </SelectContent>
@@ -181,12 +234,12 @@ export default function MakePaymentPage() {
                   </div>
                   <div className="flex justify-between text-slate-400 font-bold">
                     <span>Processing Fee</span>
-                    <span className="text-white">₦0.00</span>
+                    <span className="text-white">₦{gatewayFee.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="h-[1px] bg-white/10 my-6" />
                   <div className="flex justify-between text-2xl font-black">
                     <span>Total</span>
-                    <span className="text-amber-500 font-mono">₦{parseFloat(amount || '0').toLocaleString()}</span>
+                    <span className="text-amber-500 font-mono">₦{(parseFloat(amount || '0') + gatewayFee).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
                   </div>
                 </CardContent>
                 <CardFooter className="p-10 pt-0 flex flex-col gap-6">

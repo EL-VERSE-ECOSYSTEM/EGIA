@@ -1,35 +1,67 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { LifeBuoy, Clock, MessageCircle } from 'lucide-react'
-import { createSupportTicket } from '@/app/actions/support'
+import { LifeBuoy, Clock } from 'lucide-react'
+import { createSupportTicket, getMySupportTickets } from '@/app/actions/support'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { toast } from 'sonner'
 
 export default function StudentSupportPage() {
   const [isAdding, setIsAdding] = useState(false)
+  const [tickets, setTickets] = useState<Awaited<ReturnType<typeof getMySupportTickets>>>([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     category: 'TECHNICAL_ISSUE'
   })
 
+  const loadTickets = async () => {
+    try {
+      setTickets(await getMySupportTickets())
+    } catch (error) {
+      toast.error('Could not load your support tickets', {
+        description: error instanceof Error ? error.message : 'Refresh and try again.',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadTickets()
+  }, [])
+
+  useRealtimeSubscription('support_ticket', () => void loadTickets())
+  useRealtimeSubscription('support_ticket_replies', () => void loadTickets())
+
   const handleSubmit = async () => {
-    if (!formData.title || !formData.description) return alert('Fill all fields')
+    if (!formData.title.trim() || !formData.description.trim()) {
+      return toast.error('Add a title and describe the problem.')
+    }
+    setSubmitting(true)
     try {
       await createSupportTicket({
         ...formData,
         priority: 'MEDIUM',
-        userId: 'student-sim-id'
       })
-      alert('Support ticket created. Our team will contact you soon.')
+      toast.success('Support ticket created.')
       setIsAdding(false)
-    } catch (err) {
-      alert('Failed to create ticket')
+      setFormData({ title: '', description: '', category: 'TECHNICAL_ISSUE' })
+      await loadTickets()
+    } catch (error) {
+      toast.error('Could not create support ticket', {
+        description: error instanceof Error ? error.message : 'Try again.',
+      })
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -65,44 +97,44 @@ export default function StudentSupportPage() {
                 </div>
                 <div className="flex justify-end gap-4 pt-4">
                    <Button variant="ghost" onClick={() => setIsAdding(false)} className="rounded-xl font-black h-14 px-8">Cancel</Button>
-                   <Button onClick={handleSubmit} className="bg-orange-500 hover:bg-orange-600 h-14 px-10 rounded-xl font-black shadow-lg shadow-orange-100">Send Ticket</Button>
+                   <Button onClick={handleSubmit} disabled={submitting} className="bg-orange-500 hover:bg-orange-600 h-14 px-10 rounded-xl font-black shadow-lg shadow-orange-100">
+                     {submitting ? 'Sending…' : 'Send Ticket'}
+                   </Button>
                 </div>
              </CardContent>
           </Card>
-        ) : (
+        ) : loading ? (
+            <div className="col-span-full rounded-2xl bg-white p-12 text-center text-slate-500">Loading your support history…</div>
+          ) : tickets.length === 0 ? (
+            <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-500">Your support tickets and replies will appear here.</div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-             <Card className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-white overflow-hidden p-8 flex flex-col items-center text-center space-y-6">
-                <div className="w-20 h-20 bg-orange-100 rounded-[2rem] flex items-center justify-center text-orange-600">
-                   <MessageCircle size={40} />
-                </div>
-                <div>
-                   <h3 className="text-xl font-black text-slate-900 mb-2">Live Support</h3>
-                   <p className="text-slate-500 font-medium text-sm">Chat with a support agent instantly during school hours.</p>
-                </div>
-                <Button variant="outline" className="w-full h-12 rounded-xl border-2 font-black text-orange-600 border-orange-50 hover:bg-orange-50">START CHAT</Button>
-             </Card>
-
-             {[1,2].map(i => (
-               <Card key={i} className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-white overflow-hidden group">
-                  <div className={`h-2 ${i === 1 ? 'bg-amber-400' : 'bg-emerald-500'}`} />
+             {tickets.map((ticket) => (
+               <Card key={ticket.id} className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-white overflow-hidden group">
+                  <div className={`h-2 ${ticket.status === 'RESOLVED' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
                   <CardHeader className="p-8 pb-4">
                      <div className="flex justify-between items-start mb-4">
-                        <Badge className={`${i === 1 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'} border-none font-black px-3`}>
-                           {i === 1 ? 'PENDING' : 'RESOLVED'}
+                        <Badge className={`${ticket.status === 'RESOLVED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'} border-none font-black px-3`}>
+                           {ticket.status}
                         </Badge>
-                        <span className="text-[10px] font-black text-slate-400">#SUP-20240625-000{i}</span>
+                        <span className="text-[10px] font-black text-slate-400">{ticket.ticketNumber}</span>
                      </div>
                      <CardTitle className="text-lg font-black text-slate-900 group-hover:text-orange-600 transition-colors">
-                        {i === 1 ? 'Login issue on Mobile' : 'Assessment submission error'}
+                        {ticket.title}
                      </CardTitle>
                   </CardHeader>
                   <CardContent className="p-8 pt-0 flex items-center justify-between">
                      <div className="flex items-center gap-2 text-slate-400">
                         <Clock size={14} />
-                        <span className="text-[10px] font-bold">Updated 3h ago</span>
+                        <span className="text-[10px] font-bold">Updated {new Date(ticket.updatedAt).toLocaleString()}</span>
                      </div>
-                     <Button variant="ghost" size="sm" className="rounded-lg font-black text-orange-600">DETAILS</Button>
                   </CardContent>
+                  {ticket.replies.map((reply) => (
+                    <div key={reply.id} className="mx-8 mb-4 rounded-xl bg-slate-50 p-4 text-sm">
+                      <p className="font-semibold text-slate-800">{reply.message}</p>
+                      <p className="mt-1 text-xs text-slate-400">{new Date(reply.createdAt).toLocaleString()}</p>
+                    </div>
+                  ))}
                </Card>
              ))}
           </div>
