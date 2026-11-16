@@ -19,7 +19,9 @@ import {
   Printer
 } from 'lucide-react'
 import { getParentPaymentHistory } from '@/app/actions/payments'
+import { getPaymentMethodLabel } from '@/lib/payments/display'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { downloadCsv } from '@/lib/download-csv'
 
 export default function PaymentHistoryPage() {
   const [payments, setPayments] = useState<any[]>([])
@@ -69,6 +71,19 @@ export default function PaymentHistoryPage() {
            (p.transactionReference || '').toLowerCase().includes(term)
   })
 
+  const downloadHistory = () => downloadCsv('parent-payment-history.csv', [
+    ['Date', 'Reference', 'Student', 'Fee', 'Amount', 'Status', 'Payment Method'],
+    ...payments.map((p) => [
+      p.paidAt || p.paymentDate || p.createdAt,
+      p.transactionReference || p.id,
+      p.childName,
+      p.feeType,
+      p.amount,
+      p.status,
+      getPaymentMethodLabel(p.paymentMethod),
+    ]),
+  ])
+
   return (
     <DashboardLayout role="parent">
       <div className="container mx-auto p-8 max-w-6xl min-h-screen space-y-10 relative">
@@ -111,8 +126,8 @@ export default function PaymentHistoryPage() {
                   <span className="font-bold text-slate-900">{new Date(activeReceipt.paidAt || activeReceipt.createdAt || Date.now()).toLocaleDateString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Payment Gateway:</span>
-                  <span className="font-bold text-emerald-600 flex items-center gap-1 text-xs"><ShieldCheck className="w-3.5 h-3.5" /> {activeReceipt.paymentMethod || 'Payment confirmed'}</span>
+                  <span className="text-slate-400">Payment Method:</span>
+                  <span className="font-bold text-emerald-600 flex items-center gap-1 text-xs"><ShieldCheck className="w-3.5 h-3.5" /> {getPaymentMethodLabel(activeReceipt.paymentMethod)}</span>
                 </div>
                 <div className="h-[1px] bg-slate-100 my-4" />
                 <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
@@ -145,8 +160,8 @@ export default function PaymentHistoryPage() {
             <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Payment & Ward Registration History</h1>
             <p className="text-slate-500 font-medium">Track all your school fee payments and ward registration fees in real-time with Supabase Database.</p>
           </div>
-          <Button onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700 h-12 rounded-xl font-bold">
-            <Download className="w-4 h-4 mr-2" /> Export All (PDF)
+          <Button onClick={downloadHistory} className="bg-emerald-600 hover:bg-emerald-700 h-12 rounded-xl font-bold">
+            <Download className="w-4 h-4 mr-2" /> Download All (CSV)
           </Button>
         </div>
 

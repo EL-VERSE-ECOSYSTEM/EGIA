@@ -1,5 +1,5 @@
 import { db, sqlClient } from '@/lib/db'
-import { payment, schoolRegistrationApplication, student, school, transactionLedger, transactions, paymentWebhookLogs, paymentInstallment } from '@/lib/db/schema'
+import { payment, schoolRegistrationApplication, schoolRegistrationBatches, student, school, transactionLedger, transactions, paymentWebhookLogs, paymentInstallment } from '@/lib/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import {
@@ -11,9 +11,9 @@ import { checkOrAcquireIdempotency, completeIdempotencyKey, failIdempotencyKey }
 import { completeLearnAiPurchase } from '@/lib/learn-ai'
 import { notifyPaymentConfirmed, notifyPaymentStatus } from '@/lib/payments/notifications'
 import { allocatePaymentAcrossInstallments } from '@/lib/payments/installments'
+import { calculateSchoolRegistrationTotal } from '@/lib/school-registration'
 
 export { validPaystackSignature, validatePaystackWebhook, paystackAmountMatches }
-export { validPaystackSignature as validKorapaySignature } from './paystack-security'
 
 export interface InitializePaymentParams {
   amount: number // In Naira
@@ -42,6 +42,33 @@ export interface PaymentVerificationParams {
 export type WebhookProcessResult =
   | { success: true; event?: string; reference?: string; note?: string }
   | { success: false; error: string }
+
+async function syncSchoolRegistrationLedger(
+  schoolId: string,
+  reference: string,
+  status: 'PENDING' | 'SUCCESS' | 'FAILED',
+) {
+  const now = new Date()
+  await db.insert(transactionLedger).values({
+    id: randomUUID(),
+    schoolId,
+    type: 'REGISTRATION_FEE',
+    direction: 'IN',
+    amount: '30161.25',
+    currency: 'NGN',
+    reference,
+    gateway: 'PAYSTACK',
+    status,
+    description: 'School registration fee payment',
+    confirmationMethod: 'PAYSTACK_AUTO',
+    metadata: { paymentType: 'SCHOOL_REGISTRATION' },
+    createdAt: now,
+    updatedAt: now,
+  }).onConflictDoUpdate({
+    target: transactionLedger.reference,
+    set: { status, updatedAt: now },
+  })
+}
 
 export async function createStudentPaymentRecord(params: {
   studentId: string
@@ -75,6 +102,26 @@ export async function createStudentPaymentRecord(params: {
       updatedAt: now,
     }).returning()
 
+    if (record.schoolId) {
+      await tx.insert(transactionLedger).values({
+        id: randomUUID(),
+        schoolId: record.schoolId,
+        studentId: record.studentId,
+        type: record.feeType?.toLowerCase().includes('registration') ? 'REGISTRATION_FEE' : 'FEE_PAYMENT',
+        direction: 'IN',
+        amount: record.amount,
+        currency: 'NGN',
+        reference,
+        gateway: 'PAYSTACK',
+        status: 'PENDING',
+        description: record.description,
+        confirmationMethod: 'PAYSTACK_AUTO',
+        metadata: { paymentId: record.id, feeType: record.feeType },
+        createdAt: now,
+        updatedAt: now,
+      }).onConflictDoNothing()
+    }
+
     if (params.installmentId) {
       const linked = await tx.update(paymentInstallment)
         .set({ paymentId: record.id })
@@ -98,7 +145,7 @@ export async function createStudentPaymentRecord(params: {
 export async function initializePaystackPayment(params: InitializePaymentParams) {
   const secretKey = process.env.PAYSTACK_SECRET_KEY
   if (!secretKey) {
-    throw new Error('Paystack payment service is unavailable because its secret key is not configured.')
+    throw new Error('Online payment service is unavailable because its secret key is not configured.')
   }
 
   if (!Number.isFinite(params.amount) || params.amount <= 0 || Math.round(params.amount * 100) <= 0) {
@@ -115,17 +162,17 @@ export async function initializePaystackPayment(params: InitializePaymentParams)
   const currency = params.currency || 'NGN'
   const configuredSiteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
   if (process.env.NODE_ENV === 'production' && !configuredSiteUrl) {
-    throw new Error('NEXT_PUBLIC_SITE_URL must be configured for Paystack redirects in production.')
+    throw new Error('NEXT_PUBLIC_SITE_URL must be configured for payment redirects in production.')
   }
   const siteUrl = configuredSiteUrl || 'http://localhost:3000'
   const callbackUrl = params.callbackUrl || `${siteUrl.replace(/\/$/, '')}/payment/return`
   const redirectUrl = params.redirectUrl || callbackUrl
   try {
     if (new URL(redirectUrl).origin !== new URL(siteUrl).origin) {
-      throw new Error('Paystack callback URL must use the configured application origin.')
+      throw new Error('Payment callback URL must use the configured application origin.')
     }
   } catch {
-    throw new Error('A valid same-origin Paystack callback URL is required.')
+    throw new Error('A valid same-origin payment callback URL is required.')
   }
 
   // Create pending payment record in DB if studentId is provided
@@ -142,6 +189,9 @@ export async function initializePaystackPayment(params: InitializePaymentParams)
       reference,
       installmentId: params.installmentId,
     })
+  }
+  if (params.schoolId && params.feeType === 'SCHOOL_REGISTRATION') {
+    await syncSchoolRegistrationLedger(params.schoolId, reference, 'PENDING')
   }
 
   let checkoutUrl: string
@@ -188,13 +238,16 @@ export async function initializePaystackPayment(params: InitializePaymentParams)
     const paystackData = await res.json()
 
     if (!res.ok || !paystackData.status || !paystackData.data?.authorization_url) {
-      throw new Error(paystackData.message || 'Paystack did not return a valid checkout URL.')
+      throw new Error('Payment could not be initialized. Please try again.')
     }
 
     checkoutUrl = paystackData.data.authorization_url
   } catch (error) {
     if (paymentRecord) {
       await markPaymentFailed(paymentRecord.id)
+    }
+    if (params.schoolId && params.feeType === 'SCHOOL_REGISTRATION') {
+      await syncSchoolRegistrationLedger(params.schoolId, reference, 'FAILED')
     }
     throw error
   }
@@ -210,9 +263,6 @@ export async function initializePaystackPayment(params: InitializePaymentParams)
     currency,
   }
 }
-
-// Backward-compatible alias for existing callers
-export const initializeKorapayPayment = initializePaystackPayment
 
 /**
  * Verifies transaction directly with Paystack API.
@@ -267,7 +317,7 @@ export async function verifyPaystackPayment(params: PaymentVerificationParams) {
   const schoolName = schoolRec?.name || appRec?.schoolName || undefined
 
   if (!secretKey) {
-    return { success: false, status: 'failed', schoolCode, schoolName, error: 'Paystack secret key is not configured.' }
+    return { success: false, status: 'failed', schoolCode, schoolName, error: 'Payment service is not configured.' }
   }
 
   const res = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
@@ -276,13 +326,13 @@ export async function verifyPaystackPayment(params: PaymentVerificationParams) {
   })
 
   if (!res.ok) {
-    const errText = await res.text()
-    return { success: false, status: 'failed', schoolCode, schoolName, error: `Verification request failed (${res.status}): ${errText}` }
+    console.warn('Payment verification request failed with status:', res.status)
+    return { success: false, status: 'failed', schoolCode, schoolName, error: 'Payment verification could not be completed. Please try again.' }
   }
 
   const json = await res.json()
   if (!json.status || !json.data) {
-    return { success: false, status: 'failed', schoolCode, schoolName, error: json.message || 'Invalid verification response from Paystack' }
+    return { success: false, status: 'failed', schoolCode, schoolName, error: 'Payment verification could not be completed.' }
   }
 
   const data = json.data
@@ -317,10 +367,20 @@ export async function verifyPaystackPayment(params: PaymentVerificationParams) {
         const adultEducation = await import('@/app/actions/adult-education')
         await adultEducation.fulfillAdultEducationPayment(reference, transactionRec.amount, metadata)
       }
+      if (metadata?.paymentType === 'SCHOOL_BULK_REGISTRATION') {
+        const completedBatch = await completeSchoolRegistrationBatch(reference, 'SUCCESS')
+        if (!completedBatch) {
+          return { success: false, status: 'failed', schoolCode, schoolName, error: 'The student registration batch could not be verified.' }
+        }
+      }
     }
     if (schoolRec) {
       await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(eq(school.id, schoolRec.id))
       await db.update(schoolRegistrationApplication).set({ paymentStatus: 'SUCCESS', updatedAt: new Date() }).where(eq(schoolRegistrationApplication.schoolId, schoolRec.id))
+    }
+    const registrationSchoolId = schoolRec?.id || appRec?.schoolId
+    if (registrationSchoolId) {
+      await syncSchoolRegistrationLedger(registrationSchoolId, reference, 'SUCCESS')
     }
   } else if (status === 'failed' || status === 'abandoned') {
     if (paymentRec) {
@@ -330,10 +390,18 @@ export async function verifyPaystackPayment(params: PaymentVerificationParams) {
       await db.update(transactions)
         .set({ status: 'failed', updatedAt: new Date() })
         .where(and(eq(transactions.id, transactionRec.id), eq(transactions.status, 'pending')))
+      const metadata = transactionRec.metadata as Record<string, unknown> | null
+      if (metadata?.paymentType === 'SCHOOL_BULK_REGISTRATION') {
+        await completeSchoolRegistrationBatch(reference, 'FAILED')
+      }
     }
     if (schoolRec) {
       await db.update(school).set({ paymentStatus: 'FAILED', updatedAt: new Date() }).where(and(eq(school.id, schoolRec.id), eq(school.paymentStatus, 'PENDING')))
       await db.update(schoolRegistrationApplication).set({ paymentStatus: 'FAILED', updatedAt: new Date() }).where(and(eq(schoolRegistrationApplication.schoolId, schoolRec.id), eq(schoolRegistrationApplication.paymentStatus, 'PENDING')))
+    }
+    const registrationSchoolId = schoolRec?.id || appRec?.schoolId
+    if (registrationSchoolId) {
+      await syncSchoolRegistrationLedger(registrationSchoolId, reference, 'FAILED')
     }
   }
 
@@ -429,8 +497,112 @@ export async function completeSchoolRenewalTransaction(reference: string) {
   })
 }
 
-// Backward-compatible alias
-export const verifyKorapayPayment = verifyPaystackPayment
+export async function completeSchoolRegistrationBatch(reference: string, outcome: 'SUCCESS' | 'FAILED') {
+  return db.transaction(async (tx) => {
+    const batch = await tx.query.schoolRegistrationBatches.findFirst({
+      where: eq(schoolRegistrationBatches.paymentReference, reference),
+    })
+    if (!batch) return false
+    if (batch.status === 'PAID') return outcome === 'SUCCESS'
+
+    if (outcome === 'FAILED') {
+      await tx.update(schoolRegistrationBatches)
+        .set({ status: 'FAILED', updatedAt: new Date() })
+        .where(and(
+          eq(schoolRegistrationBatches.id, batch.id),
+          eq(schoolRegistrationBatches.paymentReference, reference),
+          eq(schoolRegistrationBatches.status, 'PENDING'),
+        ))
+      return true
+    }
+
+    const transactionRecord = await tx.query.transactions.findFirst({
+      where: eq(transactions.reference, reference),
+    })
+    if (!transactionRecord || transactionRecord.status !== 'success' ||
+      transactionRecord.currency !== 'NGN' || Number(transactionRecord.amount) !== Number(batch.amount) ||
+      calculateSchoolRegistrationTotal(batch.studentCount) !== Number(batch.amount)) {
+      return false
+    }
+
+    const [claimed] = await tx.update(schoolRegistrationBatches)
+      .set({ status: 'PAID', updatedAt: new Date() })
+      .where(and(
+        eq(schoolRegistrationBatches.id, batch.id),
+        eq(schoolRegistrationBatches.paymentReference, reference),
+        eq(schoolRegistrationBatches.status, 'PENDING'),
+      ))
+      .returning({ id: schoolRegistrationBatches.id })
+    if (!claimed) {
+      const current = await tx.query.schoolRegistrationBatches.findFirst({
+        where: eq(schoolRegistrationBatches.id, batch.id),
+      })
+      return current?.status === 'PAID'
+    }
+
+    const studentIds = Array.isArray(batch.studentIds)
+      ? batch.studentIds.filter((value): value is string => typeof value === 'string')
+      : []
+    if (studentIds.length !== batch.studentCount) throw new Error('Registration batch has an invalid student list.')
+    const now = new Date()
+    const batchStudents = await tx.query.student.findMany({
+      where: and(inArray(student.id, studentIds), eq(student.schoolId, batch.schoolId)),
+    })
+    if (batchStudents.length !== batch.studentCount) throw new Error('A registration batch student is missing from its school.')
+
+    for (const enrolledStudent of batchStudents) {
+      const studentReference = `${reference}-ST-${enrolledStudent.id}`
+      const [paymentRecord] = await tx.insert(payment).values({
+        id: randomUUID(),
+        schoolId: batch.schoolId,
+        studentId: enrolledStudent.id,
+        parentId: enrolledStudent.parentId,
+        amount: '2161.25',
+        feeType: 'registration',
+        paymentMethod: 'PAYSTACK',
+        transactionReference: studentReference,
+        status: 'success',
+        paymentDate: now,
+        paidAt: now,
+        description: `Student registration fee for ${enrolledStudent.firstName} ${enrolledStudent.lastName}`,
+        createdAt: now,
+        updatedAt: now,
+      }).onConflictDoNothing().returning({ id: payment.id })
+
+      if (paymentRecord) {
+        await tx.insert(transactionLedger).values({
+          id: randomUUID(),
+          schoolId: batch.schoolId,
+          studentId: enrolledStudent.id,
+          userId: enrolledStudent.userId || undefined,
+          type: 'REGISTRATION_FEE',
+          direction: 'IN',
+          amount: '2161.25',
+          currency: 'NGN',
+          reference: studentReference,
+          gateway: 'PAYSTACK',
+          status: 'SUCCESS',
+          description: `Student registration fee for ${enrolledStudent.firstName} ${enrolledStudent.lastName}`,
+          confirmationMethod: 'PAYSTACK_AUTO',
+          metadata: { paymentId: paymentRecord.id, batchReference: reference },
+          createdAt: now,
+          updatedAt: now,
+        }).onConflictDoNothing()
+      }
+
+      await tx.update(student)
+        .set({
+          registrationStatus: 'ACTIVE',
+          registrationPaid: true,
+          lastRegistrationFeePaidAt: now,
+          registrationDueDate: new Date(now.getTime() + 120 * 24 * 60 * 60 * 1000),
+          updatedAt: now,
+        })
+        .where(and(eq(student.id, enrolledStudent.id), eq(student.schoolId, batch.schoolId)))
+    }
+    return true
+  })
+}
 
 /**
  * Idempotently processes real-time Paystack webhooks (e.g. charge.success).
@@ -443,12 +615,26 @@ export async function processPaystackWebhook(rawBody: string, signature: string 
   }
 
   const { body, event, reference } = validation
-  const idempotencyKey = `paystack_webhook_${reference}_${event}`
+  const idempotencyKey = `paystack_webhook_v2_${reference}_${event}`
+  const eventIdentity = {
+    event,
+    reference,
+    transactionId: body.data?.id ?? null,
+    status: body.data?.status ?? null,
+    amount: body.data?.amount ?? null,
+    currency: body.data?.currency?.toUpperCase() ?? null,
+  }
 
   // 1. Check idempotency lock to prevent concurrent double-processing
-  const lock = await checkOrAcquireIdempotency(idempotencyKey, 'paystack_webhook', { event, reference })
+  const lock = await checkOrAcquireIdempotency(idempotencyKey, 'paystack_webhook', eventIdentity)
+  if (lock.payloadMismatch) {
+    return { success: false, error: 'Webhook event data conflicts with a previously received event.' }
+  }
   if (lock.isDuplicate) {
-    return { success: true, reference, note: 'Event already processed' }
+    if (lock.status === 'COMPLETED') {
+      return { success: true, reference, note: 'Event already processed' }
+    }
+    throw new Error('Webhook event is already being processed.')
   }
 
   const recordEvent = async (status: string) => {
@@ -474,7 +660,7 @@ export async function processPaystackWebhook(rawBody: string, signature: string 
     if (!isSuccess && !isFailed) {
       await recordEvent('IGNORED')
       await completeIdempotencyKey(idempotencyKey, { success: true, event, reference })
-      return { success: true, event, reference, note: 'Unsupported Paystack event ignored' }
+      return { success: true, event, reference, note: 'Unsupported payment notification ignored' }
     }
 
     const [learnAiPurchase] = await sqlClient`
@@ -523,6 +709,10 @@ export async function processPaystackWebhook(rawBody: string, signature: string 
         if (schRecord) {
           await db.update(school).set({ paymentStatus: 'PAID', updatedAt: new Date() }).where(and(eq(school.id, schRecord.id), eq(school.paymentStatus, 'PENDING')))
         }
+        const registrationSchoolId = schRecord?.id || appRecord?.schoolId
+        if (registrationSchoolId) {
+          await syncSchoolRegistrationLedger(registrationSchoolId, reference, 'SUCCESS')
+        }
       } else if (isFailed) {
         if (appRecord) {
           await db.update(schoolRegistrationApplication)
@@ -531,6 +721,10 @@ export async function processPaystackWebhook(rawBody: string, signature: string 
         }
         if (schRecord) {
           await db.update(school).set({ paymentStatus: 'FAILED', updatedAt: new Date() }).where(and(eq(school.id, schRecord.id), eq(school.paymentStatus, 'PENDING')))
+        }
+        const registrationSchoolId = schRecord?.id || appRecord?.schoolId
+        if (registrationSchoolId) {
+          await syncSchoolRegistrationLedger(registrationSchoolId, reference, 'FAILED')
         }
       }
       await recordEvent('PROCESSED')
@@ -570,8 +764,20 @@ export async function processPaystackWebhook(rawBody: string, signature: string 
             return { success: true, event, reference, note: 'School renewal was not fulfilled' }
           }
         }
+        if (transactionMetadata?.paymentType === 'SCHOOL_BULK_REGISTRATION') {
+          const completedBatch = await completeSchoolRegistrationBatch(reference, 'SUCCESS')
+          if (!completedBatch) {
+            await recordEvent('REJECTED_BULK_REGISTRATION_STATE')
+            await completeIdempotencyKey(idempotencyKey, { success: true, event, reference })
+            return { success: true, event, reference, note: 'Student registration batch was not fulfilled' }
+          }
+        }
       } else if (isFailed) {
         await db.update(transactions).set({ status: 'failed', updatedAt: new Date() }).where(and(eq(transactions.id, trxRecord.id), eq(transactions.status, 'pending')))
+        const transactionMetadata = trxRecord.metadata as Record<string, unknown> | null
+        if (transactionMetadata?.paymentType === 'SCHOOL_BULK_REGISTRATION') {
+          await completeSchoolRegistrationBatch(reference, 'FAILED')
+        }
       }
       await recordEvent('PROCESSED')
       await completeIdempotencyKey(idempotencyKey, { success: true, event, reference })
@@ -605,9 +811,6 @@ export async function processPaystackWebhook(rawBody: string, signature: string 
   }
 }
 
-// Backward-compatible alias
-export const processKorapayWebhook = processPaystackWebhook
-
 export async function markPaymentSuccessful(paymentId: string, paystackRef?: string) {
   const updatedPayment = await db.transaction(async (tx) => {
     const existingPayment = await tx.query.payment.findFirst({
@@ -619,7 +822,7 @@ export async function markPaymentSuccessful(paymentId: string, paystackRef?: str
     const updated = await tx.update(payment)
       .set({
         status: 'success',
-        korapayReference: paystackRef || existingPayment.korapayReference || undefined,
+        paystackReference: paystackRef || existingPayment.paystackReference || undefined,
         paidAt: existingPayment.paidAt || now,
         paymentDate: existingPayment.paymentDate || now,
         updatedAt: now,
@@ -635,6 +838,7 @@ export async function markPaymentSuccessful(paymentId: string, paystackRef?: str
       await tx.update(student)
         .set({
           registrationStatus: 'ACTIVE',
+          registrationPaid: true,
           lastRegistrationFeePaidAt: now,
           registrationDueDate: new Date(now.getTime() + 120 * 24 * 60 * 60 * 1000),
           updatedAt: now,
@@ -643,6 +847,33 @@ export async function markPaymentSuccessful(paymentId: string, paystackRef?: str
     }
 
     if (updated.length > 0) {
+      const current = updated[0]
+      if (current.schoolId && current.transactionReference) {
+        const ledgerUpdate = await tx.update(transactionLedger)
+          .set({ status: 'SUCCESS', updatedAt: now })
+          .where(eq(transactionLedger.reference, current.transactionReference))
+          .returning({ id: transactionLedger.id })
+        if (!ledgerUpdate.length) {
+          await tx.insert(transactionLedger).values({
+            id: randomUUID(),
+            schoolId: current.schoolId,
+            studentId: current.studentId,
+            type: current.feeType?.toLowerCase().includes('registration') ? 'REGISTRATION_FEE' : 'FEE_PAYMENT',
+            direction: 'IN',
+            amount: current.amount,
+            currency: 'NGN',
+            reference: current.transactionReference,
+            gateway: current.paymentMethod.toUpperCase() === 'PAYSTACK' ? 'PAYSTACK' : 'SCHOOL_ACCOUNT',
+            status: 'SUCCESS',
+            description: current.description,
+            confirmationMethod: current.paymentMethod.toUpperCase() === 'PAYSTACK' ? 'PAYSTACK_AUTO' : 'SCHOOL_ACCOUNT',
+            metadata: { paymentId: current.id, feeType: current.feeType },
+            createdAt: current.paidAt || now,
+            updatedAt: now,
+          }).onConflictDoNothing()
+        }
+      }
+
         const linkedInstallment = await tx.query.paymentInstallment.findFirst({
           where: eq(paymentInstallment.paymentId, paymentId),
         })
@@ -668,7 +899,7 @@ export async function markPaymentSuccessful(paymentId: string, paystackRef?: str
           })
           const netPaymentAmount = Math.max(
             0,
-            Number(updated[0].amount) - (['PAYSTACK', 'KORAPAY'].includes(updated[0].paymentMethod.toUpperCase()) ? 161.25 : 0),
+            Number(updated[0].amount) - (updated[0].paymentMethod.toUpperCase() === 'PAYSTACK' ? 161.25 : 0),
           )
           const allocation = allocatePaymentAcrossInstallments(scheduledInstallments, netPaymentAmount)
           for (const installmentUpdate of allocation.updates) {
@@ -697,6 +928,11 @@ export async function markPaymentFailed(paymentId: string) {
         .where(and(eq(payment.id, paymentId), eq(payment.status, 'pending')))
         .returning()
     if (updated.length) {
+        if (updated[0].transactionReference) {
+          await tx.update(transactionLedger)
+            .set({ status: 'FAILED', updatedAt: now })
+            .where(eq(transactionLedger.reference, updated[0].transactionReference))
+        }
         const linkedInstallment = await tx.query.paymentInstallment.findFirst({
           where: eq(paymentInstallment.paymentId, paymentId),
         })
@@ -719,7 +955,7 @@ export async function reconcilePayment(paymentId: string, adminUserId: string) {
   const now = new Date()
   const existing = await db.query.payment.findFirst({ where: eq(payment.id, paymentId) })
   if (!existing) return null
-  if (['PAYSTACK', 'KORAPAY'].includes(existing.paymentMethod.toUpperCase())) {
+  if (existing.paymentMethod.toUpperCase() === 'PAYSTACK') {
     throw new Error('Gateway payments must be reconciled against the provider before being marked successful.')
   }
   if (existing.status !== 'pending') throw new Error('Only pending manual payments can be reconciled.')

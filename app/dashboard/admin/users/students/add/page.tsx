@@ -26,13 +26,22 @@ export default function AddStudentPage() {
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<StudentEnrollmentData>({
     resolver: zodResolver(studentEnrollmentSchema),
-    defaultValues: { email: '', admissionNumber: '', gender: 'MALE', academicSession: '2026/2027', term: 'First Term' },
+    defaultValues: { email: '', studentEmail: '', admissionNumber: '', gender: 'MALE', academicSession: '2026/2027', term: 'First Term' },
   })
 
   const onSubmit = async (formData: StudentEnrollmentData) => {
     try {
-      await createStudent(formData)
-      toast.success('Student profile created and enrolled successfully!')
+      const result = await createStudent(formData)
+      if ('emailDeliveryFailed' in result && result.emailDeliveryFailed) {
+        toast.error('Student account was created, but the welcome email could not be delivered. Contact support before sign-in.')
+      }
+      if ('checkoutUrl' in result && typeof result.checkoutUrl === 'string') {
+        window.location.assign(result.checkoutUrl)
+        return
+      }
+      if (!('emailDeliveryFailed' in result && result.emailDeliveryFailed)) {
+        toast.success('Student profile created and enrolled successfully!')
+      }
       router.push('/dashboard/admin/users/students/list')
     } catch (error: any) {
       console.error(error)
@@ -77,14 +86,27 @@ export default function AddStudentPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
-                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Guardian Email (Optional)</Label>
+                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Registered Parent Email</Label>
                     <Input
                       type="email"
                       {...register('email')}
+                      required
                       placeholder="parent@example.com"
                       className="h-14 rounded-2xl bg-slate-50 border-none focus:bg-white focus:ring-amber-600"
                     />
                     {errors.email && <p className="text-xs font-bold text-red-600">{errors.email.message}</p>}
+                    <p className="text-xs text-slate-500">The email must belong to a parent account already registered in this school.</p>
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Student Login Email</Label>
+                    <Input
+                      type="email"
+                      {...register('studentEmail')}
+                      placeholder="student@example.com"
+                      className="h-14 rounded-2xl bg-slate-50 border-none focus:bg-white focus:ring-amber-600"
+                    />
+                    {errors.studentEmail && <p className="text-xs font-bold text-red-600">{errors.studentEmail.message}</p>}
+                    <p className="text-xs text-slate-500">Required for a school-admin account. A temporary password will be emailed and must be changed at first sign-in.</p>
                   </div>
                   <div className="space-y-3">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Admission Number</Label>

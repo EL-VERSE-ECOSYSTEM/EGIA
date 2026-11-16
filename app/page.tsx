@@ -278,7 +278,7 @@ export default async function LandingPage() {
                   badge: "One-Click Export"
                 },
                 {
-                  title: "Paystack Billing & Ledger",
+                  title: "Online Payments & Ledger",
                   desc: "PCI-DSS certified online tuition fee collection, auto-receipt generation, dual database verification, and real-time financial ledger tracking.",
                   icon: Lock,
                   color: "bg-indigo-600 shadow-indigo-200",
@@ -339,7 +339,7 @@ export default async function LandingPage() {
               </div>
               <div className="py-4 sm:py-5">
                 <h3 className="text-sm font-bold text-slate-900">Transparent limits</h3>
-                <p className="mt-1 text-sm leading-6 text-slate-600">Token packs are one-time Paystack purchases and expire after 30 days. Learn AI does not retrieve private student records or perform school administration actions; AI answers can be incomplete, so verify important information.</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">Token packs are one-time online purchases and expire after 30 days. Learn AI does not retrieve private student records or perform school administration actions; AI answers can be incomplete, so verify important information.</p>
               </div>
             </div>
           </div>
@@ -409,7 +409,7 @@ export default async function LandingPage() {
                     },
                     {
                       q: "How secure is the online payment system?",
-                      a: "We partner with Paystack, a PCI-DSS certified gateway, to ensure all transactions are encrypted and secured using military-grade protection."
+                      a: "We use secure payment processing to protect your transactions and payment information."
                     },
                     {
                       q: "Is the CBT system mobile-friendly?",

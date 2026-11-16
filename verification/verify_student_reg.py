@@ -20,8 +20,8 @@ async def verify_registration():
         await page.screenshot(path="verification/student_registration_initial.png")
         print("Captured initial student registration page layout!")
 
-        # Inject fake local storage to simulate successful Korapay payment callback return
-        print("Simulating return from Korapay payment checkout redirect by writing unique admission to localStorage...")
+        # Inject fake local storage to simulate a successful payment callback return
+        print("Simulating the payment checkout redirect by writing the unique admission to localStorage...")
         await page.evaluate("""() => {
             localStorage.setItem('pending_student_admission', 'EL/STUD/2026/094827');
         }""")

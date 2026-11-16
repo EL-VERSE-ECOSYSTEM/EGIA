@@ -10,7 +10,7 @@ EL LEARNERS APP is a modern, enterprise-grade Next.js multi-tenant school manage
 ### 1. Multi-Tenant Institution Management
 - Unique School Registration Codes for each institutional tenant.
 - School Admin dashboard for managing academic sessions, terms, classes, arms, and staff accounts.
-- Document verification, proof of address verification, and Korapay automated payment onboarding.
+- Document verification, proof of address verification, and Paystack payment onboarding.
 
 ### 2. Computer-Based Testing (CBT) & Assessment Engine
 - Live timed examinations with web proctoring (camera snapshots, tab switch detection, cheating telemetry).
@@ -44,5 +44,5 @@ EL LEARNERS APP is a modern, enterprise-grade Next.js multi-tenant school manage
 - **Database**: PostgreSQL (Supabase) with Drizzle ORM
 - **Authentication**: Supabase Auth with custom multi-identity resolution (`resolveIdentities`)
 - **Real-time Sync**: Supabase Realtime (WebSockets)
-- **Payments**: Korapay Payment Gateway Integration
+- **Payments**: Paystack Payment Gateway Integration
 - **Styling**: Tailwind CSS & Lucide React

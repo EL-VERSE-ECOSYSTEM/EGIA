@@ -215,7 +215,7 @@ export default function ForgotPasswordPage() {
                       id="verification"
                       type={verificationType === 'PHONE' ? 'text' : 'text'}
                       maxLength={verificationType === 'PHONE' ? 4 : 20}
-                      placeholder={verificationType === 'PHONE' ? 'e.g. 4279' : 'e.g. EXCE-10015'}
+                      placeholder={verificationType === 'PHONE' ? 'e.g. 4279' : 'e.g. EXCE-123456'}
                       value={verificationInput}
                       onChange={(e) => setVerificationInput(e.target.value)}
                       required

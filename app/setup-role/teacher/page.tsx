@@ -13,7 +13,6 @@ export default function TeacherSetupPage() {
   const [schoolCode, setSchoolCode] = useState('')
   const [schoolVerified, setSchoolVerified] = useState(false)
   const [schoolName, setSchoolName] = useState('')
-  const [schoolId, setSchoolId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -35,7 +34,6 @@ export default function TeacherSetupPage() {
     if (res.success && res.school) {
       setSchoolVerified(true)
       setSchoolName(res.school.name)
-      setSchoolId(res.school.id)
     } else {
       alert(res.error || 'Invalid School Code.')
     }
@@ -44,7 +42,7 @@ export default function TeacherSetupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!schoolVerified || !schoolId) {
+    if (!schoolVerified) {
       alert('Please verify your School Registration Code first.')
       return
     }
@@ -64,7 +62,7 @@ export default function TeacherSetupPage() {
         phoneNumber: formData.phoneNumber,
         staffCode: formData.staffCode,
         type: formData.type || 'FULL_TIME',
-        schoolId: schoolId,
+        schoolCode: schoolCode.trim().toUpperCase(),
       })
 
       router.push('/dashboard-redirect')
@@ -98,7 +96,7 @@ export default function TeacherSetupPage() {
                     setSchoolVerified(false)
                   }}
                   className="border-slate-700 bg-slate-800 text-white h-12 focus:border-purple-500 uppercase tracking-wider font-bold"
-                  placeholder="EXCE-10015"
+                  placeholder="EXCE-123456"
                 />
                 <Button
                   type="button"

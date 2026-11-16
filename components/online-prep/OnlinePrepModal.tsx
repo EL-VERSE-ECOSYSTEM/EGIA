@@ -80,7 +80,7 @@ export function OnlinePrepModal() {
     try {
       const res = await verifyPrepSubscriptionPaymentAction(paymentRef, accessCode)
       if (!res.success) {
-        setError(res.error || 'Payment verification failed on gateway.')
+        setError(res.error || 'Payment verification failed.')
         setVerifying(false)
         return
       }
@@ -111,7 +111,7 @@ export function OnlinePrepModal() {
             Registration for SSS3/SSS2 Online Lessons
           </h2>
           <p className="text-xs font-bold text-slate-300 leading-relaxed">
-            WAEC, NECO & JAMB Intensive Practice Questions & Video Classes. (Science, Arts/Humanities & Commercial). Fee: NGN 3,161.25 per 3 weeks via Korapay.
+            WAEC, NECO & JAMB Intensive Practice Questions & Video Classes. (Science, Arts/Humanities & Commercial). Fee: NGN 3,161.25 per 3 weeks.
           </p>
         </div>
 
@@ -153,7 +153,7 @@ export function OnlinePrepModal() {
               {submitting ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>INITIALIZING KORAPAY...</span>
+                  <span>PREPARING PAYMENT...</span>
                 </div>
               ) : (
                 <span>PAY NGN 3,161.25 FOR 3 WEEKS</span>
@@ -163,14 +163,14 @@ export function OnlinePrepModal() {
         ) : (
           <div className="space-y-4 text-center">
             <div className="p-4 bg-slate-950/80 border border-white/20 rounded-2xl space-y-3">
-              <p className="text-xs font-bold text-slate-300">Click below to complete subscription payment via Korapay:</p>
+              <p className="text-xs font-bold text-slate-300">Continue below to complete your subscription payment:</p>
               <a
                 href={checkoutUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-wider shadow-xl transition"
               >
-                <span>Korapay Checkout</span>
+                <span>Continue to Payment</span>
                 <ExternalLink className="w-4 h-4" />
               </a>
             </div>

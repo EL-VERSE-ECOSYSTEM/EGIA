@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { schoolRegistrationApplication } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import {
   getParentProfile,
   getStudentProfile,
@@ -17,6 +20,14 @@ export default async function DashboardRedirect() {
     const session = await auth.getSession()
     if (!session?.user) {
       redirect('/auth/signin?error=Please sign in to continue')
+    }
+
+    const schoolApplication = await db.query.schoolRegistrationApplication.findFirst({
+      where: eq(schoolRegistrationApplication.applicantEmail, session.user.email.trim().toLowerCase()),
+      columns: { approvalStatus: true },
+    })
+    if (schoolApplication && schoolApplication.approvalStatus !== 'APPROVED') {
+      redirect('/registration-waiting-room')
     }
 
     // Check if user has explicit role record in Supabase userRole table or identities

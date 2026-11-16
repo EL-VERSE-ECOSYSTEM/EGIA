@@ -181,7 +181,7 @@ export async function verifyPrepSubscriptionPaymentAction(reference: string, acc
     })
 
     if (!verification.success) {
-      return { success: false, error: 'Payment verification failed on gateway.' }
+      return { success: false, error: 'Payment verification failed.' }
     }
 
     const now = new Date()

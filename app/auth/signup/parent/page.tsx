@@ -360,7 +360,7 @@ export default function ParentSignUpPage() {
               <Label htmlFor="schoolCode" className="text-[10px] font-black uppercase text-indigo-400 tracking-widest">School Registration Code (Optional)</Label>
               <Input
                 id="schoolCode"
-                placeholder="e.g. EXCE-12345"
+                placeholder="e.g. EXCE-123456"
                 value={formData.schoolCode}
                 onChange={async e => {
                   const code = e.target.value.toUpperCase()

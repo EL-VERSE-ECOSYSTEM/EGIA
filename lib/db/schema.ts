@@ -5,7 +5,7 @@ import { relations, sql } from 'drizzle-orm'
 export const school = pgTable('school', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  code: text('code').notNull().unique(), // First 4 letters of school name + unique 5 digits (e.g., SCHO12345)
+  code: text('code').notNull().unique(), // Four-letter school prefix plus six unique digits (e.g., SCHO-123456)
   location: text('location').notNull(),
   registeredClasses: jsonb('registeredclasses').notNull(), // Primary 3 to SSS3 selected
   allowParents: boolean('allowparents').notNull().default(true),
@@ -48,8 +48,11 @@ export const schoolRegistrationApplication = pgTable('school_registration_applic
   additionalDocuments: jsonb('additional_documents'),
   documentVerificationStatus: text('document_verification_status').notNull().default('PENDING'),
   paymentStatus: text('payment_status').notNull().default('PENDING'),
+  paymentOtpSentAt: timestamp('payment_otp_sent_at', { withTimezone: true }),
+  paymentOtpVerifiedAt: timestamp('payment_otp_verified_at', { withTimezone: true }),
   paymentReference: text('payment_reference').unique(),
   approvalStatus: text('approval_status').notNull().default('PENDING_REVIEW'),
+  approvalEmailSentAt: timestamp('approval_email_sent_at', { withTimezone: true }),
   rejectionReason: text('rejection_reason'),
   submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
   reviewedBy: text('reviewed_by'),
@@ -72,6 +75,7 @@ export const user = pgTable('user', {
   lastIdentityAt: timestamp('last_identity_at', { withTimezone: true }),
   gender: text('gender'),
   adminLevel: text('adminlevel'),
+  mustChangePassword: boolean('must_change_password').notNull().default(false),
   createdAt: timestamp('createdat', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updatedat', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
@@ -434,9 +438,9 @@ export const payment = pgTable('payment', {
   termId: text('termid'),
   amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
   feeType: text('feetype'),
-  paymentMethod: text('paymentmethod').notNull(), // KORAPAY, BANK_TRANSFER, CUSTOM_LINK
+  paymentMethod: text('paymentmethod').notNull(), // PAYSTACK, BANK_TRANSFER, CUSTOM_LINK
   transactionReference: text('transactionreference').unique(),
-  korapayReference: text('korapayreference').unique(),
+  paystackReference: text('paystackreference').unique(),
   receiptUrl: text('receipturl'),
   reconciliationStatus: text('reconciliation_status').default('UNRECONCILED'), // UNRECONCILED, RECONCILED, DISPUTED
   reconciledBy: text('reconciled_by'),
@@ -483,7 +487,7 @@ export const assessmentLogs = pgTable('assessment_logs', {
 export const schoolPaymentConfig = pgTable('school_payment_config', {
   id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
   schoolId: text('schoolid').notNull().unique(),
-  useKorapay: boolean('use_korapay').notNull().default(true),
+  usePaystack: boolean('use_paystack').notNull().default(true),
   bankName: text('bank_name'),
   accountNumber: text('account_number'),
   accountName: text('account_name'),
@@ -539,11 +543,11 @@ export const transactionLedger = pgTable('transaction_ledger', {
   amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
   currency: text('currency').default('NGN'),
   reference: text('reference').unique(),
-  gateway: text('gateway'), // KORAPAY, SCHOOL_ACCOUNT, SYSTEM
+  gateway: text('gateway'), // PAYSTACK, SCHOOL_ACCOUNT, SYSTEM
   status: text('status').default('PENDING'), // PENDING, SUCCESS, FAILED
   description: text('description'),
   metadata: jsonb('metadata'),
-  confirmationMethod: text('confirmation_method'), // KORAPAY_AUTO, MANUAL_UPLOAD, SCHOOL_ACCOUNT
+  confirmationMethod: text('confirmation_method'), // PAYSTACK_AUTO, MANUAL_UPLOAD, SCHOOL_ACCOUNT
   receiptUploadId: text('receipt_upload_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -605,6 +609,22 @@ export const transactions = pgTable('transactions', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const schoolRegistrationBatches = pgTable('school_registration_batches', {
+  id: text('id').primaryKey(),
+  schoolId: text('school_id').notNull(),
+  createdBy: text('created_by').notNull(),
+  paymentReference: text('payment_reference').notNull().unique(),
+  studentIds: jsonb('student_ids').notNull(),
+  studentCount: integer('student_count').notNull(),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  status: text('status').notNull().default('PENDING'), // PENDING, PAID, FAILED
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.createdBy], foreignColumns: [user.id] }).onDelete('restrict'),
+])
 
 // ===== MESSAGING SYSTEM =====
 export const conversation = pgTable('conversation', {

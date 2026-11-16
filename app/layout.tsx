@@ -1,5 +1,4 @@
-import { Analytics } from '@vercel/analytics/next'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { RealtimeProvider } from '@/components/realtime/RealtimeProvider'
 import { TimeThemeProvider } from '@/components/TimeThemeProvider'
@@ -7,8 +6,16 @@ import { FloatingSupportWidget } from '@/components/support/FloatingSupportWidge
 import { FloatingLearnAiWidget } from '@/components/learn-ai/FloatingLearnAiWidget'
 import { CookieConsentBanner } from '@/components/CookieConsentBanner'
 import { SessionInactivityGuard } from '@/components/auth/SessionInactivityGuard'
+import { ConsentAwareAnalytics } from '@/components/ConsentAwareAnalytics'
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_SITE_URL || 'https://el-goodnews-academy.com'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#1d4ed8',
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -28,8 +35,8 @@ export const metadata: Metadata = {
     "Teacher Registration & Management System",
     "Parent Ward Tracking App Nigeria",
     "Super Admin School Management System",
-    "Korapay School Fees Payment Gateway",
-    "Korapay Online Payment Integration",
+    "Online School Fee Payments",
+    "School Registration Payments",
     "CBT Portal Nigeria",
     "WAEC JAMB NECO CBT Practice Portal 2026",
     "Realtime Student Portal",
@@ -69,7 +76,7 @@ export const metadata: Metadata = {
     shortcut: '/logo.svg',
     apple: '/logo.svg',
   },
-  manifest: '/manifest.json',
+  manifest: '/manifest.webmanifest',
   openGraph: {
     type: 'website',
     locale: 'en_US',
@@ -121,7 +128,7 @@ export default function RootLayout({
           <FloatingLearnAiWidget />
           <CookieConsentBanner />
         </RealtimeProvider>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {process.env.NODE_ENV === 'production' && <ConsentAwareAnalytics />}
         {/* Simple inline PWA registration block */}
         <script
           dangerouslySetInnerHTML={{

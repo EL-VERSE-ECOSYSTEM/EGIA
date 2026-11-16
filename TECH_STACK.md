@@ -35,5 +35,5 @@
     *   Scalable relational database with custom tables, primary indexes, constraints, and cascading rules.
 *   **Video Class Storage / Media Hosting:**
     *   Pre-recorded classes, video streams, CBT Webcam files, and passport photos are hosted on secure bucket storage or stored as dynamic URL paths in PostgreSQL.
-*   **Payment Gateway Integration:** **Korapay**
-    *   Supports credit cards, USSD, and bank transfers through Korapay's merchant checkout gateway APIs.
+*   **Payment Gateway Integration:** **Paystack**
+    *   Payments are initialized server-side and completed through Paystack's hosted checkout and verified webhooks.

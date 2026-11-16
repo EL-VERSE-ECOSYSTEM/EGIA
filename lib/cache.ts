@@ -3,7 +3,7 @@ type Entry<T> = { value: T; expiresAt: number; tags: string[] };
 class MemoryCache {
   private store = new Map<string, Entry<unknown>>();
   private tagIndex = new Map<string, Set<string>>();
-  private inFlightPromises = new Map<string, Promise<any>>();
+  private inFlightPromises = new Map<string, Promise<unknown>>();
 
   constructor() {
     if (typeof setInterval !== "undefined") {
@@ -13,6 +13,10 @@ class MemoryCache {
   }
 
   set<T>(key: string, value: T, ttlSeconds: number, tags: string[] = []) {
+    // Replacing an entry must first remove its old tag memberships, otherwise
+    // invalidating an old tag can evict a newer value unexpectedly.
+    this.delete(key);
+    if (!Number.isFinite(ttlSeconds) || ttlSeconds <= 0) return;
     this.store.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000, tags });
     for (const tag of tags) {
       if (!this.tagIndex.has(tag)) {
@@ -25,16 +29,30 @@ class MemoryCache {
   get<T>(key: string): T | null {
     const e = this.store.get(key);
     if (!e) return null;
-    if (Date.now() > e.expiresAt) {
+    if (Date.now() >= e.expiresAt) {
       this.delete(key);
       return null;
     }
     return e.value as T;
   }
 
+  has(key: string): boolean {
+    const e = this.store.get(key);
+    if (!e) return false;
+    if (Date.now() >= e.expiresAt) {
+      this.delete(key);
+      return false;
+    }
+    return true;
+  }
+
   ttl(key: string): number {
     const e = this.store.get(key);
     if (!e) return -1;
+    if (Date.now() >= e.expiresAt) {
+      this.delete(key);
+      return -1;
+    }
     const r = Math.ceil((e.expiresAt - Date.now()) / 1000);
     return r > 0 ? r : -1;
   }
@@ -71,8 +89,7 @@ class MemoryCache {
     ttlSeconds = 300,
     tags: string[] = []
   ): Promise<T> {
-    const cached = this.get<T>(key);
-    if (cached !== null) return cached;
+    if (this.has(key)) return this.get<T>(key) as T;
 
     if (this.inFlightPromises.has(key)) {
       return this.inFlightPromises.get(key) as Promise<T>;
@@ -93,7 +110,7 @@ class MemoryCache {
   }
 
   async warmUpCache(
-    entries: Array<{ key: string; fetcher: () => Promise<any>; ttlSeconds?: number; tags?: string[] }>
+    entries: Array<{ key: string; fetcher: () => Promise<unknown>; ttlSeconds?: number; tags?: string[] }>
   ) {
     for (const entry of entries) {
       try {
@@ -107,7 +124,7 @@ class MemoryCache {
   private cleanup() {
     const now = Date.now();
     for (const [k, v] of this.store) {
-      if (now > v.expiresAt) {
+      if (now >= v.expiresAt) {
         this.delete(k);
       }
     }
@@ -140,7 +157,7 @@ export function invalidateCacheKey(key: string) {
 }
 
 export function warmUpCache(
-  entries: Array<{ key: string; fetcher: () => Promise<any>; ttlSeconds?: number; tags?: string[] }>
+  entries: Array<{ key: string; fetcher: () => Promise<unknown>; ttlSeconds?: number; tags?: string[] }>
 ) {
   return cache.warmUpCache(entries);
 }

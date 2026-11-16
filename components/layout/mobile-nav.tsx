@@ -20,10 +20,11 @@ import {
 
 interface MobileNavProps {
   role: 'admin' | 'teacher' | 'parent' | 'student' | 'super-admin'
+  isSidebarOpen: boolean
   onOpenSidebar: () => void
 }
 
-export function MobileNav({ role, onOpenSidebar }: MobileNavProps) {
+export function MobileNav({ role, isSidebarOpen, onOpenSidebar }: MobileNavProps) {
   const pathname = usePathname()
 
   const configMap = {
@@ -72,9 +73,9 @@ export function MobileNav({ role, onOpenSidebar }: MobileNavProps) {
       activeBg: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
       items: [
         { label: 'Overview', icon: LayoutDashboard, href: '/dashboard/super-admin/overview' },
-        { label: 'Schools', icon: Building2, href: '/dashboard/super-admin/overview' },
-        { label: 'Users', icon: Users, href: '/dashboard/super-admin/overview' },
-        { label: 'Support', icon: HelpCircle, href: '/dashboard/super-admin/overview' },
+        { label: 'Schools', icon: Building2, href: '/dashboard/super-admin/schools' },
+        { label: 'Users', icon: Users, href: '/dashboard/super-admin/users' },
+        { label: 'Support', icon: HelpCircle, href: '/dashboard/super-admin/support' },
       ],
     },
   }
@@ -84,17 +85,19 @@ export function MobileNav({ role, onOpenSidebar }: MobileNavProps) {
   return (
     <nav
       aria-label="Mobile navigation"
-      className="fixed bottom-0 left-0 right-0 z-30 lg:hidden bg-slate-950/90 dark:bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 shadow-[0_-10px_25px_rgba(0,0,0,0.5)] px-3 py-2"
+      aria-hidden={isSidebarOpen || undefined}
+      className="fixed bottom-0 left-0 right-0 z-30 lg:hidden bg-slate-950/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 shadow-[0_-10px_25px_rgba(0,0,0,0.28)] px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
     >
-      <div className="flex items-center justify-around max-w-md mx-auto">
+      <div className="mx-auto flex max-w-md items-center justify-around gap-1">
         {roleConfig.items.map((item) => {
-          const isActive = pathname === item.href || (item.href !== '/dashboard/super-admin/overview' && pathname.startsWith(item.href))
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
           return (
             <Link
               key={item.label}
               href={item.href}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all duration-200 group',
+                'flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl px-1 py-1.5 transition-all duration-200 group',
                 isActive
                   ? roleConfig.activeBg + ' shadow-md'
                   : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
@@ -117,8 +120,10 @@ export function MobileNav({ role, onOpenSidebar }: MobileNavProps) {
         <button
           type="button"
           onClick={onOpenSidebar}
+          aria-expanded={isSidebarOpen}
+          aria-controls="mobile-sidebar-drawer"
           aria-label="Open full menu"
-          className="flex flex-col items-center justify-center py-1 px-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-900/60 transition-all duration-200 group"
+          className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl px-1 py-1.5 text-slate-400 hover:text-white hover:bg-slate-900/60 transition-all duration-200 group"
         >
           <Menu className="w-5 h-5 text-slate-400 group-hover:text-white transition-transform duration-200 group-hover:scale-110" />
           <span className="text-[10px] font-bold text-slate-400 mt-0.5 tracking-tight group-hover:text-white">

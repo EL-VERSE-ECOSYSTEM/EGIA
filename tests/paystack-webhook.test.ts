@@ -40,7 +40,7 @@ test('validatePaystackWebhook - rejects requests when the webhook secret is miss
   const result = validatePaystackWebhook(payloadNoRef, null, '')
   assert.equal(result.success, false)
   if (!result.success) {
-    assert.equal(result.error, 'Paystack webhook secret key is not configured')
+    assert.equal(result.error, 'Payment notification secret is not configured')
   }
 })
 
@@ -65,6 +65,15 @@ test('validatePaystackWebhook - rejects malformed JSON even with a valid signatu
   assert.equal(result.success, false)
   if (!result.success) {
     assert.equal(result.error, 'Invalid JSON payload')
+  }
+})
+
+test('validatePaystackWebhook - rejects non-object and malformed event payloads', () => {
+  const secret = 'sk_test_mock_paystack_secret_key'
+  for (const payload of ['null', JSON.stringify({ event: {}, data: { reference: 'ref_123' } })]) {
+    const signature = createHmac('sha512', secret).update(payload).digest('hex')
+    const result = validatePaystackWebhook(payload, signature, secret)
+    assert.equal(result.success, false)
   }
 })
 

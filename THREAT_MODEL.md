@@ -7,7 +7,7 @@
 - **Mitigation:** Strict `schoolId` SQL filtering in server actions and PostgreSQL Row-Level Security (RLS) policies.
 
 ### 2. Payment Replay Attacks & Forgery
-- **Threat:** Attacker attempting to spoof Korapay webhooks or replay return URLs to gain free renewals.
+- **Threat:** Attacker attempting to spoof Paystack webhooks or replay return URLs to gain free renewals.
 - **Mitigation:** HMAC SHA256 signature verification, exact amount/currency validation, and idempotent status transitions.
 
 ### 3. CBT Academic Cheating

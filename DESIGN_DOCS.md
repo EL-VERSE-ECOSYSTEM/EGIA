@@ -37,7 +37,7 @@
     *   Generates dynamic unique 6-digit Admission Number (e.g., `GOD104829`).
     *   Triggers live `Supabase.auth.signUp()` setting role and admission metadata.
     *   Inserts student profiles, credentials, and user role records in parallel.
-3.  **Payment Redirect:** Saves generated Admission Number to `localStorage`, then redirects the browser window to the Korapay Checkout URL: `https://checkout.korapay.com/pay/BHba4zdsceZDgyW`.
+3.  **Payment Redirect:** Saves the pending registration context, then redirects the browser to the authorization URL returned by Paystack Checkout.
 4.  **Completion Callback:** Upon returning, the registration page checks `localStorage` for `pending_student_admission`, pops up the Successful Payment Modal with their copyable Admission Number, and clears the cache flag.
 
 ### B. Google-Like Search Engine Flow

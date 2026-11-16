@@ -102,7 +102,7 @@ export default function InstallmentsPage() {
             <p className="mb-2 text-xs font-black uppercase tracking-[0.25em] text-blue-100">Parent payment center</p>
             <h1 className="text-3xl font-black tracking-tight md:text-4xl">Term Installments</h1>
             <p className="mt-2 max-w-2xl font-medium text-blue-100">
-              Split an active school fee into 18 scheduled payments for the current term and pay securely with Paystack.
+              Split an active school fee into 18 scheduled payments for the current term and pay securely online.
             </p>
           </div>
           <div className="flex items-center gap-4 rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
@@ -117,7 +117,7 @@ export default function InstallmentsPage() {
         <Card className="overflow-hidden rounded-3xl border-0 shadow-lg">
           <CardHeader className="border-b border-slate-100 p-6 md:p-8">
             <CardTitle className="text-xl font-black text-slate-900">Create a term plan</CardTitle>
-            <p className="text-sm font-medium text-slate-500">The plan uses the school fee set for your linked student and term. Paystack adds its processing fee to each checkout.</p>
+            <p className="text-sm font-medium text-slate-500">The plan uses the school fee set for your linked student and term. A processing fee is added to each checkout.</p>
           </CardHeader>
           <CardContent className="grid gap-4 p-6 md:grid-cols-[1fr_1fr_auto] md:items-end md:p-8">
             <label className="space-y-2 text-sm font-bold text-slate-700">
@@ -181,7 +181,7 @@ export default function InstallmentsPage() {
           <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 p-6 md:p-8">
             <div>
               <CardTitle className="text-xl font-black text-slate-900">Installment schedule</CardTitle>
-              <p className="mt-1 text-sm font-medium text-slate-500">Successful payments are confirmed by Paystack and reflected here in real time.</p>
+              <p className="mt-1 text-sm font-medium text-slate-500">Successful payments are confirmed and reflected here in real time.</p>
             </div>
             <Badge className="rounded-xl bg-blue-100 px-4 py-2 font-black text-blue-800">{installments.length} PAYMENTS</Badge>
           </CardHeader>
@@ -218,7 +218,7 @@ export default function InstallmentsPage() {
                         <td className="p-5">
                           <p className="font-black text-slate-900">₦{Math.max(0, Number(item.amount) - Number(item.paidAmount || 0)).toLocaleString('en-NG', { minimumFractionDigits: 2 })} due</p>
                           {Number(item.paidAmount || 0) > 0 && <p className="text-[10px] font-semibold text-emerald-700">₦{Number(item.paidAmount).toLocaleString('en-NG', { minimumFractionDigits: 2 })} already applied</p>}
-                          <p className="text-[10px] font-semibold text-slate-500">+ ₦{(selectedOption?.gatewayFee || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })} Paystack fee</p>
+                          <p className="text-[10px] font-semibold text-slate-500">+ ₦{(selectedOption?.gatewayFee || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })} processing fee</p>
                         </td>
                         <td className="p-5 text-sm font-semibold text-slate-600"><span className="inline-flex items-center gap-2"><Calendar className="h-4 w-4 text-blue-600" />{item.dueDate}</span></td>
                         <td className="p-5">
@@ -239,7 +239,7 @@ export default function InstallmentsPage() {
                               disabled={processingId === item.id || isPlanProcessing(item)}
                               className="h-10 rounded-xl bg-blue-700 px-4 font-black text-white hover:bg-blue-800"
                             >
-                              {processingId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'PAY WITH PAYSTACK'}
+                              {processingId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'PAY ONLINE'}
                             </Button>
                           )}
                         </td>

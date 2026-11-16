@@ -1,3 +1,5 @@
+import { randomInt } from 'node:crypto'
+
 export function cleanSchoolPrefix(schoolNameOrCode?: string): string {
   if (!schoolNameOrCode) return 'SCHO'
   const clean = schoolNameOrCode.replace(/[^a-zA-Z]/g, '').toUpperCase()
@@ -9,10 +11,10 @@ export function generateAdmissionNumber(classLevel?: string, schoolNameOrCode?: 
   const prefix = cleanSchoolPrefix(schoolNameOrCode)
   const normalized = (classLevel || '').toString().replace(/\s+/g, '').toUpperCase()
 
-  const isPupil = /^(PRIMARY[3-6]|P[3-6]|PRIMARY5\/6|P5\/6)$/.test(normalized)
+  const isPupil = /^(PRIMARY[3-6]|BASIC[56]|P[3-6]|PRIMARY5\/6|P5\/6)$/.test(normalized)
   const isStudent = /^(JSS[123]|SSS[123])$/.test(normalized)
 
-  const random6 = Math.floor(100000 + Math.random() * 900000)
+  const random6 = randomInt(100000, 1_000_000)
 
   if (isPupil) {
     return `${prefix}-P-${random6}`
@@ -27,7 +29,7 @@ export function generateAdmissionNumber(classLevel?: string, schoolNameOrCode?: 
 
 export function generateStaffId(schoolNameOrCode?: string) {
   const prefix = cleanSchoolPrefix(schoolNameOrCode)
-  const random6 = Math.floor(100000 + Math.random() * 900000)
+  const random6 = randomInt(100000, 1_000_000)
   return `${prefix}-ST-${random6}`
 }
 
@@ -35,7 +37,7 @@ export function isValidAdmissionNumber(value: string, classLevel?: string, schoo
   const prefix = cleanSchoolPrefix(schoolNameOrCode)
   const normalized = value.trim().toUpperCase()
   const className = (classLevel || '').replace(/\s+/g, '').toUpperCase()
-  const expectedTag = /^(PRIMARY[3-6]|P[3-6]|PRIMARY5\/6|P5\/6)$/.test(className) ? 'P' : 'S'
+  const expectedTag = /^(PRIMARY[3-6]|BASIC[56]|P[3-6]|PRIMARY5\/6|P5\/6)$/.test(className) ? 'P' : 'S'
   return new RegExp(`^${prefix}-${expectedTag}-\\d{6}$`).test(normalized)
 }
 

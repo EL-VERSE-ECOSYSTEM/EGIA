@@ -54,8 +54,8 @@ export async function createDispute(data: {
   const role = session.user.role.toUpperCase()
   let relatedStudentId: string | null = null
   let actorSchoolId = session.user.schoolId || null
-  let parentProfile: Awaited<ReturnType<typeof db.query.parent.findFirst>> = null
-  let ownStudent: Awaited<ReturnType<typeof db.query.student.findFirst>> = null
+  let parentProfile: Awaited<ReturnType<typeof db.query.parent.findFirst>> | null | undefined
+  let ownStudent: Awaited<ReturnType<typeof db.query.student.findFirst>> | null | undefined
 
   if (data.relatedStudentId) {
     const relatedStudent = await db.query.student.findFirst({

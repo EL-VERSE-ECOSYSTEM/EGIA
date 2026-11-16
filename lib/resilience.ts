@@ -137,7 +137,7 @@ const featureFlagsMap = new Map<string, boolean>([
   ["cbt_instant_grading", true],
   ["realtime_chat_presence", true],
   ["offline_sync_queue", true],
-  ["korapay_auto_reconcile", true],
+  ["paystack_auto_reconcile", true],
 ]);
 
 export function isFeatureEnabled(flagKey: string, schoolId?: string): boolean {

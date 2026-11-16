@@ -23,6 +23,7 @@ export const studentEnrollmentSchema = z.object({
   firstName: z.string().trim().min(2, "First name must be at least 2 characters").max(50),
   lastName: z.string().trim().min(2, "Last name must be at least 2 characters").max(50),
   email: z.union([z.string().email("Enter a valid email address"), z.literal("")]).optional(),
+  studentEmail: z.union([z.string().trim().email("Enter a valid student email address"), z.literal("")]).optional(),
   admissionNumber: z.union([z.string().regex(/^[A-Z]{4}-[PS]-\d{6}$/, "Use a four-letter school prefix followed by -P-###### or -S-######"), z.literal("")]).optional(),
   class: z.enum(schoolClasses, { message: "Select a class" }),
   department: z.union([z.enum(["Science", "Arts", "Commercial"]), z.literal("")]).optional(),

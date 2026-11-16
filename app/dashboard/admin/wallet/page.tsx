@@ -10,8 +10,11 @@ import { Select, SelectValue } from '@/components/ui/select'
 import { getAdminWalletSummaryAction, awardStudentGiftAction } from '@/app/actions/payments'
 import { getAllStudents } from '@/app/actions/admin'
 import { createClient } from '@/lib/supabase/client'
-import { Wallet, ArrowUpRight, TrendingUp, Trophy, RefreshCw, Sparkles } from 'lucide-react'
+import { Wallet, ArrowUpRight, TrendingUp, Trophy, RefreshCw, Sparkles, Download } from 'lucide-react'
 import { toast } from 'sonner'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { downloadCsv } from '@/lib/download-csv'
+import { getPaymentMethodLabel } from '@/lib/payments/display'
 
 export default function AdminWalletPage() {
   const [loading, setLoading] = useState(true)
@@ -70,6 +73,22 @@ export default function AdminWalletPage() {
       supabase.removeChannel(paymentChannel)
     }
   }, [])
+
+  useRealtimeSubscription('transaction_ledger', () => { fetchWallet() })
+
+  const downloadHistory = () => downloadCsv('school-transaction-history.csv', [
+    ['Date', 'Direction', 'Type', 'Description', 'Amount', 'Status', 'Payment Method', 'Reference'],
+    ...(walletSummary?.recentTransactions || []).map((transaction) => [
+      transaction.createdAt,
+      transaction.direction,
+      transaction.feeType,
+      transaction.description,
+      transaction.amount,
+      transaction.status,
+      getPaymentMethodLabel(transaction.paymentMethod),
+      transaction.transactionReference,
+    ]),
+  ])
 
   const handleAwardGift = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -254,26 +273,31 @@ export default function AdminWalletPage() {
                 <ArrowUpRight className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-xl font-black text-slate-900">Live Incoming Transactions Feed</h2>
-                <p className="text-xs text-slate-500 font-medium">Real-time funds coming in from Korapay and Bank Transfers</p>
+                <h2 className="text-xl font-black text-slate-900">Live Transaction History</h2>
+                <p className="text-xs text-slate-500 font-medium">Incoming and outgoing school-account and online payment transactions</p>
               </div>
             </div>
-            <Button size="sm" variant="ghost" onClick={fetchWallet} className="text-xs font-bold text-amber-600 gap-1">
-              <RefreshCw className="w-3.5 h-3.5" /> Refresh Real-Time
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={downloadHistory} disabled={!walletSummary?.recentTransactions.length} className="text-xs font-bold text-emerald-700 gap-1">
+                <Download className="w-3.5 h-3.5" /> Download CSV
+              </Button>
+              <Button size="sm" variant="ghost" onClick={fetchWallet} className="text-xs font-bold text-amber-600 gap-1">
+                <RefreshCw className="w-3.5 h-3.5" /> Refresh
+              </Button>
+            </div>
           </div>
 
           {!walletSummary?.recentTransactions || walletSummary.recentTransactions.length === 0 ? (
-            <p className="text-xs font-bold text-slate-400 italic text-center py-6">No incoming transactions recorded yet.</p>
+            <p className="text-xs font-bold text-slate-400 italic text-center py-6">No transactions recorded yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-400 uppercase font-black">
-                    <th className="py-3 px-4">Learner</th>
-                    <th className="py-3 px-4">Fee Category</th>
+                    <th className="py-3 px-4">Type / Description</th>
+                    <th className="py-3 px-4">Direction</th>
                     <th className="py-3 px-4">Amount</th>
-                    <th className="py-3 px-4">Gateway</th>
+                    <th className="py-3 px-4">Payment Method / Status</th>
                     <th className="py-3 px-4">Reference</th>
                     <th className="py-3 px-4">Date</th>
                   </tr>
@@ -282,11 +306,12 @@ export default function AdminWalletPage() {
                   {walletSummary.recentTransactions.map((tx) => (
                     <tr key={tx.id} className="font-bold text-slate-800">
                       <td className="py-3.5 px-4 font-black text-slate-900">
-                        {tx.student ? `${tx.student.firstName} ${tx.student.lastName}` : 'Direct Inflow'}
+                        <span className="block">{tx.feeType || 'Fee Payment'}</span>
+                        <span className="block text-[10px] font-medium text-slate-500">{tx.description || (tx.student ? `${tx.student.firstName} ${tx.student.lastName}` : '')}</span>
                       </td>
-                      <td className="py-3.5 px-4">{tx.feeType || 'Fee Payment'}</td>
+                      <td className={`py-3.5 px-4 font-black ${tx.direction === 'OUT' ? 'text-rose-600' : 'text-emerald-700'}`}>{tx.direction === 'OUT' ? 'OUTGOING' : 'INCOMING'}</td>
                       <td className="py-3.5 px-4 font-black text-amber-700">₦{Number(tx.amount).toLocaleString()}</td>
-                      <td className="py-3.5 px-4">{tx.paymentMethod}</td>
+                      <td className="py-3.5 px-4">{getPaymentMethodLabel(tx.paymentMethod)} / {tx.status}</td>
                       <td className="py-3.5 px-4 font-mono text-[11px] text-slate-500">{tx.transactionReference || 'N/A'}</td>
                       <td className="py-3.5 px-4 text-slate-500">{new Date(tx.createdAt).toLocaleDateString()}</td>
                     </tr>

@@ -2,26 +2,43 @@
 
 import React, { useState } from 'react'
 import { AlertTriangle, CheckCircle2, Loader2, ExternalLink } from 'lucide-react'
-import { verifyKorapayPayment } from '@/app/actions/payments'
+import { verifyPaystackPayment } from '@/app/actions/payments'
+import { initializeSchoolRegistrationPaymentAction } from '@/app/actions/school'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
 interface SchoolPaymentLockModalProps {
   schoolName: string
+  adminEmail: string
+  schoolId: string | null
   paymentStatus: string
   paymentReference: string | null
-  adminEmail: string
   schoolCode?: string
+}
+
+type SchoolPaymentRealtimeRow = Record<string, unknown> & {
+  id?: string
+  paymentreference?: string | null
+  paymentstatus?: string
+  code?: string | null
+}
+
+function isSchoolPaymentRealtimeRow(value: unknown): value is SchoolPaymentRealtimeRow {
+  return typeof value === 'object' && value !== null &&
+    'id' in value && typeof value.id === 'string' &&
+    'paymentstatus' in value && typeof value.paymentstatus === 'string'
 }
 
 export function SchoolPaymentLockModal({
   schoolName,
+  adminEmail,
+  schoolId,
   paymentStatus: initialStatus,
   paymentReference,
-  adminEmail,
   schoolCode: initialSchoolCode,
 }: SchoolPaymentLockModalProps) {
   const [loading, setLoading] = useState(false)
   const [currentStatus, setCurrentStatus] = useState(initialStatus)
+  const [currentReference, setCurrentReference] = useState(paymentReference)
   const [confirmedSchoolCode, setConfirmedSchoolCode] = useState<string | null>(initialSchoolCode || null)
   const [verificationResult, setVerificationResult] = useState<{
     status: string
@@ -30,34 +47,62 @@ export function SchoolPaymentLockModal({
   } | null>(null)
 
   // Real-time synchronization with Supabase Database school table
-  useRealtimeSubscription('school', (payload: any) => {
-    if (payload.new && payload.new.paymentreference === paymentReference) {
-      if (payload.new.paymentstatus === 'PAID') {
+  useRealtimeSubscription('school', (payload) => {
+    const row = payload.new
+    if (isSchoolPaymentRealtimeRow(row) && row.id === schoolId) {
+      if (row.paymentreference) setCurrentReference(row.paymentreference)
+      if (row.paymentstatus === 'PAID') {
         setCurrentStatus('PAID')
-        if (payload.new.code) setConfirmedSchoolCode(payload.new.code)
+        if (row.code) setConfirmedSchoolCode(row.code)
         setVerificationResult({
           status: 'success',
           message: 'Payment confirmed in real-time! Unlocking school admin portal…',
-          schoolCode: payload.new.code || confirmedSchoolCode || undefined,
+          schoolCode: row.code || confirmedSchoolCode || undefined,
         })
         setTimeout(() => {
           window.location.reload()
         }, 1500)
+      } else if (row.paymentstatus === 'FAILED') {
+        setCurrentStatus('FAILED')
+        setVerificationResult({
+          status: 'error',
+          message: 'Payment was not confirmed. You can retry securely below.',
+        })
+      } else if (row.paymentstatus === 'PENDING') {
+        setCurrentStatus('PENDING')
       }
     }
-  })
+  }, { filter: schoolId ? `id=eq.${schoolId}` : undefined })
 
   // If already paid in real time state, do not render modal
   if (currentStatus === 'PAID') {
     return null
   }
 
-  const defaultCheckoutLink = 'https://checkout.korapay.com/pay/BHba4zdsceZDgyW'
-  const reference = paymentReference || `SCH_PAY_${Date.now()}`
-  const checkoutUrl = `${defaultCheckoutLink}?reference=${encodeURIComponent(reference)}&amount=30161.25&customer_email=${encodeURIComponent(adminEmail)}`
+  const handleBeginPayment = async () => {
+    if (!schoolId) {
+      setVerificationResult({ status: 'error', message: 'School record is unavailable. Please contact support.' })
+      return
+    }
+
+    setLoading(true)
+    setVerificationResult(null)
+    try {
+      const result = await initializeSchoolRegistrationPaymentAction(schoolId)
+      setCurrentReference(result.reference)
+      window.location.assign(result.checkoutUrl)
+    } catch (error) {
+      setVerificationResult({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Payment could not be started.',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleVerify = async () => {
-    if (!paymentReference) {
+    if (!currentReference) {
       setVerificationResult({
         status: 'error',
         message: 'No payment reference found for this school record. Please contact support.',
@@ -69,7 +114,7 @@ export function SchoolPaymentLockModal({
     setVerificationResult(null)
 
     try {
-      const res = await verifyKorapayPayment(paymentReference)
+      const res = await verifyPaystackPayment(currentReference)
       if (res.status === 'success') {
         setCurrentStatus('PAID')
         if (res.schoolCode) setConfirmedSchoolCode(res.schoolCode)
@@ -84,13 +129,15 @@ export function SchoolPaymentLockModal({
       } else {
         setVerificationResult({
           status: 'pending',
-          message: 'Payment is still pending. Please complete payment on Korapay Payment Gateway and click verify again.',
+          message: 'Payment is still pending. Complete the payment and check again.',
         })
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setVerificationResult({
         status: 'error',
-        message: err.message || 'Payment verification failed. Please try again or contact support.',
+        message: err instanceof Error
+          ? err.message
+          : 'Payment verification failed. Please try again or contact support.',
       })
     } finally {
       setLoading(false)
@@ -117,12 +164,18 @@ export function SchoolPaymentLockModal({
         </div>
 
         <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl font-mono text-xs text-left space-y-2">
+          <div className="flex justify-between gap-4 border-b border-slate-800 pb-1.5">
+            <span className="text-slate-400 shrink-0">School Admin Email:</span>
+            <a href={`mailto:${adminEmail}`} className="font-bold text-blue-300 break-all text-right">
+              {adminEmail || 'Not available'}
+            </a>
+          </div>
           <div className="flex justify-between border-b border-slate-800 pb-1.5">
             <span className="text-slate-400">Registration Fee:</span>
             <span className="font-bold text-white">NGN 30,000.00</span>
           </div>
           <div className="flex justify-between border-b border-slate-800 pb-1.5">
-            <span className="text-slate-400">Korapay Gateway Fee:</span>
+            <span className="text-slate-400">Payment Processing Fee:</span>
             <span className="font-bold text-white">NGN 161.25</span>
           </div>
           <div className="flex justify-between pt-1">
@@ -161,20 +214,19 @@ export function SchoolPaymentLockModal({
         )}
 
         <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-bold text-amber-300 leading-relaxed text-left">
-          ⚠️ <strong>Note:</strong> Modal cannot be closed until payment is completed or confirmed on Korapay Payment Gateway.
+          ⚠️ <strong>Note:</strong> This modal stays open until the payment is confirmed in the database.
         </div>
 
         <div className="flex flex-col gap-3 pt-2">
           <div className="flex flex-col sm:flex-row gap-3">
-            <a
-              href={checkoutUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex-1 py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider text-center shadow-lg transition flex items-center justify-center gap-2"
+            <button
+              onClick={handleBeginPayment}
+              disabled={loading}
+              className="flex-1 py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider text-center shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              <span>Pay NGN 30,161.25 Now</span>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Pay NGN 30,161.25</span>}
               <ExternalLink className="w-4 h-4" />
-            </a>
+            </button>
             <button
               onClick={handleVerify}
               disabled={loading}

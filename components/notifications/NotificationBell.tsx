@@ -65,11 +65,12 @@ export function NotificationBell() {
   const markRead = async (ids: string[]) => {
     if (!ids.length) return;
     try {
-      await fetch("/api/fcm/notifications", {
+      const response = await fetch("/api/fcm/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
       });
+      if (!response.ok) throw new Error(`Notification update failed (${response.status})`)
       setItems((current) =>
         current.map((item) =>
           ids.includes(item.id) ? { ...item, readAt: new Date().toISOString() } : item

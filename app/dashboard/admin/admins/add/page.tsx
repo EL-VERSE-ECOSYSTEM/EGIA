@@ -1,33 +1,23 @@
 'use client'
 
 import React, { useState } from 'react'
-import { assignSchoolAdminRole } from '@/app/actions/admin-ops'
-import { createClient } from '@/lib/supabase/client'
-import { useAuth } from '@/hooks/useAuth'
-import {  Shield, Upload, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { createSchoolAdmin } from '@/app/actions/admin'
+import { Shield, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 
 export default function AddAdminPage() {
-  const { user } = useAuth()
-  const schoolId = user?.schoolId || (user as any)?.school_id || ''
-
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
-    phone: '',
-    gender: 'MALE',
-    password: '',
   })
 
   const [level, setLevel] = useState<
     'VICE_PRINCIPAL_ACADEMICS' | 'VICE_PRINCIPAL_ADMIN' | 'HOD_SCIENCE' | 'HOD_ARTS' | 'HOD_COMMERCIAL' | ''
   >('')
 
-  const [cvFile, setCvFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMessage] = useState<string | null>(null)
-  const [successData, setSuccessData] = useState<any>(null)
+  const [successData, setSuccessData] = useState<{ name: string; email: string; level: string; emailSent: boolean } | null>(null)
 
   // Auto-fill department for HOD levels
   const department = level === 'HOD_SCIENCE' ? 'SCIENCE'
@@ -39,8 +29,8 @@ export default function AddAdminPage() {
     e.preventDefault()
     setErrorMessage(null)
 
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password) {
-      setErrorMessage('Please complete all personal credential fields.')
+    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()) {
+      setErrorMessage('Please complete the administrator name and email.')
       return
     }
 
@@ -52,66 +42,19 @@ export default function AddAdminPage() {
     setLoading(true)
 
     try {
-      const supabase = createClient()
-
-      // Upload CV if provided
-      let cvUrl: string | undefined
-      if (cvFile) {
-        if (cvFile.size > 5 * 1024 * 1024) throw new Error('CV file size must be under 5MB')
-        const path = `${schoolId}/cv_${Date.now()}_${cvFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
-        const { data: storageData, error: cvErr } = await supabase.storage.from('school-cvs').upload(path, cvFile)
-        if (cvErr) throw new Error(`CV upload failed: ${cvErr.message}`)
-        cvUrl = storageData.path
-      }
-
-      // Provision user account in Supabase Database and Assign Role
-      // 1. Check/Insert user row
-      const newUserId = crypto.randomUUID()
-      const { error: userErr } = await supabase.from('user').insert({
-        id: newUserId,
+      const result = await createSchoolAdmin({
+        name: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
         email: formData.email.trim().toLowerCase(),
+        adminLevel: level,
+      })
+      setSuccessData({
         name: `${formData.firstName} ${formData.lastName}`,
-        schoolid: schoolId,
-        password: formData.password,
+        email: result.email,
+        level: result.adminLevel,
+        emailSent: !result.emailDeliveryFailed,
       })
-
-      if (userErr && !userErr.message.includes('duplicate')) {
-        throw new Error(`Failed to create user record: ${userErr.message}`)
-      }
-
-      // Fetch user ID if duplicate
-      let finalUserId = newUserId
-      if (userErr) {
-        const { data: existingUser } = await supabase.from('user').select('id').eq('email', formData.email.trim().toLowerCase()).single()
-        if (existingUser) finalUserId = existingUser.id
-      }
-
-      // 2. Set user_role = SCHOOL_ADMIN
-      await supabase.from('user_role').upsert({
-        id: crypto.randomUUID(),
-        userid: finalUserId,
-        role: 'SCHOOL_ADMIN',
-      }, { onConflict: 'userid' })
-
-      // 3. Assign school admin role level
-      const roleRes = await assignSchoolAdminRole({
-        schoolId,
-        userId: finalUserId,
-        level: level as any,
-        department: department || undefined,
-      })
-
-      if (roleRes.success) {
-        toast.success('Admin role assigned successfully!')
-        setSuccessData({
-          name: `${formData.firstName} ${formData.lastName}`,
-          email: formData.email,
-          level,
-          department,
-        })
-      }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to add administrator')
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to add administrator')
     } finally {
       setLoading(false)
     }
@@ -147,12 +90,15 @@ export default function AddAdminPage() {
             <h2 className="text-2xl font-black text-white">Administrator Added!</h2>
             <p className="text-slate-400 text-xs font-bold mt-1">
               <strong className="text-white">{successData.name}</strong> ({successData.email}) has been assigned as <strong className="text-teal-400">{successData.level}</strong>.
+              {successData.emailSent
+                ? ' A temporary password was sent by email and must be changed on first sign-in.'
+                : ' The account was created, but its welcome email could not be delivered. Contact support before sign-in.'}
             </p>
           </div>
           <button
             onClick={() => {
               setSuccessData(null)
-              setFormData({ firstName: '', lastName: '', email: '', phone: '', gender: 'MALE', password: '' })
+              setFormData({ firstName: '', lastName: '', email: '' })
               setLevel('')
             }}
             className="px-6 py-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-black text-xs uppercase tracking-wider transition"
@@ -199,39 +145,6 @@ export default function AddAdminPage() {
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-teal-500"
                 />
               </div>
-              <div>
-                <label className="block text-slate-400 mb-1">Phone Number *</label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="+234 801 234 5678"
-                  value={formData.phone}
-                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-teal-500"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-400 mb-1">Gender *</label>
-                <select
-                  value={formData.gender}
-                  onChange={e => setFormData({ ...formData, gender: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-teal-500"
-                >
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-slate-400 mb-1">Initial Password *</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={e => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-teal-500"
-                />
-              </div>
             </div>
           </div>
 
@@ -242,7 +155,7 @@ export default function AddAdminPage() {
               <label className="block text-slate-400 mb-1">Select Administrative Role Level *</label>
               <select
                 value={level}
-                onChange={e => setLevel(e.target.value as any)}
+                onChange={e => setLevel(e.target.value as typeof level)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white font-bold focus:outline-none focus:border-teal-500"
                 required
               >
@@ -266,25 +179,6 @@ export default function AddAdminPage() {
                 />
               </div>
             )}
-          </div>
-
-          {/* Section 3: CV Upload */}
-          <div className="space-y-3 pt-4 border-t border-slate-800">
-            <h2 className="text-xs font-black uppercase text-teal-400 tracking-wider">3. Curriculum Vitae (CV / PDF)</h2>
-            <div className="relative border-2 border-dashed border-slate-800 hover:border-slate-700 bg-slate-950 rounded-xl p-4 text-center">
-              <input
-                type="file"
-                accept=".pdf"
-                onChange={e => setCvFile(e.target.files?.[0] || null)}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
-              <div className="flex flex-col items-center gap-1">
-                <Upload className="w-5 h-5 text-teal-400" />
-                <p className="text-slate-300 font-bold">
-                  {cvFile ? cvFile.name : 'Upload PDF CV / Resume (max 5MB)'}
-                </p>
-              </div>
-            </div>
           </div>
 
           <button

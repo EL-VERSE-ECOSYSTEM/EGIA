@@ -101,6 +101,21 @@ export async function proxy(request: NextRequest) {
   // Refresh session if it exists
   const { data: { user } } = await supabase.auth.getUser()
   const isAuthenticated = !!user
+  const mustChangePassword = user?.app_metadata?.must_change_password === true
+
+  if (isAuthenticated && mustChangePassword && pathname !== '/auth/change-password') {
+    if (pathname.startsWith('/api/')) {
+      return withSecurityHeaders(NextResponse.json({ error: 'Change your temporary password before continuing.' }, { status: 403 }))
+    }
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/change-password'
+    url.search = ''
+    return redirectWithSessionCookies(url, response)
+  }
+
+  if (isAuthenticated && !mustChangePassword && pathname === '/auth/change-password') {
+    return redirectWithSessionCookies(new URL('/dashboard-redirect', request.url), response)
+  }
 
   if (!isAuthenticated && !isPublic && !pathname.startsWith('/api/')) {
     const url = request.nextUrl.clone()

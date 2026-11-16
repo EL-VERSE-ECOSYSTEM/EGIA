@@ -392,7 +392,7 @@ CREATE TABLE IF NOT EXISTS public.payment (
     feetype text,
     paymentmethod text NOT NULL,
     transactionreference text UNIQUE,
-    korapayreference text UNIQUE,
+    paystackreference text UNIQUE,
     receipturl text,
     reconciliation_status text NOT NULL DEFAULT 'UNRECONCILED' CHECK (reconciliation_status IN ('UNRECONCILED','RECONCILED','DISPUTED')),
     reconciled_by text REFERENCES public."user"(id) ON DELETE SET NULL,
@@ -445,7 +445,7 @@ CREATE TABLE IF NOT EXISTS public.transaction_ledger (
     status text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','SUCCESS','FAILED','REVERSED')),
     description text,
     metadata jsonb,
-    confirmation_method text CHECK (confirmation_method IN ('KORAPAY_AUTO','MANUAL_UPLOAD','SCHOOL_ACCOUNT')),
+    confirmation_method text CHECK (confirmation_method IN ('PAYSTACK_AUTO','MANUAL_UPLOAD','SCHOOL_ACCOUNT')),
     receipt_upload_id text,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
@@ -468,7 +468,7 @@ CREATE TABLE IF NOT EXISTS public.webhook_events (
 CREATE TABLE IF NOT EXISTS public.payment_webhook_events (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     event_key text NOT NULL UNIQUE,
-    provider text NOT NULL DEFAULT 'KORAPAY',
+    provider text NOT NULL DEFAULT 'PAYSTACK',
     reference text,
     event_type text NOT NULL,
     payload jsonb NOT NULL,
@@ -483,7 +483,7 @@ CREATE TABLE IF NOT EXISTS public.payment_webhook_events (
 CREATE TABLE IF NOT EXISTS public.school_payment_config (
     id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
     schoolid text NOT NULL UNIQUE REFERENCES public.school(id) ON DELETE CASCADE,
-    use_korapay boolean NOT NULL DEFAULT true,
+    use_paystack boolean NOT NULL DEFAULT true,
     bank_name text,
     account_number text,
     account_name text,
@@ -492,8 +492,8 @@ CREATE TABLE IF NOT EXISTS public.school_payment_config (
     is_active boolean NOT NULL DEFAULT true,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT bank_required_if_not_korapay CHECK (
-        use_korapay = true OR (use_korapay = false AND account_number IS NOT NULL AND account_name IS NOT NULL)
+    CONSTRAINT bank_required_if_not_paystack CHECK (
+        use_paystack = true OR (use_paystack = false AND account_number IS NOT NULL AND account_name IS NOT NULL)
     )
 );
 

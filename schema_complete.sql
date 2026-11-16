@@ -416,7 +416,7 @@ create table public."payment" (
   "schoolid" text references public."school"("id") on delete set null,
   "studentid" text not null references public."student"("id"),
   "parentid" text, "termid" text, "amount" numeric(12,2) not null, "feetype" text, "paymentmethod" text not null,
-  "transactionreference" text unique, "korapayreference" text unique, "receipturl" text,
+  "transactionreference" text unique, "paystackreference" text unique, "receipturl" text,
   "reconciliation_status" text default 'UNRECONCILED' check (reconciliation_status in ('UNRECONCILED', 'RECONCILED', 'DISPUTED')),
   "reconciled_by" text references public."user"("id"),
   "reconciled_at" timestamptz,
@@ -452,7 +452,7 @@ create table if not exists public.transaction_ledger (
   status text default 'PENDING',
   description text,
   metadata jsonb,
-  confirmation_method text check (confirmation_method in ('KORAPAY_AUTO','MANUAL_UPLOAD','SCHOOL_ACCOUNT')),
+  confirmation_method text check (confirmation_method in ('PAYSTACK_AUTO','MANUAL_UPLOAD','SCHOOL_ACCOUNT')),
   receipt_upload_id text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -462,7 +462,7 @@ create table if not exists public.transaction_ledger (
 create table if not exists public.school_payment_config (
   id text primary key default gen_random_uuid()::text,
   schoolid text not null unique references public.school(id) on delete cascade,
-  use_korapay boolean not null default true,
+  use_paystack boolean not null default true,
   bank_name text,
   account_number text,
   account_name text,
@@ -471,9 +471,9 @@ create table if not exists public.school_payment_config (
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint bank_required_if_not_korapay check (
-    use_korapay = true
-    or (use_korapay = false and account_number is not null and account_name is not null)
+  constraint bank_required_if_not_paystack check (
+    use_paystack = true
+    or (use_paystack = false and account_number is not null and account_name is not null)
   )
 );
 create index if not exists idx_school_payment_config_school on public.school_payment_config(schoolid);
@@ -1582,6 +1582,8 @@ create table if not exists public.payment_webhook_logs (
   status text not null default 'PROCESSED',
   created_at timestamp with time zone not null default now()
 );
+create index if not exists payment_webhook_logs_reference_event_idx
+  on public.payment_webhook_logs (reference, event_type);
 
 create table if not exists public.faq_articles (
   id text primary key,
@@ -2133,7 +2135,7 @@ ON CONFLICT (key) DO NOTHING;
 -- 6. SYSTEM INCIDENTS TABLE
 CREATE TABLE IF NOT EXISTS public.system_incidents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    service TEXT NOT NULL, -- ai, email, fcm, korapay, storage, realtime, database, application
+    service TEXT NOT NULL, -- ai, email, fcm, paystack, storage, realtime, database, application
     severity TEXT NOT NULL DEFAULT 'SEV3', -- SEV1, SEV2, SEV3, SEV4
     status TEXT NOT NULL DEFAULT 'OPEN', -- OPEN, INVESTIGATING, MITIGATED, RESOLVED
     started_at TIMESTAMPTZ NOT NULL DEFAULT now(),

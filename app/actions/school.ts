@@ -1,13 +1,18 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { school, schoolRegistrationApplication, transactions } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { school, schoolRegistrationApplication, transactions, transactionLedger, user as userTable, schoolAdminRoles } from '@/lib/db/schema'
+import { eq, and, inArray } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
+import { randomInt } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { sanitizeServerError } from '@/lib/errors'
 import { auth } from '@/lib/auth'
+import { sendSchoolRegistrationOtpOnce } from '@/lib/school-registration-otp'
+import { verifyOtp } from '@/lib/otp'
 import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'
+import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
+import { getSupabaseSecretKey, getSupabaseUrl } from '@/utils/supabase/config'
 import {
   initializePaystackPayment as serviceInitializePaystackPayment,
   verifyPaystackPayment as serviceVerifyPaystackPayment,
@@ -22,13 +27,13 @@ export interface SchoolRegistrationInput {
   adminName: string
   adminPhone: string
   adminEmail: string
+  password: string
+  confirmPassword?: string
   adminLevel?: string
   proofOfAddressType?: string
   proofOfAddressFileUrl?: string
   logoUrl?: string
   logoPath?: string
-  password?: string
-  confirmPassword?: string
 }
 
 export async function generateSchoolCode(schoolName: string): Promise<string> {
@@ -38,15 +43,13 @@ export async function generateSchoolCode(schoolName: string): Promise<string> {
     .toUpperCase()
     .padEnd(4, 'S')
 
-  const uniqueDigits = Math.floor(10000 + Math.random() * 90000)
-  const finalCode = `${prefix}-${uniqueDigits}`
-
-  const existing = await db.select({ id: school.id }).from(school).where(eq(school.code, finalCode))
-  if (existing.length > 0) {
-    return generateSchoolCode(schoolName)
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const finalCode = `${prefix}-${randomInt(100000, 1_000_000)}`
+    const existing = await db.select({ id: school.id }).from(school).where(eq(school.code, finalCode)).limit(1)
+    if (!existing.length) return finalCode
   }
 
-  return finalCode
+  throw new Error('A unique school registration code could not be generated. Please try again.')
 }
 
 export async function registerSchoolAction(input: SchoolRegistrationInput) {
@@ -54,21 +57,40 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     if (!input.name || !input.adminEmail || !input.adminName || !input.location) {
       return { success: false, error: 'School name, location, contact email, and applicant name are required.' }
     }
-
-    if (input.password || input.confirmPassword) {
-      if ((input.password || '').length < 8) {
-        return { success: false, error: 'Password must be at least 8 characters long.' }
-      }
-      if (input.password !== input.confirmPassword) {
-        return { success: false, error: 'Passwords do not match.' }
-      }
+    const email = input.adminEmail.trim().toLowerCase()
+    if (!/^\S+@\S+\.\S+$/.test(email)) return { success: false, error: 'Enter a valid applicant email address.' }
+    if (typeof input.password !== 'string' || input.password.length < 8 || input.password.length > 128) {
+      return { success: false, error: 'Password must be between 8 and 128 characters.' }
     }
+    if (input.confirmPassword !== input.password) {
+      return { success: false, error: 'Password and confirm password must match.' }
+    }
+
+    const secretKey = getSupabaseSecretKey()
+    if (!secretKey) return { success: false, error: 'School registration is temporarily unavailable.' }
+    const adminClient = createSupabaseAdminClient(getSupabaseUrl(), secretKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
 
     const schoolId = randomUUID()
     const applicationId = randomUUID()
     const schoolCode = await generateSchoolCode(input.name)
     const paymentReference = `SCH-PAY-${randomUUID().replaceAll('-', '').toUpperCase()}`
-    const adminEmail = input.adminEmail.trim().toLowerCase()
+    const adminEmail = email
+
+    const authUser = await adminClient.auth.admin.createUser({
+      id: randomUUID(),
+      email: adminEmail,
+      password: input.password,
+      email_confirm: true,
+      user_metadata: { full_name: input.adminName, role: 'SCHOOL_REGISTRATION_PENDING' },
+    })
+    if (authUser.error || !authUser.data.user) {
+      const message = authUser.error?.message || 'Account could not be created.'
+      return { success: false, error: /already|registered|exists/i.test(message)
+        ? 'An account already uses this email. Sign in or use a different email address.'
+        : 'The school administrator account could not be created. Please try again.' }
+    }
 
     // 1. Create School record in PENDING state
     await db.insert(school).values({
@@ -110,6 +132,14 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
       logoPath: input.logoPath || null,
       submittedAt: new Date(),
     })
+    await db.insert(userTable).values({
+      id: authUser.data.user.id,
+      email: adminEmail,
+      name: input.adminName,
+      schoolId,
+      adminLevel: input.adminLevel || 'PRIMARY_ADMIN',
+      updatedAt: new Date(),
+    })
 
     // 3. Initialize Paystack charge via centralized service (NGN 30,000 + NGN 161.25 fee)
     let initRes: any = null
@@ -122,7 +152,7 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
         description: `School registration subscription fee for ${input.name}`,
         customerEmail: adminEmail,
         customerName: input.adminName,
-        redirectUrl: `${(process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(paymentReference)}`,
+        redirectUrl: `${(process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')}/school-registration?reference=${encodeURIComponent(paymentReference)}`,
         metadata: {
           applicationId,
           schoolId,
@@ -143,7 +173,6 @@ export async function registerSchoolAction(input: SchoolRegistrationInput) {
     return {
       success: true,
       applicationId,
-      schoolId,
       schoolCode,
       paymentReference: initRes?.reference || paymentReference,
       checkoutUrl: initRes?.checkoutUrl || '',
@@ -196,7 +225,7 @@ export async function retrySchoolRegistrationPaymentAction(applicationId: string
         customerEmail: appRecord.applicantEmail,
         customerName: appRecord.applicantName,
         reference: paymentReference,
-        redirectUrl: `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(paymentReference)}`,
+        redirectUrl: `${siteUrl.replace(/\/$/, '')}/school-registration?reference=${encodeURIComponent(paymentReference)}`,
         metadata: { applicationId, schoolId: schoolRecord.id, paymentType: 'SCHOOL_REGISTRATION' },
       })
     } catch (error) {
@@ -211,7 +240,130 @@ export async function retrySchoolRegistrationPaymentAction(applicationId: string
 
     return { success: true, paymentReference: initRes.reference, checkoutUrl: initRes.checkoutUrl }
   } catch {
-    return { success: false, error: 'Paystack checkout could not be started. Please try again.' }
+    return { success: false, error: 'Payment could not be started. Please try again.' }
+  }
+}
+
+export async function initializeSchoolRegistrationPaymentAction(schoolId: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Sign in before starting the school registration payment.')
+
+  const actor = session.user
+  const role = actor.role.toUpperCase()
+  if (!['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(role)) {
+    throw new Error('School administrator access is required.')
+  }
+  const [userRecord, adminRole] = await Promise.all([
+    db.query.user.findFirst({ where: eq(userTable.id, actor.id) }),
+    db.query.schoolAdminRoles.findFirst({
+      where: and(eq(schoolAdminRoles.userId, actor.id), eq(schoolAdminRoles.isActive, true)),
+    }),
+  ])
+  const actorSchoolId = actor.schoolId || userRecord?.schoolId || adminRole?.schoolId || null
+  const adminLevel = actor.adminLevel || adminRole?.level
+  const canManagePayment = role === 'SUPER_ADMIN' || role === 'ADMIN' ||
+    (role === 'SCHOOL_ADMIN' && canSchoolAdminAccess(adminLevel, 'update', 'school_settings'))
+  if (!canManagePayment) throw new Error('School administrator access is required.')
+  if (role !== 'SUPER_ADMIN' && actorSchoolId !== schoolId) {
+    throw new Error('You can only pay registration fees for your own school.')
+  }
+
+  const schoolRecord = await db.query.school.findFirst({ where: eq(school.id, schoolId) })
+  if (!schoolRecord) throw new Error('School not found.')
+  if (!['PENDING', 'FAILED'].includes(schoolRecord.paymentStatus.toUpperCase())) {
+    throw new Error('This school registration payment is not awaiting payment.')
+  }
+
+  const application = await db.query.schoolRegistrationApplication.findFirst({
+    where: eq(schoolRegistrationApplication.schoolId, schoolId),
+  })
+  const paymentReference = `SCH-PAY-${randomUUID().replaceAll('-', '').toUpperCase()}`
+  const now = new Date()
+  await db.transaction(async (tx) => {
+    const updatedSchool = await tx.update(school)
+      .set({ paymentReference, paymentStatus: 'PENDING', updatedAt: now })
+      .where(and(
+        eq(school.id, schoolId),
+        inArray(school.paymentStatus, ['PENDING', 'FAILED']),
+      ))
+      .returning({ id: school.id })
+    if (!updatedSchool.length) throw new Error('School payment status changed. Refresh and try again.')
+    if (schoolRecord.paymentReference) {
+      await tx.update(transactionLedger)
+        .set({ status: 'FAILED', updatedAt: now })
+        .where(and(
+          eq(transactionLedger.reference, schoolRecord.paymentReference),
+          eq(transactionLedger.status, 'PENDING'),
+        ))
+    }
+    await tx.insert(transactionLedger).values({
+      id: randomUUID(),
+      schoolId,
+      type: 'REGISTRATION_FEE',
+      direction: 'IN',
+      amount: '30161.25',
+      currency: 'NGN',
+      reference: paymentReference,
+      gateway: 'PAYSTACK',
+      status: 'PENDING',
+      description: 'School registration fee payment',
+      confirmationMethod: 'PAYSTACK_AUTO',
+      metadata: { paymentType: 'SCHOOL_REGISTRATION', schoolCode: schoolRecord.code },
+      createdAt: now,
+      updatedAt: now,
+    }).onConflictDoNothing()
+
+    if (application) {
+      const updatedApplication = await tx.update(schoolRegistrationApplication)
+        .set({ paymentReference, paymentStatus: 'PENDING', updatedAt: now })
+        .where(and(
+          eq(schoolRegistrationApplication.id, application.id),
+          inArray(schoolRegistrationApplication.paymentStatus, ['PENDING', 'FAILED']),
+        ))
+        .returning({ id: schoolRegistrationApplication.id })
+      if (!updatedApplication.length) throw new Error('School application payment status changed. Refresh and try again.')
+    }
+  })
+
+  try {
+    const siteUrl = process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    const checkout = await serviceInitializePaystackPayment({
+      schoolId,
+      reference: paymentReference,
+      amount: 30161.25,
+      currency: 'NGN',
+      feeType: 'SCHOOL_REGISTRATION',
+      description: `School registration fee for ${schoolRecord.name}`,
+      customerEmail: schoolRecord.adminEmail,
+      customerName: schoolRecord.adminName,
+      redirectUrl: `${siteUrl.replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(paymentReference)}`,
+      metadata: {
+        schoolId,
+        schoolCode: schoolRecord.code,
+        applicationId: application?.id,
+        paymentType: 'SCHOOL_REGISTRATION',
+      },
+    })
+    return { success: true, checkoutUrl: checkout.checkoutUrl, reference: checkout.reference }
+  } catch (error) {
+    await db.transaction(async (tx) => {
+      await tx.update(school)
+        .set({ paymentStatus: 'FAILED', updatedAt: new Date() })
+        .where(and(eq(school.id, schoolId), eq(school.paymentReference, paymentReference), eq(school.paymentStatus, 'PENDING')))
+      await tx.update(transactionLedger)
+        .set({ status: 'FAILED', updatedAt: new Date() })
+        .where(eq(transactionLedger.reference, paymentReference))
+      if (application) {
+        await tx.update(schoolRegistrationApplication)
+          .set({ paymentStatus: 'FAILED', updatedAt: new Date() })
+          .where(and(
+            eq(schoolRegistrationApplication.id, application.id),
+            eq(schoolRegistrationApplication.paymentReference, paymentReference),
+            eq(schoolRegistrationApplication.paymentStatus, 'PENDING'),
+          ))
+      }
+    })
+    throw error
   }
 }
 
@@ -258,38 +410,59 @@ export async function getSchoolApplicationStatusAction(applicationId: string) {
   try {
     if (!applicationId) return { success: false, error: 'Application ID is required.', requestId }
 
-    const { getCachedData } = await import('@/lib/cache')
-    return await getCachedData(`school-app-status:${applicationId}`, async () => {
-      const appRecord = await db.query.schoolRegistrationApplication.findFirst({
-        where: eq(schoolRegistrationApplication.id, applicationId)
-      })
+    const appRecord = await db.query.schoolRegistrationApplication.findFirst({
+      where: eq(schoolRegistrationApplication.id, applicationId)
+    })
 
-      if (!appRecord) {
-        return { success: false, error: 'Application not found.', requestId }
-      }
+    if (!appRecord) {
+      return { success: false, error: 'Application not found.', requestId }
+    }
 
-      const schRecord = appRecord.schoolId ? await db.query.school.findFirst({
-        where: eq(school.id, appRecord.schoolId)
-      }) : null
+    const schRecord = appRecord.schoolId ? await db.query.school.findFirst({
+      where: eq(school.id, appRecord.schoolId)
+    }) : null
 
-      return {
-        success: true,
-        application: {
-          paymentStatus: appRecord.paymentStatus,
-          documentVerificationStatus: appRecord.documentVerificationStatus,
-          approvalStatus: appRecord.approvalStatus,
-          rejectionReason: appRecord.rejectionReason,
-        },
-        schoolCode: schRecord?.code || null,
-      }
-    }, 60, [`school_app:${applicationId}`])
+    return {
+      success: true,
+      application: {
+        paymentStatus: appRecord.paymentStatus,
+        documentVerificationStatus: appRecord.documentVerificationStatus,
+        approvalStatus: appRecord.approvalStatus,
+        rejectionReason: appRecord.rejectionReason,
+      },
+      schoolCode: schRecord?.code || null,
+    }
   } catch (error: any) {
     return sanitizeServerError('getSchoolApplicationStatusAction', error, 'Unable to retrieve application status.')
   }
 }
 
+export async function getSchoolRegistrationByPaymentReferenceAction(paymentReference: string) {
+  if (!paymentReference || paymentReference.length > 120) {
+    return { success: false, error: 'Invalid payment reference.' }
+  }
+  const application = await db.query.schoolRegistrationApplication.findFirst({
+    where: eq(schoolRegistrationApplication.paymentReference, paymentReference),
+  })
+  if (!application) return { success: false, error: 'School registration payment was not found.' }
+  const schoolRecord = await db.query.school.findFirst({ where: eq(school.id, application.schoolId) })
+  return {
+    success: true,
+    application: {
+      applicationId: application.id,
+      adminEmail: application.applicantEmail,
+      schoolCode: schoolRecord?.code || '',
+      paymentReference: application.paymentReference,
+      schoolName: application.schoolName,
+      paymentStatus: application.paymentStatus,
+      documentVerificationStatus: application.documentVerificationStatus,
+      approvalStatus: application.approvalStatus,
+      rejectionReason: application.rejectionReason,
+    },
+  }
+}
+
 export async function confirmSchoolPaymentAction(paymentReference: string) {
-  const requestId = randomUUID()
   try {
     const verification = await serviceVerifyPaystackPayment({
       reference: paymentReference,
@@ -297,7 +470,7 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
     })
 
     if (!verification.success) {
-      return { success: false, error: verification.error || 'Payment status not confirmed by gateway.' }
+      return { success: false, error: verification.error || 'Payment status has not been confirmed.' }
     }
 
     const existingSchool = await db.select().from(school).where(eq(school.paymentReference, paymentReference))
@@ -339,13 +512,57 @@ export async function confirmSchoolPaymentAction(paymentReference: string) {
   }
 }
 
+export async function sendSchoolRegistrationPaymentOtpAction(applicationId: string) {
+  if (!applicationId || applicationId.length > 80) {
+    return { success: false, error: 'Invalid application reference.' }
+  }
+  const application = await db.query.schoolRegistrationApplication.findFirst({
+    where: eq(schoolRegistrationApplication.id, applicationId),
+    columns: { paymentReference: true, paymentStatus: true },
+  })
+  if (!application || application.paymentStatus !== 'SUCCESS' || !application.paymentReference) {
+    return { success: false, error: 'The registration payment has not been confirmed yet.' }
+  }
+  try {
+    const delivery = await sendSchoolRegistrationOtpOnce(application.paymentReference)
+    return { success: delivery.sent === true || delivery.alreadySent === true,
+      error: 'Payment is confirmed, but the verification code could not be delivered. Please contact support.' }
+  } catch (error) {
+    console.error('School registration payment OTP dispatch failed.', { applicationId, error })
+    return { success: false, error: 'Payment is confirmed, but the verification code could not be delivered. Please try again or contact support.' }
+  }
+}
+
+export async function verifySchoolRegistrationOtpAction(applicationId: string, otp: string) {
+  if (!applicationId || applicationId.length > 80 || !/^\d{6}$/.test(otp)) {
+    return { success: false, error: 'Enter the 6-digit code sent to the school administrator email.' }
+  }
+  const application = await db.query.schoolRegistrationApplication.findFirst({
+    where: eq(schoolRegistrationApplication.id, applicationId),
+  })
+  if (!application || application.paymentStatus !== 'SUCCESS' || !application.paymentOtpSentAt) {
+    return { success: false, error: 'A paid school application with a sent verification code was not found.' }
+  }
+  const result = await verifyOtp(application.applicantEmail, otp)
+  if (!result.ok) return { success: false, error: result.reason }
+
+  const verifiedAt = new Date()
+  await db.update(schoolRegistrationApplication)
+    .set({ paymentOtpVerifiedAt: verifiedAt, updatedAt: verifiedAt })
+    .where(and(
+      eq(schoolRegistrationApplication.id, application.id),
+      eq(schoolRegistrationApplication.paymentStatus, 'SUCCESS'),
+    ))
+  revalidatePath('/school-registration')
+  revalidatePath('/dashboard/super-admin/applications')
+  return { success: true }
+}
+
 export async function getSchoolByCodeAction(code: string) {
   try {
     const cleanCode = code.trim().toUpperCase()
     const result = await db.select({
-      id: school.id,
       name: school.name,
-      code: school.code,
       location: school.location,
       logoUrl: school.logoUrl,
       allowParents: school.allowParents,

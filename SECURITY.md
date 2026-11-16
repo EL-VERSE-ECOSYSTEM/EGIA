@@ -16,7 +16,7 @@ EL LEARNERS APP is built with defense-in-depth security principles to protect st
 - **Identity Resolution:** Multi-identity sign-in supports Admission Numbers, Staff IDs, and School Registration Codes with dynamic role resolution.
 
 ### 3. Payment Gateway Security (Paystack Titan)
-- **HMAC SHA256 Webhook Signatures:** All incoming payment webhooks from Korapay are verified using HMAC SHA256 signatures before processing.
+- **HMAC SHA512 Webhook Signatures:** All incoming payment webhooks from Paystack are verified using HMAC SHA512 signatures before processing.
 - **Amount & Currency Validation:** Exact-to-the-cent amount verification against expected database records before granting active registration or renewal status.
 - **Idempotency Safeguards:** Payment status updates execute only on initial pending-to-success status transitions.
 

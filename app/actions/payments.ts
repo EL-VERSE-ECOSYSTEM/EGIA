@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { payment, student, paymentReceiptUploads, user as userTable, parent as parentTable, feeStructure, studentGifts, term, paymentInstallment, schoolAdminRoles } from '@/lib/db/schema'
+import { payment, student, paymentReceiptUploads, user as userTable, parent as parentTable, feeStructure, studentGifts, term, paymentInstallment, schoolAdminRoles, transactionLedger } from '@/lib/db/schema'
 import { eq, and, desc, sql, notInArray, inArray } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
@@ -197,6 +197,25 @@ export async function recordManualSchoolPayment(data: {
       updatedAt: now,
     }).returning()
 
+    await tx.insert(transactionLedger).values({
+      id: randomUUID(),
+      schoolId,
+      userId: session.user.id,
+      studentId: currentStudent.id,
+      type: feeType.toLowerCase().includes('registration') ? 'REGISTRATION_FEE' : 'FEE_PAYMENT',
+      direction: 'IN',
+      amount: created.amount,
+      currency: 'NGN',
+      reference: transactionReference,
+      gateway: 'SCHOOL_ACCOUNT',
+      status: 'SUCCESS',
+      description: created.description,
+      confirmationMethod: 'SCHOOL_ACCOUNT',
+      metadata: { paymentId: created.id, feeType },
+      createdAt: now,
+      updatedAt: now,
+    }).onConflictDoNothing()
+
     if (paymentTermId) {
       const scheduledInstallments = await tx.query.paymentInstallment.findMany({
         where: and(
@@ -231,7 +250,7 @@ export async function recordManualSchoolPayment(data: {
       })
       const netPaid = paidRecords.reduce((sum, record) => sum + Math.max(
         0,
-        Number(record.amount || 0) - (['PAYSTACK', 'KORAPAY'].includes(record.paymentMethod.toUpperCase()) ? PAYSTACK_GATEWAY_FEE : 0),
+        Number(record.amount || 0) - (record.paymentMethod.toUpperCase() === 'PAYSTACK' ? PAYSTACK_GATEWAY_FEE : 0),
       ), 0)
       if (netPaid >= Number(approvedFee.amount)) {
         await tx.update(student)
@@ -272,7 +291,7 @@ async function getSuccessfulFeePayments(studentId: string, schoolId: string, ter
 function getNetPaidAmount(records: typeof payment.$inferSelect[]) {
   return records.reduce((sum, record) => sum + Math.max(
     0,
-    Number(record.amount || 0) - (['PAYSTACK', 'KORAPAY'].includes(record.paymentMethod.toUpperCase()) ? PAYSTACK_GATEWAY_FEE : 0),
+    Number(record.amount || 0) - (record.paymentMethod.toUpperCase() === 'PAYSTACK' ? PAYSTACK_GATEWAY_FEE : 0),
   ), 0)
 }
 
@@ -616,6 +635,7 @@ export async function submitManualPayment(data: { studentId: string; amount: str
 
   const paymentId = randomUUID()
   const uploadId = randomUUID()
+  const manualReference = `MANUAL-${Date.now()}-${randomUUID().slice(0, 6)}`
 
   await db.transaction(async (tx) => {
     await tx.insert(payment).values({
@@ -626,13 +646,32 @@ export async function submitManualPayment(data: { studentId: string; amount: str
       amount: claimedAmount.toFixed(2),
       feeType: data.feeType,
       paymentMethod: 'BANK_TRANSFER',
-      transactionReference: `MANUAL-${Date.now()}-${randomUUID().slice(0, 6)}`,
+      transactionReference: manualReference,
       status: 'pending',
       receiptUrl: receiptUrl.toString(),
       description: `Manual receipt upload for ${data.feeType}`,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
+
+    await tx.insert(transactionLedger).values({
+      id: randomUUID(),
+      schoolId,
+      userId: session.user.id,
+      studentId: currentStudent.id,
+      type: data.feeType.toLowerCase().includes('registration') ? 'REGISTRATION_FEE' : 'FEE_PAYMENT',
+      direction: 'IN',
+      amount: claimedAmount.toFixed(2),
+      currency: 'NGN',
+      reference: manualReference,
+      gateway: 'SCHOOL_ACCOUNT',
+      status: 'PENDING',
+      description: `Manual receipt upload for ${data.feeType}`,
+      confirmationMethod: 'MANUAL_UPLOAD',
+      metadata: { paymentId, uploadId, feeType: data.feeType },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).onConflictDoNothing()
 
     await tx.insert(paymentReceiptUploads).values({
       id: uploadId,
@@ -655,14 +694,6 @@ export async function submitManualPayment(data: { studentId: string; amount: str
   await notifyPaymentStatus(paymentId, 'pending')
   revalidatePath('/dashboard/parent/payments/history')
   return { success: true, paymentId, uploadId }
-}
-
-export async function initializeKorapayPayment(data: { studentId: string; amount: number; feeType: string; description?: string }) {
-  return initializePaystackPayment(data)
-}
-
-export async function verifyKorapayPayment(reference: string) {
-  return verifyPaystackPayment(reference)
 }
 
 export async function initializePaystackPayment(data: { studentId: string; amount: number; feeType: string; description?: string }) {
@@ -701,7 +732,7 @@ export async function initializePaystackPayment(data: { studentId: string; amoun
   }
   const totalAmount = Number((baseAmount + PAYSTACK_GATEWAY_FEE).toFixed(2))
 
-  const paymentConfirmationMessage = `Payment of ₦${baseAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} for ${approvedFee.feeType.toUpperCase()} (${child.firstName} ${child.lastName}, Class: ${child.class}) + Paystack Gateway Fee (₦161.25)`
+  const paymentConfirmationMessage = `Payment of ₦${baseAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} for ${approvedFee.feeType.toUpperCase()} (${child.firstName} ${child.lastName}, Class: ${child.class}) + Payment Processing Fee (₦161.25)`
 
   const paymentRes = await serviceInitializePaystackPayment({
     schoolId: child.schoolId || undefined,
@@ -754,7 +785,7 @@ export async function initializeStudentRegistrationPayment(studentId: string) {
     parentId: child.parentId || undefined,
     amount: totalAmount,
     feeType: 'registration',
-    description: `Session registration for ${child.firstName} ${child.lastName} (NGN 2000 + NGN 161.25 gateway fee)`,
+    description: `Session registration for ${child.firstName} ${child.lastName} (NGN 2000 + NGN 161.25 payment processing fee)`,
     customerEmail,
     customerName: `${child.firstName} ${child.lastName}`,
     metadata: {
@@ -812,9 +843,31 @@ export async function getStudentPaymentHistory(studentId?: string) {
   if (!studentRecord) throw new Error('Student record not found')
   await assertStudentPaymentAccess(session.user, studentRecord)
 
-  return db.query.payment.findMany({
+  const payments = await db.query.payment.findMany({
     where: eq(payment.studentId, studentRecord.id),
     orderBy: [desc(payment.createdAt)]
+  })
+  if (!studentRecord.schoolId) return payments.map((record) => ({ ...record, feeCleared: false }))
+
+  const fees = await db.query.feeStructure.findMany({
+    where: and(
+      eq(feeStructure.schoolId, studentRecord.schoolId),
+      eq(feeStructure.class, studentRecord.class),
+      eq(feeStructure.isActive, true),
+    ),
+  })
+
+  return payments.map((record) => {
+    const fee = fees.find((item) =>
+      item.feeType === record.feeType && item.department === studentRecord.department
+    ) || fees.find((item) => item.feeType === record.feeType && !item.department)
+    if (!fee || record.status !== 'success') return { ...record, feeCleared: false }
+    const paidForFee = getNetPaidAmount(payments.filter((item) =>
+      item.status === 'success' &&
+      item.feeType === record.feeType &&
+      item.termId === record.termId
+    ))
+    return { ...record, feeCleared: paidForFee >= Number(fee.amount) }
   })
 }
 
@@ -913,7 +966,7 @@ export async function approveReceipt(uploadId: string) {
     const paymentRecord = await tx.query.payment.findFirst({
       where: and(eq(payment.id, upload.paymentId!), eq(payment.schoolId, upload.schoolId)),
     })
-    if (!paymentRecord || paymentRecord.status !== 'pending' || ['PAYSTACK', 'KORAPAY'].includes(paymentRecord.paymentMethod.toUpperCase())) {
+    if (!paymentRecord || paymentRecord.status !== 'pending' || paymentRecord.paymentMethod.toUpperCase() === 'PAYSTACK') {
       throw new Error('Receipt is not linked to a pending manual payment for this school.')
     }
 
@@ -928,7 +981,7 @@ export async function approveReceipt(uploadId: string) {
       eq(payment.id, paymentRecord.id),
       eq(payment.schoolId, upload.schoolId),
       eq(payment.status, 'pending'),
-      notInArray(payment.paymentMethod, ['PAYSTACK', 'KORAPAY']),
+      notInArray(payment.paymentMethod, ['PAYSTACK']),
     )).returning({ id: payment.id, feeType: payment.feeType, studentId: payment.studentId })
     if (!updatedPayment.length) throw new Error('Payment is no longer pending.')
 
@@ -948,6 +1001,29 @@ export async function approveReceipt(uploadId: string) {
       await tx.update(student).set({ registrationStatus: 'ACTIVE', updatedAt: now })
         .where(and(eq(student.id, updatedPayment[0].studentId), eq(student.schoolId, upload.schoolId)))
     }
+    const ledgerReference = paymentRecord.transactionReference || paymentRecord.id
+    await tx.insert(transactionLedger).values({
+      id: randomUUID(),
+      schoolId: upload.schoolId,
+      userId: session.user.id,
+      studentId: paymentRecord.studentId,
+      type: paymentRecord.feeType?.toLowerCase().includes('registration') ? 'REGISTRATION_FEE' : 'FEE_PAYMENT',
+      direction: 'IN',
+      amount: paymentRecord.amount,
+      currency: 'NGN',
+      reference: ledgerReference,
+      gateway: 'SCHOOL_ACCOUNT',
+      status: 'SUCCESS',
+      description: paymentRecord.description,
+      confirmationMethod: 'MANUAL_UPLOAD',
+      receiptUploadId: uploadId,
+      metadata: { paymentId: paymentRecord.id, feeType: paymentRecord.feeType },
+      createdAt: paymentRecord.createdAt,
+      updatedAt: now,
+    }).onConflictDoUpdate({
+      target: transactionLedger.reference,
+      set: { status: 'SUCCESS', updatedAt: now, receiptUploadId: uploadId },
+    })
     return updatedPayment[0].id
   })
 
@@ -989,9 +1065,17 @@ export async function rejectReceipt(uploadId: string, reason: string) {
       eq(payment.id, rejectedUpload.paymentId),
       eq(payment.schoolId, upload.schoolId),
       eq(payment.status, 'pending'),
-      notInArray(payment.paymentMethod, ['PAYSTACK', 'KORAPAY']),
+      notInArray(payment.paymentMethod, ['PAYSTACK']),
     )).returning({ id: payment.id })
     if (!failedPayment) throw new Error('Receipt is not linked to a pending manual payment for this school.')
+    const failedPaymentRecord = await tx.query.payment.findFirst({
+      where: and(eq(payment.id, failedPayment.id), eq(payment.schoolId, upload.schoolId)),
+    })
+    if (failedPaymentRecord?.transactionReference) {
+      await tx.update(transactionLedger)
+        .set({ status: 'FAILED', updatedAt: now })
+        .where(eq(transactionLedger.reference, failedPaymentRecord.transactionReference))
+    }
     return failedPayment.id
   })
 
@@ -1076,24 +1160,68 @@ export async function getAdminWalletSummaryAction() {
 
   if (!schoolId) throw new Error('School identity missing')
 
-  const schoolPayments = await db.query.payment.findMany({
-    where: and(eq(payment.schoolId, schoolId), eq(payment.status, 'success')),
-    orderBy: [desc(payment.createdAt)],
-  })
+  const [schoolPayments, allSchoolPayments, ledgerEntries] = await Promise.all([
+    db.query.payment.findMany({
+      where: and(eq(payment.schoolId, schoolId), eq(payment.status, 'success')),
+    }),
+    db.query.payment.findMany({
+      where: eq(payment.schoolId, schoolId),
+      with: { student: true },
+      orderBy: [desc(payment.createdAt)],
+      limit: 200,
+    }),
+    db.query.transactionLedger.findMany({
+      where: eq(transactionLedger.schoolId, schoolId),
+      orderBy: [desc(transactionLedger.createdAt)],
+      limit: 200,
+    }),
+  ])
 
-  const totalRevenue = schoolPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
+  const ledgerReferences = new Set(ledgerEntries.map((record) => record.reference).filter(Boolean))
+  const legacyPayments = allSchoolPayments.filter((record) =>
+    !record.transactionReference || !ledgerReferences.has(record.transactionReference)
+  )
+  const ledgerStudentIds = [...new Set(ledgerEntries.map((record) => record.studentId).filter(
+    (id): id is string => Boolean(id),
+  ))]
+  const ledgerStudents = ledgerStudentIds.length
+    ? await db.query.student.findMany({ where: inArray(student.id, ledgerStudentIds) })
+    : []
+  const studentsById = new Map(ledgerStudents.map((record) => [record.id, record]))
+  const recentTransactions = [
+    ...ledgerEntries.map((record) => ({
+      id: record.id,
+      student: record.studentId ? studentsById.get(record.studentId) || null : null,
+      feeType: record.type,
+      amount: record.amount,
+      paymentMethod: record.gateway || 'N/A',
+      transactionReference: record.reference,
+      createdAt: record.createdAt,
+      direction: record.type === 'REGISTRATION_FEE' ? 'OUT' : record.direction,
+      status: record.status,
+      description: record.description,
+    })),
+    ...legacyPayments.map((record) => ({
+      ...record,
+      direction: 'IN',
+      description: record.description,
+    })),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  const totalRevenue = schoolPayments.reduce((sum, record) => sum + Number(record.amount || 0), 0)
 
   const categoryBreakdown: Record<string, number> = {}
-  for (const p of schoolPayments) {
-    const cat = p.feeType || 'tuition'
-    categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + Number(p.amount || 0)
+  for (const record of schoolPayments) {
+    const category = record.feeType || 'tuition'
+    categoryBreakdown[category] = (categoryBreakdown[category] || 0) + Number(record.amount || 0)
   }
 
   return {
     totalRevenue,
-    transactionCount: schoolPayments.length,
+    transactionCount: ledgerEntries.filter((record) => record.status === 'SUCCESS').length +
+      legacyPayments.filter((record) => record.status === 'success').length,
     categoryBreakdown,
-    recentTransactions: schoolPayments.slice(0, 15)
+    recentTransactions: recentTransactions.slice(0, 100),
   }
 }
 

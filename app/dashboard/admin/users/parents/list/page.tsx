@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Search, Mail, Phone } from 'lucide-react'
 import { getAllParents } from '@/app/actions/admin'
 import { Input } from '@/components/ui/input'
+import Link from 'next/link'
 
 export default function ParentListPage() {
   const [parents, setParents] = useState<any[]>([])
@@ -30,9 +31,11 @@ export default function ParentListPage() {
             <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Guardian Directory</h1>
             <p className="text-slate-500 font-medium text-lg">Manage parent/guardian records and their linked wards.</p>
           </div>
-          <Button className="bg-amber-500 hover:bg-amber-600 text-amber-950 h-14 px-8 rounded-2xl font-black text-lg shadow-xl shadow-amber-200">
-             <Plus className="w-6 h-6 mr-2" /> Add Guardian
-          </Button>
+          <Link href="/dashboard/admin/users/bulk-registration">
+            <Button className="bg-amber-500 hover:bg-amber-600 text-amber-950 h-14 px-8 rounded-2xl font-black text-lg shadow-xl shadow-amber-200">
+               <Plus className="w-6 h-6 mr-2" /> Add Guardians
+            </Button>
+          </Link>
         </div>
 
         <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">

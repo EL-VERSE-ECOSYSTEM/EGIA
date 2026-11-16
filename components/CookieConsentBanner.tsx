@@ -9,19 +9,24 @@ export function CookieConsentBanner() {
   const [show, setShow] = useState(false)
 
   useEffect(() => {
-    const consent = localStorage.getItem('el_cookie_consent')
-    if (!consent) {
+    try {
+      if (!localStorage.getItem('el_cookie_consent')) setShow(true)
+    } catch {
+      // Storage can be disabled by browser privacy settings. Keep consent
+      // available in the current page session instead of breaking the UI.
       setShow(true)
     }
   }, [])
 
   const handleAccept = () => {
-    localStorage.setItem('el_cookie_consent', 'accepted')
+    try { localStorage.setItem('el_cookie_consent', 'accepted') } catch { /* session-only dismissal */ }
+    window.dispatchEvent(new CustomEvent('el-cookie-consent-change', { detail: 'accepted' }))
     setShow(false)
   }
 
   const handleDecline = () => {
-    localStorage.setItem('el_cookie_consent', 'declined')
+    try { localStorage.setItem('el_cookie_consent', 'declined') } catch { /* session-only dismissal */ }
+    window.dispatchEvent(new CustomEvent('el-cookie-consent-change', { detail: 'declined' }))
     setShow(false)
   }
 

@@ -227,6 +227,14 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
     return { success: false, error: 'Invalid credentials or account not found.' }
   }
 
+  const pendingSchoolApplication = await db.query.schoolRegistrationApplication.findFirst({
+    where: eq(schoolAppTable.applicantEmail, resolvedEmail),
+    columns: { approvalStatus: true },
+  })
+  if (pendingSchoolApplication && pendingSchoolApplication.approvalStatus !== 'APPROVED') {
+    return { success: true, redirectTo: '/registration-waiting-room' }
+  }
+
   try {
     const userEmail = (data.user.email || resolvedEmail).toLowerCase()
     const userIsSuperAdmin = await isSuperAdminUser(data.user.id) || await isSuperAdminEmail(userEmail)
@@ -259,6 +267,10 @@ export async function signInAction(emailInput: string, passwordInput: string, lo
       existingUser = await db.query.user.findFirst({
         where: eq(userTable.id, data.user.id),
       })
+    }
+
+    if (existingUser?.mustChangePassword && !userIsSuperAdmin) {
+      return { success: true, mustChangePassword: true as const }
     }
 
     if (userIsSuperAdmin) {
@@ -408,6 +420,13 @@ export async function activateIdentityAction(identityId: string, remember: boole
 
   const userEmail = (user.email || '').trim().toLowerCase()
   const userIsSuperAdmin = await isSuperAdminUser(user.id) || await isSuperAdminEmail(userEmail)
+  const account = await db.query.user.findFirst({
+    where: eq(userTable.id, user.id),
+    columns: { mustChangePassword: true },
+  })
+  if (account?.mustChangePassword && !userIsSuperAdmin) {
+    return { success: true, redirectTo: '/auth/change-password' }
+  }
 
   const loginContext = await resolveIdentities(user.id, userEmail)
   let matchedIdentity = loginContext.identities.find((i) => i.id === identityId)

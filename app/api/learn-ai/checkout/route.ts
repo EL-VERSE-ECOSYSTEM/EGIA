@@ -120,7 +120,7 @@ export async function POST(request: Request) {
     })
     const result = await response.json() as { status?: boolean; message?: string; data?: { authorization_url?: string } }
     if (!response.ok || !result.status || !result.data?.authorization_url) {
-      throw new Error('Paystack did not return a checkout URL.')
+      throw new Error('A payment checkout URL was not returned.')
     }
     return NextResponse.json({
       checkoutUrl: result.data.authorization_url,

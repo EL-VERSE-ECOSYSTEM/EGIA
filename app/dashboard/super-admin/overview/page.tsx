@@ -25,6 +25,7 @@ import {
   approveSchoolApplicationAction,
   rejectSchoolApplicationAction,
 } from '@/app/actions/super-admin'
+import { getPaymentMethodLabel } from '@/lib/payments/display'
 import {
   Building2,
   Users,
@@ -246,7 +247,9 @@ export default function SuperAdminOverviewPage() {
     if (!confirm('Activate school admin identity and send setup invitation link?')) return
     const res = await activateSchoolAdminAction(applicationId)
     if (res.success) {
-      toast.success('School Admin activated and password setup/invitation issued!')
+      toast.success(res.approvalEmailSent
+        ? 'School Admin activated and approval email sent.'
+        : 'School Admin activated, but the approval email could not be delivered.')
       loadData()
     } else {
       toast.error('error' in res && res.error ? res.error : 'Failed to activate School Admin.')
@@ -439,7 +442,7 @@ export default function SuperAdminOverviewPage() {
               <CreditCard className="w-4 h-4 text-teal-400" />
             </div>
             <div className="text-3xl font-black text-emerald-400">NGN {stats.totalSubscriptionRevenue?.toLocaleString()}</div>
-            <p className="text-xs text-slate-400">Korapay School Subscriptions</p>
+            <p className="text-xs text-slate-400">School Subscription Payments</p>
           </div>
 
           <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
@@ -601,7 +604,7 @@ export default function SuperAdminOverviewPage() {
                   <ShieldAlert className="w-5 h-5 text-blue-400" /> Pending School Applications & Proof of Address Queue
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Verify electricity bill / proof of address, confirm Korapay payment, and manually approve applications before activating SCHOOL_ADMIN identities.
+                  Verify electricity bill / proof of address, confirm payment, and manually approve applications before activating SCHOOL_ADMIN identities.
                 </p>
               </div>
             </div>
@@ -1041,7 +1044,7 @@ export default function SuperAdminOverviewPage() {
                   <Wallet className="w-5 h-5" /> Real-Time Wallet Balances & Platform Transaction Ledger
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Live record of money entering and leaving user wallets (School Admins, Teachers, Parents) synced with Korapay API.
+                  Live record of money entering and leaving user wallets (School Admins, Teachers, Parents) synced with payment records.
                 </p>
               </div>
             </div>
@@ -1053,7 +1056,7 @@ export default function SuperAdminOverviewPage() {
                     <th className="p-3">Reference & Type</th>
                     <th className="p-3">Direction</th>
                     <th className="p-3">Amount (NGN)</th>
-                    <th className="p-3">Gateway</th>
+                    <th className="p-3">Payment Method</th>
                     <th className="p-3">Status</th>
                     <th className="p-3">Date & Time</th>
                   </tr>
@@ -1083,7 +1086,7 @@ export default function SuperAdminOverviewPage() {
                         <td className="p-3 font-mono font-bold text-emerald-400">
                           NGN {Number(trx.amount || 0).toLocaleString()}
                         </td>
-                        <td className="p-3 text-slate-400 font-bold">{trx.gateway || 'KORAPAY'}</td>
+                        <td className="p-3 text-slate-400 font-bold">{getPaymentMethodLabel(trx.gateway)}</td>
                         <td className="p-3">
                           <span className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
                             trx.status === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'

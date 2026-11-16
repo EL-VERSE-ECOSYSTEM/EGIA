@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Download, Printer, X, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react'
 import { getStudentPaymentHistory } from '@/app/actions/payments'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { downloadCsv } from '@/lib/download-csv'
 
 export default function StudentPaymentHistoryPage() {
   const [payments, setPayments] = useState<any[]>([])
@@ -34,10 +35,23 @@ export default function StudentPaymentHistoryPage() {
     loadPayments()
   })
 
-  const getStatusBadge = (status: string) => {
+  const downloadHistory = () => downloadCsv('student-payment-history.csv', [
+    ['Date', 'Reference', 'Description', 'Fee', 'Amount', 'Status', 'Payment Method'],
+    ...payments.map((p) => [
+      p.paidAt || p.paymentDate || p.createdAt,
+      p.transactionReference || p.id,
+      p.description,
+      p.feeType,
+      p.amount,
+      p.status,
+      p.paymentMethod,
+    ]),
+  ])
+
+  const getStatusBadge = (status: string, feeCleared = false) => {
     const s = (status || 'pending').toLowerCase()
     if (s === 'success' || s === 'approved' || s === 'cleared') {
-      return <Badge className="bg-emerald-100 text-emerald-800 border-none font-black px-3 py-1 rounded-lg">PAID & CLEARED</Badge>
+      return <Badge className="bg-emerald-100 text-emerald-800 border-none font-black px-3 py-1 rounded-lg">{feeCleared ? 'FEE CLEARED' : 'PAID'}</Badge>
     }
     if (s === 'pending') {
       return <Badge className="bg-amber-100 text-amber-800 border-none font-black px-3 py-1 rounded-lg">PENDING</Badge>
@@ -64,7 +78,7 @@ export default function StudentPaymentHistoryPage() {
                   <CheckCircle2 className="w-10 h-10" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black text-slate-900">Student Clearance Receipt</h3>
+                  <h3 className="text-2xl font-black text-slate-900">{activeReceipt.feeCleared ? 'Student Fee Clearance' : 'Student Payment Receipt'}</h3>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">EL LEARNERS APP</p>
                 </div>
               </div>
@@ -83,9 +97,9 @@ export default function StudentPaymentHistoryPage() {
                   <span className="font-bold text-slate-900">{new Date(activeReceipt.paidAt || activeReceipt.createdAt).toLocaleDateString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Fee Clearance:</span>
+                  <span className="text-slate-400">{activeReceipt.feeCleared ? 'Fee Clearance:' : 'Payment Status:'}</span>
                   <span className="font-bold text-emerald-600 flex items-center gap-1 text-xs">
-                    <ShieldCheck className="w-3.5 h-3.5" /> CLEARED & CONFIRMED
+                    <ShieldCheck className="w-3.5 h-3.5" /> {activeReceipt.feeCleared ? 'FEE CLEARED' : 'PAYMENT CONFIRMED'}
                   </span>
                 </div>
                 <div className="h-[1px] bg-slate-100 my-4" />
@@ -114,9 +128,14 @@ export default function StudentPaymentHistoryPage() {
           </div>
         )}
 
-        <div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
           <h1 className="text-3xl font-black text-slate-900">Transaction History & Fees Clearance</h1>
           <p className="text-slate-500 mt-2">View real-time record of all fee payments, registrations, and download clearance receipts.</p>
+          </div>
+          <Button onClick={downloadHistory} className="bg-emerald-600 hover:bg-emerald-700 font-bold">
+            <Download className="w-4 h-4 mr-2" /> Download All (CSV)
+          </Button>
         </div>
         <Card className="border-none shadow-xl rounded-3xl overflow-hidden bg-white">
           <CardContent className="p-0">
@@ -151,7 +170,7 @@ export default function StudentPaymentHistoryPage() {
                         ₦{Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
                       <td className="p-5">
-                        {getStatusBadge(p.status)}
+                        {getStatusBadge(p.status, p.feeCleared)}
                       </td>
                       <td className="p-5 text-right">
                         {['success', 'approved', 'cleared'].includes(String(p.status || '').toLowerCase()) ? (
@@ -160,7 +179,7 @@ export default function StudentPaymentHistoryPage() {
                             size="sm"
                             className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-black text-xs rounded-xl"
                           >
-                            <Download className="w-3.5 h-3.5 mr-1" /> Clearance Receipt
+                            <Download className="w-3.5 h-3.5 mr-1" /> {p.feeCleared ? 'Fee Clearance' : 'Payment Receipt'}
                           </Button>
                         ) : (
                           <span className="text-xs text-amber-600 font-bold">Pending Clearance</span>

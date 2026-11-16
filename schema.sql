@@ -331,10 +331,21 @@ create table public."payment" (
   "id" text primary key,
   "studentid" text not null references public."student"("id"),
   "parentid" text, "termid" text, "amount" numeric(12,2) not null, "feetype" text, "paymentmethod" text not null,
-  "transactionreference" text unique, "korapayreference" text unique, "receipturl" text, "status" text default 'pending',
+  "transactionreference" text unique, "paystackreference" text unique, "receipturl" text, "status" text default 'pending',
   "paymentdate" timestamptz, "paidat" timestamptz, "description" text,
   "createdat" timestamptz not null default now(), "updatedat" timestamptz not null default now()
 );
+
+create table public.payment_webhook_logs (
+  id text primary key,
+  reference text not null,
+  event_type text not null,
+  payload jsonb,
+  status text not null default 'PROCESSED',
+  created_at timestamptz not null default now()
+);
+create index payment_webhook_logs_reference_event_idx
+  on public.payment_webhook_logs (reference, event_type);
 
 create table public."payment_installment" (
   "id" text primary key,

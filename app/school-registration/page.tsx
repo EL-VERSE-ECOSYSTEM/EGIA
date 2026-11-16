@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   registerSchoolAction,
   confirmSchoolPaymentAction,
   retrySchoolRegistrationPaymentAction,
   uploadApplicationProofOfAddressAction,
-  getSchoolApplicationStatusAction
+  getSchoolApplicationStatusAction,
+  verifySchoolRegistrationOtpAction,
+  sendSchoolRegistrationPaymentOtpAction,
+  getSchoolRegistrationByPaymentReferenceAction,
 } from '@/app/actions/school'
 import {
   CheckCircle2,
@@ -35,7 +38,7 @@ const AVAILABLE_CLASSES = [
 
 type SchoolApplicationState = {
   applicationId?: string
-  schoolId?: string | null
+  adminEmail?: string
   schoolCode?: string
   paymentReference?: string | null
   checkoutUrl?: string | null
@@ -56,6 +59,8 @@ export default function SchoolRegistrationPage() {
     adminName: '',
     adminPhone: '',
     adminEmail: '',
+    password: '',
+    confirmPassword: '',
     adminGender: 'Male',
     adminLevel: 'PRIMARY_ADMIN',
     proofOfAddressType: 'ELECTRICITY_BILL',
@@ -63,8 +68,6 @@ export default function SchoolRegistrationPage() {
     allowParents: true,
     logo_url: '',
     logo_path: '',
-    password: '',
-    confirmPassword: '',
   })
 
   const [selectedClasses, setSelectedClasses] = useState<string[]>([...AVAILABLE_CLASSES])
@@ -77,11 +80,12 @@ export default function SchoolRegistrationPage() {
   const [rotateY, setRotateY] = useState(0)
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (window.matchMedia('(hover: none), (prefers-reduced-motion: reduce)').matches) return
     const card = e.currentTarget.getBoundingClientRect()
     const cardX = e.clientX - card.left - card.width / 2
     const cardY = e.clientY - card.top - card.height / 2
-    setRotateX(-cardY / 50)
-    setRotateY(cardX / 50)
+    setRotateX(Math.max(-4, Math.min(4, -cardY / 100)))
+    setRotateY(Math.max(-4, Math.min(4, cardX / 100)))
   }
 
   const handleMouseLeave = () => {
@@ -100,9 +104,37 @@ export default function SchoolRegistrationPage() {
 
   // Post-payment OTP Verification & Glassy UI state
   const [showOtpStep, setShowOtpStep] = useState(false)
+  const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false)
   const [otpInput, setOtpInput] = useState('')
   const [otpVerified, setOtpVerified] = useState(false)
   const [otpError, setOtpError] = useState('')
+
+  useEffect(() => {
+    const reference = new URLSearchParams(window.location.search).get('reference')
+    if (!reference) return
+    window.history.replaceState({}, '', '/school-registration')
+    let active = true
+    void (async () => {
+      const result = await getSchoolRegistrationByPaymentReferenceAction(reference)
+      if (!active || !result.success || !result.application) return
+      const application = result.application
+      setAppState(application)
+      if (application.paymentStatus === 'SUCCESS') {
+        setShowPaymentSuccessModal(true)
+        return
+      }
+      const verification = await confirmSchoolPaymentAction(reference)
+      if (!active || !verification.success) return
+      setAppState((current) => current ? ({
+        ...current,
+        paymentStatus: 'SUCCESS',
+        documentVerificationStatus: verification.documentVerificationStatus || current.documentVerificationStatus,
+        approvalStatus: verification.approvalStatus || current.approvalStatus,
+      }) : current)
+      setShowPaymentSuccessModal(true)
+    })()
+    return () => { active = false }
+  }, [])
 
   const handleClassToggle = (cls: string) => {
     if (selectedClasses.includes(cls)) {
@@ -118,18 +150,8 @@ export default function SchoolRegistrationPage() {
     setErrorMessage('')
     setSuccessMessage('')
 
-    if (!formData.name || !formData.location || !formData.adminName || !formData.adminPhone || !formData.adminEmail || !formData.password || !formData.confirmPassword) {
-      setErrorMessage('Please fill in all required fields including password.')
-      return
-    }
-
-    if (formData.password.length < 8) {
-      setErrorMessage('Password must be at least 8 characters long.')
-      return
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setErrorMessage('Passwords do not match.')
+    if (!formData.name || !formData.location || !formData.adminName || !formData.adminPhone || !formData.adminEmail) {
+      setErrorMessage('Please complete all required school and applicant details.')
       return
     }
 
@@ -140,6 +162,14 @@ export default function SchoolRegistrationPage() {
 
     if (!termsAccepted) {
       setErrorMessage('Please accept the terms and policies to continue.')
+      return
+    }
+    if (formData.password.length < 8) {
+      setErrorMessage('Choose a password with at least 8 characters.')
+      return
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMessage('Password and confirm password must match.')
       return
     }
 
@@ -161,7 +191,7 @@ export default function SchoolRegistrationPage() {
 
       setAppState({
         applicationId: res.applicationId,
-        schoolId: res.schoolId,
+        adminEmail: formData.adminEmail.trim().toLowerCase(),
         schoolCode: res.schoolCode,
         paymentReference: res.paymentReference,
         checkoutUrl: res.checkoutUrl,
@@ -171,7 +201,7 @@ export default function SchoolRegistrationPage() {
         approvalStatus: 'PENDING_REVIEW',
       })
       if (res.paymentInitializationFailed) {
-        setErrorMessage('Your application was saved, but Paystack is temporarily unavailable. Use Retry Paystack setup below.')
+        setErrorMessage('Your application was saved, but online payment is temporarily unavailable. Please try again below.')
       } else {
         setSuccessMessage('School application submitted! Please complete subscription payment and upload proof of address.')
       }
@@ -194,13 +224,49 @@ export default function SchoolRegistrationPage() {
         documentVerificationStatus: confirmRes.documentVerificationStatus || prev.documentVerificationStatus,
         approvalStatus: confirmRes.approvalStatus || prev.approvalStatus,
       }) : prev)
-      setShowOtpStep(true)
-      setSuccessMessage('Payment verified successfully! Please enter the OTP sent to your registered device.')
+      setShowPaymentSuccessModal(true)
+      setSuccessMessage('Payment verified. Continue to send your verification code.')
     } else {
       setErrorMessage(confirmRes.error || 'Payment confirmation failed.')
     }
     setLoading(false)
   }
+
+  const handleContinueToOtp = async () => {
+    if (!appState?.applicationId) return
+    setLoading(true)
+    setOtpError('')
+    const result = await sendSchoolRegistrationPaymentOtpAction(appState.applicationId)
+    setLoading(false)
+    if (!result.success) {
+      setOtpError(result.error || 'The verification code could not be delivered. Please try again.')
+      return
+    }
+    setShowPaymentSuccessModal(false)
+    setShowOtpStep(true)
+    setSuccessMessage('A verification code was sent to your email and registered device when available.')
+  }
+
+  useEffect(() => {
+    if (!appState?.applicationId) return
+    let active = true
+    const refreshStatus = async () => {
+      const statusRes = await getSchoolApplicationStatusAction(appState.applicationId!)
+      if (!active || !statusRes.success || !statusRes.application) return
+      if (appState.paymentStatus !== 'SUCCESS' && statusRes.application.paymentStatus === 'SUCCESS') {
+        setShowPaymentSuccessModal(true)
+      }
+      setAppState((previous) => previous ? ({
+        ...previous,
+        paymentStatus: statusRes.application!.paymentStatus,
+        documentVerificationStatus: statusRes.application!.documentVerificationStatus,
+        approvalStatus: statusRes.application!.approvalStatus,
+        rejectionReason: statusRes.application!.rejectionReason,
+      }) : previous)
+    }
+    const timer = window.setInterval(() => void refreshStatus(), 4000)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [appState?.applicationId, appState?.paymentStatus])
 
   const handleRetryPayment = async () => {
     if (!appState?.applicationId) return
@@ -209,22 +275,34 @@ export default function SchoolRegistrationPage() {
     const result = await retrySchoolRegistrationPaymentAction(appState.applicationId)
     if (result.success) {
       setAppState((prev) => prev ? ({ ...prev, paymentReference: result.paymentReference, checkoutUrl: result.checkoutUrl }) : prev)
-      setSuccessMessage('Paystack checkout is ready. Complete payment to continue.')
+      setSuccessMessage('Secure payment is ready. Complete payment to continue.')
     } else {
-      setErrorMessage(result.error || 'Paystack checkout could not be started.')
+      setErrorMessage(result.error || 'Payment could not be started.')
     }
     setLoading(false)
   }
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     setOtpError('')
-    if (!otpInput || otpInput.trim().length < 4) {
+    if (!appState?.applicationId || !/^\d{6}$/.test(otpInput.trim())) {
       setOtpError('Please enter a valid 6-digit OTP code.')
       return
     }
-    setOtpVerified(true)
-    setSuccessMessage('OTP verified! Application forwarded for Super-Admin authentication.')
+    setLoading(true)
+    try {
+      const result = await verifySchoolRegistrationOtpAction(appState.applicationId, otpInput.trim())
+      if (!result.success) {
+        setOtpError(result.error || 'The verification code could not be confirmed.')
+        return
+      }
+      setOtpVerified(true)
+      setSuccessMessage('OTP verified. Your application is ready for Super Admin review.')
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : 'The verification code could not be confirmed.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleUploadDocument = async (e: React.FormEvent) => {
@@ -279,16 +357,16 @@ export default function SchoolRegistrationPage() {
         <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl animate-pulse"></div>
       </div>
 
-      <header className="relative max-w-5xl mx-auto w-full flex items-center justify-between py-4 border-b border-slate-800 z-10">
-        <div className="flex items-center gap-3">
+      <header className="relative mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 border-b border-slate-800 py-4 z-10">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="p-2.5 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md shadow-lg">
             <GraduationCap className="w-6 h-6 text-white" />
           </div>
-          <span className="font-black text-xl tracking-tight text-white uppercase">
+          <span className="truncate font-black text-base tracking-tight text-white uppercase sm:text-xl">
             EL <span className="text-blue-400">LEARNERS APP</span>
           </span>
         </div>
-        <a href="/auth/signin" className="text-xs font-black text-blue-400 hover:text-blue-300 uppercase tracking-wider transition bg-white/5 px-4 py-2 rounded-xl border border-white/10">
+        <a href="/auth/signin" className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-blue-400 transition hover:text-blue-300 sm:px-4 sm:text-xs">
           Already registered? Sign In
         </a>
       </header>
@@ -298,9 +376,8 @@ export default function SchoolRegistrationPage() {
         onMouseLeave={handleMouseLeave}
         style={{
           transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
-          transition: 'transform 0.15s ease-out'
         }}
-        className="relative max-w-4xl mx-auto w-full my-8 bg-white/10 backdrop-blur-3xl border border-white/20 rounded-[2.5rem] p-6 sm:p-10 shadow-[0_30px_100px_rgba(0,0,0,0.6)] z-10"
+        className="relative z-10 mx-auto my-6 w-full max-w-4xl rounded-[2rem] border border-white/20 bg-white/10 p-5 shadow-[0_30px_100px_rgba(0,0,0,0.6)] backdrop-blur-3xl transition-transform duration-150 ease-out motion-reduce:transition-none sm:my-8 sm:rounded-[2.5rem] sm:p-10"
       >
         <div className="mb-8 text-center sm:text-left space-y-2">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-black uppercase tracking-widest">
@@ -310,7 +387,7 @@ export default function SchoolRegistrationPage() {
             Register Your School Application
           </h1>
           <p className="text-slate-400 text-xs sm:text-sm font-bold leading-relaxed">
-            Submit your school onboarding application. Complete subscription payment via Paystack and upload proof of school address (e.g. recent electricity bill) for Super-Admin verification and account activation.
+            Submit your school onboarding application. Complete the subscription payment and upload proof of school address (e.g. recent electricity bill) for Super-Admin verification and account activation.
           </p>
         </div>
 
@@ -384,7 +461,7 @@ export default function SchoolRegistrationPage() {
                 <div>
                   <h3 className="text-lg font-black text-white">Enter OTP Verification Code</h3>
                   <p className="text-slate-300 text-xs mt-1">
-                    An OTP code has been transmitted to your registered device via FCM. Enter the code below to complete registration verification.
+                    A six-digit code was sent to {appState.adminEmail || 'the email address used for registration'} and, when available, the administrator’s registered device.
                   </p>
                 </div>
 
@@ -397,7 +474,10 @@ export default function SchoolRegistrationPage() {
                 <form onSubmit={handleVerifyOtp} className="max-w-xs mx-auto space-y-3">
                   <input
                     type="text"
+                    inputMode="numeric"
                     maxLength={6}
+                    autoComplete="one-time-code"
+                    required
                     placeholder="Enter 6-digit OTP"
                     value={otpInput}
                     onChange={e => setOtpInput(e.target.value)}
@@ -405,9 +485,10 @@ export default function SchoolRegistrationPage() {
                   />
                   <button
                     type="submit"
+                    disabled={loading}
                     className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase transition shadow-lg"
                   >
-                    Verify OTP
+                    {loading ? 'Verifying…' : 'Verify OTP'}
                   </button>
                 </form>
               </div>
@@ -446,7 +527,7 @@ export default function SchoolRegistrationPage() {
                 <div>
                   <h3 className="text-lg font-black text-white">1. Complete Subscription Payment (NGN 30,161.25)</h3>
                   <p className="text-slate-400 text-xs mt-1">
-                    Pay via Paystack checkout link to update your application payment status.
+                    Complete the secure online payment to update your application payment status.
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
@@ -457,12 +538,12 @@ export default function SchoolRegistrationPage() {
                       rel="noreferrer"
                       className="flex-1 py-3 px-4 rounded-xl bg-[#1E3A8A] hover:bg-blue-800 text-white font-black text-xs uppercase flex items-center justify-center gap-2 transition"
                     >
-                      <span>Paystack Checkout</span>
+                      <span>Continue to Payment</span>
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   ) : (
                     <button onClick={handleRetryPayment} disabled={loading} className="flex-1 py-3 px-4 rounded-xl bg-[#1E3A8A] hover:bg-blue-800 text-white font-black text-xs uppercase disabled:opacity-50">
-                      {loading ? 'Starting…' : 'Retry Paystack Setup'}
+                      {loading ? 'Starting…' : 'Retry Payment'}
                     </button>
                   )}
                   <button
@@ -694,7 +775,7 @@ export default function SchoolRegistrationPage() {
             <section hidden={step !== 1} className="space-y-6">
             <div className="space-y-4">
               <h2 className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-2">
-                <Building2 className="w-4 h-4" /> Applicant Details & Password Security
+                <Building2 className="w-4 h-4" /> Applicant Details & Verification
               </h2>
               <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
                 <strong>Manual Authorization Notice:</strong> Registration creates a pending school application. Active school administrator access is granted only after manual document review (e.g. recent electricity bill) and Super-Admin approval. Email and phone are collected as contact details.
@@ -734,66 +815,24 @@ export default function SchoolRegistrationPage() {
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
                   />
                 </div>
-              </div>
-
-              {/* Password & Confirm Password Fields with Password Strength Meter */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div>
-                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Admin Password *</label>
-                  <input
-                    type="password"
-                    required
-                    minLength={8}
-                    placeholder="Minimum 8 characters"
-                    value={formData.password}
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Password *</label>
+                  <input type="password" required minLength={8} autoComplete="new-password" value={formData.password}
                     onChange={e => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
-                  />
-                  {formData.password && (
-                    <div className="mt-2 space-y-1">
-                      <div className="flex items-center justify-between text-[10px] font-black uppercase">
-                        <span className="text-slate-400">Password Strength:</span>
-                        <span className={
-                          formData.password.length < 8 ? 'text-red-400' :
-                          formData.password.length >= 12 && /[A-Z]/.test(formData.password) && /[0-9]/.test(formData.password) && /[^A-Za-z0-9]/.test(formData.password)
-                            ? 'text-emerald-400' : 'text-amber-400'
-                        }>
-                          {formData.password.length < 8 ? 'Weak' :
-                           formData.password.length >= 12 && /[A-Z]/.test(formData.password) && /[0-9]/.test(formData.password) && /[^A-Za-z0-9]/.test(formData.password)
-                             ? 'Strong' : 'Medium'}
-                        </span>
-                      </div>
-                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex">
-                        <div className={`h-full transition-all duration-300 ${
-                          formData.password.length < 8 ? 'w-1/3 bg-red-500' :
-                          formData.password.length >= 12 && /[A-Z]/.test(formData.password) && /[0-9]/.test(formData.password) && /[^A-Za-z0-9]/.test(formData.password)
-                            ? 'w-full bg-emerald-500' : 'w-2/3 bg-amber-500'
-                        }`} />
-                      </div>
-                    </div>
-                  )}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner" />
+                  <p className="mt-1 text-[11px] text-slate-500">At least 8 characters. Used for your pending registration account.</p>
                 </div>
-
                 <div>
-                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Confirm Admin Password *</label>
-                  <input
-                    type="password"
-                    required
-                    minLength={8}
-                    placeholder="Re-enter password"
-                    value={formData.confirmPassword}
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Confirm Password *</label>
+                  <input type="password" required minLength={8} autoComplete="new-password" value={formData.confirmPassword}
                     onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner"
-                  />
-                  {formData.confirmPassword && (
-                    <p className={`text-[10px] font-bold mt-1.5 ${
-                      formData.password === formData.confirmPassword ? 'text-emerald-400' : 'text-red-400'
-                    }`}>
-                      {formData.password === formData.confirmPassword ? '✓ Passwords match' : '✗ Passwords do not match'}
-                    </p>
-                  )}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition shadow-inner" />
                 </div>
               </div>
+
+              <p className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-3 text-xs text-blue-200">
+                Your password is secured by Supabase Auth. Dashboard access is enabled after payment, document review, and Super Admin approval.
+              </p>
 
               <div>
                 <ProofOfAddressUploadField
@@ -845,7 +884,7 @@ export default function SchoolRegistrationPage() {
                 </div>
               </div>
               <span className="text-[10px] font-black px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 uppercase">
-                Paystack Checkout
+                Online Payment
               </span>
             </div>
 
@@ -868,8 +907,20 @@ export default function SchoolRegistrationPage() {
         )}
       </main>
 
+      {showPaymentSuccessModal && (
+        <div role="dialog" aria-modal="true" aria-labelledby="payment-confirmed-title" className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/85 p-4 backdrop-blur-md">
+          <div className="w-full max-w-md space-y-5 rounded-3xl border border-emerald-500/40 bg-slate-900 p-7 text-center shadow-2xl">
+            <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-400" />
+            <h2 id="payment-confirmed-title" className="text-xl font-black text-white">Payment confirmed</h2>
+            <p className="text-sm text-slate-300">Paystack confirmed the registration payment. Continue to send a verification code to your email and registered device when available.</p>
+            {otpError && <p role="alert" className="rounded-xl bg-red-500/10 p-3 text-xs font-bold text-red-300">{otpError}</p>}
+            <button type="button" disabled={loading} onClick={() => void handleContinueToOtp()} className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white hover:bg-emerald-500 disabled:opacity-50">{loading ? 'Sending verification code…' : 'Continue to OTP verification'}</button>
+          </div>
+        </div>
+      )}
+
       <footer className="relative max-w-5xl mx-auto w-full text-center py-4 border-t border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest z-10">
-        &copy; {new Date().getFullYear()} EL LEARNERS APP • Institutional Gateway
+        &copy; {new Date().getFullYear()} EL LEARNERS APP • School Registration
       </footer>
     </div>
   )

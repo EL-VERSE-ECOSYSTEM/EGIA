@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { getTeacherWallet, getTeacherRequests, createDataAirtimeRequest } from '@/app/actions/teacher'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { downloadCsv } from '@/lib/download-csv'
 
 export default function TeacherWalletPage() {
   const [wallet, setWallet] = useState<any | null>(null)
@@ -50,6 +51,19 @@ export default function TeacherWalletPage() {
     }
   }
 
+  const downloadHistory = () => downloadCsv('teacher-financial-history.csv', [
+    ['Date', 'Reference', 'Type', 'Details', 'Phone Number', 'Amount', 'Status'],
+    ...requests.map((request) => [
+      request.createdAt,
+      request.id,
+      request.type,
+      request.details,
+      request.phoneNumber,
+      request.amount,
+      request.status,
+    ]),
+  ])
+
   useEffect(() => {
     loadData()
   }, [])
@@ -57,6 +71,7 @@ export default function TeacherWalletPage() {
   // Real-time synchronization with Supabase Database tables
   useRealtimeSubscription('teacher_wallet', () => { loadData() })
   useRealtimeSubscription('teacher_request', () => { loadData() })
+  useRealtimeSubscription('transaction_ledger', () => { loadData() })
 
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -168,10 +183,10 @@ export default function TeacherWalletPage() {
                   <Printer size={16} /> PRINT
                 </Button>
                 <Button
-                  onClick={() => {
-                    alert('Transaction slip downloaded successfully.')
-                    setActiveReceipt(null)
-                  }}
+                  onClick={() => downloadCsv('teacher-transaction-slip.csv', [
+                    ['Reference', 'Type', 'Details', 'Date', 'Amount'],
+                    [activeReceipt.id, activeReceipt.type, activeReceipt.details, activeReceipt.createdAt, activeReceipt.amount],
+                  ])}
                   className="flex-1 bg-purple-600 hover:bg-purple-700 text-white h-12 rounded-xl font-bold flex items-center justify-center gap-1.5"
                 >
                   <Download size={16} /> DOWNLOAD
@@ -181,9 +196,14 @@ export default function TeacherWalletPage() {
           </div>
         )}
 
-        <div className="mb-10">
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Staff Wallet & Utilities</h1>
-          <p className="text-slate-500 text-lg font-medium">Access your salary details, airtime/data requests, and download transaction history in real-time with Supabase Database.</p>
+        <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Staff Wallet & Utilities</h1>
+            <p className="text-slate-500 text-lg font-medium">Access your salary details, airtime/data requests, and download transaction history in real-time with Supabase Database.</p>
+          </div>
+          <Button onClick={downloadHistory} disabled={!requests.length} className="bg-purple-600 hover:bg-purple-700 font-black disabled:opacity-50">
+            <Download className="w-4 h-4 mr-2" /> Download History
+          </Button>
         </div>
 
         {loading ? (
@@ -326,8 +346,8 @@ export default function TeacherWalletPage() {
                       <div key={r.id} className="p-6 hover:bg-slate-50/50 transition-colors flex justify-between items-center">
                         <div className="space-y-1">
                           <p className="font-black text-slate-900 text-sm flex items-center gap-2">
-                            {r.type === 'DATA' ? <Wifi className="w-4 h-4 text-purple-600" /> : <Smartphone className="w-4 h-4 text-emerald-600" />}
-                            {r.type} Utility
+                            {r.type === 'DATA' ? <Wifi className="w-4 h-4 text-purple-600" /> : r.type === 'AIRTIME' ? <Smartphone className="w-4 h-4 text-emerald-600" /> : <Wallet className="w-4 h-4 text-emerald-600" />}
+                            {r.type === 'SALARY' ? 'Salary Payment' : `${r.type} Utility`}
                           </p>
                           <p className="text-xs text-slate-500 font-medium">{r.details}</p>
                           <p className="text-[10px] text-slate-400 font-semibold">{r.phoneNumber} • {new Date(r.createdAt).toLocaleDateString()}</p>

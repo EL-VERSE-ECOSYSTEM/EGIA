@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { assessment, assessmentQuestion, assessmentResult, term, teacher, class_, student, teacherWallet, teacherRequest, subject, teacherOnSubject } from '@/lib/db/schema'
+import { assessment, assessmentQuestion, assessmentResult, term, teacher, class_, student, teacherWallet, teacherRequest, subject, teacherOnSubject, transactionLedger } from '@/lib/db/schema'
 import { eq, desc, sql, and, inArray, type SQL } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
@@ -228,10 +228,29 @@ export async function getTeacherRequests() {
   })
   if (!teacherProfile) throw new Error('Teacher not found')
 
-  return await db.query.teacherRequest.findMany({
-    where: eq(teacherRequest.teacherId, teacherProfile.id),
-    orderBy: [desc(teacherRequest.createdAt)]
-  })
+  const [requests, salaryTransactions] = await Promise.all([
+    db.query.teacherRequest.findMany({
+      where: eq(teacherRequest.teacherId, teacherProfile.id),
+      orderBy: [desc(teacherRequest.createdAt)],
+    }),
+    db.query.transactionLedger.findMany({
+      where: and(eq(transactionLedger.userId, userId), eq(transactionLedger.type, 'SALARY')),
+      orderBy: [desc(transactionLedger.createdAt)],
+    }),
+  ])
+  return [
+    ...requests,
+    ...salaryTransactions.map((transaction) => ({
+      id: transaction.id,
+      teacherId: teacherProfile.id,
+      type: 'SALARY',
+      amount: transaction.amount,
+      details: transaction.description || 'Salary payment',
+      phoneNumber: '',
+      status: transaction.status === 'SUCCESS' ? 'approved' : (transaction.status || 'pending').toLowerCase(),
+      createdAt: transaction.createdAt,
+    })),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
 export async function createDataAirtimeRequest(data: {
@@ -245,6 +264,8 @@ export async function createDataAirtimeRequest(data: {
     where: eq(teacher.userId, userId)
   })
   if (!teacherProfile) throw new Error('Teacher not found')
+  const schoolId = teacherProfile.schoolId
+  if (!schoolId) throw new Error('Teacher is not assigned to a school.')
 
   const requestType = data.type.trim().toUpperCase()
   const phoneNumber = data.phoneNumber.replace(/\D/g, '')
@@ -282,6 +303,23 @@ export async function createDataAirtimeRequest(data: {
       status: 'pending',
     }).returning()
     if (!inserted[0]) throw new Error('Unable to create teacher request.')
+    await tx.insert(transactionLedger).values({
+      id: randomUUID(),
+      schoolId,
+      userId: teacherProfile.userId,
+      type: requestType,
+      direction: 'OUT',
+      amount: inserted[0].amount,
+      currency: 'NGN',
+      reference: inserted[0].id,
+      gateway: 'SCHOOL_ACCOUNT',
+      status: 'PENDING',
+      description: `${requestType} request: ${details} (${phoneNumber})`,
+      confirmationMethod: 'SCHOOL_ACCOUNT',
+      metadata: { requestId: inserted[0].id },
+      createdAt: inserted[0].createdAt,
+      updatedAt: inserted[0].updatedAt,
+    }).onConflictDoNothing()
     return inserted[0]
   })
 
@@ -414,6 +452,9 @@ export async function approveTeacherRequest(requestId: string, status: 'approved
         })
         .where(eq(teacherWallet.id, wallet.id))
     }
+    await tx.update(transactionLedger)
+      .set({ status: status === 'approved' ? 'SUCCESS' : 'FAILED', updatedAt: new Date() })
+      .where(eq(transactionLedger.reference, requestRecord.id))
     return updated[0]
   })
 
@@ -477,22 +518,47 @@ export async function payTeacherSalary(teacherId: string) {
     where: eq(teacherWallet.teacherId, teacherId)
   })
   if (!wallet) throw new Error('Wallet not found')
-  if (!Number.isFinite(Number(wallet.salaryAmount)) || Number(wallet.salaryAmount) <= 0) {
+  const salaryAmount = wallet.salaryAmount
+  if (typeof salaryAmount !== 'string' || !Number.isFinite(Number(salaryAmount)) || Number(salaryAmount) <= 0) {
     throw new Error('Set a valid salary amount before processing payment.')
   }
 
-  const result = await db.update(teacherWallet)
-    .set({
-      salaryStatus: 'paid',
-      balance: sql`${teacherWallet.balance} + ${wallet.salaryAmount}`,
-      updatedAt: new Date()
+  if (typeof targetTeacher.schoolId !== 'string') throw new Error('Teacher is not assigned to a school.')
+  const targetSchoolId: string = targetTeacher.schoolId
+  const paymentReference = `SAL-${randomUUID()}`
+  const paidAt = new Date()
+  const result = await db.transaction(async (tx) => {
+    const updated = await tx.update(teacherWallet)
+      .set({
+        salaryStatus: 'paid',
+        balance: sql`${teacherWallet.balance} + ${salaryAmount}`,
+        updatedAt: paidAt
+      })
+      .where(and(
+        eq(teacherWallet.id, wallet.id),
+        sql`${teacherWallet.salaryStatus} IS DISTINCT FROM 'paid'`,
+      ))
+      .returning()
+    if (!updated[0]) throw new Error('Salary has already been paid for this period.')
+    await tx.insert(transactionLedger).values({
+      id: randomUUID(),
+      schoolId: targetSchoolId,
+      userId: targetTeacher.userId,
+      type: 'SALARY',
+      direction: 'OUT',
+      amount: salaryAmount,
+      currency: 'NGN',
+      reference: paymentReference,
+      gateway: 'SCHOOL_ACCOUNT',
+      status: 'SUCCESS',
+      description: `Salary payment for ${targetTeacher.firstName} ${targetTeacher.lastName}`,
+      confirmationMethod: 'SCHOOL_ACCOUNT',
+      metadata: { teacherId: targetTeacher.id, walletId: wallet.id },
+      createdAt: paidAt,
+      updatedAt: paidAt,
     })
-    .where(and(
-      eq(teacherWallet.id, wallet.id),
-      sql`${teacherWallet.salaryStatus} IS DISTINCT FROM 'paid'`,
-    ))
-    .returning()
-  if (!result[0]) throw new Error('Salary has already been paid for this period.')
+    return updated
+  })
 
   revalidatePath('/dashboard/teacher/wallet')
   revalidatePath('/dashboard/admin/finance/teacher-requests')

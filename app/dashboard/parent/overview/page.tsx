@@ -197,16 +197,6 @@ export default async function ParentOverviewPage() {
                   <Link href="/dashboard/parent/payments/make-payment" className="block w-full">
                      <Button className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black shadow-lg shadow-emerald-600/10">PAY NOW</Button>
                   </Link>
-                  <div className="text-center pt-1">
-                    <a
-                      href="https://checkout.korapay.com/pay/BHba4zdsceZDgyW"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 underline tracking-widest uppercase block"
-                    >
-                      Or Pay Directly via Korapay Link
-                    </a>
-                  </div>
                </CardContent>
             </Card>
 

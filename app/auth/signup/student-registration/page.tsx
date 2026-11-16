@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -35,7 +35,7 @@ export default function StudentRegistrationPage() {
 
   // School Verification state
   const [verifyingSchool, setVerifyingSchool] = useState(false)
-  const [schoolDetails, setSchoolDetails] = useState<{ id: string; name: string; allowParents: boolean } | null>(null)
+  const [schoolDetails, setSchoolDetails] = useState<{ name: string; allowParents: boolean } | null>(null)
   const [schoolError, setSchoolError] = useState<string | null>(null)
 
   // Subjects Done tag list & database subjects with live search
@@ -72,7 +72,7 @@ export default function StudentRegistrationPage() {
     }
   }, [])
 
-  const handleSchoolCodeCheck = async (code: string) => {
+  const handleSchoolCodeCheck = useCallback(async (code: string) => {
     const requestVersion = ++schoolLookupVersion.current
     const cleanCode = code.trim().toUpperCase()
     if (cleanCode.length < 5) {
@@ -90,7 +90,6 @@ export default function StudentRegistrationPage() {
       if (requestVersion !== schoolLookupVersion.current) return
       if (res.success && res.school) {
         setSchoolDetails({
-          id: res.school.id,
           name: res.school.name,
           allowParents: res.school.allowParents ?? true
         })
@@ -105,7 +104,14 @@ export default function StudentRegistrationPage() {
     } finally {
       if (requestVersion === schoolLookupVersion.current) setVerifyingSchool(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('schoolCode')?.trim().toUpperCase()
+    if (!code) return
+    setFormData((current) => ({ ...current, schoolCode: code }))
+    void handleSchoolCodeCheck(code)
+  }, [handleSchoolCodeCheck])
 
   const handleAddSubject = (name: string) => {
     if (!name || subjectsDone.some(s => s.toLowerCase() === name.toLowerCase())) return
@@ -299,7 +305,7 @@ export default function StudentRegistrationPage() {
                 </div>
                 <Input
                   id="schoolCode"
-                  placeholder="e.g. EXCE-12345"
+                  placeholder="e.g. EXCE-123456"
                   value={formData.schoolCode}
                   onChange={e => {
                     const code = e.target.value.toUpperCase()

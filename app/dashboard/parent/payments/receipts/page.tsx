@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Receipt, Printer } from 'lucide-react'
 import { getParentPaymentHistory } from '@/app/actions/payments'
+import { getPaymentMethodLabel } from '@/lib/payments/display'
 import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSync'
 
 export default function ReceiptsPage() {
@@ -39,7 +40,7 @@ export default function ReceiptsPage() {
     const reference = escapeHtml(p.transactionReference || p.id)
     const learner = escapeHtml(p.childName || 'Linked Learner')
     const description = escapeHtml(p.feeType || p.description || 'School Fee')
-    const paymentMethod = escapeHtml(p.paymentMethod || 'Payment gateway')
+    const paymentMethod = escapeHtml(getPaymentMethodLabel(p.paymentMethod))
     const paymentDate = escapeHtml(new Date(p.paidAt || p.createdAt || Date.now()).toLocaleDateString())
     const amount = Number.isFinite(Number(p.amount)) ? Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00'
 

@@ -183,8 +183,8 @@ export default function FeesStructurePage() {
           title: 'Payment Configuration Uploaded in Real Time',
           message: 'Your school payment preferences have been updated in real time with Supabase Database. All parent payment portals reflect this instantly.',
           details: {
-            'Payment Path': usePaystack ? 'Paystack Gateway (Automated)' : 'School Bank Account / Custom Link',
-            Bank: usePaystack ? 'Paystack Hosted' : bankName || 'Not Set',
+            'Payment Path': usePaystack ? 'Online Payment (Automated)' : 'School Bank Account / Custom Link',
+            Bank: usePaystack ? 'Online Checkout' : bankName || 'Not Set',
             'Account Number': usePaystack ? 'N/A' : accountNumber || 'Not Set',
             'Account Name': usePaystack ? 'N/A' : accountName || 'Not Set'
           }
@@ -221,7 +221,7 @@ export default function FeesStructurePage() {
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Financial & Payment Architecture</h1>
           <p className="text-slate-500 font-medium text-sm sm:text-base mt-1">
-            Define fee structures per class and department, and configure automated Paystack or custom school bank accounts in real time.
+            Define fee structures per class and department, and configure automated online payment or custom school bank accounts in real time.
           </p>
         </div>
 
@@ -373,8 +373,8 @@ export default function FeesStructurePage() {
               <CreditCard className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-900">School Payment Gateway & Link Configuration</h2>
-              <p className="text-xs text-slate-500 font-medium">Configure automated Paystack gateway or bank details drawn in real time from Supabase Database</p>
+              <h2 className="text-xl font-black text-slate-900">Online Payment & Link Configuration</h2>
+              <p className="text-xs text-slate-500 font-medium">Configure automated online payment or bank details drawn in real time from Supabase Database</p>
             </div>
           </div>
 
@@ -387,7 +387,7 @@ export default function FeesStructurePage() {
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-black text-sm text-slate-900">Path A: Paystack Payment Gateway</span>
+                  <span className="font-black text-sm text-slate-900">Path A: Online Payment</span>
                   {usePaystack && <CheckCircle2 className="w-5 h-5 text-amber-600" />}
                 </div>
                 <p className="text-xs text-slate-500 font-medium leading-relaxed">

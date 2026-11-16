@@ -21,7 +21,7 @@ test('initializePaystackPayment - throws explicit error when PAYSTACK_SECRET_KEY
       thrownError = err
     }
     assert.ok(thrownError)
-    assert.equal(thrownError.message, 'Paystack payment service is unavailable because its secret key is not configured.')
+    assert.equal(thrownError.message, 'Online payment service is unavailable because its secret key is not configured.')
   } finally {
     if (originalKey) {
       process.env.PAYSTACK_SECRET_KEY = originalKey
@@ -57,7 +57,7 @@ test('initializePaystackPayment - throws explicit error when Paystack API fetch 
       thrownError = err
     }
     assert.ok(thrownError)
-    assert.equal(thrownError.message, 'Invalid API authorization key or params.')
+    assert.equal(thrownError.message, 'Payment could not be initialized. Please try again.')
   } finally {
     global.fetch = originalFetch
     if (originalKey) {

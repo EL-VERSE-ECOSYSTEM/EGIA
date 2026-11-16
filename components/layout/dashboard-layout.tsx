@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
 import { User, Download, X, Smartphone, CheckCircle, Menu, LogOut, ChevronDown, Settings } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
@@ -33,6 +34,7 @@ export default function DashboardLayout({
   schoolId?: string | null
   studentId?: string | null
 }) {
+  const pathname = usePathname()
   const activeRole = role || 'admin'
   const [mounted, setMounted] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
@@ -46,17 +48,56 @@ export default function DashboardLayout({
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [identityName, setIdentityName] = useState<string | null>(null)
 
-  // Escape key handler for drawer
+  // Keep the mobile drawer modal, scrollable, and keyboard accessible.
   useEffect(() => {
+    if (!isSidebarOpen) return
+
+    const previousOverflow = document.body.style.overflow
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const drawer = document.getElementById('mobile-sidebar-drawer')
+    const getFocusableElements = () => drawer?.querySelectorAll<HTMLElement>(
+      'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+    )
+    document.body.style.overflow = 'hidden'
+
+    drawer?.querySelector<HTMLElement>('[aria-label="Close Navigation"]')?.focus()
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsSidebarOpen(false)
         setShowUserMenu(false)
+        return
+      }
+      if (e.key !== 'Tab') return
+
+      const focusableElements = getFocusableElements()
+      if (!focusableElements?.length) return
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault()
+        lastElement.focus()
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault()
+        firstElement.focus()
+      } else if (!drawer?.contains(document.activeElement)) {
+        e.preventDefault()
+        firstElement.focus()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
+      previousFocus?.focus()
+    }
+  }, [isSidebarOpen])
+
+  useEffect(() => {
+    setIsSidebarOpen(false)
+    setShowUserMenu(false)
+  }, [pathname])
 
   useEffect(() => {
     setMounted(true)
@@ -69,11 +110,20 @@ export default function DashboardLayout({
         console.error('Could not load dashboard identity:', error)
       })
 
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null)
+      setShowInstallBtn(false)
+      setShowIOSInstructions(false)
+      setInstalledSuccess(true)
+      window.setTimeout(() => setInstalledSuccess(false), 5000)
+    }
+    window.addEventListener('appinstalled', handleAppInstalled)
+
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
                           (window.navigator as Navigator & { standalone?: boolean }).standalone === true
 
     if (isStandalone) {
-      return
+      return () => window.removeEventListener('appinstalled', handleAppInstalled)
     }
 
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -91,6 +141,7 @@ export default function DashboardLayout({
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleAppInstalled)
     }
   }, [])
 
@@ -122,13 +173,18 @@ export default function DashboardLayout({
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
-      deferredPrompt.prompt()
-      const { outcome } = await deferredPrompt.userChoice
-      if (outcome === 'accepted') {
-        setDeferredPrompt(null)
-        setShowInstallBtn(false)
-        setInstalledSuccess(true)
-        setTimeout(() => setInstalledSuccess(false), 5000)
+      try {
+        await deferredPrompt.prompt()
+        const { outcome } = await deferredPrompt.userChoice
+        if (outcome === 'accepted') {
+          setDeferredPrompt(null)
+          setShowInstallBtn(false)
+          setInstalledSuccess(true)
+          setTimeout(() => setInstalledSuccess(false), 5000)
+        }
+      } catch (error) {
+        console.error('Could not open the app install prompt:', error)
+        toast.error('App installation could not be started. Please use your browser menu to install.')
       }
     } else {
       setShowIOSInstructions(!showIOSInstructions)
@@ -197,16 +253,19 @@ export default function DashboardLayout({
       {/* Responsive Sidebar Drawer */}
       <div
         id="mobile-sidebar-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Navigation Menu"
+        role={isSidebarOpen ? 'dialog' : undefined}
+        aria-modal={isSidebarOpen || undefined}
+        aria-label={isSidebarOpen ? 'Navigation Menu' : undefined}
         className={`lg:static lg:z-auto z-50 ${isSidebarOpen ? 'relative' : 'hidden lg:block'}`}
       >
         <Sidebar role={activeRole} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       </div>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-3 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 sm:h-20 sm:px-6">
+        <header
+          aria-hidden={isSidebarOpen || undefined}
+          className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-3 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 sm:h-20 sm:px-6"
+        >
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             {/* Hamburger Button for Mobile Drawer Toggle */}
             <button
@@ -292,7 +351,10 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        <main className="relative flex-1 bg-slate-50/70 pb-24 dark:bg-slate-950 lg:pb-0">
+        <main
+          aria-hidden={isSidebarOpen || undefined}
+          className="relative flex-1 bg-slate-50/70 pb-[calc(6rem+env(safe-area-inset-bottom))] dark:bg-slate-950 lg:pb-0"
+        >
           {mounted && <PermissionRequest />}
           {children}
 
@@ -306,7 +368,11 @@ export default function DashboardLayout({
                     <h3 className="font-black text-slate-900 text-[11px] uppercase tracking-wider flex items-center gap-1.5">
                       <Smartphone className="w-3.5 h-3.5 text-slate-700" /> PWA Install on iOS
                     </h3>
-                    <button onClick={() => setShowIOSInstructions(false)} className="text-slate-400 hover:text-slate-600">
+                    <button
+                      onClick={() => setShowIOSInstructions(false)}
+                      aria-label="Close install instructions"
+                      className="text-slate-400 hover:text-slate-600"
+                    >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -323,10 +389,11 @@ export default function DashboardLayout({
 
               <button
                 onClick={handleInstallClick}
+                aria-expanded={showIOSInstructions}
                 className={`flex min-h-11 items-center gap-2 rounded-full border px-4 py-3 text-xs font-bold shadow-xl transition-transform hover:scale-[1.02] active:scale-[0.98] ${themeColors.btn}`}
               >
                 <Download className="w-4 h-4 animate-bounce" />
-                DOWNLOAD PWA APP
+                INSTALL EL LEARNERS
               </button>
             </div>
           )}
@@ -349,7 +416,7 @@ export default function DashboardLayout({
         </main>
 
         {/* Premium Glassmorphic Mobile Bottom Navigation Bar */}
-        <MobileNav role={role} onOpenSidebar={() => setIsSidebarOpen(true)} />
+        <MobileNav role={role} isSidebarOpen={isSidebarOpen} onOpenSidebar={() => setIsSidebarOpen(true)} />
       </div>
     </div>
   )

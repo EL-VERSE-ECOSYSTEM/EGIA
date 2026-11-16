@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { getParentWalletSummaryAction } from '@/app/actions/payments'
+import { getPaymentMethodLabel } from '@/lib/payments/display'
 import { createClient } from '@/lib/supabase/client'
 import { Wallet, ShieldCheck, Users, CheckCircle2, RefreshCw, CreditCard, Receipt } from 'lucide-react'
 import { toast } from 'sonner'
@@ -102,7 +103,7 @@ export default function ParentWalletPage() {
               <span className="text-xs font-black uppercase tracking-wider text-slate-400">Real-Time Verification</span>
               <CheckCircle2 className="w-6 h-6 p-1 bg-emerald-50 rounded-xl" />
             </div>
-            <p className="text-2xl font-black text-emerald-600">Korapay & Bank</p>
+            <p className="text-2xl font-black text-emerald-600">Online & Bank</p>
             <p className="text-[11px] text-slate-500 font-medium">Automated & manual clearance</p>
           </Card>
         </div>
@@ -163,7 +164,7 @@ export default function ParentWalletPage() {
                   <tr className="border-b border-slate-200 text-slate-400 uppercase font-black">
                     <th className="py-3 px-4">Fee Category</th>
                     <th className="py-3 px-4">Amount</th>
-                    <th className="py-3 px-4">Gateway / Method</th>
+                    <th className="py-3 px-4">Payment Method</th>
                     <th className="py-3 px-4">Reference</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4">Date</th>
@@ -174,7 +175,7 @@ export default function ParentWalletPage() {
                     <tr key={p.id} className="font-bold text-slate-800">
                       <td className="py-3.5 px-4 font-black text-slate-900">{p.feeType || 'School Fee'}</td>
                       <td className="py-3.5 px-4 font-black text-emerald-700">₦{Number(p.amount).toLocaleString()}</td>
-                      <td className="py-3.5 px-4">{p.paymentMethod}</td>
+                      <td className="py-3.5 px-4">{getPaymentMethodLabel(p.paymentMethod)}</td>
                       <td className="py-3.5 px-4 font-mono text-[11px] text-slate-500">{p.transactionReference || 'N/A'}</td>
                       <td className="py-3.5 px-4">
                         <Badge className="bg-emerald-500/10 text-emerald-700 uppercase">

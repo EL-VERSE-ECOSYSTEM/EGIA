@@ -54,6 +54,9 @@ export default function ApplicationsQueuePage() {
     const res = await approveSchoolApplicationAction({ applicationId: id })
     if (res.success) {
       toast.success('School Application Approved and Activated!')
+      if ('approvalEmailSent' in res && !res.approvalEmailSent) {
+        toast.error('The application is approved, but the school admin email could not be delivered.')
+      }
       loadApplications()
     } else {
       toast.error('error' in res ? res.error : 'Approval failed')
@@ -137,6 +140,11 @@ export default function ApplicationsQueuePage() {
                       app.paymentStatus === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                     }`}>
                       Payment: {app.paymentStatus}
+                    </span>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                      app.paymentOtpVerifiedAt ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      Email OTP: {app.paymentOtpVerifiedAt ? 'VERIFIED' : 'PENDING'}
                     </span>
                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
                       app.documentVerificationStatus === 'VERIFIED' ? 'bg-emerald-100 text-emerald-700' :

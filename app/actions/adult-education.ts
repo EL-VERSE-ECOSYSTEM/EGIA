@@ -125,7 +125,7 @@ async function initializeAdultEducationPayment(paymentType: 'REGISTRATION' | 'WE
   if (!enrollment) throw new Error('Enrollment not found.')
   if (paymentType === 'REGISTRATION' && enrollment.registrationPaid) throw new Error('Registration is already paid.')
   if (paymentType === 'WEEKLY' && !enrollment.registrationPaid) throw new Error('Please pay registration fee first.')
-  if (!session.user.email) throw new Error('A valid account email is required for Paystack checkout.')
+  if (!session.user.email) throw new Error('A valid account email is required for checkout.')
 
   const amount = paymentType === 'REGISTRATION' ? 2500 : 2000
   const reference = `adult-${paymentType.toLowerCase()}-${randomUUID()}`
@@ -187,7 +187,7 @@ export async function completeAdultEducationPayment(reference: string) {
   const { profile } = await getParentProfile()
   const transaction = await db.query.transactions.findFirst({ where: eq(transactions.reference, reference) })
   const metadata = transaction?.metadata as Record<string, unknown> | null
-  if (!transaction || transaction.status !== 'success' || metadata?.parentId !== profile.id) throw new Error('Paystack has not confirmed this payment for your account.')
+  if (!transaction || transaction.status !== 'success' || metadata?.parentId !== profile.id) throw new Error('Payment has not been confirmed for your account.')
   await fulfillAdultEducationPayment(reference, transaction.amount, metadata)
   return { success: true }
 }

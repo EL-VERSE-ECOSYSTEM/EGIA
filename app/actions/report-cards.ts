@@ -20,6 +20,8 @@ import { revalidatePath } from 'next/cache'
 import { normalizeReportCardMarks, type ReportCardMark } from '@/lib/report-cards/marks'
 import { printableReportCardPdfText, wrapReportCardPdfText } from '@/lib/report-cards/pdf-layout'
 
+export type { ReportCardMark, ReportCardScore } from '@/lib/report-cards/marks'
+
 export type ReportCard = {
   id: string
   schoolId: string
@@ -257,7 +259,10 @@ export async function saveReportCard(data: {
   return getReportCard(inserted[0])
 }
 
-async function getAdminReportCard(id: string) {
+async function getAdminReportCard(id: string): Promise<{
+  row: typeof reportCardTable.$inferSelect & { schoolId: string }
+  user: NonNullable<Awaited<ReturnType<typeof auth.getSession>>>['user']
+}> {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
   if (!['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(session.user.role.toUpperCase())) {
@@ -270,7 +275,7 @@ async function getAdminReportCard(id: string) {
     throw new Error('Report card not found in the active school.')
   }
   if (!row.schoolId) throw new Error('Report card has no verified school assignment.')
-  return { row, user: session.user }
+  return { row: { ...row, schoolId: row.schoolId }, user: session.user }
 }
 
 export async function updateReportCardScores(id: string, value: unknown): Promise<ReportCard> {

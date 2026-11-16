@@ -86,7 +86,7 @@ export default function AdminPaymentSettingsPage() {
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">School Payment Configuration</h1>
           <p className="text-slate-500 text-sm font-semibold mt-1">
-            Configure how parents pay school fees — choose automated online Paystack gateway or your school's custom bank account & payment links.
+            Configure how parents pay school fees — choose automated online payment or your school's custom bank account and payment links.
           </p>
         </div>
 
@@ -106,7 +106,7 @@ export default function AdminPaymentSettingsPage() {
                   </div>
                   <div>
                     <h2 className="text-base font-black text-slate-900">Payment Path Selection</h2>
-                    <p className="text-xs text-slate-500 font-medium">Toggle between automated Paystack or manual bank transfer</p>
+                    <p className="text-xs text-slate-500 font-medium">Toggle between automated online payment or manual bank transfer</p>
                   </div>
                 </div>
               </div>
@@ -121,7 +121,7 @@ export default function AdminPaymentSettingsPage() {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-black text-sm text-slate-900">Path A: Paystack Gateway</span>
+                    <span className="font-black text-sm text-slate-900">Path A: Online Payment</span>
                     {usePaystack && <CheckCircle2 className="w-5 h-5 text-purple-600" />}
                   </div>
                   <p className="text-xs text-slate-500 font-medium leading-relaxed">

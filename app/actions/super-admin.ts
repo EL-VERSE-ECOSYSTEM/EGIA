@@ -8,6 +8,8 @@ import { auth } from '@/lib/auth'
 import { randomUUID } from 'crypto'
 import { sanitizeServerError } from '@/lib/errors'
 import { isSuperAdminEmail, isSuperAdminUser } from '@/lib/auth/super-admin'
+import { generateTemporaryPassword } from '@/lib/onboarding-credentials'
+import { sendSchoolApprovalEmailOnce } from '@/lib/school-approval-email'
 
 async function checkSuperAdminPermission() {
   const session = await auth.getSession()
@@ -314,9 +316,27 @@ export async function getPendingSchoolApplicationsAction() {
   try {
     await checkSuperAdminPermission()
 
-    const applications = await db.query.schoolRegistrationApplication.findMany({
-      orderBy: (app, { desc }) => [desc(app.submittedAt)],
+    const applications = await db.select({
+      id: schoolRegistrationApplication.id,
+      schoolId: schoolRegistrationApplication.schoolId,
+      applicantEmail: schoolRegistrationApplication.applicantEmail,
+      applicantPhone: schoolRegistrationApplication.applicantPhone,
+      applicantName: schoolRegistrationApplication.applicantName,
+      schoolName: schoolRegistrationApplication.schoolName,
+      schoolCode: school.code,
+      schoolAddress: schoolRegistrationApplication.schoolAddress,
+      proofOfAddressUrl: schoolRegistrationApplication.proofOfAddressFileUrl,
+      documentVerificationStatus: schoolRegistrationApplication.documentVerificationStatus,
+      paymentStatus: schoolRegistrationApplication.paymentStatus,
+      paymentOtpVerifiedAt: schoolRegistrationApplication.paymentOtpVerifiedAt,
+      approvalStatus: schoolRegistrationApplication.approvalStatus,
+      rejectionReason: schoolRegistrationApplication.rejectionReason,
+      submittedAt: schoolRegistrationApplication.submittedAt,
     })
+      .from(schoolRegistrationApplication)
+      .leftJoin(school, eq(school.id, schoolRegistrationApplication.schoolId))
+      .where(eq(schoolRegistrationApplication.approvalStatus, 'PENDING_REVIEW'))
+      .orderBy(desc(schoolRegistrationApplication.submittedAt))
 
     return { success: true, applications }
   } catch (error: any) {
@@ -353,6 +373,7 @@ export async function reviewSchoolApplicationAction(input: {
       .where(eq(schoolRegistrationApplication.id, input.applicationId))
 
     revalidatePath('/dashboard/super-admin/overview')
+    revalidatePath('/dashboard/super-admin/applications')
     return { success: true }
   } catch (error: any) {
     return sanitizeServerError('reviewSchoolApplicationAction', error, 'Failed to update application review state.')
@@ -373,7 +394,10 @@ export async function activateSchoolAdminAction(applicationId: string) {
 
     // Recommended approval rule enforcement
     if (appRecord.paymentStatus !== 'SUCCESS') {
-      return { success: false, error: 'Cannot activate school: Paystack payment status must be SUCCESS.' }
+      return { success: false, error: 'Cannot activate school until its payment is confirmed.' }
+    }
+    if (!appRecord.paymentOtpVerifiedAt) {
+      return { success: false, error: 'Cannot activate school until the registration email OTP is verified.' }
     }
     if (appRecord.documentVerificationStatus !== 'VERIFIED') {
       return { success: false, error: 'Cannot activate school: Proof of address document must be VERIFIED.' }
@@ -384,48 +408,43 @@ export async function activateSchoolAdminAction(applicationId: string) {
 
     const applicantEmail = appRecord.applicantEmail.trim().toLowerCase()
     let finalUserId: string = randomUUID()
+    let temporaryPassword: string | undefined
 
     // 1. Create or locate Supabase Auth user (handling existing user safely)
     const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
-    if (secretKey) {
-      const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
-      const supabaseAdmin = createSupabaseAdminClient(supabaseUrl, secretKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
+    if (!secretKey) throw new Error('School administrator account provisioning is unavailable because Supabase authentication is not configured.')
+    const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
+    const supabaseAdmin = createSupabaseAdminClient(supabaseUrl, secretKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+
+    // Check existing user by email
+    const { data: existingList, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+    if (listError) throw new Error(`Could not check existing school administrator account: ${listError.message}`)
+    const existingAuthUser = existingList?.users?.find(u => u.email?.toLowerCase() === applicantEmail)
+
+    if (existingAuthUser) {
+      finalUserId = existingAuthUser.id
+    } else {
+      temporaryPassword = generateTemporaryPassword()
+      const createRes = await supabaseAdmin.auth.admin.createUser({
+        id: finalUserId,
+        email: applicantEmail,
+        password: temporaryPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: appRecord.applicantName,
+          role: 'SCHOOL_ADMIN',
+          school_id: appRecord.schoolId,
+          must_change_password: true,
+        },
+        app_metadata: { must_change_password: true },
       })
-
-      // Check existing user by email
-      const { data: existingList } = await supabaseAdmin.auth.admin.listUsers()
-      const existingAuthUser = existingList?.users?.find(u => u.email?.toLowerCase() === applicantEmail)
-
-      if (existingAuthUser) {
-        // Prevent existing account takeover: do NOT overwrite password or global metadata
-        finalUserId = existingAuthUser.id
-      } else {
-        const createRes = await supabaseAdmin.auth.admin.createUser({
-          id: finalUserId,
-          email: applicantEmail,
-          email_confirm: true,
-          user_metadata: {
-            full_name: appRecord.applicantName,
-            role: 'SCHOOL_ADMIN',
-            school_id: appRecord.schoolId,
-          }
-        })
-        if (createRes.data?.user?.id) {
-          finalUserId = createRes.data.user.id
-        }
-
-        // Send invitation / password setup link
-        try {
-          await supabaseAdmin.auth.admin.generateLink({
-            type: 'invite',
-            email: applicantEmail,
-          })
-        } catch (linkErr) {
-          console.warn('Could not generate password setup link:', linkErr)
-        }
+      if (createRes.error || !createRes.data?.user?.id) {
+        throw new Error(`School administrator account could not be created: ${createRes.error?.message || 'Unknown error'}`)
       }
+      finalUserId = createRes.data.user.id
     }
 
     await db.transaction(async (tx) => {
@@ -436,6 +455,7 @@ export async function activateSchoolAdminAction(applicationId: string) {
         name: appRecord.applicantName,
         schoolId: appRecord.schoolId,
         adminLevel: appRecord.adminLevel || 'PRIMARY_ADMIN',
+        mustChangePassword: Boolean(temporaryPassword),
         lastIdentityId: appRecord.schoolId,
         lastIdentityAt: new Date(),
       }).onConflictDoNothing()
@@ -489,7 +509,13 @@ export async function activateSchoolAdminAction(applicationId: string) {
     })
 
     revalidatePath('/dashboard/super-admin/overview')
-    return { success: true, activatedUserId: finalUserId }
+    revalidatePath('/dashboard/super-admin/applications')
+    const emailResult = await sendSchoolApprovalEmailOnce(applicationId, temporaryPassword)
+    return {
+      success: true,
+      activatedUserId: finalUserId,
+      approvalEmailSent: emailResult.sent || emailResult.alreadySent,
+    }
   } catch (error: any) {
     return sanitizeServerError('activateSchoolAdminAction', error, 'School admin activation failed.')
   }
@@ -634,6 +660,7 @@ export async function verifyApplicationDocumentAction(input: {
     }).where(eq(schoolRegistrationApplication.id, input.applicationId))
 
     revalidatePath('/dashboard/super-admin/overview')
+    revalidatePath('/dashboard/super-admin/applications')
     return { success: true }
   } catch (error: any) {
     console.error('Failed to verify application document:', { requestId, error: error?.message || error })
@@ -658,7 +685,10 @@ export async function approveSchoolApplicationAction(input: {
     }
 
     if (appRecord.paymentStatus !== 'SUCCESS') {
-      return { success: false, error: 'Cannot approve application until Paystack payment is verified as SUCCESS.' }
+      return { success: false, error: 'Cannot approve application until its payment is confirmed.' }
+    }
+    if (!appRecord.paymentOtpVerifiedAt) {
+      return { success: false, error: 'Cannot approve application until the registration email OTP is verified.' }
     }
 
     if (appRecord.documentVerificationStatus !== 'VERIFIED') {
@@ -674,33 +704,38 @@ export async function approveSchoolApplicationAction(input: {
     })
 
     let targetUserId = existingUser?.id
+    let temporaryPassword: string | undefined
 
     if (!existingUser) {
       // New user account creation
       targetUserId = randomUUID()
       const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
-      if (secretKey) {
-        const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
-        const adminClient = createSupabaseAdminClient(supabaseUrl, secretKey, {
-          auth: { autoRefreshToken: false, persistSession: false },
-        })
+      if (!secretKey) throw new Error('School administrator account provisioning is unavailable because Supabase authentication is not configured.')
+      const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
+      const adminClient = createSupabaseAdminClient(supabaseUrl, secretKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
 
-        const createRes = await adminClient.auth.admin.createUser({
-          id: targetUserId,
-          email: email,
-          email_confirm: true,
-          user_metadata: {
-            full_name: appRecord.applicantName,
-            role: 'SCHOOL_ADMIN',
-            school_id: appRecord.schoolId,
-          }
-        })
+      temporaryPassword = generateTemporaryPassword()
+      const createRes = await adminClient.auth.admin.createUser({
+        id: targetUserId,
+        email,
+        password: temporaryPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: appRecord.applicantName,
+          role: 'SCHOOL_ADMIN',
+          school_id: appRecord.schoolId,
+          must_change_password: true,
+        },
+        app_metadata: { must_change_password: true },
+      })
 
-        if (createRes.data?.user?.id) {
-          targetUserId = createRes.data.user.id
-        }
+      if (createRes.error || !createRes.data?.user?.id) {
+        throw new Error(`School administrator account could not be created: ${createRes.error?.message || 'Unknown error'}`)
       }
+      targetUserId = createRes.data.user.id
 
       await db.insert(user).values({
         id: targetUserId,
@@ -708,6 +743,7 @@ export async function approveSchoolApplicationAction(input: {
         name: appRecord.applicantName,
         schoolId: appRecord.schoolId,
         adminLevel: targetAdminLevel,
+        mustChangePassword: true,
         lastIdentityId: appRecord.schoolId,
         lastIdentityAt: new Date(),
       }).onConflictDoNothing()
@@ -718,11 +754,22 @@ export async function approveSchoolApplicationAction(input: {
     }
 
     // Attach SCHOOL_ADMIN identity
-    await db.insert(userRole).values({
-      id: randomUUID(),
-      userId: targetUserId!,
-      role: 'SCHOOL_ADMIN',
-    }).onConflictDoNothing()
+    const existingRole = await db.query.userRole.findFirst({ where: eq(userRole.userId, targetUserId!) })
+    if (existingRole) {
+      await db.update(userRole).set({ role: 'SCHOOL_ADMIN' }).where(eq(userRole.userId, targetUserId!))
+      await db.update(user).set({
+        schoolId: appRecord.schoolId,
+        adminLevel: targetAdminLevel,
+        mustChangePassword: false,
+        updatedAt: new Date(),
+      }).where(eq(user.id, targetUserId!))
+    } else {
+      await db.insert(userRole).values({
+        id: randomUUID(),
+        userId: targetUserId!,
+        role: 'SCHOOL_ADMIN',
+      }).onConflictDoNothing()
+    }
 
     if (appRecord.schoolId) {
       await db.insert(schoolAdminRoles).values({
@@ -765,7 +812,14 @@ export async function approveSchoolApplicationAction(input: {
     }
 
     revalidatePath('/dashboard/super-admin/overview')
-    return { success: true, schoolId: appRecord.schoolId, adminEmail: email }
+    revalidatePath('/dashboard/super-admin/applications')
+    const emailResult = await sendSchoolApprovalEmailOnce(input.applicationId, temporaryPassword)
+    return {
+      success: true,
+      schoolId: appRecord.schoolId,
+      adminEmail: email,
+      approvalEmailSent: emailResult.sent || emailResult.alreadySent,
+    }
   } catch (error: any) {
     console.error('Failed to approve school application:', { requestId, error: error?.message || error })
     return { success: false, error: 'Unable to approve school application. Please try again.', requestId }
@@ -789,6 +843,7 @@ export async function rejectSchoolApplicationAction(input: {
     }).where(eq(schoolRegistrationApplication.id, input.applicationId))
 
     revalidatePath('/dashboard/super-admin/overview')
+    revalidatePath('/dashboard/super-admin/applications')
     return { success: true }
   } catch (error: any) {
     console.error('Failed to reject school application:', { requestId, error: error?.message || error })

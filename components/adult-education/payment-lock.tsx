@@ -36,7 +36,7 @@ export default function PaymentLock({ reason }: { reason?: string }) {
 
         <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-xs font-semibold flex items-center gap-3 text-left mb-6 text-slate-300">
           <AlertTriangle className="text-amber-500 w-5 h-5 shrink-0" />
-          <span>Continue to Paystack to complete the payment. Access unlocks after Paystack confirms the charge.</span>
+          <span>Continue to secure payment. Access unlocks after your payment is confirmed.</span>
         </div>
 
         <Button

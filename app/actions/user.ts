@@ -7,7 +7,8 @@ import { eq, and, count, desc, isNull } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
-import { generateAdmissionNumber, generateStaffId } from '@/lib/id'
+import { generateAdmissionNumber, generateStaffId, isValidAdmissionNumber, isValidStaffId } from '@/lib/id'
+import { generateSequentialAdmissionNumber, generateSequentialStaffCode } from '@/lib/admission'
 import { sendFCMOtp } from '@/lib/services/notifications'
 
 export async function getStudentEmailByAdmissionNumber(admissionNumber: string) {
@@ -38,8 +39,11 @@ export async function linkChild(admissionNumber: string) {
   if (!child) throw new Error('Student with this admission number not found')
 
   if (!parentProfile) {
+    const schoolRecord = child.schoolId
+      ? await db.query.school.findFirst({ where: eq(schoolTable.id, child.schoolId) })
+      : null
     parentProfile = await createParentProfile({
-      schoolId: child.schoolId,
+      schoolCode: schoolRecord?.code || undefined,
     })
   } else if (!parentProfile.schoolId && child.schoolId) {
     await db.update(parentTable)
@@ -295,7 +299,7 @@ export async function getUserRole(userId: string) {
 }
 
 type ProfileSetupData = {
-  schoolId?: string | null
+  schoolCode?: string | null
   firstName?: string | null
   lastName?: string | null
   phoneNumber?: string | null
@@ -307,9 +311,43 @@ type ProfileSetupData = {
   specialization?: string | null
 }
 
+async function resolveProfileSchool(
+  userId: string,
+  sessionSchoolId: string | null | undefined,
+  schoolCode?: string | null,
+) {
+  const userRecord = await db.query.user.findFirst({ where: eq(userTable.id, userId) })
+  const assignedSchoolId = userRecord?.schoolId || null
+  if (userRecord?.schoolId && sessionSchoolId && userRecord.schoolId !== sessionSchoolId) {
+    throw new Error('Your school identity could not be verified.')
+  }
+
+  if (schoolCode?.trim()) {
+    const schoolRecord = await db.query.school.findFirst({
+      where: eq(schoolTable.code, schoolCode.trim().toUpperCase()),
+    })
+    if (!schoolRecord) throw new Error('Invalid School Registration Code.')
+    if (assignedSchoolId && assignedSchoolId !== schoolRecord.id) {
+      throw new Error('The school code does not match your assigned school.')
+    }
+    return { schoolId: schoolRecord.id, school: schoolRecord }
+  }
+
+  if (!assignedSchoolId) return { schoolId: null, school: null }
+  const schoolRecord = await db.query.school.findFirst({ where: eq(schoolTable.id, assignedSchoolId) })
+  if (!schoolRecord) throw new Error('Your assigned school could not be found.')
+  return { schoolId: schoolRecord.id, school: schoolRecord }
+}
+
 export async function createParentProfile(data: ProfileSetupData) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
+
+  const { schoolId: targetSchoolId } = await resolveProfileSchool(
+    session.user.id,
+    session.user.schoolId,
+    data?.schoolCode,
+  )
 
   await db.insert(userRole).values({
     id: crypto.randomUUID(),
@@ -322,10 +360,10 @@ export async function createParentProfile(data: ProfileSetupData) {
     where: eq(parentTable.userId, session.user.id)
   })
 
-  if (existing) return existing
-
-  const userRecord = await db.query.user.findFirst({ where: eq(userTable.id, session.user.id) })
-  const targetSchoolId = data?.schoolId || userRecord?.schoolId || null
+  if (existing) {
+    if (targetSchoolId && existing.schoolId !== targetSchoolId) throw new Error('Parent profile is already assigned to another school.')
+    return existing
+  }
 
   const firstName = data?.firstName || session.user.name?.split(' ')[0] || 'Parent'
   const lastName = data?.lastName || session.user.name?.split(' ')[1] || 'Guardian'
@@ -356,24 +394,40 @@ export async function createStudentProfile(data: ProfileSetupData) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
+  const { schoolId: targetSchoolId, school: schoolRecord } = await resolveProfileSchool(
+    session.user.id,
+    session.user.schoolId,
+    data?.schoolCode,
+  )
+
+  const existing = await db.query.student.findFirst({
+    where: eq(student.userId, session.user.id)
+  })
+
+  if (existing) {
+    if (targetSchoolId && existing.schoolId !== targetSchoolId) throw new Error('Student profile is already assigned to another school.')
+    return existing
+  }
+
+  const targetClass = data?.class || 'JSS1'
+
+  const firstName = data?.firstName || session.user.name?.split(' ')[0] || 'Student'
+  const lastName = data?.lastName || session.user.name?.split(' ')[1] || 'Pupil'
+  const admissionNumber = data?.admissionNumber
+    ? data.admissionNumber.trim().toUpperCase()
+    : targetSchoolId
+      ? await generateSequentialAdmissionNumber(targetSchoolId, targetClass)
+      : generateAdmissionNumber(targetClass)
+  if (schoolRecord && !isValidAdmissionNumber(admissionNumber, targetClass, schoolRecord.code)) {
+    throw new Error('Admission number does not match the verified school registration code and class.')
+  }
+
   await db.insert(userRole).values({
     id: crypto.randomUUID(),
     userId: session.user.id,
     role: 'STUDENT',
     createdAt: new Date(),
   }).onConflictDoNothing()
-
-  const existing = await db.query.student.findFirst({
-    where: eq(student.userId, session.user.id)
-  })
-
-  if (existing) return existing
-
-  const targetClass = data?.class || 'JSS1'
-  const targetSchoolId = data?.schoolId || session.user.schoolId || null
-
-  const firstName = data?.firstName || session.user.name?.split(' ')[0] || 'Student'
-  const lastName = data?.lastName || session.user.name?.split(' ')[1] || 'Pupil'
 
   if (targetSchoolId) {
     await db.update(userTable)
@@ -392,7 +446,7 @@ export async function createStudentProfile(data: ProfileSetupData) {
     firstName,
     lastName,
     class: targetClass,
-    admissionNumber: data?.admissionNumber || generateAdmissionNumber(targetClass),
+    admissionNumber,
   }).returning()
 
   return inserted[0]
@@ -402,23 +456,38 @@ export async function createTeacherProfile(data: ProfileSetupData) {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Unauthorized')
 
+  const { schoolId: targetSchoolId, school: schoolRecord } = await resolveProfileSchool(
+    session.user.id,
+    session.user.schoolId,
+    data?.schoolCode,
+  )
+
+  const existing = await db.query.teacher.findFirst({
+    where: eq(teacherTable.userId, session.user.id)
+  })
+
+  if (existing) {
+    if (targetSchoolId && existing.schoolId !== targetSchoolId) throw new Error('Teacher profile is already assigned to another school.')
+    return existing
+  }
+
+  const firstName = data?.firstName || session.user.name?.split(' ')[0] || 'Teacher'
+  const lastName = data?.lastName || session.user.name?.split(' ')[1] || 'Staff'
+  const staffCode = data?.staffCode
+    ? data.staffCode.trim().toUpperCase()
+    : targetSchoolId
+      ? await generateSequentialStaffCode(targetSchoolId)
+      : generateStaffId()
+  if (schoolRecord && !isValidStaffId(staffCode, schoolRecord.code)) {
+    throw new Error('Staff ID does not match the verified school registration code.')
+  }
+
   await db.insert(userRole).values({
     id: crypto.randomUUID(),
     userId: session.user.id,
     role: 'TEACHER',
     createdAt: new Date(),
   }).onConflictDoNothing()
-
-  const existing = await db.query.teacher.findFirst({
-    where: eq(teacherTable.userId, session.user.id)
-  })
-
-  if (existing) return existing
-
-  const targetSchoolId = data?.schoolId || session.user.schoolId || null
-
-  const firstName = data?.firstName || session.user.name?.split(' ')[0] || 'Teacher'
-  const lastName = data?.lastName || session.user.name?.split(' ')[1] || 'Staff'
 
   if (targetSchoolId) {
     await db.update(userTable)
@@ -437,7 +506,7 @@ export async function createTeacherProfile(data: ProfileSetupData) {
     firstName,
     lastName,
     phoneNumber: data?.phoneNumber || null,
-    staffCode: data?.staffCode || generateStaffId(),
+    staffCode,
     type: data?.type || 'FULL_TIME',
     isPartTime: data?.type === 'PART_TIME',
     qualification: data?.qualification || null,

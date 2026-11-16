@@ -24,9 +24,9 @@ EL Learners App is an all-in-one School Management System built to facilitate di
 *   **Dual-Login Portal:** Supports logging in using either standard Email Address or the generated credentials (Admission Number for students, Staff ID for teachers).
 *   **Authentication Engine:** Connected to live **Supabase Auth** with email authentication and automated role-based mapping into Postgres user tables.
 
-### B. Secure Payments Ecosystem (Korapay Integrated)
-*   **Direct Payments Redirection:** All online card payments, activation fees, and tuition collections are securely processed by routing parents to the unified, official Korapay checkout gateway link: `https://checkout.korapay.com/pay/BHba4zdsceZDgyW`.
-*   **Student Activation Fee:** Student activation strictly requires a prepaid ₦2,100 session registration fee payable only online through the Korapay Checkout Link. Upon return from successful checkout, a successful payment modal displays their unique generated Admission Number for easy copying.
+### B. Secure Payments Ecosystem (Paystack Integrated)
+*   **Direct Payments Redirection:** Online card payments, activation fees, and tuition collections are initialized by the application server through Paystack and completed on Paystack's hosted checkout.
+*   **Student Activation Fee:** Student activation requires the configured registration fee to be paid online through Paystack Checkout. After verification, the success modal displays the student's generated Admission Number for easy copying.
 *   **Flexible School Fees installments:** Parents can pay tuition/materials in structured installment schedules.
 *   **Manual Bank Transfer Fallback:** Parents can opt to copy First Bank or GT Bank details to perform manual transfers and upload payment slips for manual administrative reconciliation, strictly permitted for School Fees/Tuition only.
 

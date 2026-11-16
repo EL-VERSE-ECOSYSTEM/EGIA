@@ -29,6 +29,14 @@ async function readBoundedBody(request: Request): Promise<string | null> {
 
 export async function POST(req: Request) {
   try {
+    if (!process.env.PAYSTACK_SECRET_KEY) {
+      console.error('Paystack webhook secret is not configured.')
+      return NextResponse.json(
+        { error: 'Payment notification endpoint is temporarily unavailable.' },
+        { status: 503 },
+      )
+    }
+
     const contentLength = Number(req.headers.get('content-length') || 0)
     if (contentLength > MAX_WEBHOOK_BYTES) {
       return NextResponse.json({ error: 'Webhook payload is too large' }, { status: 413 })
@@ -40,7 +48,7 @@ export async function POST(req: Request) {
     const signature = req.headers.get('x-paystack-signature')
 
     if (!signature) {
-      return NextResponse.json({ error: 'Missing Paystack signature header' }, { status: 400 })
+      return NextResponse.json({ error: 'Missing payment signature header' }, { status: 400 })
     }
 
     const result = await processPaystackWebhook(rawBody, signature)
@@ -50,8 +58,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ received: true, ...result }, { status: 200 })
-  } catch (error: any) {
-    console.error('Paystack webhook error:', error)
-    return NextResponse.json({ error: 'Internal server error processing Paystack webhook' }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('Paystack webhook error:', error instanceof Error ? error.message : 'Unknown error')
+    return NextResponse.json({ error: 'Internal server error processing payment notification' }, { status: 500 })
   }
 }

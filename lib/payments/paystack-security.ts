@@ -15,7 +15,7 @@ export interface PaystackWebhookBody {
     channel?: string
     currency?: string
     ip_address?: string
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
     customer?: {
       id?: number
       first_name?: string
@@ -63,29 +63,37 @@ export function validatePaystackWebhook(
     return { success: false, error: 'Webhook payload is too large' }
   }
   if (!secret) {
-    return { success: false, error: 'Paystack webhook secret key is not configured' }
+    return { success: false, error: 'Payment notification secret is not configured' }
   }
   if (!validPaystackSignature(rawBody, signature, secret)) {
     return { success: false, error: 'Invalid or missing webhook signature' }
   }
 
-  let body: PaystackWebhookBody
+  let parsedBody: unknown
   try {
-    body = JSON.parse(rawBody)
+    parsedBody = JSON.parse(rawBody)
   } catch {
     return { success: false, error: 'Invalid JSON payload' }
   }
 
+  if (!parsedBody || typeof parsedBody !== 'object' || Array.isArray(parsedBody)) {
+    return { success: false, error: 'Invalid webhook payload' }
+  }
+
+  const body = parsedBody as PaystackWebhookBody
   const event = body.event
   const reference = body.data?.reference
-  if (typeof reference === 'string' && (reference.length > 100 || !/^[a-zA-Z0-9_-]+$/.test(reference))) {
-    return { success: false, error: 'Invalid payment reference' }
-  }
   if (!reference || !event) {
     return {
       success: true,
       note: 'Webhook payload missing reference or event',
     }
+  }
+  if (typeof event !== 'string' || event.length > 100 || !/^[a-zA-Z0-9._-]+$/.test(event)) {
+    return { success: false, error: 'Invalid payment event' }
+  }
+  if (typeof reference !== 'string' || reference.length > 100 || !/^[a-zA-Z0-9_-]+$/.test(reference)) {
+    return { success: false, error: 'Invalid payment reference' }
   }
 
   return { success: true, body, event, reference }
@@ -102,16 +110,4 @@ export function paystackAmountMatches(actualKobo: number | string | undefined, e
   if (!Number.isSafeInteger(actualKoboNum) || !Number.isFinite(expectedNaira) || expectedNaira <= 0) return false
   const expectedKobo = Math.round(expectedNaira * 100)
   return Number.isSafeInteger(expectedKobo) && expectedKobo > 0 && actualKoboNum === expectedKobo
-}
-
-// Backward-compatibility aliases for Korapay naming where external scripts may call them
-export const validKorapaySignature = validPaystackSignature
-export const validateKorapayWebhook = validatePaystackWebhook
-export const korapayAmountMatches = (actual: number | string | undefined, expected: number) => {
-  // Support both kobo-level match and direct decimal equality
-  if (actual === undefined || actual === null || actual === '') return false
-  const num = Number(actual)
-  if (!Number.isFinite(num)) return false
-  if (Math.round(num * 100) === Math.round(expected * 100)) return true
-  return paystackAmountMatches(actual, expected)
 }

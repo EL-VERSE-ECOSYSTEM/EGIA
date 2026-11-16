@@ -21,6 +21,7 @@
 3. If dashboard live refresh is required, enable Supabase Realtime for the tables consumed by the role-specific subscriptions and retain the polling fallback.
 4. Apply `202611120002_secure_payment_receipts.sql` before enabling manual transfer receipts; receipt metadata is server-written and file uploads are scoped to the signed-in parent's linked student.
 5. Apply `202611150001_assessment_targets_and_support_contacts.sql`, `202611150002_realtime_support_rls.sql`, `202611150003_atomic_fee_reminder_claims.sql`, `202611150004_parent_term_installments.sql`, and `202611150005_payment_realtime_rls.sql` before deploying the matching application code. Realtime policies grant authenticated SELECT only for the linked learner/parent, the learner's school administrators, or Super Admin.
+6. Apply `202611160001_transaction_ledger_realtime.sql` before deploying realtime transaction history. Its SELECT policy scopes ledger events to the owning user/student or authorized school administrators.
 
 ## Manual and installment fee payments
 
@@ -30,6 +31,8 @@
 - Applying migrations `202611150004` and `202611150005` is required before using installment plans or realtime payment refresh. The RLS migration replaces client read policies on `payment`, `payment_installment`, and `notification`; browser writes remain denied.
 - Verify that the parent and student Supabase Auth UUIDs match the corresponding `user.id` values, that `student.termId` points at the intended active term, and that every linked student has an active fee structure before enabling the installment portal.
 - Successful manual and Paystack payments create in-app notification rows and attempt FCM push to the student and linked parent. Confirm FCM credentials and device tokens in staging; delivery failures are logged separately and do not roll back a confirmed payment.
+- Successful student fees, school registration charges, teacher salaries, and airtime/data requests are written to `transaction_ledger`; role dashboards refresh those entries from Supabase Realtime and offer CSV downloads.
+- The pending/failed school-admin payment lock initializes Paystack Checkout directly and remains visible until the school payment status is confirmed as paid. The Paystack return modal obtains the school code from the verified school record.
 
 ## CBT fee eligibility and reminders
 

@@ -63,7 +63,7 @@ export const AppError = {
   REG_013: { status: 500, msg: "We couldn't complete your registration. Please try again." },
   REG_014: { status: 400, msg: "Password must be at least 12 characters." },
 
-  // Payments / Korapay
+  // Payments / Paystack
   PAY_001: { status: 400, msg: "We couldn't verify this payment reference. Please contact support." },
   PAY_002: { status: 502, msg: "Payment verification is temporarily unavailable. Your payment is safe — we'll confirm it shortly.", retryable: true },
   PAY_003: { status: 409, msg: "This payment has already been confirmed." },

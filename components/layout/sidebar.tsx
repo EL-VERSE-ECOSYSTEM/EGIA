@@ -349,12 +349,13 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
 
         <nav className="space-y-1.5">
           {links.map((link) => {
-            const isActive = pathname.startsWith(link.href)
+            const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`)
             return (
               <Link
                 key={link.label}
                 href={link.href}
                 onClick={onClose}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   "flex items-center gap-4 px-5 py-3.5 rounded-2xl text-xs font-black transition-all duration-300 group",
                   isActive

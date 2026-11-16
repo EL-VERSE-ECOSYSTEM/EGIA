@@ -233,7 +233,7 @@ export function LearnAiChatPage() {
               </div>
             ))}
           </div>
-          <p className="mt-3 border-t border-slate-100 pt-3 text-[11px] leading-5 text-slate-500">Secure one-time Paystack checkout. Token pack valid for 30 days.</p>
+          <p className="mt-3 border-t border-slate-100 pt-3 text-[11px] leading-5 text-slate-500">Secure one-time online payment. Token pack valid for 30 days.</p>
         </section>
       </aside>
     </div>

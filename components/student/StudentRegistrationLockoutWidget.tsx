@@ -71,7 +71,7 @@ export function StudentRegistrationLockoutWidget({ studentId }: { studentId?: st
               <span className="font-bold text-white">NGN 2,000.00</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Korapay Gateway Fee:</span>
+              <span className="text-slate-400">Payment Processing Fee:</span>
               <span className="font-bold text-white">NGN 161.25</span>
             </div>
             <div className="pt-2 border-t border-slate-800 flex justify-between font-black text-sm text-amber-400">
@@ -88,7 +88,7 @@ export function StudentRegistrationLockoutWidget({ studentId }: { studentId?: st
             {paying ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>REDIRECTING TO KORAPAY...</span>
+                <span>REDIRECTING TO PAYMENT...</span>
               </>
             ) : (
               <>

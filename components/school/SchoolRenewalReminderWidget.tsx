@@ -115,7 +115,7 @@ export function SchoolRenewalReminderWidget({ schoolId }: { schoolId?: string | 
                 <span className="font-bold text-white">NGN 30,000.00</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Gateway Processing Fee:</span>
+                <span className="text-slate-400">Payment Processing Fee:</span>
                 <span className="font-bold text-white">NGN 161.25</span>
               </div>
               <div className="pt-2 border-t border-slate-800 flex justify-between font-black text-sm text-emerald-400">
@@ -132,12 +132,12 @@ export function SchoolRenewalReminderWidget({ schoolId }: { schoolId?: string | 
               {paying ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>INITIALIZING KORAPAY CHECKOUT...</span>
+                  <span>PREPARING PAYMENT...</span>
                 </>
               ) : (
                 <>
                   <CreditCard className="w-5 h-5" />
-                  <span>PAY NOW VIA KORAPAY (NGN 30,161.25)</span>
+                  <span>PAY ONLINE (NGN 30,161.25)</span>
                 </>
               )}
             </Button>

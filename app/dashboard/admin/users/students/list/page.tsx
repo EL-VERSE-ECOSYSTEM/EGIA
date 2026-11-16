@@ -116,6 +116,9 @@ export default function StudentListPage() {
                    <Plus size={20} /> ENROLL STUDENT
                 </Button>
              </Link>
+             <Link href="/dashboard/admin/users/bulk-registration">
+                <Button variant="outline" className="h-14 rounded-2xl font-black">BULK REGISTER</Button>
+             </Link>
           </div>
         </div>
 

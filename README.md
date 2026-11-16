@@ -122,7 +122,7 @@ The product includes:
 - Supabase Realtime
 - Supabase Storage
 - Firebase / FCM for push notifications
-- Korapay payment integration
+- Paystack payment integration
 - UploadThing uploads
 - Google Generative AI support
 - PDF generation and parsing utilities

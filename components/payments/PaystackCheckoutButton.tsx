@@ -1,15 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { CreditCard, Loader2 } from 'lucide-react'
 
-interface KorapayCheckoutButtonProps {
+interface PaystackCheckoutButtonProps {
   amount: number
-  customerEmail: string
-  customerName?: string
-  description?: string
-  currency?: string
-  metadata?: Record<string, any>
+  studentId: string
+  feeType: string
   buttonText?: string
   className?: string
   disabled?: boolean
@@ -17,19 +14,16 @@ interface KorapayCheckoutButtonProps {
   onError?: (error: string) => void
 }
 
-export function KorapayCheckoutButton({
+export function PaystackCheckoutButton({
   amount,
-  customerEmail,
-  customerName,
-  description,
-  currency = 'NGN',
-  metadata,
+  studentId,
+  feeType,
   buttonText,
   className,
   disabled = false,
   onSuccess,
   onError,
-}: KorapayCheckoutButtonProps) {
+}: PaystackCheckoutButtonProps) {
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -41,8 +35,8 @@ export function KorapayCheckoutButton({
       if (!amount || amount <= 0) {
         throw new Error('Please specify a valid payment amount.')
       }
-      if (!customerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
-        throw new Error('Please specify a valid customer email address.')
+      if (!studentId || !feeType) {
+        throw new Error('Choose a student and an active school fee.')
       }
 
       const res = await fetch('/api/payments/initialize', {
@@ -52,15 +46,12 @@ export function KorapayCheckoutButton({
         },
         body: JSON.stringify({
           amount,
-          customerEmail,
-          customerName,
-          description,
-          currency,
-          metadata,
+          studentId,
+          feeType,
         }),
       })
 
-      const data = await res.json()
+      const data = await res.json() as { checkoutUrl?: string; reference?: string; error?: string }
 
       if (!res.ok || !data.checkoutUrl) {
         throw new Error(data.error || 'Failed to initialize payment transaction.')
@@ -70,7 +61,7 @@ export function KorapayCheckoutButton({
         onSuccess(data.reference)
       }
 
-      // Redirect user to Korapay hosted checkout page
+      // Redirect the user to the secure hosted checkout.
       window.location.href = data.checkoutUrl
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'An unexpected error occurred during payment initialization.'
@@ -85,7 +76,7 @@ export function KorapayCheckoutButton({
   const totalWithFee = (amount || 0) + 161.25
   const formattedAmount = new Intl.NumberFormat('en-NG', {
     style: 'currency',
-    currency: currency || 'NGN',
+    currency: 'NGN',
   }).format(totalWithFee)
 
   return (
@@ -102,12 +93,12 @@ export function KorapayCheckoutButton({
         {loading ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Redirecting to Korapay Checkout…</span>
+            <span>Redirecting to secure payment…</span>
           </>
         ) : (
           <>
             <CreditCard className="w-4 h-4" />
-            <span>{buttonText || `Pay ${formattedAmount} via Korapay`}</span>
+            <span>{buttonText || `Pay ${formattedAmount} online`}</span>
           </>
         )}
       </button>

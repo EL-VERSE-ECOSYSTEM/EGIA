@@ -105,9 +105,14 @@ export default function TeacherListPage() {
             <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Academic Staff</h1>
             <p className="text-slate-500 font-medium text-lg">Allocate, promote, and demote teachers from handling specific classes and subjects in real-time.</p>
           </div>
-          <Button asChild className="bg-amber-500 hover:bg-amber-600 text-amber-950 h-14 px-8 rounded-2xl font-black text-lg shadow-xl shadow-amber-200">
-             <Link href="/dashboard/admin/users/teachers/add"><Plus className="w-6 h-6 mr-2" /> Register Staff</Link>
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button asChild className="bg-amber-500 hover:bg-amber-600 text-amber-950 h-14 px-8 rounded-2xl font-black text-lg shadow-xl shadow-amber-200">
+              <Link href="/dashboard/admin/users/teachers/add"><Plus className="w-6 h-6 mr-2" /> Register Staff</Link>
+            </Button>
+            <Button asChild variant="outline" className="h-14 rounded-2xl font-black">
+              <Link href="/dashboard/admin/users/bulk-registration">Bulk registration</Link>
+            </Button>
+          </div>
         </div>
 
         <Card className="border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden bg-white">

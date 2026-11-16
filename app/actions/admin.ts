@@ -17,16 +17,20 @@ import {
   feeStructure,
   schoolAdminRoles,
   school,
+  transactionLedger,
 } from '@/lib/db/schema'
 import { eq, sql, and, count, notInArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { checkPermission } from '@/lib/abac'
 import { canSchoolAdminAccess } from '@/lib/auth/school-admin-permissions'
 import { randomUUID } from 'crypto'
-import { generateAdmissionNumber, isValidAdmissionNumber, generateStaffId } from '@/lib/id'
+import { generateAdmissionNumber, isValidAdmissionNumber, isValidStaffId } from '@/lib/id'
+import { generateSequentialAdmissionNumber, generateSequentialStaffCode } from '@/lib/admission'
 import { studentEnrollmentSchema } from '@/lib/validators/student.schema'
 import { initializePaystackPayment } from '@/lib/payments/service'
 import { notifyPaymentStatus } from '@/lib/payments/notifications'
+import { generateTemporaryPassword } from '@/lib/onboarding-credentials'
+import { sendSchoolAccountEmail } from '@/lib/mailer'
 
 const STUDENT_REGISTRATION_FEE = 2000
 const PAYSTACK_GATEWAY_FEE = 161.25
@@ -105,9 +109,52 @@ export async function createStudent(data: any) {
     throw new Error('Permission denied')
   }
 
-  const shouldInitializeParentCheckout = actorRole === 'PARENT' || (actorRole === 'SCHOOL_ADMIN' && Boolean(data.parentId))
-  const registrationReference = shouldInitializeParentCheckout ? `EL-PARENT-REG-${Date.now()}-${randomUUID().slice(0, 8)}` : null
-  const newStudent = await db.transaction(async (tx) => {
+  const shouldInitializeRegistrationCheckout = actorRole === 'PARENT' || actorRole === 'SCHOOL_ADMIN'
+  const registrationReference = shouldInitializeRegistrationCheckout ? `EL-PARENT-REG-${Date.now()}-${randomUUID().slice(0, 8)}` : null
+  const studentEmail = typeof data.studentEmail === 'string' ? data.studentEmail.trim().toLowerCase() : ''
+  if (actorRole === 'SCHOOL_ADMIN' && !studentEmail) {
+    throw new Error('A student login email is required when the school registers a student.')
+  }
+  const adminSchoolId = actorRole === 'PARENT' ? null : await getAdminSchoolId()
+  let studentUserId: string | null = null
+  let temporaryPassword: string | null = null
+  let supabaseAdmin: ReturnType<typeof import('@supabase/supabase-js').createClient> | null = null
+
+  if (studentEmail) {
+    if (actorRole !== 'ADMIN' && actorRole !== 'SCHOOL_ADMIN') throw new Error('Only school administrators can create student login accounts.')
+    if (await db.query.user.findFirst({ where: eq(userTable.email, studentEmail) })) {
+      throw new Error('A student account already exists for this email address.')
+    }
+    const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
+    if (!secretKey) throw new Error('Student account provisioning is unavailable because Supabase authentication is not configured.')
+    const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+    supabaseAdmin = createSupabaseAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co', secretKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+    studentUserId = randomUUID()
+    temporaryPassword = generateTemporaryPassword()
+    const authResult = await supabaseAdmin.auth.admin.createUser({
+      id: studentUserId,
+      email: studentEmail,
+      password: temporaryPassword,
+      email_confirm: true,
+      user_metadata: {
+        full_name: `${data.firstName} ${data.lastName}`,
+        role: 'STUDENT',
+        school_id: adminSchoolId,
+        must_change_password: true,
+      },
+      app_metadata: { must_change_password: true },
+    })
+    if (authResult.error || !authResult.data.user?.id) {
+      throw new Error(`Failed to create student account: ${authResult.error?.message || 'Unknown error'}`)
+    }
+    studentUserId = authResult.data.user.id
+  }
+
+  let newStudent
+  try {
+    newStudent = await db.transaction(async (tx) => {
     let parentId: string | null = null
     let schoolId: string | null
 
@@ -122,7 +169,9 @@ export async function createStudent(data: any) {
       const linkedCount = await tx.select({ value: count() }).from(student).where(eq(student.parentId, parentId))
       if ((linkedCount[0]?.value || 0) >= 5) throw new Error('A parent account can be linked to a maximum of 5 children.')
     } else {
-      schoolId = await getAdminSchoolId()
+      const scopedSchoolId = adminSchoolId
+      if (!scopedSchoolId) throw new Error('School identity context missing for administrative action.')
+      schoolId = scopedSchoolId
       if (actorRole === 'SCHOOL_ADMIN' && session.user.adminLevel?.startsWith('HOD_')) {
         const assignedDepartment = session.user.department?.toLowerCase()
         if (!assignedDepartment || data.department?.toLowerCase() !== assignedDepartment) {
@@ -131,21 +180,36 @@ export async function createStudent(data: any) {
       }
       if (data.parentId) {
         const pRec = await tx.query.parent.findFirst({
-          where: and(eq(parentTable.id, data.parentId), eq(parentTable.schoolId, schoolId))
+          where: and(eq(parentTable.id, data.parentId), eq(parentTable.schoolId, scopedSchoolId))
         })
         if (!pRec) throw new Error('Parent profile not found in this school.')
         parentId = pRec.id
+      } else if (actorRole === 'SCHOOL_ADMIN') {
+        const guardianEmail = typeof data.email === 'string' ? data.email.trim().toLowerCase() : ''
+        if (!guardianEmail) throw new Error('Register a parent account and enter its email to link this student.')
+        const [registeredParent] = await tx.select({ id: parentTable.id })
+          .from(parentTable)
+          .innerJoin(userTable, eq(userTable.id, parentTable.userId))
+          .where(and(eq(userTable.email, guardianEmail), eq(parentTable.schoolId, scopedSchoolId)))
+          .limit(1)
+        if (!registeredParent) throw new Error('The guardian email must belong to a parent account registered in this school.')
+        parentId = registeredParent.id
       }
     }
 
-    const admissionNumber = data.admissionNumber?.trim().toUpperCase() || generateAdmissionNumber(data.class)
-    if (!isValidAdmissionNumber(admissionNumber, data.class)) {
-      throw new Error('Admission number must match the school prefix and learner level: XXXX-P-###### for Primary 3–5/6 or XXXX-S-###### for JSS1–SSS3.')
+    const schoolRecord = schoolId
+      ? await tx.query.school.findFirst({ where: eq(school.id, schoolId) })
+      : null
+    const admissionNumber = data.admissionNumber?.trim().toUpperCase() ||
+      (schoolId ? await generateSequentialAdmissionNumber(schoolId, data.class) : generateAdmissionNumber(data.class))
+    if (!isValidAdmissionNumber(admissionNumber, data.class, schoolRecord?.code)) {
+      throw new Error('Admission number must match the school prefix and learner level: XXXX-P-###### for Primary 3–6 or XXXX-S-###### for JSS1–SSS3.')
     }
     const studentId = randomUUID()
 
     const newStudent = (await tx.insert(student).values({
       id: studentId,
+      userId: studentUserId,
       schoolId,
       firstName: data.firstName,
       lastName: data.lastName,
@@ -158,6 +222,21 @@ export async function createStudent(data: any) {
       termId: data.termId,
       sessionId: data.sessionId,
     }).returning())[0]
+
+    if (studentUserId && studentEmail) {
+      await tx.insert(userTable).values({
+        id: studentUserId,
+        email: studentEmail,
+        name: `${data.firstName} ${data.lastName}`,
+        schoolId,
+        mustChangePassword: true,
+      })
+      await tx.insert(userRole).values({
+        id: randomUUID(),
+        userId: studentUserId,
+        role: 'STUDENT',
+      })
+    }
 
     if (actorRole === 'ADMIN') {
       await tx.insert(payment).values({
@@ -173,9 +252,35 @@ export async function createStudent(data: any) {
     revalidatePath('/dashboard/admin/users/students/list')
     revalidatePath('/dashboard/parent/children/list')
     return newStudent
-  })
+    })
+  } catch (error) {
+    if (studentUserId && supabaseAdmin) {
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(studentUserId)
+      if (deleteError) console.error('Could not roll back student authentication after registration failed.', deleteError)
+    }
+    throw error
+  }
 
-  if (!registrationReference) return newStudent
+  let emailDeliveryFailed = false
+  if (studentUserId && studentEmail && temporaryPassword && newStudent.schoolId) {
+    const schoolRecord = await db.query.school.findFirst({ where: eq(school.id, newStudent.schoolId) })
+    try {
+      await sendSchoolAccountEmail({
+        to: studentEmail,
+        name: `${newStudent.firstName} ${newStudent.lastName}`,
+        role: 'STUDENT',
+        schoolName: schoolRecord?.name || 'your school',
+        schoolLogoUrl: schoolRecord?.logoUrl,
+        accountIdentifier: newStudent.admissionNumber,
+        temporaryPassword,
+      })
+    } catch (error) {
+      emailDeliveryFailed = true
+      console.error('Student onboarding email could not be delivered.', { recipient: studentEmail, error })
+    }
+  }
+
+  if (!registrationReference) return { ...newStudent, emailDeliveryFailed }
   const studentFullName = `${newStudent.firstName} ${newStudent.lastName}`.trim()
   const linkedParent = actorRole === 'SCHOOL_ADMIN' && newStudent.parentId && newStudent.schoolId
     ? await db.query.parent.findFirst({ where: and(eq(parentTable.id, newStudent.parentId), eq(parentTable.schoolId, newStudent.schoolId)) })
@@ -183,22 +288,22 @@ export async function createStudent(data: any) {
   const linkedParentUser = linkedParent
     ? await db.query.user.findFirst({ where: eq(userTable.id, linkedParent.userId) })
     : null
-  const customerEmail = actorRole === 'PARENT' ? session.user.email : linkedParentUser?.email
-  if (!customerEmail) throw new Error('A valid parent account email is required to start Paystack checkout.')
+  const customerEmail = actorRole === 'PARENT' || !newStudent.parentId ? session.user.email : linkedParentUser?.email
+  if (!customerEmail) throw new Error('A valid parent account email is required to start payment.')
   const initResult = await initializePaystackPayment({
     reference: registrationReference,
     amount: STUDENT_REGISTRATION_FEE + PAYSTACK_GATEWAY_FEE,
     currency: 'NGN',
     customerName: studentFullName,
     customerEmail,
-    description: `Student registration fee for ${studentFullName} (₦${STUDENT_REGISTRATION_FEE.toFixed(2)} plus Paystack fee ₦${PAYSTACK_GATEWAY_FEE.toFixed(2)})`,
+    description: `Student registration fee for ${studentFullName} (₦${STUDENT_REGISTRATION_FEE.toFixed(2)} plus payment processing fee ₦${PAYSTACK_GATEWAY_FEE.toFixed(2)})`,
     redirectUrl: `${(process.env.NEXT_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')}/payment/return?reference=${encodeURIComponent(registrationReference)}`,
     schoolId: newStudent.schoolId,
     studentId: newStudent.id,
     feeType: 'registration',
     metadata: { schoolId: newStudent.schoolId, studentId: newStudent.id, feeType: 'registration' },
   })
-  return { ...newStudent, checkoutUrl: initResult.checkoutUrl }
+  return { ...newStudent, checkoutUrl: initResult.checkoutUrl, emailDeliveryFailed }
 }
 
 export async function getPendingPayments() {
@@ -208,7 +313,7 @@ export async function getPendingPayments() {
     where: and(
       eq(payment.schoolId, schoolId),
       eq(payment.status, 'pending'),
-      notInArray(payment.paymentMethod, ['PAYSTACK', 'KORAPAY']),
+      notInArray(payment.paymentMethod, ['PAYSTACK']),
     ),
     with: {
        student: true
@@ -253,8 +358,8 @@ export async function verifyPayment(paymentId: string, status: 'success' | 'fail
 
     if (!existingPayment) throw new Error('Payment record not found or tenant mismatch.')
     if (existingPayment.status !== 'pending') throw new Error('Only pending payments can be reviewed.')
-    if (['PAYSTACK', 'KORAPAY'].includes(existingPayment.paymentMethod.toUpperCase())) {
-      throw new Error('Gateway payments must be confirmed by Paystack verification.')
+    if (existingPayment.paymentMethod.toUpperCase() === 'PAYSTACK') {
+      throw new Error('Online payments must be confirmed before reconciliation.')
     }
 
     const result = await tx.update(payment)
@@ -267,16 +372,38 @@ export async function verifyPayment(paymentId: string, status: 'success' | 'fail
         eq(payment.id, paymentId),
         eq(payment.schoolId, schoolId),
         eq(payment.status, 'pending'),
-        notInArray(payment.paymentMethod, ['PAYSTACK', 'KORAPAY']),
+        notInArray(payment.paymentMethod, ['PAYSTACK']),
       ))
       .returning()
 
-    if (!result[0]) throw new Error('Payment is no longer pending or requires gateway verification.')
+    if (!result[0]) throw new Error('Payment is no longer pending or requires payment confirmation.')
 
     if (result[0]?.feeType === 'registration' && status === 'success') {
       await tx.update(student)
         .set({ registrationStatus: 'ACTIVE', updatedAt: new Date() })
         .where(and(eq(student.id, result[0].studentId), eq(student.schoolId, schoolId)))
+    }
+    if (result[0].transactionReference) {
+      await tx.insert(transactionLedger).values({
+        id: randomUUID(),
+        schoolId,
+        studentId: result[0].studentId,
+        type: result[0].feeType?.toLowerCase().includes('registration') ? 'REGISTRATION_FEE' : 'FEE_PAYMENT',
+        direction: 'IN',
+        amount: result[0].amount,
+        currency: 'NGN',
+        reference: result[0].transactionReference,
+        gateway: 'SCHOOL_ACCOUNT',
+        status: status === 'success' ? 'SUCCESS' : 'FAILED',
+        description: result[0].description,
+        confirmationMethod: 'SCHOOL_ACCOUNT',
+        metadata: { paymentId: result[0].id, feeType: result[0].feeType },
+        createdAt: result[0].createdAt,
+        updatedAt: new Date(),
+      }).onConflictDoUpdate({
+        target: transactionLedger.reference,
+        set: { status: status === 'success' ? 'SUCCESS' : 'FAILED', updatedAt: new Date() },
+      })
     }
 
     revalidatePath('/dashboard/admin/finance/fees/pending')
@@ -541,42 +668,55 @@ export async function createTeacher(data: any) {
 
   const email = (data.email || '').trim().toLowerCase()
   if (!email) throw new Error('Teacher email address is required')
-
-  const staffCode = data.staffCode || generateStaffId()
-  let userId = randomUUID()
-
-  const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
-  if (secretKey) {
-    const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
-    const adminClient = createSupabaseAdminClient(supabaseUrl, secretKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
-
-    const authRes = await adminClient.auth.admin.createUser({
-      id: userId,
-      email: email,
-      email_confirm: true,
-      user_metadata: {
-        full_name: `${data.firstName} ${data.lastName}`,
-        role: 'TEACHER',
-        staff_code: staffCode,
-        school_id: schoolId,
-      },
-    })
-
-    if (authRes.error || !authRes.data?.user?.id) {
-      throw new Error(`Failed to create teacher account in Supabase Auth: ${authRes.error?.message || 'Unknown error'}`)
-    }
-    userId = authRes.data.user.id as `${string}-${string}-${string}-${string}-${string}`
+  if (await db.query.user.findFirst({ where: eq(userTable.email, email) })) {
+    throw new Error('An account already exists for this email address.')
   }
 
-  return await db.transaction(async (tx) => {
+  const schoolRecord = await db.query.school.findFirst({ where: eq(school.id, schoolId) })
+  const staffCode = data.staffCode?.trim().toUpperCase() || await generateSequentialStaffCode(schoolId)
+  if (!isValidStaffId(staffCode, schoolRecord?.code)) {
+    throw new Error('Staff ID must match this school’s registration code.')
+  }
+  let userId: string = randomUUID()
+  const temporaryPassword = generateTemporaryPassword()
+
+  const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
+  if (!secretKey) throw new Error('Teacher account provisioning is unavailable because Supabase authentication is not configured.')
+  const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
+  const adminClient = createSupabaseAdminClient(supabaseUrl, secretKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+
+  const authRes = await adminClient.auth.admin.createUser({
+    id: userId,
+    email,
+    password: temporaryPassword,
+    email_confirm: true,
+    user_metadata: {
+      full_name: `${data.firstName} ${data.lastName}`,
+      role: 'TEACHER',
+      staff_code: staffCode,
+      school_id: schoolId,
+      must_change_password: true,
+    },
+    app_metadata: { must_change_password: true },
+  })
+
+  if (authRes.error || !authRes.data?.user?.id) {
+    throw new Error(`Failed to create teacher account in Supabase Auth: ${authRes.error?.message || 'Unknown error'}`)
+  }
+  userId = authRes.data.user.id
+
+  let insertedTeacher
+  try {
+    insertedTeacher = await db.transaction(async (tx) => {
     await tx.insert(userTable).values({
       id: userId,
       email: email,
       name: `${data.firstName} ${data.lastName}`,
       schoolId: schoolId,
+      mustChangePassword: true,
     }).onConflictDoNothing()
 
     await tx.insert(userRole).values({
@@ -603,13 +743,36 @@ export async function createTeacher(data: any) {
       cvUrl: data.cvUrl || null,
       qualification: data.qualification || null,
       specialization: data.specialization || null,
+      handlingClasses: Array.isArray(data.handlingClasses) ? data.handlingClasses : [],
+      teachingSubjects: Array.isArray(data.teachingSubjects) ? data.teachingSubjects : [],
       status: 'APPROVED',
       isActive: true,
     } as any).returning())[0]
 
     revalidatePath('/dashboard/admin/users/teachers/list')
     return insertedTeacher
-  })
+    })
+  } catch (error) {
+    await adminClient.auth.admin.deleteUser(userId)
+    throw error
+  }
+
+  let emailDeliveryFailed = false
+  try {
+    await sendSchoolAccountEmail({
+      to: email,
+      name: `${data.firstName} ${data.lastName}`,
+      role: 'TEACHER',
+      schoolName: schoolRecord?.name || 'your school',
+      schoolLogoUrl: schoolRecord?.logoUrl,
+      accountIdentifier: staffCode,
+      temporaryPassword,
+    })
+  } catch (error) {
+    emailDeliveryFailed = true
+    console.error('Teacher onboarding email could not be delivered.', { recipient: email, error })
+  }
+  return { ...insertedTeacher, emailDeliveryFailed }
 }
 
 export async function getAllClasses() {
@@ -752,45 +915,54 @@ export async function createSchoolAdmin(data: { name: string; email: string; pho
 
   const schoolId = await getAdminSchoolId()
   const adminEmail = data.email.trim().toLowerCase()
+  if (!adminEmail.includes('@')) throw new Error('Enter a valid administrator email address.')
+  if (await db.query.user.findFirst({ where: eq(userTable.email, adminEmail) })) {
+    throw new Error('An account already exists for this email address.')
+  }
   const adminLevel = data.adminLevel || 'VICE_PRINCIPAL_ACADEMICS'
   if (!['VICE_PRINCIPAL_ACADEMICS', 'VICE_PRINCIPAL_ADMIN', 'HOD_SCIENCE', 'HOD_ARTS', 'HOD_COMMERCIAL'].includes(adminLevel)) {
     throw new Error('Choose a valid school administrator level.')
   }
-  let userId = randomUUID()
+  let userId: string = randomUUID()
+  const temporaryPassword = generateTemporaryPassword()
 
   const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
-  if (secretKey) {
-    const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
-    const adminClient = createSupabaseAdminClient(supabaseUrl, secretKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
+  if (!secretKey) throw new Error('School administrator account provisioning is unavailable because Supabase authentication is not configured.')
+  const { createClient: createSupabaseAdminClient } = await import('@supabase/supabase-js')
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co'
+  const adminClient = createSupabaseAdminClient(supabaseUrl, secretKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
 
-    const authRes = await adminClient.auth.admin.createUser({
-      id: userId,
-      email: adminEmail,
-      email_confirm: true,
-      user_metadata: {
-        full_name: data.name,
-        role: 'SCHOOL_ADMIN',
-        admin_level: adminLevel,
-        school_id: schoolId,
-      },
-    })
+  const authRes = await adminClient.auth.admin.createUser({
+    id: userId,
+    email: adminEmail,
+    password: temporaryPassword,
+    email_confirm: true,
+    user_metadata: {
+      full_name: data.name,
+      role: 'SCHOOL_ADMIN',
+      admin_level: adminLevel,
+      school_id: schoolId,
+      must_change_password: true,
+    },
+    app_metadata: { must_change_password: true },
+  })
 
-    if (authRes.error || !authRes.data?.user?.id) {
-      throw new Error(`Failed to create school admin account in Supabase Auth: ${authRes.error?.message || 'Unknown error'}`)
-    }
-    userId = authRes.data.user.id as `${string}-${string}-${string}-${string}-${string}`
+  if (authRes.error || !authRes.data?.user?.id) {
+    throw new Error(`Failed to create school admin account in Supabase Auth: ${authRes.error?.message || 'Unknown error'}`)
   }
+  userId = authRes.data.user.id
 
-  await db.transaction(async (tx) => {
+  try {
+    await db.transaction(async (tx) => {
     await tx.insert(userTable).values({
       id: userId,
       email: adminEmail,
       name: data.name,
       schoolId: schoolId,
       adminLevel: adminLevel,
+      mustChangePassword: true,
       lastIdentityId: schoolId,
       lastIdentityAt: new Date(),
     }).onConflictDoNothing()
@@ -811,10 +983,30 @@ export async function createSchoolAdmin(data: { name: string; email: string; pho
       target: [schoolAdminRoles.schoolId, schoolAdminRoles.userId],
       set: { level: adminLevel, isActive: true },
     })
-  })
+    })
+  } catch (error) {
+    await adminClient.auth.admin.deleteUser(userId)
+    throw error
+  }
+
+  const schoolRecord = await db.query.school.findFirst({ where: eq(school.id, schoolId) })
+  let emailDeliveryFailed = false
+  try {
+    await sendSchoolAccountEmail({
+      to: adminEmail,
+      name: data.name,
+      role: adminLevel.replaceAll('_', ' '),
+      schoolName: schoolRecord?.name || 'your school',
+      schoolLogoUrl: schoolRecord?.logoUrl,
+      temporaryPassword,
+    })
+  } catch (error) {
+    emailDeliveryFailed = true
+    console.error('School co-administrator onboarding email could not be delivered.', { recipient: adminEmail, error })
+  }
 
   revalidatePath('/dashboard/admin/users/admins/list')
-  return { success: true, userId, email: adminEmail, adminLevel }
+  return { success: true, userId, email: adminEmail, adminLevel, emailDeliveryFailed }
 }
 
 export async function promoteTeacherAction(data: {

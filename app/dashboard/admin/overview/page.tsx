@@ -20,7 +20,7 @@ import {
   MessageSquare,
   ArrowRight
 } from 'lucide-react'
-import { getAdminDashboardStats, getRecentAuditLogs, getUrgentAlerts } from '@/lib/api/queries'
+import { getAdminDashboardStats, getRecentAuditLogs } from '@/lib/api/queries'
 import { AdminRevenueChart } from '@/components/charts/admin-revenue-chart'
 import { SchoolPaymentLockModal } from '@/components/admin/SchoolPaymentLockModal'
 import Link from 'next/link'
@@ -28,6 +28,7 @@ import DashboardLayout from '@/components/layout/dashboard-layout'
 
 import { getReportCards } from '@/app/actions/report-cards'
 import { auth } from '@/lib/auth'
+import { SchoolSharePanel } from '@/components/admin/school-share-panel'
 
 export default async function AdminOverviewPage() {
   const session = await auth.getSession()
@@ -36,7 +37,7 @@ export default async function AdminOverviewPage() {
 
   let statsData = {
     schoolName: 'EL LEARNERS ACADEMY',
-    schoolCode: 'MAIN-001',
+    schoolCode: '',
     paymentStatus: 'PAID',
     paymentReference: null as string | null,
     adminEmail: '',
@@ -46,15 +47,13 @@ export default async function AdminOverviewPage() {
     revenue: '0',
     activeCBTs: 0
   }
-  let auditLogs: any[] = []
-  let alerts: any[] = []
-  let reportCards: any[] = []
+  let auditLogs: Awaited<ReturnType<typeof getRecentAuditLogs>> = []
+  let reportCards: Awaited<ReturnType<typeof getReportCards>> = []
 
   try {
     const results = await Promise.allSettled([
       getAdminDashboardStats(),
       getRecentAuditLogs(),
-      getUrgentAlerts(),
       getReportCards()
     ])
 
@@ -65,10 +64,7 @@ export default async function AdminOverviewPage() {
       auditLogs = results[1].value
     }
     if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) {
-      alerts = results[2].value
-    }
-    if (results[3].status === 'fulfilled' && Array.isArray(results[3].value)) {
-      reportCards = results[3].value
+      reportCards = results[2].value
     }
   } catch (err) {
     console.warn('AdminOverviewPage: error loading dashboard metrics:', err)
@@ -78,12 +74,16 @@ export default async function AdminOverviewPage() {
 
   // Render real live audit logs/violations from the database!
   const liveAuditLogs = auditLogs.map((log) => {
-    const details = log.details as Record<string, any> || {}
+    const details = log.details && typeof log.details === 'object'
+      ? log.details as Record<string, unknown>
+      : {}
+    const detailMessage = typeof details.message === 'string' ? details.message : undefined
+    const detailReason = typeof details.reason === 'string' ? details.reason : undefined
     return {
       id: log.id,
       user: log.userId || 'System',
       type: log.action || 'Database Operation',
-      message: details.message || details.reason || `Operated on ${log.resource} (ID: ${log.resourceId || 'N/A'})`,
+      message: detailMessage || detailReason || `Operated on ${log.resource} (ID: ${log.resourceId || 'N/A'})`,
       time: new Date(log.createdAt).toLocaleDateString(undefined, { dateStyle: 'short', timeStyle: 'short' })
     }
   })
@@ -160,9 +160,11 @@ export default async function AdminOverviewPage() {
       {canViewFinance && (statsData.paymentStatus === 'PENDING' || statsData.paymentStatus === 'FAILED') && (
         <SchoolPaymentLockModal
           schoolName={statsData.schoolName}
+          adminEmail={statsData.adminEmail}
+          schoolId={statsData.schoolId}
           paymentStatus={statsData.paymentStatus}
           paymentReference={statsData.paymentReference}
-          adminEmail={statsData.adminEmail}
+          schoolCode={statsData.schoolCode}
         />
       )}
 
@@ -190,6 +192,8 @@ export default async function AdminOverviewPage() {
             </p>
          </div>
       </div>
+
+      {statsData.schoolCode && <SchoolSharePanel schoolName={statsData.schoolName} schoolCode={statsData.schoolCode} />}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
         {stats.filter(stat => canViewFinance || stat.label !== 'Revenue (Term)').map((stat, idx) => (

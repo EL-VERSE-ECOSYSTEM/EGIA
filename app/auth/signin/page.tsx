@@ -50,6 +50,16 @@ export default function SignInPage() {
     try {
       const res = await signInAction(targetEmail, targetPassword, loginMode)
 
+      if (res.success && 'mustChangePassword' in res && res.mustChangePassword) {
+        window.location.href = '/auth/change-password'
+        return
+      }
+
+      if (res.success && 'redirectTo' in res && res.redirectTo === '/registration-waiting-room') {
+        window.location.href = res.redirectTo
+        return
+      }
+
       if (!res.success || !res.context) {
         setError(res.error || 'Authentication failed. Please verify your credentials.')
         setLoading(false)
