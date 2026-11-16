@@ -2,9 +2,10 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { tournamentScores, school as schoolTable, user as userTable } from '@/lib/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { tournamentScores, school as schoolTable, student, user as userTable } from '@/lib/db/schema'
+import { eq, sql, and, desc } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
+import { isGlobalCompetitionFriday, getNigeriaCompetitionDate, getCompetitionDaysLabel, validateTournamentGameType, clampTournamentPoints } from '@/lib/tournament'
 
 export interface SchoolTournamentScore {
   schoolId: string
@@ -15,136 +16,103 @@ export interface SchoolTournamentScore {
   totalStudentsActive: number
 }
 
-import { validateTournamentGameType, clampTournamentPoints } from '@/lib/tournament'
-
 export async function submitTournamentGameScoreAction(params: {
   gameType: string
   pointsEarned: number
   isWin?: boolean
 }) {
   const session = await auth.getSession()
-  if (!session?.user) {
-    return { success: false, error: 'Authentication required to submit tournament score' }
+  if (!session?.user || !['STUDENT', 'PUPIL'].includes(session.user.role.toUpperCase())) {
+    return { success: false, error: 'Only student and pupil accounts can submit competition scores.' }
   }
+  const gameType = validateTournamentGameType(params.gameType)
+  if (!gameType) return { success: false, error: 'Unsupported competition game.' }
+  const points = clampTournamentPoints(params.pointsEarned)
+  if (points <= 0) return { success: false, error: 'A completed game must score at least one point.' }
 
-  // Validate allowed game type
-  const validatedGame = validateTournamentGameType(params.gameType)
-  if (!validatedGame) {
-    return { success: false, error: 'Invalid game type for tournament submission' }
-  }
+  const [account] = await db.select({ userId: userTable.id, schoolId: userTable.schoolId, studentId: student.id })
+    .from(userTable).innerJoin(student, eq(student.userId, userTable.id))
+    .where(and(eq(userTable.id, session.user.id), eq(student.schoolId, userTable.schoolId)))
+    .limit(1)
+  if (!account?.schoolId || !account.studentId) return { success: false, error: 'Your learner profile is not linked to an active school.' }
 
-  // Clamped point boundaries: prevent manipulation (max 50 points per individual round)
-  const safePoints = clampTournamentPoints(params.pointsEarned)
-  if (safePoints <= 0) {
-    return { success: false, error: 'Score must be greater than 0' }
-  }
-
-  const userId = session.user.id
-
-  // Verify user's actual school from database rather than relying on unverified client state
-  let resolvedSchoolId = session.user.schoolId
-  let resolvedSchoolName = 'Partner Academy'
-
+  const competitionDate = getNigeriaCompetitionDate()
+  const globalEligible = isGlobalCompetitionFriday()
+  const now = new Date()
   try {
-    const userRecords = await db
-      .select({ schoolId: userTable.schoolId })
-      .from(userTable)
-      .where(eq(userTable.id, userId))
-      .limit(1)
-
-    if (userRecords.length > 0 && userRecords[0].schoolId) {
-      resolvedSchoolId = userRecords[0].schoolId
-    }
-
-    if (resolvedSchoolId) {
-      const schoolRecords = await db
-        .select({ name: schoolTable.name })
-        .from(schoolTable)
-        .where(eq(schoolTable.id, resolvedSchoolId))
-        .limit(1)
-
-      if (schoolRecords.length > 0 && schoolRecords[0].name) {
-        resolvedSchoolName = schoolRecords[0].name
-      }
-    }
-  } catch (err) {
-    console.warn('[Tournament] DB lookup fallback:', err)
+    await db.insert(tournamentScores).values([
+      { id: randomUUID(), schoolId: account.schoolId, studentId: account.userId, gameType, points, isWin: Boolean(params.isWin), competitionScope: 'SCHOOL', competitionDate, createdAt: now },
+      ...(globalEligible ? [{ id: randomUUID(), schoolId: account.schoolId, studentId: account.userId, gameType, points, isWin: Boolean(params.isWin), competitionScope: 'GLOBAL' as const, competitionDate, createdAt: now }] : []),
+    ])
+  } catch (error) {
+    console.error('[Tournament] Could not save competition score.', error)
+    return { success: false, error: 'The competition score could not be saved.' }
   }
+  return { success: true, pointsAdded: points, schoolId: account.schoolId, competitionDate, globalEligible }
+}
 
-  if (!resolvedSchoolId) {
-    return { success: false, error: 'User is not linked to a registered school' }
-  }
-
-  // Persist score transactionally to PostgreSQL
+export async function getCompetitionLeaderboardsAction() {
+  const session = await auth.getSession()
+  if (!session?.user) return { success: false, error: 'Sign in to view competition rankings.', schools: [], learners: [], schoolLearners: [], globalEligible: false, competitionDate: getNigeriaCompetitionDate() }
+  const competitionDate = getNigeriaCompetitionDate()
   try {
-    await db.insert(tournamentScores).values({
-      id: randomUUID(),
-      schoolId: resolvedSchoolId,
-      studentId: userId,
-      gameType: validatedGame,
-      points: safePoints,
-      isWin: Boolean(params.isWin),
-      createdAt: new Date(),
-    })
-  } catch (err: any) {
-    console.error('[Tournament] Failed to persist score to database:', err?.message || err)
-    return { success: false, error: 'Failed to record tournament score' }
-  }
-
-  return {
-    success: true,
-    pointsAdded: safePoints,
-    schoolName: resolvedSchoolName,
-    schoolId: resolvedSchoolId,
+    const schoolResult = await db.execute(sql`
+      SELECT s.id AS "schoolId", s.name AS "schoolName",
+             COALESCE(SUM(ts.points), 0)::int AS points,
+             COUNT(*) FILTER (WHERE ts.is_win)::int AS "matchesWon",
+             COUNT(DISTINCT ts.student_id)::int AS "totalStudentsActive"
+      FROM public.school s
+      INNER JOIN public.tournament_scores ts ON ts.school_id = s.id AND ts.competition_scope = 'GLOBAL'
+      GROUP BY s.id, s.name
+      ORDER BY points DESC, "matchesWon" DESC, s.name ASC
+      LIMIT 100
+    `)
+    const studentResult = await db.execute(sql`
+      SELECT ts.student_id AS "userId", COALESCE(u.name, s.firstname || ' ' || s.lastname) AS "learnerName",
+             s.class AS "className", sc.name AS "schoolName",
+             COALESCE(SUM(ts.points), 0)::int AS points,
+             COUNT(*) FILTER (WHERE ts.is_win)::int AS wins,
+             COUNT(*)::int AS games
+      FROM public.tournament_scores ts
+      INNER JOIN public."user" u ON u.id = ts.student_id
+      INNER JOIN public.student s ON s.userid = u.id
+      INNER JOIN public.school sc ON sc.id = ts.school_id
+      WHERE ts.competition_scope = 'GLOBAL'
+      GROUP BY ts.student_id, u.name, s.firstname, s.lastname, s.class, sc.name
+      ORDER BY points DESC, wins DESC, "learnerName" ASC
+      LIMIT 100
+    `)
+    const schoolRows: any[] = (schoolResult as any)?.rows ?? schoolResult as any
+    const learnerRows: any[] = (studentResult as any)?.rows ?? studentResult as any
+    const schoolId = session.user.schoolId
+    const schoolLearnerResult = schoolId ? await db.execute(sql`
+      SELECT ts.student_id AS "userId", COALESCE(u.name, s.firstname || ' ' || s.lastname) AS "learnerName",
+             s.class AS "className", COALESCE(SUM(ts.points), 0)::int AS points,
+             COUNT(*) FILTER (WHERE ts.is_win)::int AS wins, COUNT(*)::int AS games
+      FROM public.tournament_scores ts
+      INNER JOIN public."user" u ON u.id = ts.student_id
+      INNER JOIN public.student s ON s.userid = u.id AND s.schoolid = ts.school_id
+      WHERE ts.competition_scope = 'SCHOOL' AND ts.school_id = ${schoolId}
+      GROUP BY ts.student_id, u.name, s.firstname, s.lastname, s.class
+      ORDER BY points DESC, wins DESC, "learnerName" ASC LIMIT 100
+    `) : []
+    const schoolLearnerRows: any[] = (schoolLearnerResult as any)?.rows ?? schoolLearnerResult as any
+    return {
+      success: true,
+      schools: (Array.isArray(schoolRows) ? schoolRows : []).map((row, index) => ({ ...row, points: Number(row.points || 0), matchesWon: Number(row.matchesWon || 0), totalStudentsActive: Number(row.totalStudentsActive || 0), rank: index + 1 })),
+      learners: (Array.isArray(learnerRows) ? learnerRows : []).map((row, index) => ({ ...row, points: Number(row.points || 0), wins: Number(row.wins || 0), games: Number(row.games || 0), rank: index + 1 })),
+      schoolLearners: (Array.isArray(schoolLearnerRows) ? schoolLearnerRows : []).map((row, index) => ({ ...row, points: Number(row.points || 0), wins: Number(row.wins || 0), games: Number(row.games || 0), rank: index + 1 })),
+      competitionDate,
+      globalEligible: isGlobalCompetitionFriday(),
+      schedule: getCompetitionDaysLabel(),
+    }
+  } catch (error) {
+    console.error('[Tournament] Leaderboard query failed.', error)
+    return { success: false, error: 'Competition rankings are temporarily unavailable.', schools: [], learners: [], schoolLearners: [], globalEligible: isGlobalCompetitionFriday(), competitionDate, schedule: getCompetitionDaysLabel() }
   }
 }
 
 export async function getInterSchoolTournamentLeaderboardAction() {
-  const session = await auth.getSession()
-  if (!session?.user) {
-    return { success: false, error: 'Authentication required to view tournament leaderboard' }
-  }
-
-  try {
-    // Query actual aggregated points from tournament_scores joined with school table
-    const aggregateQuery = await db.execute(sql`
-      SELECT
-        s.id AS "schoolId",
-        s.name AS "schoolName",
-        COALESCE(SUM(ts.points), 0)::integer AS points,
-        COALESCE(COUNT(CASE WHEN ts.is_win = true THEN 1 END), 0)::integer AS "matchesWon",
-        COALESCE(COUNT(DISTINCT ts.student_id), 0)::integer AS "totalStudentsActive"
-      FROM school s
-      LEFT JOIN tournament_scores ts ON ts.school_id = s.id
-      GROUP BY s.id, s.name
-      ORDER BY points DESC, "matchesWon" DESC
-      LIMIT 20;
-    `)
-
-    const rawRows = (aggregateQuery as any)?.rows ?? aggregateQuery
-    const rows: any[] = Array.isArray(rawRows) ? rawRows : []
-    const leaderboard: SchoolTournamentScore[] = rows.map((row, index) => ({
-      schoolId: row.schoolId,
-      schoolName: row.schoolName,
-      points: Number(row.points || 0),
-      matchesWon: Number(row.matchesWon || 0),
-      totalStudentsActive: Number(row.totalStudentsActive || 0),
-      rank: index + 1,
-    }))
-
-    return {
-      success: true,
-      leaderboard,
-      nextTournamentRound: 'Friday Inter-School Championship',
-      activePhase: 'Bi-Weekly Friday Tournament League'
-    }
-  } catch (err: any) {
-    console.warn('[Tournament] DB aggregation failed, returning empty leaderboard:', err?.message || err)
-    return {
-      success: true,
-      leaderboard: [],
-      nextTournamentRound: 'Friday Inter-School Championship',
-      activePhase: 'Bi-Weekly Friday Tournament League'
-    }
-  }
+  const result = await getCompetitionLeaderboardsAction()
+  return { ...result, leaderboard: result.success ? result.schools : [], nextTournamentRound: result.schedule, activePhase: result.globalEligible ? 'Global competition day' : 'School games are open' }
 }

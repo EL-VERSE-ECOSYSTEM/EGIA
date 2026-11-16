@@ -79,15 +79,11 @@ async function getVisibleStudentIds(user: NonNullable<Awaited<ReturnType<typeof 
 
   if (role === 'PARENT') {
     const profile = await db.query.parent.findFirst({ where: eq(parent.userId, user.id) })
-    const schoolId = profile?.schoolId
-    if (!profile || !schoolId || (user.schoolId && schoolId !== user.schoolId)) return []
+    if (!profile) return []
     const children = await db.select({
       id: student.id,
       admissionNumber: student.admissionNumber,
-    }).from(student).where(and(
-      eq(student.parentId, profile.id),
-      eq(student.schoolId, schoolId),
-    ))
+    }).from(student).where(eq(student.parentId, profile.id))
     return children.flatMap((child) => [child.id, ...(child.admissionNumber ? [child.admissionNumber] : [])])
   }
 
@@ -187,7 +183,7 @@ export async function getReportCards(): Promise<ReportCard[]> {
     if (!allowedStudentIds.length) return []
     conditions.push(inArray(reportCardTable.studentId, allowedStudentIds))
   }
-  if (role !== 'SUPER_ADMIN') {
+  if (!['SUPER_ADMIN', 'STUDENT', 'PUPIL', 'PARENT'].includes(role)) {
     const userSchoolId = session.user.schoolId
     if (!userSchoolId) return []
     conditions.push(eq(reportCardTable.schoolId, userSchoolId))

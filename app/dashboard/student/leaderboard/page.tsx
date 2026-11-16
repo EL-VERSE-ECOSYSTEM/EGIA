@@ -1,164 +1,17 @@
-import React from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Trophy, Medal, Zap, Sparkles } from 'lucide-react'
-import { db } from '@/lib/db'
-import { student, assessmentResult } from '@/lib/db/schema'
-import { sql, eq, desc } from 'drizzle-orm'
-import { DashboardRealtimeSync } from '@/components/realtime/DashboardRealtimeSync'
+import { getCompetitionLeaderboardsAction } from '@/app/actions/tournament'
+import { Trophy, Medal } from 'lucide-react'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
 export default async function LeaderboardPage() {
-  // Query top 20 students dynamically from database based on average scores
-  let leaderboardData: any[] = []
-
-  try {
-    const list = await db.select({
-      id: student.id,
-      firstName: student.firstName,
-      lastName: student.lastName,
-      class: student.class,
-      admissionNumber: student.admissionNumber,
-      avatar: student.profileImage,
-      avgScore: sql<string>`coalesce(avg(${assessmentResult.score}), 0.00)::numeric(5,2)`
-    })
-    .from(student)
-    .leftJoin(assessmentResult, eq(student.id, assessmentResult.studentId))
-    .groupBy(student.id)
-    .orderBy(desc(sql`coalesce(avg(${assessmentResult.score}), 0)`))
-    .limit(20)
-
-    leaderboardData = list.map((item, idx) => ({
-      ...item,
-      rank: idx + 1,
-      totalPoints: Math.round(parseFloat(item.avgScore))
-    }))
-  } catch (err) {
-    console.warn('Leaderboard query failed:', err)
-    leaderboardData = []
-  }
-
-  // Get medals for top 3
-  const getMedalIcon = (rank: number) => {
-    if (rank === 1) return <Trophy className="w-8 h-8 text-amber-500 fill-amber-300 animate-bounce" />
-    if (rank === 2) return <Medal className="w-7 h-7 text-slate-400 fill-slate-200" />
-    if (rank === 3) return <Medal className="w-7 h-7 text-amber-700 fill-amber-100" />
-    return <span className="font-black text-slate-400 text-lg w-7 text-center">{rank}</span>
-  }
-
-  return (
-    <DashboardLayout role="student">
-      <div className="p-8 max-w-7xl mx-auto space-y-10 min-h-screen">
-        {/* Banner */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 p-12 text-white shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-          <div className="absolute top-0 right-0 p-8 opacity-10">
-            <Trophy size={300} strokeWidth={1} />
-          </div>
-          <div className="relative z-10 space-y-4">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-amber-400 text-xs font-black uppercase tracking-widest">
-              <Sparkles className="w-3.5 h-3.5" /> Assessment rankings
-            </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">Academy Leaderboard</h1>
-            <p className="text-slate-300 text-lg font-medium max-w-xl">
-              Rankings are calculated from completed CBT assessment results.
-            </p>
-          </div>
-          <div className="relative z-10 shrink-0">
-            <Card className="bg-white/10 border-white/15 text-white p-6 rounded-3xl">
-              <p className="text-xs font-black text-amber-400 uppercase tracking-widest">Weekend competition</p>
-              <p className="text-lg font-black mt-1">Published competitions appear here.</p>
-            </Card>
-          </div>
-        </div>
-
-        <DashboardRealtimeSync role="student" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Top 20 Leaderboard List */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Academy Top 20</h2>
-                <p className="text-slate-500 font-medium mt-1">First 20 best students ranked dynamically by average assessment score.</p>
-              </div>
-            </div>
-
-            <Card className="border-none shadow-2xl rounded-[2.5rem] bg-white overflow-hidden">
-              <CardContent className="p-0">
-                {leaderboardData.length > 0 ? (
-                  <div className="divide-y divide-slate-50">
-                    {leaderboardData.map((item) => (
-                      <div key={item.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors group">
-                        <div className="flex items-center gap-6">
-                          <div className="w-10 flex items-center justify-center shrink-0">
-                            {getMedalIcon(item.rank)}
-                          </div>
-                          <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center font-black text-xl text-indigo-600 shadow-inner shrink-0 uppercase overflow-hidden">
-                            {item.avatar ? (
-                              <img src={item.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                            ) : (
-                              <span>{item.firstName[0]}{item.lastName[0]}</span>
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-black text-slate-900 text-lg leading-tight group-hover:text-indigo-900 transition-colors">
-                              {item.firstName} {item.lastName}
-                            </p>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                              {item.class} • {item.admissionNumber}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-8 text-right shrink-0">
-                          <div>
-                            <p className="font-black text-indigo-600 text-xl leading-none font-mono">
-                              {item.totalPoints}%
-                            </p>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                              Average score
-                            </p>
-                          </div>
-                          <div>
-                            <p className="font-black text-emerald-600 text-lg font-mono">
-                              {item.avgScore}%
-                            </p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">
-                              Avg Score
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-12 text-center text-slate-500 font-black">
-                    No leaderboard information is currently available. Please check back once students have completed assessments.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Side Panels */}
-          <div className="space-y-8">
-            <Card className="border-none shadow-xl rounded-[2.5rem] bg-white overflow-hidden">
-              <CardHeader className="p-8 pb-4">
-                <CardTitle className="text-xl font-black flex items-center gap-2 text-slate-900">
-                  <Zap className="text-amber-500 w-5 h-5" /> Competition updates
-                </CardTitle>
-                <CardDescription className="text-slate-400 font-bold">No unpublished or sample challenges are displayed.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-8 pt-0 space-y-6">
-                <p className="p-5 rounded-2xl bg-slate-50 border border-slate-100 text-sm text-slate-500 font-medium">There are no published weekend competitions at this time.</p>
-              </CardContent>
-            </Card>
-
-          </div>
-        </div>
-      </div>
-    </DashboardLayout>
-  )
+  const data = await getCompetitionLeaderboardsAction()
+  return <DashboardLayout role="student"><main className="mx-auto max-w-7xl space-y-8 p-6 md:p-10">
+    <header className="rounded-3xl bg-gradient-to-r from-indigo-950 via-slate-900 to-purple-950 p-8 text-white md:p-12"><p className="font-bold uppercase tracking-widest text-amber-300">Global · interschool games</p><h1 className="mt-3 text-4xl font-black">Global Leaderboard</h1><p className="mt-3 max-w-2xl text-slate-300">Chess, maths, trivia, puzzles, word games and other competition results from schools across the network.</p><div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4"><p className="font-bold">Global competition days</p><p className="text-sm text-slate-300">{data.schedule || 'Second and last Friday of every month (Africa/Lagos time)'}</p><p className="mt-1 text-sm">Today: {data.globalEligible ? 'Global scores are being recorded.' : 'School games are open; global scores are recorded on scheduled Fridays.'}</p></div></header>
+    <div className="flex flex-wrap gap-3"><Link href="/dashboard/student/leaderboard/school" className="rounded-xl bg-indigo-700 px-5 py-3 font-bold text-white">School leaderboard</Link><Link href="/dashboard/student/games" className="rounded-xl border bg-white px-5 py-3 font-bold">Play games</Link><Link href="/dashboard/student/leaderboard/class" className="rounded-xl border bg-white px-5 py-3 font-bold">Academic class rankings</Link><Link href="/dashboard/student/leaderboard/subject" className="rounded-xl border bg-white px-5 py-3 font-bold">Academic subject rankings</Link></div>
+    <div className="grid gap-8 xl:grid-cols-2"><section className="overflow-hidden rounded-3xl border bg-white shadow-sm"><div className="border-b p-6"><h2 className="text-2xl font-black">Inter-school standings</h2><p className="text-sm text-slate-500">Schools ranked by points from scheduled global game competitions.</p></div>{data.schools.length ? data.schools.map((school: any) => <div key={school.schoolId} className="flex items-center justify-between border-b p-5 last:border-0"><div className="flex items-center gap-4"><span className="grid h-10 w-10 place-items-center rounded-full bg-amber-50 text-amber-700">{school.rank <= 3 ? <Medal size={20}/> : `#${school.rank}`}</span><div><p className="font-bold">{school.schoolName}</p><p className="text-xs text-slate-500">{school.totalStudentsActive} competitors · {school.matchesWon} wins</p></div></div><strong className="text-xl text-indigo-700">{school.points} pts</strong></div>) : <p className="p-8 text-slate-500">No global competition scores yet. Scores count on scheduled competition Fridays.</p>}</section>
+      <section className="overflow-hidden rounded-3xl border bg-white shadow-sm"><div className="flex items-center gap-3 border-b p-6"><Trophy className="text-amber-500"/><div><h2 className="text-2xl font-black">Top competitors</h2><p className="text-sm text-slate-500">Learners across all participating schools.</p></div></div>{data.learners.length ? data.learners.map((learner: any) => <div key={learner.userId} className="flex items-center justify-between border-b p-5 last:border-0"><div><p className="font-bold">#{learner.rank} {learner.learnerName}</p><p className="text-xs text-slate-500">{learner.schoolName} · {learner.className} · {learner.games} games</p></div><strong className="text-xl text-indigo-700">{learner.points} pts</strong></div>) : <p className="p-8 text-slate-500">No learner scores have been recorded.</p>}</section></div>
+    {!data.success && <p role="status" className="text-sm text-amber-700">{data.error}</p>}
+  </main></DashboardLayout>
 }

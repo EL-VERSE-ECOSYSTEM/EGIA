@@ -10,10 +10,12 @@ import { Gamepad2, Trophy, Clock, RefreshCw, Star, HelpCircle, ChevronRight, Che
 import { checkStudentWeekendAssignmentsCompleteAction } from '@/app/actions/assessments'
 import { getSchoolStudentControlsAction } from '@/app/actions/school-controls'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
-import { getInterSchoolTournamentLeaderboardAction, SchoolTournamentScore } from '@/app/actions/tournament'
+import { getInterSchoolTournamentLeaderboardAction, SchoolTournamentScore, submitTournamentGameScoreAction } from '@/app/actions/tournament'
+import { TournamentGameType } from '@/lib/tournament'
 
 // Game Types
 type GameType = 'CHESS' | 'MATH' | 'SCRAMBLE' | 'SUDOKU' | 'TRIVIA' | 'SCRABBLE' | 'MONOPOLY' | 'HOME'
+type GameComplete = (game: TournamentGameType, points: number, isWin: boolean) => void
 
 // Chess types
 type PieceType = 'p' | 'r' | 'n' | 'b' | 'q' | 'k' | ''
@@ -31,6 +33,18 @@ export default function StudentGamesPage() {
 
   // Inter-School Tournament Leaderboard State
   const [tournamentLeaderboard, setTournamentLeaderboard] = useState<SchoolTournamentScore[]>([])
+  const [competitionMessage, setCompetitionMessage] = useState('')
+
+  const recordGameResult = async (gameType: TournamentGameType, points: number, isWin: boolean) => {
+    const result = await submitTournamentGameScoreAction({ gameType, pointsEarned: points, isWin })
+    setCompetitionMessage(result.success
+      ? `${result.pointsAdded} points added to your school leaderboard${result.globalEligible ? ' and the global competition' : ''}.`
+      : result.error || 'Game score could not be saved.')
+    if (result.success) {
+      const refreshed = await getInterSchoolTournamentLeaderboardAction()
+      if (refreshed.success && Array.isArray(refreshed.leaderboard)) setTournamentLeaderboard(refreshed.leaderboard)
+    }
+  }
 
   // School Admin Time Controls for Games
   const [timeLocked, setTimeLocked] = useState(false)
@@ -103,11 +117,10 @@ export default function StudentGamesPage() {
                 <Sparkles className="w-6 h-6 text-amber-400 shrink-0 animate-pulse" />
                 <div>
                   <h4 className="font-black text-sm text-white flex items-center gap-2">
-                    BI-WEEKLY FRIDAY INTER-SCHOOL LEAGUE MATCHES
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500 text-slate-950 uppercase">ACTIVE TODAY</span>
+                    GLOBAL COMPETITIONS · SECOND & LAST FRIDAYS
                   </h4>
                   <p className="text-xs text-purple-200 mt-0.5">
-                    Students and pupils across all registered schools compete together on Friday every 2 weeks! Points earned in any game contribute to your school's score.
+                    Global points count on the second and last Friday of every month. All completed games also add points to your school leaderboard.
                   </p>
                 </div>
               </div>
@@ -135,6 +148,8 @@ export default function StudentGamesPage() {
             </div>
           </div>
         </div>
+
+        {competitionMessage && <p role="status" className="rounded-xl border bg-white p-4 text-sm font-semibold text-slate-700">{competitionMessage}</p>}
 
         {timeLocked && (
           <div className="p-6 bg-amber-500/10 border border-amber-500/30 rounded-3xl text-amber-300 flex items-center gap-3">
@@ -327,25 +342,25 @@ export default function StudentGamesPage() {
         )}
 
         {/* Grandmaster Chess Game */}
-        {activeGame === 'CHESS' && <ChessGame onBack={() => setActiveGame('HOME')} />}
+        {activeGame === 'CHESS' && <ChessGame onBack={() => setActiveGame('HOME')} onComplete={recordGameResult} />}
 
         {/* Speed Math Challenge */}
-        {activeGame === 'MATH' && <MathChallenge onBack={() => setActiveGame('HOME')} />}
+        {activeGame === 'MATH' && <MathChallenge onBack={() => setActiveGame('HOME')} onComplete={recordGameResult} />}
 
         {/* Word Scramble Challenge */}
-        {activeGame === 'SCRAMBLE' && <WordScramble onBack={() => setActiveGame('HOME')} />}
+        {activeGame === 'SCRAMBLE' && <WordScramble onBack={() => setActiveGame('HOME')} onComplete={recordGameResult} />}
 
         {/* Sudoku Challenge */}
-        {activeGame === 'SUDOKU' && <SudokuGame onBack={() => setActiveGame('HOME')} />}
+        {activeGame === 'SUDOKU' && <SudokuGame onBack={() => setActiveGame('HOME')} onComplete={recordGameResult} />}
 
         {/* Trivia Game */}
-        {activeGame === 'TRIVIA' && <TriviaGame onBack={() => setActiveGame('HOME')} />}
+        {activeGame === 'TRIVIA' && <TriviaGame onBack={() => setActiveGame('HOME')} onComplete={recordGameResult} />}
 
         {/* Scrabble Game */}
-        {activeGame === 'SCRABBLE' && <ScrabbleGame onBack={() => setActiveGame('HOME')} />}
+        {activeGame === 'SCRABBLE' && <ScrabbleGame onBack={() => setActiveGame('HOME')} onComplete={recordGameResult} />}
 
         {/* Monopoly Game */}
-        {activeGame === 'MONOPOLY' && <MonopolyGame onBack={() => setActiveGame('HOME')} />}
+        {activeGame === 'MONOPOLY' && <MonopolyGame onBack={() => setActiveGame('HOME')} onComplete={recordGameResult} />}
       </div>
     </DashboardLayout>
   )
@@ -354,7 +369,7 @@ export default function StudentGamesPage() {
 /* ====================================================================
    1. GRANDMASTER CHESS COMPONENT
    ==================================================================== */
-function ChessGame({ onBack }: { onBack: () => void }) {
+function ChessGame({ onBack, onComplete }: { onBack: () => void; onComplete: GameComplete }) {
   const initialBoard = (): ChessBoardState => {
     const board: ChessBoardState = Array(8).fill(null).map(() => Array(8).fill({ type: '', color: '' }))
 
@@ -378,6 +393,13 @@ function ChessGame({ onBack }: { onBack: () => void }) {
   const [moveHistory, setMoveHistory] = useState<string[]>([])
   const [score, setScore] = useState({ w: 0, b: 0 })
   const [winner, setWinner] = useState<string | null>(null)
+  const resultReported = useRef(false)
+
+  useEffect(() => {
+    if (!winner || resultReported.current) return
+    resultReported.current = true
+    onComplete('CHESS', score.w, winner.startsWith('White'))
+  }, [winner, score.w, onComplete])
 
   const getUnicodeChar = (p: ChessPiece) => {
     if (!p.type) return ''
@@ -617,6 +639,7 @@ function ChessGame({ onBack }: { onBack: () => void }) {
     setMoveHistory([])
     setScore({ w: 0, b: 0 })
     setWinner(null)
+    resultReported.current = false
   }
 
   return (
@@ -723,7 +746,7 @@ function ChessGame({ onBack }: { onBack: () => void }) {
 /* ====================================================================
    2. SPEED MATH ARITHMETIC CHALLENGE
    ==================================================================== */
-function MathChallenge({ onBack }: { onBack: () => void }) {
+function MathChallenge({ onBack, onComplete }: { onBack: () => void; onComplete: GameComplete }) {
   const [classLevel, setClassLevel] = useState<'P1_2' | 'P3_6' | 'JSS' | 'SSS'>('P3_6')
   const [gameState, setGameState] = useState<'START' | 'PLAYING' | 'END'>('START')
   const [question, setQuestion] = useState({ expression: '', answer: 0 })
@@ -732,6 +755,7 @@ function MathChallenge({ onBack }: { onBack: () => void }) {
   const [timeLeft, setTimeLeft] = useState(30)
   const [highScore, setHighScore] = useState(0)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const resultReported = useRef(false)
 
   const generateQuestion = () => {
     let expr = ''
@@ -819,11 +843,18 @@ function MathChallenge({ onBack }: { onBack: () => void }) {
   }
 
   const startGame = () => {
+    resultReported.current = false
     setScore(0)
     setTimeLeft(30)
     setGameState('PLAYING')
     generateQuestion()
   }
+
+  useEffect(() => {
+    if (gameState !== 'END' || resultReported.current) return
+    resultReported.current = true
+    onComplete('MATH', score / 10, score > 0)
+  }, [gameState, score, onComplete])
 
   const handleAnswerSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -988,7 +1019,7 @@ function MathChallenge({ onBack }: { onBack: () => void }) {
 /* ====================================================================
    3. VOCABULARY WORD SCRAMBLE
    ==================================================================== */
-function WordScramble({ onBack }: { onBack: () => void }) {
+function WordScramble({ onBack, onComplete }: { onBack: () => void; onComplete: GameComplete }) {
   const words = [
     { original: 'ALGEBRA', hint: 'A branch of mathematics using letters and symbols.' },
     { original: 'GEOMETRY', hint: 'The study of points, lines, shapes, and angles.' },
@@ -1004,6 +1035,7 @@ function WordScramble({ onBack }: { onBack: () => void }) {
   const [userInput, setUserInput] = useState('')
   const [feedback, setFeedback] = useState<'CORRECT' | 'WRONG' | 'PENDING'>('PENDING')
   const [score, setScore] = useState(0)
+  const [finished, setFinished] = useState(false)
 
   const scrambleWord = (word: string) => {
     const arr = word.split('')
@@ -1034,6 +1066,7 @@ function WordScramble({ onBack }: { onBack: () => void }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (finished || feedback === 'CORRECT') return
     const input = userInput.trim().toUpperCase()
     if (input === words[wordIndex].original) {
       setFeedback('CORRECT')
@@ -1046,6 +1079,12 @@ function WordScramble({ onBack }: { onBack: () => void }) {
   const handleNext = () => {
     const nextIdx = (wordIndex + 1) % words.length
     loadWord(nextIdx)
+  }
+
+  const finishGame = () => {
+    if (finished) return
+    setFinished(true)
+    onComplete('SCRAMBLE', score / 20, score > 0)
   }
 
   return (
@@ -1095,7 +1134,7 @@ function WordScramble({ onBack }: { onBack: () => void }) {
                 <p className="font-black text-emerald-950">Awesome Work! Correct!</p>
                 <p className="text-xs text-emerald-700 font-bold mt-1">You discovered the word and earned +20 Points!</p>
               </div>
-              <Button onClick={handleNext} className="bg-emerald-600 hover:bg-emerald-700 h-10 px-6 rounded-lg font-black text-xs">
+              <Button onClick={handleNext} disabled={finished} className="bg-emerald-600 hover:bg-emerald-700 h-10 px-6 rounded-lg font-black text-xs">
                 NEXT WORD
               </Button>
             </div>
@@ -1127,6 +1166,7 @@ function WordScramble({ onBack }: { onBack: () => void }) {
               {score} PTS
             </Badge>
           </div>
+          <Button onClick={finishGame} disabled={finished} className="w-full bg-emerald-700 text-white">{finished ? 'Game score submitted' : 'Finish and save score'}</Button>
         </div>
       </div>
     </Card>
@@ -1136,7 +1176,7 @@ function WordScramble({ onBack }: { onBack: () => void }) {
 /* ====================================================================
    4. SUDOKU LOGIC PUZZLE (4x4)
    ==================================================================== */
-function SudokuGame({ onBack }: { onBack: () => void }) {
+function SudokuGame({ onBack, onComplete }: { onBack: () => void; onComplete: GameComplete }) {
   // A standard valid 4x4 Sudoku template
   // Rows:
   // [1, 2, 3, 4]
@@ -1176,6 +1216,7 @@ function SudokuGame({ onBack }: { onBack: () => void }) {
   }
 
   const checkSolution = () => {
+    if (status === 'SOLVED') return
     let matches = true
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
@@ -1188,6 +1229,7 @@ function SudokuGame({ onBack }: { onBack: () => void }) {
     if (matches) {
       setStatus('SOLVED')
       setScore(prev => prev + 50)
+      onComplete('SUDOKU', 50, true)
       alert('Congratulations! Correctly Solved! +50 Points')
     } else {
       setStatus('INVALID')
@@ -1299,7 +1341,7 @@ function SudokuGame({ onBack }: { onBack: () => void }) {
 /* ====================================================================
    5. SUBJECT TRIVIA QUIZ MASTER
    ==================================================================== */
-function TriviaGame({ onBack }: { onBack: () => void }) {
+function TriviaGame({ onBack, onComplete }: { onBack: () => void; onComplete: GameComplete }) {
   const quizQuestions = [
     {
       q: 'Which of the following is the standard unit of force?',
@@ -1331,6 +1373,7 @@ function TriviaGame({ onBack }: { onBack: () => void }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [showAnswer, setShowAnswer] = useState(false)
   const [score, setScore] = useState(0)
+  const [finished, setFinished] = useState(false)
 
   const handleOptionSelect = (opt: string) => {
     if (showAnswer) return
@@ -1346,9 +1389,16 @@ function TriviaGame({ onBack }: { onBack: () => void }) {
   }
 
   const handleNext = () => {
+    if (finished) return
     setSelectedOption(null)
     setShowAnswer(false)
     setQIdx(prev => (prev + 1) % quizQuestions.length)
+  }
+
+  const finishGame = () => {
+    if (finished) return
+    setFinished(true)
+    onComplete('TRIVIA', score / 25, score > 0)
   }
 
   const current = quizQuestions[qIdx]
@@ -1426,6 +1476,7 @@ function TriviaGame({ onBack }: { onBack: () => void }) {
             <Trophy size={48} className="text-pink-600 mx-auto animate-pulse" />
             <h4 className="font-black text-xs uppercase text-pink-800 tracking-wider mt-2">Scholar Score</h4>
             <p className="text-3xl font-black text-slate-900">{score} PTS</p>
+            <Button onClick={finishGame} disabled={finished} className="w-full bg-pink-700 text-white">{finished ? 'Score submitted' : 'Finish and save score'}</Button>
           </div>
         </div>
       </div>
@@ -1433,10 +1484,11 @@ function TriviaGame({ onBack }: { onBack: () => void }) {
   )
 }
 
-function ScrabbleGame({ onBack }: { onBack: () => void }) {
+function ScrabbleGame({ onBack, onComplete }: { onBack: () => void; onComplete: GameComplete }) {
   const [word, setWord] = useState('')
   const [score, setScore] = useState(0)
   const [message, setMessage] = useState('')
+  const [finished, setFinished] = useState(false)
   const practiceWords = new Set([
     'ACADEMY', 'ALGEBRA', 'BIOLOGY', 'CHESS', 'CLASS', 'EARTH', 'ENERGY',
     'FRACTION', 'HISTORY', 'LEARN', 'MATH', 'PLANET', 'SCIENCE', 'SPELL',
@@ -1449,6 +1501,7 @@ function ScrabbleGame({ onBack }: { onBack: () => void }) {
   }
 
   const submitWord = () => {
+    if (finished) return
     const normalized = word.trim().toUpperCase()
     if (!practiceWords.has(normalized)) {
       setMessage('That word is not in this practice dictionary. Try a displayed word such as SCIENCE or TEACHER.')
@@ -1457,6 +1510,12 @@ function ScrabbleGame({ onBack }: { onBack: () => void }) {
     setScore((current) => current + [...normalized].reduce((total, letter) => total + letterValues[letter], 0))
     setMessage(`${normalized} accepted! Points added.`)
     setWord('')
+  }
+
+  const finishGame = () => {
+    if (finished) return
+    setFinished(true)
+    onComplete('SCRABBLE', score, score > 0)
   }
 
   return (
@@ -1471,18 +1530,19 @@ function ScrabbleGame({ onBack }: { onBack: () => void }) {
       </div>
       <div className="rounded-2xl bg-amber-50 p-5 text-amber-950">
         <p className="font-bold">Practice words: ACADEMY · ALGEBRA · BIOLOGY · FRACTION · HISTORY · PLANET · SCIENCE · STUDENT · TEACHER</p>
-        <p className="text-sm mt-2">Practice mode only: this word exercise does not yet save scores or support live multiplayer.</p>
+        <p className="text-sm mt-2">Valid words contribute to your school leaderboard. Scores are capped per game.</p>
       </div>
       <div className="flex flex-wrap gap-3">
-        <Input aria-label="Word to score" value={word} onChange={(event) => setWord(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') submitWord() }} placeholder="Type a practice word" className="max-w-sm" />
-        <Button onClick={submitWord} disabled={!word.trim()} className="bg-red-600 hover:bg-red-700">Submit word</Button>
+        <Input aria-label="Word to score" value={word} onChange={(event) => setWord(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') submitWord() }} placeholder="Type a practice word" className="max-w-sm" disabled={finished} />
+        <Button onClick={submitWord} disabled={!word.trim() || finished} className="bg-red-600 hover:bg-red-700">Submit word</Button>
+        <Button onClick={finishGame} disabled={finished} variant="outline">{finished ? 'Score submitted' : 'Finish and save score'}</Button>
       </div>
       {message && <p aria-live="polite" className="text-sm font-semibold text-slate-700">{message}</p>}
     </Card>
   )
 }
 
-function MonopolyGame({ onBack }: { onBack: () => void }) {
+function MonopolyGame({ onBack, onComplete }: { onBack: () => void; onComplete: GameComplete }) {
   const spaces = [
     { name: 'Start', price: 0, rent: 0 },
     { name: 'Science Lab', price: 80, rent: 15 },
@@ -1499,6 +1559,14 @@ function MonopolyGame({ onBack }: { onBack: () => void }) {
   const [turn, setTurn] = useState(0)
   const [message, setMessage] = useState('You go first. Roll the die to move.')
   const [finished, setFinished] = useState(false)
+  const [turnCount, setTurnCount] = useState(0)
+  const resultReported = useRef(false)
+
+  useEffect(() => {
+    if (!finished || resultReported.current) return
+    resultReported.current = true
+    onComplete('MONOPOLY', Math.max(1, Math.floor(cash[0] / 50)), cash[0] > cash[1])
+  }, [finished, cash, onComplete])
 
   const takeTurn = () => {
     if (finished) return
@@ -1540,12 +1608,14 @@ function MonopolyGame({ onBack }: { onBack: () => void }) {
     }
     nextPositions[turn] = newPosition
     const bankrupt = nextCash[turn] <= 0
+    const endGame = bankrupt || turnCount + 1 >= 40
     setPositions(nextPositions)
     setCash(nextCash)
     setOwners(nextOwners)
     setMessage(outcome)
-    setFinished(bankrupt)
-    if (!bankrupt) setTurn((current) => 1 - current)
+    setTurnCount((current) => current + 1)
+    setFinished(endGame)
+    if (!endGame) setTurn((current) => 1 - current)
   }
 
   return (
@@ -1554,7 +1624,7 @@ function MonopolyGame({ onBack }: { onBack: () => void }) {
         <button onClick={onBack} className="text-amber-700 font-black text-xs uppercase tracking-widest hover:underline mb-2 block">← BACK TO ARENA</button>
         <CardTitle className="text-3xl font-black text-slate-900">Academy Property Practice</CardTitle>
       </div>
-      <p className="text-sm text-amber-950 bg-amber-50 rounded-2xl p-4">Practice mode against a local opponent; games and scores are not persisted or synchronized with other players.</p>
+      <p className="text-sm text-amber-950 bg-amber-50 rounded-2xl p-4">Play up to 40 turns against the school opponent. Your result is recorded on the school leaderboard.</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {spaces.map((space, index) => <div key={space.name} className={`rounded-xl border p-4 ${positions.includes(index) ? 'border-amber-500 bg-amber-50' : 'border-slate-200'}`}>
           <p className="font-bold text-slate-900">{space.name}</p>

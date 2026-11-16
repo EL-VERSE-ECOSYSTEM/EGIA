@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { teacherAttendance, teacher, schoolAttendanceConfig } from '@/lib/db/schema'
 import { eq, and, isNull, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+import { getSchoolMinutesOfDay, getSchoolWorkDate, parseWorkTimeMinutes } from '@/lib/school-time'
 
 export async function clockOut(deviceInfo?: string, ipAddress?: string) {
   const session = await auth.getSession()
@@ -19,16 +20,14 @@ export async function clockOut(deviceInfo?: string, ipAddress?: string) {
   if (!schoolId) throw new Error('School tenant ID missing')
 
   const now = new Date()
-  const today = now.toISOString().slice(0, 10)
+  const today = getSchoolWorkDate(now)
 
   const config = await db.query.schoolAttendanceConfig.findFirst({
     where: eq(schoolAttendanceConfig.schoolId, schoolId)
   })
 
   const workEnd = config?.workEndTime || '16:00:00'
-  const [eh, em] = workEnd.split(':').map(Number)
-  const end = new Date(now)
-  end.setHours(eh || 16, em || 0, 0, 0)
+  const workEndMinutes = parseWorkTimeMinutes(workEnd)
 
   const updatedRecord = await db.transaction(async (tx) => {
     const lockKey = `${schoolId}:${teacherProfile.id}:${today}`
@@ -48,8 +47,9 @@ export async function clockOut(deviceInfo?: string, ipAddress?: string) {
     if (now < clockInTime) throw new Error('Clock out time cannot be earlier than clock in time')
 
     const totalMinutes = Math.max(0, Math.floor((now.getTime() - clockInTime.getTime()) / 60000))
-    const earlyExitMinutes = Math.max(0, Math.floor((end.getTime() - now.getTime()) / 60000))
-    const overtimeMinutes = Math.max(0, Math.floor((now.getTime() - end.getTime()) / 60000))
+    const minutesNow = getSchoolMinutesOfDay(now)
+    const earlyExitMinutes = Math.max(0, workEndMinutes - minutesNow)
+    const overtimeMinutes = Math.max(0, minutesNow - workEndMinutes)
 
     const updated = await tx.update(teacherAttendance)
       .set({

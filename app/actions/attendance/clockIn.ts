@@ -6,6 +6,7 @@ import { teacherAttendance, teacher, schoolAttendanceConfig } from '@/lib/db/sch
 import { eq, and, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
+import { getSchoolMinutesOfDay, getSchoolWorkDate, parseWorkTimeMinutes } from '@/lib/school-time'
 
 export async function clockIn(deviceInfo?: string, ipAddress?: string) {
   const session = await auth.getSession()
@@ -20,7 +21,7 @@ export async function clockIn(deviceInfo?: string, ipAddress?: string) {
   if (!schoolId) throw new Error('School tenant ID missing')
 
   const now = new Date()
-  const today = now.toISOString().slice(0, 10)
+  const today = getSchoolWorkDate(now)
 
   // Fetch school config for late threshold
   const config = await db.query.schoolAttendanceConfig.findFirst({
@@ -30,11 +31,7 @@ export async function clockIn(deviceInfo?: string, ipAddress?: string) {
   const workStart = config?.workStartTime || '08:00:00'
   const lateThreshold = config?.lateThresholdMinutes ?? 10
 
-  const [sh, sm] = workStart.split(':').map(Number)
-  const start = new Date(now)
-  start.setHours(sh || 8, sm || 0, 0, 0)
-
-  const lateMinutes = Math.max(0, Math.floor((now.getTime() - start.getTime()) / 60000))
+  const lateMinutes = Math.max(0, getSchoolMinutesOfDay(now) - parseWorkTimeMinutes(workStart))
   const status = lateMinutes >= lateThreshold ? 'LATE' : 'PRESENT'
 
   const updatedRecord = await db.transaction(async (tx) => {
@@ -48,6 +45,7 @@ export async function clockIn(deviceInfo?: string, ipAddress?: string) {
         eq(teacherAttendance.workDate, today),
       ),
     })
+    if (existing?.status === 'ON_LEAVE') throw new Error('You are recorded as on leave today')
     if (existing?.clockInAt) throw new Error('Already clocked in for today')
 
     if (existing) {

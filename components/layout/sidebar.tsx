@@ -65,6 +65,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         { label: 'Active Users', icon: User, href: '/dashboard/super-admin/active-users' },
         { label: 'Students List', icon: Users, href: '/dashboard/admin/users/students/list' },
         { label: 'Teachers List', icon: User, href: '/dashboard/admin/users/teachers/list' },
+        { label: 'Institution Transfers', icon: School, href: '/dashboard/admin/transfers' },
         { label: 'Academics Control', icon: BookOpen, href: '/dashboard/admin/academics' },
         { label: 'Library Catalog', icon: BookMarked, href: '/dashboard/admin/library/books' },
         { label: 'Assessments Log', icon: GraduationCap, href: '/dashboard/admin/assessments' },
@@ -129,6 +130,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         { label: 'Notifications', icon: Bell, href: '/dashboard/teacher/communication/notifications' },
         { label: 'My Wallet', icon: Wallet, href: '/dashboard/teacher/wallet' },
         { label: 'Profile Settings', icon: User, href: '/dashboard/teacher/profile' },
+        { label: 'Change Institution', icon: School, href: '/dashboard/transfer' },
       ]
     },
     parent: {
@@ -148,6 +150,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         { label: 'Notifications', icon: Bell, href: '/dashboard/parent/communication/notifications' },
         { label: 'Help & Support Desk', icon: HelpCircle, href: '/dashboard/parent/help/contact-support' },
         { label: 'Settings', icon: Settings, href: '/dashboard/parent/settings/profile' },
+        { label: 'Change Institution', icon: School, href: '/dashboard/transfer' },
       ]
     },
     student: {
@@ -164,7 +167,8 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         { label: 'CBT Assessments', icon: GraduationCap, href: '/dashboard/student/assessments/upcoming' },
         { label: 'Attendance Card', icon: Calendar, href: '/dashboard/student/attendance/calendar' },
         { label: 'Study Planner Desk', icon: Clock, href: '/dashboard/student/study-planner/goals' },
-        { label: 'Leaderboard Rankings', icon: BarChart3, href: '/dashboard/student/leaderboard/class' },
+        { label: 'Leaderboard Rankings', icon: BarChart3, href: '/dashboard/student/leaderboard' },
+        { label: 'Change Institution', icon: School, href: '/dashboard/transfer' },
         { label: 'Results Sheet', icon: Award, href: '/dashboard/student/results/current' },
         { label: 'Communication Hub', icon: MessageSquare, href: '/dashboard/student/communication/messages' },
         { label: 'Notifications', icon: Bell, href: '/dashboard/student/communication/notifications' },

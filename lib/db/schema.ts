@@ -64,6 +64,21 @@ export const schoolRegistrationApplication = pgTable('school_registration_applic
   foreignKey({ columns: [t.reviewedBy], foreignColumns: [user.id] }).onDelete('set null'),
 ])
 
+export const institutionTransferRequest = pgTable('institution_transfer_request', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(),
+  oldSchoolId: text('old_school_id').references(() => school.id, { onDelete: 'set null' }),
+  newSchoolId: text('new_school_id').notNull().references(() => school.id, { onDelete: 'cascade' }),
+  wardStudentId: text('ward_student_id').references(() => student.id, { onDelete: 'cascade' }),
+  status: text('status').notNull().default('PENDING'),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  cleanupAfter: timestamp('cleanup_after', { withTimezone: true }),
+  cleanedAt: timestamp('cleaned_at', { withTimezone: true }),
+  reviewedBy: text('reviewed_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ===== CORE USER TABLES =====
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
@@ -985,6 +1000,8 @@ export const tournamentScores = pgTable('tournament_scores', {
   schoolId: text('school_id').notNull().references(() => school.id, { onDelete: 'cascade' }),
   studentId: text('student_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   gameType: text('game_type').notNull(),
+  competitionScope: text('competition_scope').notNull().default('GLOBAL'),
+  competitionDate: date('competition_date'),
   points: integer('points').notNull().default(0),
   isWin: boolean('is_win').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -89,17 +89,13 @@ export async function approveLeave(leaveId: string, comment?: string) {
     }
 
     // 3. Update balance: move pending -> used
-    try {
-      await tx.execute(sql`
+    await tx.execute(sql`
         SELECT public.finalize_approved_leave(
           ${leave.teacherId},
           ${leave.leaveTypeId},
           ${leave.totalDays}
         )
       `)
-    } catch (err) {
-      console.warn('Failed to invoke finalize_approved_leave:', err)
-    }
 
     revalidatePath('/dashboard/admin/leave')
     revalidatePath('/dashboard/teacher/leave')
