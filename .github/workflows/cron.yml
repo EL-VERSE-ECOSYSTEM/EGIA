@@ -1,0 +1,47 @@
+name: Scheduled jobs
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  institution-transfer-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run institution transfer cleanup
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          VERCEL_URL: ${{ vars.VERCEL_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET is not configured in GitHub Actions secrets" >&2
+            exit 1
+          fi
+          if [ -z "$VERCEL_URL" ]; then
+            echo "VERCEL_URL is not configured in GitHub Actions variables" >&2
+            exit 1
+          fi
+          curl --fail-with-body --show-error --silent \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "https://$VERCEL_URL/api/cron/institution-transfer-cleanup"
+
+  fee-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send scheduled fee reminders
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          VERCEL_URL: ${{ vars.VERCEL_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET is not configured in GitHub Actions secrets" >&2
+            exit 1
+          fi
+          if [ -z "$VERCEL_URL" ]; then
+            echo "VERCEL_URL is not configured in GitHub Actions variables" >&2
+            exit 1
+          fi
+          curl --fail-with-body --show-error --silent \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "https://$VERCEL_URL/api/cron/fee-reminders"
