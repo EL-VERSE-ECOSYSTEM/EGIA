@@ -49,7 +49,7 @@ export default function AdminDisputesPage() {
     setSubmitting(true)
     try {
       await resolveDispute(selectedDispute.id, resolutionNote)
-      toast.success('Dispute ticket marked as resolved!')
+      toast.success('Response sent. Super Admin will make the final decision.')
       setSelectedDispute(null)
       setResolutionNote('')
       loadDisputes()
@@ -175,7 +175,7 @@ export default function AdminDisputesPage() {
                 {selectedDispute.status === 'RESOLVED' ? (
                   <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl space-y-1">
                     <p className="text-[10px] font-black uppercase text-emerald-700">Resolution Remarks</p>
-                    <p className="text-sm font-semibold text-emerald-900">{selectedDispute.resolution || 'Resolved by Administrator.'}</p>
+                    <p className="text-sm font-semibold text-emerald-900">{selectedDispute.resolution || 'Resolved by Super Admin.'}</p>
                   </div>
                 ) : (
                   <div className="space-y-4 pt-4 border-t border-slate-100">
@@ -192,7 +192,7 @@ export default function AdminDisputesPage() {
                       className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs gap-2"
                     >
                       {submitting ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle size={16} />}
-                      RESOLVE DISPUTE TICKET
+                      SEND SCHOOL RESPONSE
                     </Button>
                   </div>
                 )}

@@ -54,46 +54,50 @@ async function requirePaymentAdminScope(action: 'read' | 'update') {
 // ===== SUPPORT TICKETS ACTIONS =====
 export async function getAdminSupportTickets() {
   const schoolId = await requireSchoolAdminScope()
+  if (!schoolId) return []
   const query = db.select({ ticket: supportTicket, userRecord: userTable })
     .from(supportTicket)
     .leftJoin(userTable, eq(userTable.id, supportTicket.userId))
-  const list = schoolId
-    ? await query.where(eq(userTable.schoolId, schoolId)).orderBy(desc(supportTicket.createdAt))
-    : await query.orderBy(desc(supportTicket.createdAt))
+  const list = await query.where(and(eq(supportTicket.schoolId, schoolId), eq(supportTicket.supportType, 'SCHOOL'))).orderBy(desc(supportTicket.createdAt))
 
   return list.map(({ ticket, userRecord }) => ({
     ...ticket,
     userName: userRecord?.name || ticket.contactName || 'Portal User',
     userEmail: userRecord?.email || ticket.contactEmail || 'N/A',
-  }))
+  })).reduce(async (promise, row) => {
+    const acc = await promise
+    const { supportTicketReply } = await import('@/lib/db/schema')
+    const replies = await db.select().from(supportTicketReply).where(eq(supportTicketReply.ticketId, row.id)).orderBy(desc(supportTicketReply.createdAt))
+    acc.push({ ...row, replies })
+    return acc
+  }, Promise.resolve([] as any[]))
 }
 
-export async function resolveSupportTicket(ticketId: string, resolution: string) {
+export async function replyToSchoolSupportTicket(ticketId: string, messageText: string) {
   const schoolId = await requireSchoolAdminScope()
-  const resolutionText = resolution.trim()
-  if (!resolutionText || resolutionText.length > 2000) throw new Error('Please provide resolution notes of up to 2,000 characters.')
+  const replyText = messageText.trim()
+  if (!replyText || replyText.length > 5000) throw new Error('Enter a response of up to 5,000 characters.')
+  if (!schoolId) throw new Error('School support is available only within your assigned school.')
 
-  const [ticket] = await db.select({ ticket: supportTicket, ownerSchoolId: userTable.schoolId })
-    .from(supportTicket)
-    .leftJoin(userTable, eq(userTable.id, supportTicket.userId))
-    .where(eq(supportTicket.id, ticketId))
-    .limit(1)
-  if (!ticket || (schoolId && ticket.ownerSchoolId !== schoolId)) {
+  const ticket = await db.query.supportTicket.findFirst({ where: and(
+    eq(supportTicket.id, ticketId), eq(supportTicket.schoolId, schoolId), eq(supportTicket.supportType, 'SCHOOL'),
+  ) })
+  if (!ticket) {
     throw new Error('Support ticket not found in the active school.')
   }
-
-  const result = await db.update(supportTicket)
-    .set({
-      status: 'RESOLVED',
-      resolution: resolutionText,
-      resolvedAt: new Date(),
-      updatedAt: new Date()
-    })
-    .where(eq(supportTicket.id, ticketId))
-    .returning()
+  const actor = (await auth.getSession())!.user!
+  await db.insert((await import('@/lib/db/schema')).supportTicketReply).values({ id: randomUUID(), ticketId, senderId: actor.id, message: replyText })
+  await db.update(supportTicket).set({ status: 'IN_PROGRESS', updatedAt: new Date() }).where(and(
+    eq(supportTicket.id, ticketId), eq(supportTicket.schoolId, schoolId), eq(supportTicket.supportType, 'SCHOOL'),
+  ))
+  if (ticket.userId) {
+    const { sendPushNotification } = await import('@/lib/services/notifications')
+    await sendPushNotification({ userId: ticket.userId, eventKey: `school-support-reply:${ticket.id}:${randomUUID()}`, title: `School support replied: ${ticket.ticketNumber}`, body: replyText, type: 'SUPPORT_REPLY', data: { ticketId, ticketNumber: ticket.ticketNumber, schoolId }, link: '/dashboard' })
+  }
 
   revalidatePath('/dashboard/admin/communication/support')
-  return result[0]
+  revalidatePath('/dashboard/super-admin/support')
+  return { success: true }
 }
 
 // ===== DISPUTES ACTIONS =====
@@ -158,13 +162,24 @@ export async function resolveDispute(disputeId: string, resolution: string) {
 
   const result = await db.update(dispute)
     .set({
-      status: 'RESOLVED',
+      status: 'IN_PROGRESS',
       resolution,
-      resolvedAt: new Date(),
+      resolvedAt: null,
       updatedAt: new Date()
     })
     .where(eq(dispute.id, disputeId))
     .returning()
+
+  const { sendPushNotification } = await import('@/lib/services/notifications')
+  await sendPushNotification({
+    userId: complaint.raisedById,
+    title: `School update: ${complaint.ticketNumber}`,
+    body: resolution.trim(),
+    type: 'DISPUTE_REPLY',
+    data: { disputeId, ticketNumber: complaint.ticketNumber, schoolId },
+    link: '/dashboard',
+    eventKey: `dispute-school-reply:${disputeId}:${randomUUID()}`,
+  }).catch(error => console.error('Dispute reply notification failed', error))
 
   revalidatePath('/dashboard/admin/communication/disputes')
   return result[0]

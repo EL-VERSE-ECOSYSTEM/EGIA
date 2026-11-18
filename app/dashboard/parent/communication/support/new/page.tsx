@@ -17,6 +17,7 @@ export default function NewSupportTicketPage() {
     category: '',
     priority: 'MEDIUM',
     description: '',
+    supportType: 'APP' as 'APP' | 'SCHOOL',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -26,7 +27,7 @@ export default function NewSupportTicketPage() {
     try {
       await createSupportTicket(formData)
       alert('Support ticket created successfully! Our team will contact you shortly.')
-      setFormData({ title: '', category: '', priority: 'MEDIUM', description: '' })
+      setFormData({ title: '', category: '', priority: 'MEDIUM', description: '', supportType: 'APP' })
     } catch (error: any) {
       console.error(error)
       alert(error.message || 'Failed to create support ticket.')
@@ -64,6 +65,13 @@ export default function NewSupportTicketPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px]">Support destination</Label>
+                      <Select value={formData.supportType} onValueChange={(v) => setFormData({...formData, supportType: v as 'APP' | 'SCHOOL'})}>
+                        <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="SCHOOL">School Support</SelectItem><SelectItem value="APP">App Support · Super Admin</SelectItem></SelectContent>
+                      </Select>
+                    </div>
                     <div className="space-y-2">
                       <Label className="font-black text-slate-700 uppercase tracking-widest text-[10px]">Category</Label>
                       <Select onValueChange={(v) => setFormData({...formData, category: v})}>

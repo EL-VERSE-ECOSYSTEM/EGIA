@@ -9,8 +9,10 @@ import { Bell, CheckCircle2, Clock, Sparkles, RefreshCw, Loader2, Search, Inbox 
 import { getLoggedInNotifications } from '@/app/actions/user'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { toast } from 'sonner'
+import NotificationCenter from '@/components/notifications/NotificationCenter'
 
 export default function TeacherNotificationsPage() {
+  return <NotificationCenter role="teacher" />
   const [notifications, setNotifications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'ALL' | 'UNREAD'>('ALL')

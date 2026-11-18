@@ -525,7 +525,7 @@ export async function getSuperAdminSupportTicketsAction() {
   try {
     await checkSuperAdminPermission()
 
-    const { supportTicket, supportTicketReply } = await import('@/lib/db/schema')
+    const { supportTicketReply } = await import('@/lib/db/schema')
     const tickets = await db.query.supportTicket.findMany({
       orderBy: (ticket, { desc }) => [desc(ticket.createdAt)],
     })
@@ -539,6 +539,7 @@ export async function getSuperAdminSupportTicketsAction() {
 
       result.push({
         ...t,
+        schoolName: t.schoolId ? (await db.query.school.findFirst({ where: eq(school.id, t.schoolId), columns: { name: true } }))?.name || null : null,
         userName: userRec?.name || t.contactName || 'Portal User',
         userEmail: userRec?.email || t.contactEmail || 'N/A',
         replies,
@@ -548,6 +549,26 @@ export async function getSuperAdminSupportTicketsAction() {
     return { success: true, tickets: result }
   } catch (error: any) {
     return sanitizeServerError('getSuperAdminSupportTicketsAction', error, 'Unable to retrieve support tickets.')
+  }
+}
+
+export async function approveSupportTicketAction(ticketId: string) {
+  try {
+    const adminUser = await checkSuperAdminPermission()
+    const { supportTicket } = await import('@/lib/db/schema')
+    const ticket = await db.query.supportTicket.findFirst({ where: eq(supportTicket.id, ticketId) })
+    if (!ticket) return { success: false, error: 'Support ticket not found.' }
+    if (ticket.approvedAt) return { success: true }
+    await db.update(supportTicket).set({ approvedAt: new Date(), approvedBy: adminUser.id, updatedAt: new Date() })
+      .where(eq(supportTicket.id, ticketId))
+    if (ticket.userId) {
+      const { sendPushNotification } = await import('@/lib/services/notifications')
+      await sendPushNotification({ userId: ticket.userId, title: `Support request approved: ${ticket.ticketNumber}`, body: 'A Super Admin has reviewed your support request and it is now being handled.', type: 'SUPPORT_APPROVED', data: { ticketId, ticketNumber: ticket.ticketNumber, supportType: ticket.supportType }, link: '/dashboard', eventKey: `support-approved:${ticket.id}` })
+    }
+    revalidatePath('/dashboard/super-admin/support')
+    return { success: true }
+  } catch (error: any) {
+    return sanitizeServerError('approveSupportTicketAction', error, 'Failed to approve support ticket.')
   }
 }
 
@@ -567,6 +588,7 @@ export async function replyToSupportTicketAction(ticketId: string, message: stri
     if (!ticket) {
       return { success: false, error: 'Support ticket not found.' }
     }
+    if (!ticket.approvedAt) return { success: false, error: 'Approve this support request before replying.' }
 
     const replyId = randomUUID()
     await db.insert(supportTicketReply).values({
@@ -585,13 +607,15 @@ export async function replyToSupportTicketAction(ticketId: string, message: stri
       .where(eq(supportTicket.id, ticketId))
 
     if (ticket.userId) {
-      await db.insert(notification).values({
-        id: randomUUID(),
+      const { sendPushNotification } = await import('@/lib/services/notifications')
+      await sendPushNotification({
         userId: ticket.userId,
-        title: `SUPPORT RESPONSE: ${ticket.ticketNumber}`,
-        message: `Super Admin Response: "${trimmedMessage}"`,
+        title: `Support response: ${ticket.ticketNumber}`,
+        body: trimmedMessage,
         type: 'SUPPORT_REPLY',
-        createdAt: new Date(),
+        data: { ticketId, ticketNumber: ticket.ticketNumber },
+        link: '/dashboard',
+        eventKey: `support-reply:${replyId}`,
       })
     }
 
@@ -599,6 +623,36 @@ export async function replyToSupportTicketAction(ticketId: string, message: stri
     return { success: true, replyId }
   } catch (error: any) {
     return sanitizeServerError('replyToSupportTicketAction', error, 'Failed to send response to support ticket.')
+  }
+}
+
+export async function closeSupportTicketAction(ticketId: string, resolution: string) {
+  try {
+    const adminUser = await checkSuperAdminPermission()
+    const text = resolution.trim()
+    if (!text || text.length > 5000) return { success: false, error: 'Resolution must be between 1 and 5,000 characters.' }
+    const { supportTicket } = await import('@/lib/db/schema')
+    const ticket = await db.query.supportTicket.findFirst({ where: eq(supportTicket.id, ticketId) })
+    if (!ticket) return { success: false, error: 'Support ticket not found.' }
+    if (!ticket.approvedAt) return { success: false, error: 'Approve this ticket before closing it.' }
+    if (ticket.status === 'RESOLVED') return { success: false, error: 'This support ticket is already closed.' }
+    await db.update(supportTicket).set({ status: 'RESOLVED', resolution: text, resolvedAt: new Date(), updatedAt: new Date() }).where(eq(supportTicket.id, ticketId))
+    if (ticket.userId) {
+      const { sendPushNotification } = await import('@/lib/services/notifications')
+      await sendPushNotification({
+        userId: ticket.userId,
+        title: `Support ticket resolved: ${ticket.ticketNumber}`,
+        body: text,
+        type: 'SUPPORT_RESOLVED',
+        data: { ticketId, ticketNumber: ticket.ticketNumber, resolvedBy: adminUser.id },
+        link: '/dashboard',
+        eventKey: `support-resolved:${ticket.id}:${Date.now()}`,
+      })
+    }
+    revalidatePath('/dashboard/super-admin/support')
+    return { success: true }
+  } catch (error: any) {
+    return sanitizeServerError('closeSupportTicketAction', error, 'Failed to close support ticket.')
   }
 }
 

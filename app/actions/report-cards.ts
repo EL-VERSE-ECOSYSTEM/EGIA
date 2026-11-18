@@ -303,6 +303,19 @@ export async function endorseReportCard(id: string, feedback?: string): Promise<
     ))
     .returning()
   if (!updated[0]) throw new Error('Only a pending report card can be endorsed.')
+  const learner = await db.query.student.findFirst({ where: and(eq(student.id, row.studentId), eq(student.schoolId, row.schoolId)) })
+  const guardian = learner?.parentId ? await db.query.parent.findFirst({ where: and(eq(parent.id, learner.parentId), eq(parent.schoolId, row.schoolId)) }) : null
+  const recipients = [learner?.userId, guardian?.userId].filter((userId): userId is string => Boolean(userId))
+  const { sendPushNotification } = await import('@/lib/services/notifications')
+  await Promise.all(recipients.map(userId => sendPushNotification({
+    userId,
+    title: 'Report card published',
+    body: `The ${row.term || ''} ${row.session || ''} report card is now available.`.replace(/\s+/g, ' ').trim(),
+    type: 'REPORT_CARD_PUBLISHED',
+    data: { reportCardId: row.id, studentId: row.studentId, schoolId: row.schoolId },
+    link: userId === learner?.userId ? '/dashboard/student/report-card' : '/dashboard/parent/academics/reports',
+    eventKey: `report-card-published:${row.id}:${userId}`,
+  }).catch(error => console.error('Report card notification failed', { reportCardId: row.id, userId, error }))))
   revalidatePath('/dashboard')
   return getReportCard(updated[0])
 }

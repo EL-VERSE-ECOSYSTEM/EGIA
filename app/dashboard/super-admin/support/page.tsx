@@ -4,7 +4,9 @@ import React, { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import {
   getSuperAdminSupportTicketsAction,
-  replyToSupportTicketAction
+  replyToSupportTicketAction,
+  closeSupportTicketAction,
+  approveSupportTicketAction,
 } from '@/app/actions/super-admin'
 import { HelpCircle, RefreshCw, Send, Search } from 'lucide-react'
 import { toast } from 'sonner'
@@ -58,6 +60,25 @@ export default function SupportTicketsPage() {
       toast.error('error' in res ? res.error : 'Failed to send reply.')
     }
     setSubmitting(null)
+  }
+
+  const handleClose = async (ticketId: string) => {
+    const resolution = replyText[ticketId]?.trim()
+    if (!resolution) { toast.error('Enter the resolution before closing this ticket.'); return }
+    setSubmitting(ticketId)
+    const res = await closeSupportTicketAction(ticketId, resolution)
+    if (res.success) {
+      toast.success('Ticket closed and the user has been notified.')
+      setReplyText(prev => ({ ...prev, [ticketId]: '' }))
+      await loadTickets()
+    } else toast.error('error' in res ? res.error : 'Could not close the ticket.')
+    setSubmitting(null)
+  }
+
+  const handleApprove = async (ticketId: string) => {
+    const res = await approveSupportTicketAction(ticketId)
+    if (res.success) { toast.success('Support request approved. The user has been notified.'); await loadTickets() }
+    else toast.error('error' in res ? res.error : 'Could not approve the ticket.')
   }
 
   const filtered = tickets.filter(t =>
@@ -117,7 +138,7 @@ export default function SupportTicketsPage() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-4">
                   <div>
                     <h3 className="text-base font-black text-slate-900">{ticket.title}</h3>
-                    <p className="text-xs font-bold text-slate-400">By: {ticket.userEmail || ticket.userId} • Category: {ticket.category || 'General'}</p>
+                    <p className="text-xs font-bold text-slate-400">By: {ticket.userEmail || ticket.userId} • Category: {ticket.category || 'General'} • {ticket.supportType === 'SCHOOL' ? `${ticket.schoolName || 'School'} support` : 'App support'}</p>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
                     ticket.status === 'RESOLVED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
@@ -129,6 +150,7 @@ export default function SupportTicketsPage() {
                 <div className="p-4 bg-slate-50 rounded-2xl text-xs font-medium text-slate-700 leading-relaxed">
                   {ticket.description}
                 </div>
+                {ticket.resolution && <div className="p-4 bg-emerald-50 rounded-2xl text-xs text-emerald-900"><strong>Resolution:</strong> {ticket.resolution}</div>}
 
                 {ticket.replies && ticket.replies.length > 0 && (
                   <div className="space-y-2 pt-2">
@@ -144,7 +166,7 @@ export default function SupportTicketsPage() {
                   </div>
                 )}
 
-                <div className="pt-2 flex gap-2">
+                {ticket.status !== 'RESOLVED' && <div className="pt-2 flex flex-wrap gap-2">
                   <input
                     type="text"
                     placeholder="Type official Super Admin response..."
@@ -159,7 +181,9 @@ export default function SupportTicketsPage() {
                   >
                     <Send className="w-3.5 h-3.5" /> Reply
                   </button>
-                </div>
+                  {!ticket.approvedAt && <button onClick={() => handleApprove(ticket.id)} className="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase">Approve request</button>}
+                  {ticket.approvedAt && <button onClick={() => handleClose(ticket.id)} disabled={submitting === ticket.id} className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase disabled:opacity-50">Close as solved</button>}
+                </div>}
               </div>
             ))}
           </div>

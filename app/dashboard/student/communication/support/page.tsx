@@ -20,7 +20,8 @@ export default function StudentSupportPage() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: 'TECHNICAL_ISSUE'
+    category: 'TECHNICAL_ISSUE',
+    supportType: 'APP' as 'APP' | 'SCHOOL',
   })
 
   const loadTickets = async () => {
@@ -54,7 +55,7 @@ export default function StudentSupportPage() {
       })
       toast.success('Support ticket created.')
       setIsAdding(false)
-      setFormData({ title: '', description: '', category: 'TECHNICAL_ISSUE' })
+      setFormData({ title: '', description: '', category: 'TECHNICAL_ISSUE', supportType: 'APP' })
       await loadTickets()
     } catch (error) {
       toast.error('Could not create support ticket', {
@@ -87,6 +88,10 @@ export default function StudentSupportPage() {
                 <CardTitle className="text-2xl font-black text-slate-900">Create Support Ticket</CardTitle>
              </CardHeader>
              <CardContent className="p-10 space-y-8">
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Support destination</label>
+                   <select value={formData.supportType} onChange={e => setFormData({...formData, supportType: e.target.value as 'APP' | 'SCHOOL'})} className="h-12 w-full rounded-xl border border-slate-100 bg-white px-4 text-sm font-bold"><option value="SCHOOL">School Support</option><option value="APP">App Support · Super Admin</option></select>
+                </div>
                 <div className="space-y-2">
                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">What is the problem?</label>
                    <Input placeholder="e.g. Cannot access JSS3 Math assessment" className="h-14 rounded-xl border-slate-100 font-bold" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />

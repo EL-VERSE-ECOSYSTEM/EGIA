@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { getMySupportTickets } from '@/app/actions/support'
+import { getMySupportTickets, reopenSupportTicket } from '@/app/actions/support'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { toast } from 'sonner'
 
@@ -55,6 +55,7 @@ export default function ParentSupportTicketsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="whitespace-pre-wrap text-sm text-slate-700">{ticket.description}</p>
+              {ticket.resolution && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900"><strong>Super Admin resolution:</strong> {ticket.resolution}</p>}
               <div className="space-y-2 border-t pt-4">
                 <h2 className="text-sm font-bold text-slate-800">Replies</h2>
                 {ticket.replies.length ? ticket.replies.map((reply) => (
@@ -64,6 +65,12 @@ export default function ParentSupportTicketsPage() {
                   </div>
                 )) : <p className="text-sm text-slate-500">A support agent will reply here.</p>}
               </div>
+              {ticket.status === 'RESOLVED' && <button onClick={async () => {
+                const update = window.prompt('Describe what is still wrong so Support can continue working on it.')
+                if (!update?.trim()) return
+                try { await reopenSupportTicket(ticket.id, update); toast.success('Ticket reopened. Support has been notified.'); await loadTickets() }
+                catch (error) { toast.error(error instanceof Error ? error.message : 'Could not reopen ticket.') }
+              }} className="rounded-xl bg-orange-600 px-4 py-2 text-xs font-bold text-white">Reopen if issue persists</button>}
             </CardContent>
           </Card>
         ))}

@@ -38,7 +38,7 @@ export async function sendPushNotification(notification: NotificationData): Prom
   const supabase = serviceClient();
   const { data: tokenRows, error: tokenError } = await supabase
     .from("user_fcm_tokens").select("token").eq("user_id", notification.userId).eq("is_active", true);
-  if (tokenError) throw new Error(`Unable to load FCM tokens: ${tokenError.message}`);
+  if (tokenError) console.error(`Unable to load FCM tokens: ${tokenError.message}`);
 
   const tokens = [...new Set((tokenRows ?? []).map(({ token }) => token).filter(Boolean))];
   let successCount = 0;
@@ -50,16 +50,24 @@ export async function sendPushNotification(notification: NotificationData): Prom
   // Firebase limits a multicast request to 500 registration tokens.
   for (let index = 0; index < tokens.length; index += 500) {
     const batch = tokens.slice(index, index + 500);
-    const outcome = await sendMulticastFCM(batch, {
-      title: notification.title,
-      body: notification.body,
-      type: notification.type as never,
-      link: notification.link,
-      data: fcmData(notification.data, notification.type, notification.link),
-    });
-    successCount += outcome.successCount;
-    failureCount += outcome.failureCount;
-    invalidTokens.push(...outcome.invalidTokens);
+    try {
+      const outcome = await sendMulticastFCM(batch, {
+        title: notification.title,
+        body: notification.body,
+        type: notification.type as never,
+        link: notification.link,
+        data: fcmData(notification.data, notification.type, notification.link),
+      });
+      successCount += outcome.successCount;
+      failureCount += outcome.failureCount;
+      invalidTokens.push(...outcome.invalidTokens);
+    } catch (error) {
+      failureCount += batch.length;
+      console.error("Push notification delivery failed; preserving the in-app alert", {
+        eventKey: notification.eventKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   if (invalidTokens.length) {

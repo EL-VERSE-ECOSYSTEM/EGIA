@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Bell, Sparkles, Inbox } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import {
   formatUnreadAriaLabel,
@@ -15,6 +16,8 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const popoverRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const inboxHref = `/dashboard/${pathname.split("/")[2] || "parent"}/communication/notifications`;
 
   const load = async () => {
     try {
@@ -56,7 +59,7 @@ export function NotificationBell() {
     };
   }, [open]);
 
-  useRealtimeSubscription("notification", () => {
+  useRealtimeSubscription("notification_history", () => {
     void load();
   });
 
@@ -228,10 +231,10 @@ export function NotificationBell() {
           {/* Footer Preferences Link */}
           <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
             <a
-              href="/dashboard/parent/settings/notifications"
+              href={inboxHref}
               className="text-[11px] font-bold text-slate-500 hover:text-orange-600 transition-colors inline-flex items-center gap-1"
             >
-              <span>Manage Notification Preferences & Unsubscribe</span>
+              <span>Open full notification inbox</span>
             </a>
           </div>
         </div>

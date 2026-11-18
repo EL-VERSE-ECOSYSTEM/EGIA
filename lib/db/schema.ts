@@ -1,4 +1,4 @@
-import { text, timestamp, boolean, integer, numeric, date, jsonb, pgTable, foreignKey, unique } from 'drizzle-orm/pg-core'
+import { text, timestamp, boolean, integer, numeric, date, jsonb, pgTable, foreignKey, unique, time } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm'
 
 // ===== SCHOOL TENANCY TABLE =====
@@ -243,6 +243,28 @@ export const term = pgTable('term', {
   isCurrent: boolean('isCurrent').default(false),
 }, (t) => [
   foreignKey({ columns: [t.sessionId], foreignColumns: [academicSession.id] }),
+])
+
+export const schoolCalendarEvent = pgTable('school_calendar_event', {
+  id: text('id').primaryKey(),
+  schoolId: text('school_id').notNull(),
+  termId: text('term_id'),
+  sessionId: text('session_id'),
+  title: text('title').notNull(),
+  description: text('description'),
+  category: text('category').notNull().default('ACTIVITY'),
+  eventDate: date('event_date').notNull(),
+  startTime: time('start_time'),
+  endTime: time('end_time'),
+  location: text('location'),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('cascade'),
+  foreignKey({ columns: [t.termId], foreignColumns: [term.id] }).onDelete('set null'),
+  foreignKey({ columns: [t.sessionId], foreignColumns: [academicSession.id] }).onDelete('set null'),
+  foreignKey({ columns: [t.createdBy], foreignColumns: [user.id] }).onDelete('restrict'),
 ])
 
 export const class_ = pgTable('class', {
@@ -788,6 +810,11 @@ export const supportTicket = pgTable('support_ticket', {
   contactName: text('contact_name'),
   contactEmail: text('contact_email'),
   assignedAgentId: text('assignedAgentId'),
+  schoolId: text('school_id'),
+  supportType: text('support_type').notNull().default('APP'),
+  escalatedToSuperAdmin: boolean('escalated_to_super_admin').notNull().default(false),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  approvedBy: text('approved_by'),
   resolution: text('resolution'),
   satisfaction: text('satisfaction'),
   resolvedAt: timestamp('resolvedAt', { withTimezone: true }),
@@ -795,6 +822,8 @@ export const supportTicket = pgTable('support_ticket', {
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   foreignKey({ columns: [t.userId], foreignColumns: [user.id] }),
+  foreignKey({ columns: [t.schoolId], foreignColumns: [school.id] }).onDelete('set null'),
+  foreignKey({ columns: [t.approvedBy], foreignColumns: [user.id] }).onDelete('set null'),
 ])
 
 export const supportTicketReply = pgTable('support_ticket_replies', {

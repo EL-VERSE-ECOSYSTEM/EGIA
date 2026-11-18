@@ -228,6 +228,25 @@ export async function sendMessage(conversationId: string, content: string, attac
     .set({ updatedAt: new Date() })
     .where(eq(conversation.id, conversationId))
 
+  const participants = await db.query.conversationParticipant.findMany({
+    where: eq(conversationParticipant.conversationId, conversationId),
+    columns: { userId: true },
+  })
+  const recipientIds = participants.map(({ userId }) => userId).filter(id => id !== userId)
+  if (recipientIds.length) {
+    const { sendPushNotification } = await import('@/lib/services/notifications')
+    const preview = content.trim().slice(0, 180)
+    await Promise.all(recipientIds.map(recipientId => sendPushNotification({
+      userId: recipientId,
+      title: 'New message',
+      body: preview,
+      type: 'MESSAGE',
+      data: { conversationId, messageId: newMessage[0].id, senderId: userId },
+      link: '/dashboard/communication',
+      eventKey: `message:${newMessage[0].id}:${recipientId}`,
+    }).catch(error => console.error('Message notification failed', { conversationId, recipientId, error }))))
+  }
+
   revalidatePath('/dashboard/communication')
   return newMessage[0]
 }

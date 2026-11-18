@@ -10,8 +10,10 @@ import { getLoggedInNotifications } from '@/app/actions/user'
 import { requestNotificationPermission, sendDeviceNotification } from '@/lib/notifications'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { toast } from 'sonner'
+import NotificationCenter from '@/components/notifications/NotificationCenter'
 
 export default function ParentNotificationsPage() {
+  return <NotificationCenter role="parent" />
   const [notifications, setNotifications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [permissionGranted, setPermissionGranted] = useState(false)

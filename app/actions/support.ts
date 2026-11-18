@@ -6,6 +6,7 @@ import { dispute, disputeMessage, parent, payment, student, supportTicket, suppo
 import { and, desc, eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'crypto'
+import { isSuperAdminEmail, isSuperAdminUser } from '@/lib/auth/super-admin'
 
 function requireText(value: string, label: string, maxLength: number) {
   const normalized = value.trim()
@@ -17,6 +18,21 @@ function requireText(value: string, label: string, maxLength: number) {
 
 function createTicketNumber(prefix: 'SUP' | 'DIS') {
   return `${prefix}-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`
+}
+
+async function notifyAdmins(roleTargets: string[], schoolId: string | null, notice: { title: string; body: string; type: string; data: Record<string, unknown>; eventKey: string }) {
+  try {
+    const roleRows = await db.query.userRole.findMany()
+    const candidates = [...new Set(roleRows.filter(row => roleTargets.includes(row.role.toUpperCase())).map(row => row.userId))]
+    const recipients = await Promise.all(candidates.map(async id => ({ id, account: await db.query.user.findFirst({ where: eq(user.id, id), columns: { schoolId: true } }) })))
+    const matching = recipients.filter(({ account }) => roleTargets.includes('SUPER_ADMIN') ? roleTargets.length === 1 : account?.schoolId === schoolId)
+    const { sendPushNotification } = await import('@/lib/services/notifications')
+    await Promise.all(matching.map(({ id }) => sendPushNotification({
+      userId: id, ...notice, link: '/dashboard', eventKey: `${notice.eventKey}:${id}`,
+    }).catch(error => console.error('Admin notification delivery failed', { recipientId: id, eventKey: notice.eventKey, error }))))
+  } catch (error) {
+    console.error('Unable to notify support administrators', { eventKey: notice.eventKey, error })
+  }
 }
 
 async function isDisputeInAdministratorSchool(disputeRecord: typeof dispute.$inferSelect, administratorId: string) {
@@ -139,6 +155,13 @@ export async function createDispute(data: {
     status: 'OPEN',
   }).returning()
 
+  await notifyAdmins(['ADMIN', 'SCHOOL_ADMIN'], actorSchoolId, {
+    title: `New dispute: ${created.ticketNumber}`,
+    body: `${created.title} — ${created.description.slice(0, 220)}`,
+    type: 'DISPUTE_NEW', data: { disputeId: created.id, ticketNumber: created.ticketNumber, schoolId: actorSchoolId },
+    eventKey: `dispute-created:${created.id}`,
+  })
+
   revalidatePath('/dashboard/admin/communication/disputes')
   revalidatePath('/dashboard/parent/communication/disputes')
   return created
@@ -208,6 +231,24 @@ export async function getSupportTicketReplies(ticketId: string) {
   })
 }
 
+export async function reopenSupportTicket(ticketId: string, message: string) {
+  const session = await auth.getSession()
+  if (!session?.user) throw new Error('Sign in to reopen a support ticket.')
+  const detail = requireText(message, 'Issue update', 5000)
+  const ticket = await db.query.supportTicket.findFirst({ where: and(
+    eq(supportTicket.id, ticketId), eq(supportTicket.userId, session.user.id), eq(supportTicket.status, 'RESOLVED'),
+  ) })
+  if (!ticket) throw new Error('Only your resolved support tickets can be reopened.')
+  await db.insert(supportTicketReply).values({ id: randomUUID(), ticketId, senderId: session.user.id, message: detail })
+  await db.update(supportTicket).set({ status: 'OPEN', resolution: null, resolvedAt: null, updatedAt: new Date() }).where(and(
+    eq(supportTicket.id, ticketId), eq(supportTicket.userId, session.user.id), eq(supportTicket.status, 'RESOLVED'),
+  ))
+  revalidatePath('/dashboard/parent/communication/support/my-tickets')
+  revalidatePath('/dashboard/student/communication/support/my-tickets')
+  revalidatePath('/dashboard/super-admin/support')
+  return { success: true }
+}
+
 export async function getMyDisputes() {
   const session = await auth.getSession()
   if (!session?.user) throw new Error('Sign in to view your disputes.')
@@ -224,6 +265,17 @@ export async function getMyDisputes() {
   })))
 }
 
+export async function getSuperAdminDisputes() {
+  const session = await auth.getSession()
+  if (!session?.user || (session.user.role.toUpperCase() !== 'SUPER_ADMIN' && !(await isSuperAdminUser(session.user.id)) && !(await isSuperAdminEmail(session.user.email)))) throw new Error('Only Super Admins can view all disputes.')
+  const records = await db.query.dispute.findMany({ orderBy: [desc(dispute.createdAt)] })
+  return Promise.all(records.map(async item => ({
+    ...item,
+    raisedBy: await db.query.user.findFirst({ where: eq(user.id, item.raisedById), columns: { name: true, email: true, schoolId: true } }),
+    messages: await db.query.disputeMessage.findMany({ where: and(eq(disputeMessage.disputeId, item.id), eq(disputeMessage.isInternal, false)), orderBy: [desc(disputeMessage.createdAt)] }),
+  })))
+}
+
 export async function createSupportTicket(data: {
   title: string
   category: string
@@ -231,6 +283,7 @@ export async function createSupportTicket(data: {
   description: string
   contactName?: string
   contactEmail?: string
+  supportType?: 'APP' | 'SCHOOL'
 }) {
   const session = await auth.getSession()
   const title = requireText(data.title, 'Ticket title', 160)
@@ -246,6 +299,15 @@ export async function createSupportTicket(data: {
     throw new Error('Enter a valid contact email address.')
   }
 
+  const supportType = data.supportType === 'SCHOOL' ? 'SCHOOL' : 'APP'
+  let schoolId = session?.user.schoolId || null
+  if (session?.user && !schoolId) {
+    const role = session.user.role.toUpperCase()
+    if (role === 'PARENT') schoolId = (await db.query.parent.findFirst({ where: eq(parent.userId, session.user.id), columns: { schoolId: true } }))?.schoolId || null
+    if (role === 'STUDENT' || role === 'PUPIL') schoolId = (await db.query.student.findFirst({ where: eq(student.userId, session.user.id), columns: { schoolId: true } }))?.schoolId || null
+  }
+  if (supportType === 'SCHOOL' && (!session?.user || !schoolId)) throw new Error('School Support is available only to signed-in members of a school.')
+
   const [created] = await db.insert(supportTicket).values({
     id: randomUUID(),
     ticketNumber: createTicketNumber('SUP'),
@@ -256,10 +318,29 @@ export async function createSupportTicket(data: {
       : 'MEDIUM',
     description,
     userId: session?.user.id || null,
+    schoolId,
+    supportType,
+    escalatedToSuperAdmin: session?.user.role.toUpperCase() === 'ADMIN' || session?.user.role.toUpperCase() === 'SCHOOL_ADMIN',
     contactName,
     contactEmail,
     status: 'OPEN',
   }).returning()
+
+  if (supportType === 'SCHOOL' && schoolId) {
+    await notifyAdmins(['ADMIN', 'SCHOOL_ADMIN'], schoolId, {
+      title: `New school support ticket: ${created.ticketNumber}`,
+      body: `${created.title} — ${created.description.slice(0, 220)}`,
+      type: 'SUPPORT_NEW', data: { ticketId: created.id, ticketNumber: created.ticketNumber, schoolId },
+      eventKey: `support-created:${created.id}`,
+    })
+  } else {
+    await notifyAdmins(['SUPER_ADMIN'], null, {
+      title: `New App Support ticket: ${created.ticketNumber}`,
+      body: `${created.title} — ${created.description.slice(0, 220)}`,
+      type: 'SUPPORT_NEW', data: { ticketId: created.id, ticketNumber: created.ticketNumber, schoolId },
+      eventKey: `support-created:${created.id}`,
+    })
+  }
 
   revalidatePath('/dashboard/super-admin/support')
   return created
@@ -267,20 +348,13 @@ export async function createSupportTicket(data: {
 
 export async function resolveDispute(disputeId: string, resolution: string) {
   const session = await auth.getSession()
-  if (!session?.user || !['ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(session.user.role.toUpperCase())) {
-    throw new Error('Only school administrators can resolve disputes.')
+  if (!session?.user || (session.user.role.toUpperCase() !== 'SUPER_ADMIN' && !(await isSuperAdminUser(session.user.id)) && !(await isSuperAdminEmail(session.user.email))) ) {
+    throw new Error('Only a Super Admin can finally close a dispute.')
   }
   const currentDispute = await db.query.dispute.findFirst({
     where: eq(dispute.id, disputeId),
   })
   if (!currentDispute) throw new Error('Dispute not found.')
-
-  if (
-    session.user.role.toUpperCase() !== 'SUPER_ADMIN' &&
-    !await isDisputeInAdministratorSchool(currentDispute, session.user.id)
-  ) {
-    throw new Error('This dispute is outside your school.')
-  }
 
   await db.update(dispute)
     .set({
@@ -291,6 +365,21 @@ export async function resolveDispute(disputeId: string, resolution: string) {
       updatedAt: new Date(),
     })
     .where(eq(dispute.id, disputeId))
+
+  try {
+    const { sendPushNotification } = await import('@/lib/services/notifications')
+    await sendPushNotification({
+      userId: currentDispute.raisedById,
+      title: `Dispute resolved: ${currentDispute.ticketNumber}`,
+      body: requireText(resolution, 'Resolution', 5000),
+      type: 'DISPUTE_RESOLVED',
+      data: { disputeId, ticketNumber: currentDispute.ticketNumber },
+      link: '/dashboard',
+      eventKey: `dispute-resolved:${disputeId}:${Date.now()}`,
+    })
+  } catch (error) {
+    console.error('Dispute resolution notification failed', error)
+  }
 
   revalidatePath('/dashboard/admin/communication/disputes')
   revalidatePath('/dashboard/parent/communication/disputes')
