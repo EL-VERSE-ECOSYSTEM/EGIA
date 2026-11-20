@@ -13,17 +13,23 @@ import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 export default function SuperAdminCBTApprovalsPage() {
   const [cbts, setCbts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
   const loadCBTs = async () => {
     setLoading(true)
-    const res = await getAllCBTsForSuperAdmin()
-    if (res.success) {
-      setCbts(res.cbts || [])
-    } else {
+    try {
+      const res = await getAllCBTsForSuperAdmin()
+      if (res.success) {
+        setCbts(res.cbts || [])
+      } else {
+        toast.error('error' in res ? res.error : 'Failed to load CBT assessments')
+      }
+    } catch {
       toast.error('Failed to load CBT assessments')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -36,12 +42,19 @@ export default function SuperAdminCBTApprovalsPage() {
   })
 
   const handleApproveCBT = async (cbtId: string) => {
-    const res = await approveCBTAssessmentAction(cbtId, true)
-    if (res.success) {
-      toast.success('CBT Assessment Approved!')
-      loadCBTs()
-    } else {
-      toast.error('error' in res ? res.error : 'Approval failed')
+    setApprovingId(cbtId)
+    try {
+      const res = await approveCBTAssessmentAction(cbtId, true)
+      if (res.success) {
+        toast.success('CBT Assessment Approved!')
+        await loadCBTs()
+      } else {
+        toast.error('error' in res ? res.error : 'Approval failed')
+      }
+    } catch {
+      toast.error('Approval failed. Please try again.')
+    } finally {
+      setApprovingId(null)
     }
   }
 
@@ -112,17 +125,18 @@ export default function SuperAdminCBTApprovalsPage() {
                 </div>
 
                 <div className="text-xs font-semibold text-slate-600 space-y-1">
-                  <p><strong>Duration:</strong> {cbt.durationMinutes || 45} minutes</p>
-                  <p><strong>Pass Mark:</strong> {cbt.passMarkPercentage || 50}%</p>
+                  <p><strong>Duration:</strong> {cbt.duration || 45} minutes</p>
+                  <p><strong>Pass Mark:</strong> {cbt.passingScore || 50}%</p>
                   <p><strong>Created At:</strong> {new Date(cbt.createdAt).toLocaleDateString()}</p>
                 </div>
 
                 {cbt.status !== 'APPROVED' && cbt.status !== 'approved' && (
                   <button
                     onClick={() => handleApproveCBT(cbt.id)}
+                    disabled={approvingId === cbt.id}
                     className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase shadow-sm transition flex items-center justify-center gap-1.5"
                   >
-                    <CheckCircle className="w-3.5 h-3.5" /> Approve CBT Assessment
+                    <CheckCircle className="w-3.5 h-3.5" /> {approvingId === cbt.id ? 'Approving…' : 'Approve CBT Assessment'}
                   </button>
                 )}
               </div>

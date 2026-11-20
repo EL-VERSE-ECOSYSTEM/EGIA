@@ -145,9 +145,9 @@ export default function SignInPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 px-4 py-10 text-white sm:px-6">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-950 via-[#070b14] to-black px-4 py-10 text-white sm:px-6">
       {/* Background Decor */}
-      <div aria-hidden="true" className="pointer-events-none absolute -top-40 left-1/2 size-[32rem] -translate-x-1/2 rounded-full bg-slate-500/5 blur-[120px]" />
+      <div aria-hidden="true" className="pointer-events-none absolute -top-40 left-1/2 size-[32rem] -translate-x-1/2 rounded-full bg-indigo-500/[0.035] blur-[140px]" />
 
       <div className="relative z-10 w-full max-w-md space-y-6">
         {/* Header */}
@@ -197,7 +197,7 @@ export default function SignInPage() {
         </div>
 
         {/* Card Form */}
-        <Card className="overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-900/90 shadow-2xl shadow-black/25 backdrop-blur-xl">
+        <Card className="overflow-hidden rounded-3xl border border-slate-700/80 bg-[#080d18]/95 shadow-2xl shadow-black/50 backdrop-blur-xl">
           <CardContent className="space-y-6 p-5 sm:p-8">
             {error && (
               <div role="alert" aria-live="polite" className="flex items-start gap-3 rounded-xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm leading-6 text-rose-100">

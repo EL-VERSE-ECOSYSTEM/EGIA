@@ -9,7 +9,6 @@ export async function claimFeeReminder(userId: string, studentId: string) {
 
 export async function releaseFeeReminderClaim(userId: string, studentId: string) {
   await sqlClient`
-    delete from public.fee_reminder_claim
-    where user_id = ${userId} and student_id = ${studentId}
+    select public.release_fee_reminder(${userId}, ${studentId})
   `
 }

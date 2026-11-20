@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db'
 import { school, user, userRole, student, teacher, parent, assessment, notification, schoolRegistrationApplication, schoolAdminRoles, auditLog } from '@/lib/db/schema'
-import { eq, sql, desc } from 'drizzle-orm'
+import { eq, sql, desc, inArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { randomUUID } from 'crypto'
@@ -10,6 +10,7 @@ import { sanitizeServerError } from '@/lib/errors'
 import { isSuperAdminEmail, isSuperAdminUser } from '@/lib/auth/super-admin'
 import { generateTemporaryPassword } from '@/lib/onboarding-credentials'
 import { sendSchoolApprovalEmailOnce } from '@/lib/school-approval-email'
+import { handleCBTDecision } from '@/app/actions/admin-cbt'
 
 async function checkSuperAdminPermission() {
   const session = await auth.getSession()
@@ -298,6 +299,7 @@ export async function getAllCBTsForSuperAdmin() {
     await checkSuperAdminPermission()
 
     const cbtsList = await db.query.assessment.findMany({
+      where: inArray(assessment.status, ['pending_approval', 'draft']),
       with: {
         school: true,
         subject: true,
@@ -306,7 +308,14 @@ export async function getAllCBTsForSuperAdmin() {
       orderBy: (assessment, { desc }) => [desc(assessment.createdAt)]
     })
 
-    return { success: true, cbts: cbtsList }
+    return {
+      success: true,
+      cbts: cbtsList.map((cbt) => ({
+        ...cbt,
+        subjectName: cbt.subject?.name ?? null,
+        targetClass: cbt.targetClassId ?? null,
+      })),
+    }
   } catch (error: any) {
     return sanitizeServerError('getAllCBTsForSuperAdmin', error, 'Unable to retrieve CBT assessments.')
   }
@@ -664,15 +673,8 @@ export async function quickReplySupportTicketAction(ticketId: string) {
 export async function approveCBTAssessmentAction(assessmentId: string, approved: boolean, comment?: string) {
   try {
     await checkSuperAdminPermission()
-
-    await db.update(assessment)
-      .set({
-        status: approved ? 'approved' : 'rejected',
-        adminComment: comment || null,
-        updatedAt: new Date()
-      })
-      .where(eq(assessment.id, assessmentId))
-
+    await handleCBTDecision(assessmentId, approved ? 'approve' : 'reject', comment || '')
+    revalidatePath('/dashboard/super-admin/cbts')
     revalidatePath('/dashboard/super-admin/overview')
     return { success: true }
   } catch (error: any) {

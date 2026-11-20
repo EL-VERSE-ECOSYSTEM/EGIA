@@ -85,7 +85,17 @@ export async function sendScheduledFeeReminders() {
           await notifyUser(userId, notice)
           reminded += 1
         } catch (error) {
-          if (claimed) await releaseFeeReminderClaim(userId, profile.id)
+          if (claimed) {
+            try {
+              await releaseFeeReminderClaim(userId, profile.id)
+            } catch (releaseError) {
+              console.error('Unable to release failed school-fee reminder claim:', {
+                studentId: profile.id,
+                userId,
+                error: releaseError instanceof Error ? releaseError.message : String(releaseError),
+              })
+            }
+          }
           failed += 1
           console.error('Scheduled school-fee reminder failed:', {
             studentId: profile.id,
