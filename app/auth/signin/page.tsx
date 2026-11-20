@@ -145,21 +145,21 @@ export default function SignInPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-950 via-[#070b14] to-black px-4 py-10 text-white sm:px-6">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top,_#eef2ff,_#f8fafc_48%,_#f1f5f9)] px-4 py-10 text-slate-900 sm:px-6">
       {/* Background Decor */}
-      <div aria-hidden="true" className="pointer-events-none absolute -top-40 left-1/2 size-[32rem] -translate-x-1/2 rounded-full bg-indigo-500/[0.035] blur-[140px]" />
+      <div aria-hidden="true" className="pointer-events-none absolute -top-40 left-1/2 size-[32rem] -translate-x-1/2 rounded-full bg-indigo-300/30 blur-[140px]" />
 
       <div className="relative z-10 w-full max-w-md space-y-6">
         {/* Header */}
         <div className="space-y-3 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-400/20 bg-slate-800/60 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-200">
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white/80 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.14em] text-indigo-800 shadow-sm">
             <GraduationCap className="w-4 h-4" />
             <span>EL LEARNERS APP</span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
             {loginMode === 'superadmin' ? 'Super Admin Portal' : 'Welcome Back'}
           </h1>
-          <p className="mx-auto max-w-sm text-sm leading-6 text-slate-300">
+          <p className="mx-auto max-w-sm text-sm leading-6 text-slate-600">
             {loginMode === 'superadmin'
               ? 'Secure easy login for Global Platform Administrators.'
               : 'Sign in using Email Address, Staff ID (Teacher), or Admission Number (Student).'}
@@ -167,15 +167,15 @@ export default function SignInPage() {
         </div>
 
         {/* Mode Switcher Tabs */}
-        <div className="grid grid-cols-2 gap-1 rounded-2xl border border-slate-700/80 bg-slate-900/80 p-1.5 shadow-lg shadow-black/10" role="group" aria-label="Choose sign-in portal">
+        <div className="grid grid-cols-2 gap-1 rounded-2xl border border-slate-200 bg-white/85 p-1.5 shadow-lg shadow-slate-900/5" role="group" aria-label="Choose sign-in portal">
           <button
             type="button"
             onClick={() => handleModeSwitch('standard')}
             aria-pressed={loginMode === 'standard'}
             className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all ${
               loginMode === 'standard'
-                ? 'bg-slate-700 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-indigo-700 text-white shadow-sm'
+                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
             }`}
           >
             <UserCheck className="w-4 h-4" />
@@ -187,8 +187,8 @@ export default function SignInPage() {
             aria-pressed={loginMode === 'superadmin'}
             className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all ${
               loginMode === 'superadmin'
-                ? 'bg-slate-700 text-white shadow-sm border border-slate-600'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-indigo-700 text-white shadow-sm'
+                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
             }`}
           >
             <Crown className="w-4 h-4 text-amber-400" />
@@ -197,25 +197,25 @@ export default function SignInPage() {
         </div>
 
         {/* Card Form */}
-        <Card className="overflow-hidden rounded-3xl border border-slate-700/80 bg-[#080d18]/95 shadow-2xl shadow-black/50 backdrop-blur-xl">
+        <Card className="overflow-hidden rounded-3xl border border-slate-200 bg-white/95 shadow-2xl shadow-slate-900/10 backdrop-blur-xl">
           <CardContent className="space-y-6 p-5 sm:p-8">
             {error && (
-              <div role="alert" aria-live="polite" className="flex items-start gap-3 rounded-xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm leading-6 text-rose-100">
-                <Shield className="w-5 h-5 text-rose-400 shrink-0" />
+              <div role="alert" aria-live="polite" className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-800">
+                <Shield className="w-5 h-5 text-rose-600 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
             {loginMode === 'superadmin' && (
-              <div className="flex items-start gap-3 rounded-xl border border-purple-400/25 bg-purple-400/10 p-4 text-sm leading-6 text-purple-100">
-                <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+              <div className="flex items-start gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm leading-6 text-violet-900">
+                <Crown className="w-4 h-4 text-amber-600 shrink-0" />
                 <span>Super Admin Mode Active: Authenticate with password to access system controls.</span>
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-semibold text-slate-100">
+                <Label htmlFor="email" className="text-sm font-semibold text-slate-800">
                   {loginMode === 'superadmin' ? 'Super Admin Email' : 'Email, Staff ID, or Admission Number'}
                 </Label>
                 <div className="relative">
@@ -234,10 +234,10 @@ export default function SignInPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     aria-describedby="email-hint"
-                    className="h-12 rounded-xl border-slate-700 bg-slate-950/70 pl-11 text-sm font-medium text-white placeholder:text-slate-500 focus-visible:ring-slate-400"
+                    className="h-12 rounded-xl border-slate-300 bg-white pl-11 text-sm font-medium text-slate-900 placeholder:text-slate-500 focus-visible:ring-indigo-600"
                   />
                 </div>
-                <p id="email-hint" className="pl-1 text-xs leading-5 text-slate-400">
+                <p id="email-hint" className="pl-1 text-xs leading-5 text-slate-600">
                   {loginMode === 'superadmin'
                     ? 'Enter your registered Super Admin email account.'
                     : 'Use your registered school email address, staff code, or admission number.'}
@@ -246,12 +246,12 @@ export default function SignInPage() {
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label htmlFor="password" className="text-sm font-semibold text-slate-100">
+                  <Label htmlFor="password" className="text-sm font-semibold text-slate-800">
                     Password
                   </Label>
                   <Link
                     href="/auth/forgot-password"
-                    className="text-sm font-medium text-slate-300 underline-offset-4 hover:underline hover:text-white"
+                    className="text-sm font-semibold text-indigo-700 underline-offset-4 hover:underline hover:text-indigo-900"
                   >
                     Forgot Password?
                   </Link>
@@ -266,16 +266,16 @@ export default function SignInPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="h-12 rounded-xl border-slate-700 bg-slate-950/70 pl-11 pr-11 text-sm font-medium text-white placeholder:text-slate-500 focus-visible:ring-slate-400"
+                    className="h-12 rounded-xl border-slate-300 bg-white pl-11 pr-11 text-sm font-medium text-slate-900 placeholder:text-slate-500 focus-visible:ring-indigo-600"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     aria-pressed={showPassword}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-600 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
@@ -286,9 +286,9 @@ export default function SignInPage() {
                   id="remember"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="size-4 rounded border-slate-600 bg-slate-950 text-slate-300 focus:ring-slate-400"
+                  className="size-4 rounded border-slate-400 bg-white text-indigo-700 focus:ring-indigo-600"
                 />
-                <label htmlFor="remember" className="cursor-pointer select-none text-sm text-slate-300">
+                <label htmlFor="remember" className="cursor-pointer select-none text-sm text-slate-700">
                   Use this portal automatically next time
                 </label>
               </div>
@@ -296,10 +296,10 @@ export default function SignInPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold tracking-wide text-white shadow-lg transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+                className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold tracking-wide text-white shadow-lg transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                   loginMode === 'superadmin'
-                    ? 'bg-slate-700 hover:bg-slate-600 shadow-black/20'
-                    : 'bg-slate-700 hover:bg-slate-600 shadow-black/20'
+                    ? 'bg-indigo-800 hover:bg-indigo-900 shadow-indigo-900/20'
+                    : 'bg-indigo-800 hover:bg-indigo-900 shadow-indigo-900/20'
                 }`}
               >
                 {loading ? (
@@ -317,31 +317,31 @@ export default function SignInPage() {
             </form>
 
             {/* Registration Navigation Links */}
-            <div className="space-y-4 border-t border-slate-700/80 pt-5 text-center">
-              <p className="text-sm text-slate-300">
+            <div className="space-y-4 border-t border-slate-200 pt-5 text-center">
+              <p className="text-sm text-slate-700">
                 Don't have a User Account?{' '}
                 <Link
                   href="/auth/signup"
-                  className="font-semibold text-slate-200 underline underline-offset-4 hover:text-white"
+                  className="font-semibold text-indigo-700 underline underline-offset-4 hover:text-indigo-900"
                 >
                   Create User Account
                 </Link>
               </p>
-              <p className="text-sm text-slate-300">
+              <p className="text-sm text-slate-700">
                 Don't have a School Account?{' '}
                 <Link
                   href="/school-registration"
-                  className="font-semibold text-emerald-300 underline underline-offset-4 hover:text-emerald-200"
+                  className="font-semibold text-emerald-700 underline underline-offset-4 hover:text-emerald-900"
                 >
                   Create School Account
                 </Link>
               </p>
-              <div className="flex justify-center gap-4 pt-1 text-xs font-medium text-slate-400">
-                <Link href="/terms" className="hover:text-slate-300 transition-colors">
+              <div className="flex justify-center gap-4 pt-1 text-xs font-medium text-slate-600">
+                <Link href="/terms" className="hover:text-slate-900 transition-colors">
                   Terms & Conditions
                 </Link>
                 <span>•</span>
-                <Link href="/privacy" className="hover:text-slate-300 transition-colors">
+                <Link href="/privacy" className="hover:text-slate-900 transition-colors">
                   Privacy Policy
                 </Link>
               </div>
@@ -350,7 +350,7 @@ export default function SignInPage() {
         </Card>
 
         {/* Footer info */}
-        <div className="text-center text-xs text-slate-500">
+        <div className="text-center text-xs text-slate-600">
           <p>© 2026 EL LEARNERS APP</p>
         </div>
       </div>
